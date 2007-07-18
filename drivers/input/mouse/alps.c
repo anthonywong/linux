@@ -632,7 +632,8 @@ static int alps_reconnect(struct psmouse *psmouse)
 {
 	const struct alps_model_info *model;
 
-	psmouse_reset(psmouse);
+	/* UBUNTU: Causes lockups on resume */
+	/* psmouse_reset(psmouse); */
 
 	model = alps_get_model(psmouse, NULL);
 	if (!model)
