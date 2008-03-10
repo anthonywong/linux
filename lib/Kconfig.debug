@@ -530,3 +530,5 @@ config LATENCYTOP
 
 
 source "samples/Kconfig"
+
+source "lib/Kconfig.kgdb"
