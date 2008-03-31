@@ -89,6 +89,10 @@ extern char elf_platform[];
 
 struct elf32_hdr;
 
+struct task_struct;
+
+extern int dump_task_regs (struct task_struct *, elf_gregset_t *);
+
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -118,5 +122,7 @@ int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
 
 extern void elf_set_personality(const struct elf32_hdr *);
 #define SET_PERSONALITY(ex)	elf_set_personality(&(ex))
+
+#define ELF_CORE_COPY_TASK_REGS(tsk, elf_regs) dump_task_regs(tsk, elf_regs)
 
 #endif
