@@ -24,6 +24,10 @@
 #include "sdio_ops.h"
 #include "sdio_cis.h"
 
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#include <linux/mmc/sdio_ids.h>
+#endif
+
 static int sdio_read_fbr(struct sdio_func *func)
 {
 	int ret;
@@ -518,10 +522,101 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	 */
 	card->sdio_funcs = funcs = (ocr & 0x70000000) >> 28;
 
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.funcs)
+		funcs = host->embedded_sdio_data.num_funcs;
+#endif
+
+	/*
+	 * Allocate card structure.
+	 */
+	card = mmc_alloc_card(host, NULL);
+	if (IS_ERR(card)) {
+		err = PTR_ERR(card);
+		goto err;
+	}
+
+	card->type = MMC_TYPE_SDIO;
+	card->sdio_funcs = funcs;
+
+	host->card = card;
+
+	/*
+	 * For native busses:  set card RCA and quit open drain mode.
+	 */
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_send_relative_addr(host, &card->rca);
+		if (err)
+			goto remove;
+
+		mmc_set_bus_mode(host, MMC_BUSMODE_PUSHPULL);
+	}
+
+	/*
+	 * Select card, as all following commands rely on that.
+	 */
+	if (!mmc_host_is_spi(host)) {
+		err = mmc_select_card(card);
+		if (err)
+			goto remove;
+	}
+
 	/*
 	 * If needed, disconnect card detection pull-up resistor.
 	 */
-	err = sdio_disable_cd(card);
+
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cccr)
+		memcpy(&card->cccr, host->embedded_sdio_data.cccr, sizeof(struct sdio_cccr));
+	else {
+#endif
+		err = sdio_read_cccr(card);
+		if (err)
+			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
+
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cis)
+		memcpy(&card->cis, host->embedded_sdio_data.cis, sizeof(struct sdio_cis));
+	else {
+#endif
+		/*
+		 * Read the common CIS tuples.
+		 */
+		err = sdio_read_common_cis(card);
+		if (err)
+			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
+	/*
+	 * Switch to high-speed (if supported).
+	 */
+	err = sdio_enable_hs(card);
+	if (err)
+		goto remove;
+
+	/*
+	 * Change to the card's maximum speed.
+	 */
+	if (mmc_card_highspeed(card)) {
+		/*
+		 * The SDIO specification doesn't mention how
+		 * the CIS transfer speed register relates to
+		 * high-speed, but it seems that 50 MHz is
+		 * mandatory.
+		 */
+		mmc_set_clock(host, 50000000);
+	} else {
+		mmc_set_clock(host, card->cis.max_dtr);
+	}
+
+	/*
+	 * Switch to wider bus (if supported).
+	 */
+	err = sdio_enable_wide(card);
 	if (err)
 		goto remove;
 
@@ -529,9 +624,27 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	 * Initialize (but don't add) all present functions.
 	 */
 	for (i = 0;i < funcs;i++) {
-		err = sdio_init_func(host->card, i + 1);
-		if (err)
-			goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+		if (host->embedded_sdio_data.funcs) {
+			struct sdio_func *tmp;
+
+			tmp = sdio_alloc_func(host->card);
+			if (IS_ERR(tmp))
+				goto remove;
+			tmp->num = (i + 1);
+			card->sdio_func[i] = tmp;
+			tmp->class = host->embedded_sdio_data.funcs[i].f_class;
+			tmp->max_blksize = host->embedded_sdio_data.funcs[i].f_maxblksize;
+			tmp->vendor = card->cis.vendor;
+			tmp->device = card->cis.device;
+		} else {
+#endif
+			err = sdio_init_func(host->card, i + 1);
+			if (err)
+				goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+		}
+#endif
 	}
 
 	mmc_release_host(host);
