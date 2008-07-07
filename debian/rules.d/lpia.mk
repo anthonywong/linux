@@ -12,7 +12,7 @@ do_debug_image	= true
 loader		= grub
 
 #custom_flavours = lpiacompat lpia
-custom_flavours = lpia lpiacompat
+custom_flavours = lpia
 
 #
 # Set this variable to 'true' in order to
