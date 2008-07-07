@@ -1,3 +1,13 @@
+linux (2.6.24-19.35netbook1) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Remove lpiacompat from build
+  * Patch from abi-18 for Realtek Ethernet fix
+  * Netbook LPIA kernel config.  New ABI-19 bump
+
+ -- Michael Frey <michael.frey@canonical.com>  Mon, 07 Jul 2008 12:37:24 +0100
+
 linux (2.6.24-0.0) UNRELEASED; urgency=low
 
   * Initial release. (Closes: #XXXXXX)
