@@ -1,3 +1,13 @@
+linux (2.6.24-19.35netbook3) hardy; urgency=low
+
+  [Michael Frey]
+
+  * New Memory Stick block driver
+  * Add config option for Memory Stick driver
+  * Turn on Memory Stick driver
+
+ -- Michael Frey <michael.frey@canonical.com>  Tue, 15 Jul 2008 13:55:48 +0100
+
 linux (2.6.24-19.35netbook2) hardy; urgency=low
 
   [Michael Frey]
