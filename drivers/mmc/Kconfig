@@ -19,6 +19,12 @@ config MMC_DEBUG
 	help
 	  This is an option for use by developers; most people should
 	  say N here.  This enables MMC core and driver debugging.
+
+config MSPRO
+	bool "Memory Stick Pro"
+	depends on MMC != n
+	help
+                This option is to support Sony Memory Stick Pro
 if MMC
 
 source "drivers/mmc/core/Kconfig"
