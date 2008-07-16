@@ -12,13 +12,14 @@
  *
  */
 
-#include "memstick.h"
+#include "linux/memstick.h"
 #include <linux/idr.h>
 #include <linux/fs.h>
 #include <linux/delay.h>
+#include <linux/version.h>
 
 #define DRIVER_NAME "memstick"
-#define DRIVER_VERSION "0.2"
+#define DRIVER_VERSION "0.2a"
 
 static unsigned int cmd_retries = 3;
 module_param(cmd_retries, uint, 0644);
@@ -59,27 +60,7 @@ static int memstick_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static int memstick_uevent(struct device *dev, char **envp, int num_envp,
-                           char *buffer, int buffer_size)
-{
-	struct memstick_dev *card = container_of(dev, struct memstick_dev,
-						 dev);
-	int i = 0;
-	int length = 0;
-
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			   "MEMSTICK_TYPE=%02X", card->id.type))
-		return -ENOMEM;
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			   "MEMSTICK_CATEGORY=%02X", card->id.category))
-		return -ENOMEM;
-	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-			   "MEMSTICK_CLASS=%02X", card->id.class))
-		return -ENOMEM;
-
-	return 0;
-}
-/*
+#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,23)
 static int memstick_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct memstick_dev *card = container_of(dev, struct memstick_dev,
@@ -96,7 +77,29 @@ static int memstick_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	return 0;
 }
-*/
+#else
+static int memstick_uevent(struct device *dev, char **envp, int num_envp,
+			   char *buffer, int buffer_size)
+{
+	struct memstick_dev *card = container_of(dev, struct memstick_dev,
+						  dev);
+	int i = 0;
+	int length = 0;
+
+	if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+			   "MEMSTICK_TYPE=%02X", card->id.type))
+		return -ENOMEM;
+        if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+			   "MEMSTICK_CATEGORY=%02X", card->id.category))
+		return -ENOMEM;
+        if (add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
+			   "MEMSTICK_CLASS=%02X", card->id.class))
+		return -ENOMEM;
+
+	return 0;
+}
+#endif
+
 static int memstick_device_probe(struct device *dev)
 {
 	struct memstick_dev *card = container_of(dev, struct memstick_dev,
@@ -271,8 +274,11 @@ EXPORT_SYMBOL(memstick_next_req);
  */
 void memstick_new_req(struct memstick_host *host)
 {
+	if (host->card) {
 	host->retries = cmd_retries;
+		INIT_COMPLETION(host->card->mrq_complete);
 	host->request(host);
+}
 }
 EXPORT_SYMBOL(memstick_new_req);
 
@@ -360,9 +366,7 @@ static int h_memstick_read_dev_id(struct memstick_dev *card,
 			card->id.class = id_reg.class;
 		}
 		complete(&card->mrq_complete);
-#ifdef DBG
 		dev_dbg(&card->dev, "if_mode = %02x\n", id_reg.if_mode);
-#endif
 		return -EAGAIN;
 	}
 }
@@ -439,11 +443,14 @@ err_out:
 	return NULL;
 }
 
-static void memstick_power_on(struct memstick_host *host)
+static int memstick_power_on(struct memstick_host *host)
 {
-	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
-	host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
-	msleep(1);
+	int rc = host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
+
+	if (!rc)
+		rc = host->set_param(host, MEMSTICK_INTERFACE, MEMSTICK_SERIAL);
+
+	return rc;
 }
 
 static void memstick_check(struct work_struct *work)
@@ -452,12 +459,13 @@ static void memstick_check(struct work_struct *work)
 						  media_checker);
 	struct memstick_dev *card;
 
-#ifdef DBG
 	dev_dbg(host->cdev.dev, "memstick_check started\n");
-#endif
 	mutex_lock(&host->lock);
-	if (!host->card)
-		memstick_power_on(host);
+	if (!host->card) {
+		if (memstick_power_on(host))
+			goto out_power_off;
+	} else
+		host->card->stop(host->card);
 
 	card = memstick_alloc_card(host);
 
@@ -467,17 +475,16 @@ static void memstick_check(struct work_struct *work)
 			host->card = NULL;
 		}
 	} else {
-#ifdef DBG
 		dev_dbg(host->cdev.dev, "new card %02x, %02x, %02x\n",
 			card->id.type, card->id.category, card->id.class);
-#endif
 		if (host->card) {
 			if (memstick_set_rw_addr(host->card)
 			    || !memstick_dev_match(host->card, &card->id)
 			    || !(host->card->check(host->card))) {
 				device_unregister(&host->card->dev);
 				host->card = NULL;
-			}
+			} else
+				host->card->start(host->card);
 		}
 
 		if (!host->card) {
@@ -490,13 +497,12 @@ static void memstick_check(struct work_struct *work)
 			kfree(card);
 	}
 
+out_power_off:
 	if (!host->card)
 		host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_OFF);
 
 	mutex_unlock(&host->lock);
-#ifdef DBG
 	dev_dbg(host->cdev.dev, "memstick_check finished\n");
-#endif
 }
 
 /**
@@ -605,10 +611,15 @@ EXPORT_SYMBOL(memstick_suspend_host);
  */
 void memstick_resume_host(struct memstick_host *host)
 {
+	int rc = 0;
+
 	mutex_lock(&host->lock);
-	host->set_param(host, MEMSTICK_POWER, MEMSTICK_POWER_ON);
+	if (host->card)
+		rc = memstick_power_on(host);
 	mutex_unlock(&host->lock);
-	memstick_detect_change(host);
+
+	if (!rc)
+		memstick_detect_change(host);
 }
 EXPORT_SYMBOL(memstick_resume_host);
 
