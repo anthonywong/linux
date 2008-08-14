@@ -703,7 +703,7 @@ static const struct ich_laptop ich_laptop[] = {
 	{ 0x24CA, 0x1025, 0x003d },	/* ICH4 on Acer TM290 */
 	{ 0x266F, 0x1025, 0x0066 },	/* ICH6 on ACER Aspire 1694WLMi */
         { 0x811a, 0x8086, 0x8119 },     /* SCH  on Chelsea */
-        { 0x27DF, 0x1028, 0x02b0 },     /* ICH7 on Belmont */
+        /*       { 0x27DF, 0x1028, 0x02b0 },      ICH7 on Belmont */
 	/* end marker */
 	{ 0, }
 };
