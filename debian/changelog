@@ -1,3 +1,12 @@
+linux (2.6.24-19.36netbook3) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Build ehci_hcd as a module
+  * Modified ata_piix.c to add proper PCI ID for Chelsea ata controller
+
+ -- Michael Frey <michael.frey@canonical.com>  Wed, 27 Aug 2008 11:07:18 -0400
+
 linux (2.6.24-19.36netbook2) hardy; urgency=low
 
   [Michael Frey]
