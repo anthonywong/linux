@@ -1,3 +1,11 @@
+linux (2.6.24-19.41netbook1) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Bump release
+
+ -- Michael Frey <michael.frey@canonical.com>  Thu, 04 Sep 2008 10:52:48 -0400
+
 linux (2.6.24-19.36netbook3) hardy; urgency=low
 
   [Michael Frey]
