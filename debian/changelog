@@ -1,3 +1,11 @@
+linux (2.6.24-19.41netbook2) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Backport of HPET clock changes from 2.6.27
+
+ -- Michael Frey <michael.frey@canonical.com>  Wed, 10 Sep 2008 15:20:56 -0400
+
 linux (2.6.24-19.41netbook1) hardy; urgency=low
 
   [Michael Frey]
