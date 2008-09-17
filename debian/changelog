@@ -1,3 +1,14 @@
+linux (2.6.24-19.41netbook3) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Applied "USB: another ehci_iaa_watchdog fix" from upstream kernel
+  * Git commit cdc647a9b75741659bfc6acc44a6b3a646ad53bf
+  * Fixes ehci lockup issue on resume from S3
+  * Fixes LP#243047 and LP#253053
+
+ -- Michael Frey <michael.frey@canonical.com>  Wed, 17 Sep 2008 11:20:07 -0400
+
 linux (2.6.24-19.41netbook2) hardy; urgency=low
 
   [Michael Frey]
