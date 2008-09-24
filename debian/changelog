@@ -1,3 +1,11 @@
+linux (2.6.24-19.41netbook4) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Added PCI ID for Natick.  Enable 40 wire cable detect to ata_pix.c
+
+ -- Michael Frey <michael.frey@canonical.com>  Wed, 24 Sep 2008 10:59:25 -0400
+
 linux (2.6.24-19.41netbook3) hardy; urgency=low
 
   [Michael Frey]
