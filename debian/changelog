@@ -1,3 +1,14 @@
+linux (2.6.24-19.41netbook5) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Modified hci_usb to include new USB:ID for Dell Mini 9 BT module
+  * Cherry pick from Hardy which Stefan Bader kindly back ported
+  * from upstream. It will reset the device by writing RESET_VALUE to port
+  * RESET_REG - these values are gleaned from the ACPI FACP table
+
+ -- Michael Frey <michael.frey@canonical.com>  Thu, 09 Oct 2008 15:15:40 -0400
+
 linux (2.6.24-19.41netbook4) hardy; urgency=low
 
   [Michael Frey]
