@@ -587,6 +587,8 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 
 	acpi_ec_burst_enable(ec);
 
+	acpi_ec_burst_enable(ec);
+
 	if (function == ACPI_READ) {
 		result = acpi_ec_read(ec, address, &temp);
 		*value = temp;
@@ -605,6 +607,8 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 			result = acpi_ec_write(ec, address, temp);
 		}
 	}
+
+	acpi_ec_burst_disable(ec);
 
 	acpi_ec_burst_disable(ec);
 
