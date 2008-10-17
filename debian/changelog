@@ -1,3 +1,11 @@
+linux (2.6.24-19.41netbook7) hardy; urgency=low
+
+  [Debbie Beliveau]
+
+  * ATA: Added PCI ID for Dennis; Enable 40 wire cable detect to ata_pix.c
+
+ -- Tony Espy <espy@canonical.com>  Fri, 17 Oct 2008 18:37:43 +0000
+
 linux (2.6.24-19.41netbook6) hardy; urgency=low
 
   [Upstream Kernel Changes]
