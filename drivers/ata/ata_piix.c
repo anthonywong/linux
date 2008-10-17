@@ -705,6 +705,7 @@ static const struct ich_laptop ich_laptop[] = {
         { 0x811A, 0x1509, 0x5001 },     /* SCH  on Chelsea */
         { 0x27DF, 0x1028, 0x02b0 },     /* ICH7 on Belmont */
         { 0x27DF, 0x152D, 0x0778 },     /* ICH7 on Natick */
+	{ 0x27DF, 0x103C, 0x361A },     /* ICH7 on Dennis */
 	/* end marker */
 	{ 0, }
 };
