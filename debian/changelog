@@ -1,3 +1,11 @@
+linux (2.6.24-19.41netbook8) hardy; urgency=low
+
+  [Upstream Kernel Changes]
+
+  * USB: make USB PERSIST work after every system sleep.
+
+ -- Tony Espy <espy@canonical.com>  Thu, 23 Oct 2008 19:18:49 +0000
+
 linux (2.6.24-19.41netbook7) hardy; urgency=low
 
   [Debbie Beliveau]
