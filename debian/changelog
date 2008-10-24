@@ -1,3 +1,12 @@
+linux (2.6.24-19.41netbook9) hardy; urgency=low
+
+  [Michael Frey]
+
+  * debian/binary-custom.d/lpia/config.lpia.  Turned on HIGHMEM and
+    HIGHMEM4G as well as enabled SECURITY configs to match the 386 kernel.
+
+ -- Michael Frey <michael.frey@canonical.com>  Fri, 24 Oct 2008 18:57:07 -0400
+
 linux (2.6.24-19.41netbook8) hardy; urgency=low
 
   [Upstream Kernel Changes]
