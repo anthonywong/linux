@@ -2309,6 +2309,9 @@ void __init setup_IO_APIC(void)
 	/* Mark FIRST_DEVICE_VECTOR which is assigned to IRQ0 as used. */
 	set_bit(FIRST_DEVICE_VECTOR, used_vectors);
 
+	/* Mark FIRST_DEVICE_VECTOR which is assigned to IRQ0 as used. */
+	set_bit(FIRST_DEVICE_VECTOR, used_vectors);
+
 	enable_IO_APIC();
 
 	if (acpi_ioapic)
@@ -2472,6 +2475,7 @@ int create_irq(void)
 		dynamic_irq_init(irq);
 	}
 	return irq;
+        clear_bit(irq_vector[irq], used_vectors);
 }
 
 void destroy_irq(unsigned int irq)
