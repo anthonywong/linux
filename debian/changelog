@@ -1,3 +1,12 @@
+linux (2.6.24-19.41netbook10) hardy; urgency=low
+
+  [Michael Frey]
+
+  * arch/x86/kernel/io_apic_32.c
+    Clear IRQ bit when drivers are unloaded.  Part Fix for LP#243047
+
+ -- Michael Frey <michael.frey@canonical.com>  Mon, 03 Nov 2008 09:35:43 -0500
+
 linux (2.6.24-19.41netbook9) hardy; urgency=low
 
   [Michael Frey]
