@@ -594,6 +594,13 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 	 */
 	acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1);
 
+	/*
+	 * Some BIOSes assume that WAK_STS will be cleared on resume and use
+	 * it to determine whether the system is rebooting or resuming. Clear
+	 * it for compatibility.
+	 */
+	acpi_set_register(ACPI_BITREG_WAKE_STATUS, 1);
+
 	acpi_gbl_system_awake_and_running = TRUE;
 
 	/* Enable power button */
