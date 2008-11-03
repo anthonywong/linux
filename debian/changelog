@@ -1,3 +1,12 @@
+linux (2.6.24-19.41netbook11) hardy; urgency=low
+
+  [Upstream Kernel Changes]
+
+  * drivers/acpi/hardware/hwsleep.c
+    Clear WAK_STS on resume.  Fix for LP#285611
+
+ -- Michael Frey <michael.frey@canonical.com>  Mon, 03 Nov 2008 10:04:29 -0500
+
 linux (2.6.24-19.41netbook10) hardy; urgency=low
 
   [Michael Frey]
