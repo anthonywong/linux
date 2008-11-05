@@ -1,3 +1,11 @@
+linux (2.6.24-19.41netbook12) hardy; urgency=low
+
+  [Colin Ian King]
+
+  * ACPI reboot method - workaround for hardware on port 0xCF9.
+
+ -- Tony Espy <espy@canonical.com>  Wed, 05 Nov 2008 23:09:51 +0000
+
 linux (2.6.24-19.41netbook11) hardy; urgency=low
 
   [Upstream Kernel Changes]
