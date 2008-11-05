@@ -73,7 +73,18 @@ void acpi_reboot(void)
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 		printk(KERN_DEBUG "ACPI MEMORY or I/O RESET_REG.\n");
-		acpi_hw_low_level_write(8, reset_value, rr);
+
+		/* A reset on port 0xcf9 should be broken into several
+		 * stages with one I/O cycle delay between each write
+		 * to work correctly on some hardware platforms */
+		if ((rr->address == 0x0cf9) && (reset_value == 0x6)) {
+			acpi_hw_low_level_write(8, 0x2, rr);
+			acpi_hw_low_level_write(8, 0x4, rr);
+			acpi_hw_low_level_write(8, reset_value, rr);
+		}
+		else {
+			acpi_hw_low_level_write(8, reset_value, rr);
+		}
 		break;
 	}
 	/* Wait ten seconds */
