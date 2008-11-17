@@ -55,6 +55,7 @@
 #include <asm/arch_hooks.h>
 #include <asm/sections.h>
 #include <asm/io_apic.h>
+#include <asm/processor.h>
 #include <asm/ist.h>
 #include <asm/io.h>
 #include <asm/vmi.h>

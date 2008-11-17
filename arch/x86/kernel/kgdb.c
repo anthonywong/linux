@@ -73,19 +73,19 @@ static int gdb_x86vector = -1;
  */
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
-	gdb_regs[GDB_AX]	= regs->ax;
-	gdb_regs[GDB_BX]	= regs->bx;
-	gdb_regs[GDB_CX]	= regs->cx;
-	gdb_regs[GDB_DX]	= regs->dx;
-	gdb_regs[GDB_SI]	= regs->si;
-	gdb_regs[GDB_DI]	= regs->di;
-	gdb_regs[GDB_BP]	= regs->bp;
-	gdb_regs[GDB_PS]	= regs->flags;
-	gdb_regs[GDB_PC]	= regs->ip;
+	gdb_regs[GDB_AX]	= regs->eax;
+	gdb_regs[GDB_BX]	= regs->ebx;
+	gdb_regs[GDB_CX]	= regs->ecx;
+	gdb_regs[GDB_DX]	= regs->edx;
+	gdb_regs[GDB_SI]	= regs->esi;
+	gdb_regs[GDB_DI]	= regs->edi;
+	gdb_regs[GDB_BP]	= regs->ebp;
+	gdb_regs[GDB_PS]	= regs->eflags;
+	gdb_regs[GDB_PC]	= regs->eip;
 #ifdef CONFIG_X86_32
-	gdb_regs[GDB_DS]	= regs->ds;
-	gdb_regs[GDB_ES]	= regs->es;
-	gdb_regs[GDB_CS]	= regs->cs;
+	gdb_regs[GDB_DS]	= regs->xds;
+	gdb_regs[GDB_ES]	= regs->xes;
+	gdb_regs[GDB_CS]	= regs->xcs;
 	gdb_regs[GDB_SS]	= __KERNEL_DS;
 	gdb_regs[GDB_FS]	= 0xFFFF;
 	gdb_regs[GDB_GS]	= 0xFFFF;
@@ -99,7 +99,7 @@ void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	gdb_regs[GDB_R14]	= regs->r14;
 	gdb_regs[GDB_R15]	= regs->r15;
 #endif
-	gdb_regs[GDB_SP]	= regs->sp;
+	gdb_regs[GDB_SP]	= regs->esp;
 }
 
 /**
@@ -122,18 +122,18 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_DX]	= 0;
 	gdb_regs[GDB_SI]	= 0;
 	gdb_regs[GDB_DI]	= 0;
-	gdb_regs[GDB_BP]	= *(unsigned long *)p->thread.sp;
+	gdb_regs[GDB_BP]	= *(unsigned long *)p->thread.esp;
 #ifdef CONFIG_X86_32
 	gdb_regs[GDB_DS]	= __KERNEL_DS;
 	gdb_regs[GDB_ES]	= __KERNEL_DS;
 	gdb_regs[GDB_PS]	= 0;
 	gdb_regs[GDB_CS]	= __KERNEL_CS;
-	gdb_regs[GDB_PC]	= p->thread.ip;
+	gdb_regs[GDB_PC]	= p->thread.eip;
 	gdb_regs[GDB_SS]	= __KERNEL_DS;
 	gdb_regs[GDB_FS]	= 0xFFFF;
 	gdb_regs[GDB_GS]	= 0xFFFF;
 #else
-	gdb_regs[GDB_PS]	= *(unsigned long *)(p->thread.sp + 8);
+	gdb_regs[GDB_PS]	= *(unsigned long *)(p->thread.esp + 8);
 	gdb_regs[GDB_PC]	= 0;
 	gdb_regs[GDB_R8]	= 0;
 	gdb_regs[GDB_R9]	= 0;
@@ -144,7 +144,7 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 	gdb_regs[GDB_R14]	= 0;
 	gdb_regs[GDB_R15]	= 0;
 #endif
-	gdb_regs[GDB_SP]	= p->thread.sp;
+	gdb_regs[GDB_SP]	= p->thread.esp;
 }
 
 /**
@@ -157,19 +157,19 @@ void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
  */
 void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 {
-	regs->ax		= gdb_regs[GDB_AX];
-	regs->bx		= gdb_regs[GDB_BX];
-	regs->cx		= gdb_regs[GDB_CX];
-	regs->dx		= gdb_regs[GDB_DX];
-	regs->si		= gdb_regs[GDB_SI];
-	regs->di		= gdb_regs[GDB_DI];
-	regs->bp		= gdb_regs[GDB_BP];
-	regs->flags		= gdb_regs[GDB_PS];
-	regs->ip		= gdb_regs[GDB_PC];
+	regs->eax		= gdb_regs[GDB_AX];
+	regs->ebx		= gdb_regs[GDB_BX];
+	regs->ecx		= gdb_regs[GDB_CX];
+	regs->edx		= gdb_regs[GDB_DX];
+	regs->esi		= gdb_regs[GDB_SI];
+	regs->edi		= gdb_regs[GDB_DI];
+	regs->ebp		= gdb_regs[GDB_BP];
+	regs->eflags		= gdb_regs[GDB_PS];
+	regs->eip		= gdb_regs[GDB_PC];
 #ifdef CONFIG_X86_32
-	regs->ds		= gdb_regs[GDB_DS];
-	regs->es		= gdb_regs[GDB_ES];
-	regs->cs		= gdb_regs[GDB_CS];
+	regs->xds		= gdb_regs[GDB_DS];
+	regs->xes		= gdb_regs[GDB_ES];
+	regs->xcs		= gdb_regs[GDB_CS];
 #else
 	regs->r8		= gdb_regs[GDB_R8];
 	regs->r9		= gdb_regs[GDB_R9];
@@ -369,18 +369,18 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 		/* try to read optional parameter, pc unchanged if no parm */
 		ptr = &remcomInBuffer[1];
 		if (kgdb_hex2long(&ptr, &addr))
-			linux_regs->ip = addr;
+			linux_regs->eip = addr;
 	case 'D':
 	case 'k':
-		newPC = linux_regs->ip;
+		newPC = linux_regs->eip;
 
 		/* clear the trace bit */
-		linux_regs->flags &= ~TF_MASK;
+		linux_regs->eflags &= ~TF_MASK;
 		atomic_set(&kgdb_cpu_doing_single_step, -1);
 
 		/* set the trace bit if we're stepping */
 		if (remcomInBuffer[0] == 's') {
-			linux_regs->flags |= TF_MASK;
+			linux_regs->eflags |= TF_MASK;
 			kgdb_single_step = 1;
 			if (kgdb_contthread) {
 				atomic_set(&kgdb_cpu_doing_single_step,
@@ -396,7 +396,7 @@ int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
 				if (dr6 & (1 << breakno) &&
 				    breakinfo[breakno].type == 0) {
 					/* Set restore flag: */
-					linux_regs->flags |= X86_EFLAGS_RF;
+					linux_regs->eflags |= X86_EFLAGS_RF;
 					break;
 				}
 			}
@@ -546,8 +546,8 @@ void kgdb_arch_exit(void)
  */
 int kgdb_skipexception(int exception, struct pt_regs *regs)
 {
-	if (exception == 3 && kgdb_isremovedbreak(regs->ip - 1)) {
-		regs->ip -= 1;
+	if (exception == 3 && kgdb_isremovedbreak(regs->eip - 1)) {
+		regs->eip -= 1;
 		return 1;
 	}
 	return 0;
