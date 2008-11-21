@@ -1,3 +1,48 @@
+linux (2.6.24-19.41netbook13) hardy; urgency=low
+
+  [Upstream Kernel Changes]
+
+  * uaccess: add probe_kernel_write()
+  * kgdb: core
+  * consoles: polling support, kgdboc
+  * x86: kgdb support
+  * kgdb: document parameters
+  * kgdb-light-v10: fix kgdboc dynamic module configuration
+  * kgdb-light-v10: fix NMI hangs
+  * kgdb-light-v10: clocksource watchdog
+  * kgdb-light-v10: print breakpoint removed on exception
+  * kgdb-light-v10: x86 HW breakpoints
+  * kgdb: fix optional arch functions and probe_kernel_*
+  * kgdb: kgdboc pl011 I/O module
+  * kgdb: support for ARCH=arm
+  * kgdb: fix several kgdb regressions
+  * kgdb: Add kgdb internal test suite
+  * kgdb: Kconfig fix
+  * kgdb: allow static kgdbts boot configuration
+  * kgdb: Add documentation
+  * kgdb: documentation fixes
+  * kgdb: Fix SMP NMI kgdb_handle_exception exit race
+  * kgdb: Always use icache flush for sw breakpoints
+  * kgdb: debugger reboot notifier hook
+  * kgdb, modules: This allows for KGDB to better deal with autoloaded
+    modules.
+  * kgdb: stand alone 8250 for early debug
+  * kgdb, serial_core: early init API for kgdb8250
+  * kgdb, x86: early trap init for early debug
+  * NET_POLL: Pass skb via NET_POLL rx routine
+  * kgdb: Implement kgdb over ethernet with NET_POLL
+  * kgdb, mips: This adds basic support to the MIPS architecture
+  * kgdb, mips: pad pt_regs on MIPS64 for function arguments in an
+    exception
+  * kgdb, powerpc, ppc: arch specific ppc and powerpc kgdb support
+  * kgdb: kgdboc console poll hooks for cpm uart
+  * kgdb: kgdboc console poll hooks for mpsc uart
+  * Misc fixes for kgdb build
+  * Added support for Ericsson USB 3G modem
+  * Turned on Ericsson 3G modem support in config.lpia
+
+ -- Michael Frey <michael.frey@canonical.com>  Fri, 21 Nov 2008 14:52:40 -0500
+
 linux (2.6.24-19.41netbook12) hardy; urgency=low
 
   [Colin Ian King]
