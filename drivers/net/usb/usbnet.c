@@ -41,7 +41,7 @@
 #include <linux/workqueue.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
-
+#include <linux/version.h>
 #include "usbnet.h"
 
 #define DRIVER_VERSION		"22-Aug-2005"
@@ -87,6 +87,8 @@ static const char driver_name [] = "usbnet";
 static int msg_level = -1;
 module_param (msg_level, int, 0);
 MODULE_PARM_DESC (msg_level, "Override default message level");
+
+static void waker(struct work_struct *work);
 
 /*-------------------------------------------------------------------------*/
 
@@ -217,7 +219,7 @@ void usbnet_skb_return (struct usbnet *dev, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(usbnet_skb_return);
 
-
+
 /*-------------------------------------------------------------------------
  *
  * Network Device Driver (peer link to "Host Device", from USB host)
@@ -326,6 +328,7 @@ static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 	if (netif_running (dev->net)
 			&& netif_device_present (dev->net)
 			&& !test_bit (EVENT_RX_HALT, &dev->flags)) {
+		usb_mark_last_busy(dev->udev);
 		switch (retval = usb_submit_urb (urb, GFP_ATOMIC)) {
 		case -EPIPE:
 			usbnet_defer_kevent (dev, EVENT_RX_HALT);
@@ -497,6 +500,7 @@ static void intr_complete (struct urb *urb)
 		return;
 
 	memset(urb->transfer_buffer, 0, urb->transfer_buffer_length);
+	usb_mark_last_busy(dev->udev);
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status != 0 && netif_msg_timer (dev))
 		deverr(dev, "intr resubmit --> %d", status);
@@ -590,7 +594,10 @@ static int usbnet_stop (struct net_device *net)
 	dev->flags = 0;
 	del_timer_sync (&dev->delay);
 	tasklet_kill (&dev->bh);
-	usb_autopm_put_interface(dev->intf);
+
+	dev->used--;
+
+	dev->intf->needs_remote_wakeup = 0;
 
 	return 0;
 }
@@ -670,6 +677,12 @@ static int usbnet_open (struct net_device *net)
 
 	// delay posting reads until we're fully open
 	tasklet_schedule (&dev->bh);
+
+	dev->used++;
+
+	dev->intf->needs_remote_wakeup = 1;
+	usb_autopm_put_interface(dev->intf);
+
 	return retval;
 done:
 	usb_autopm_put_interface(dev->intf);
@@ -922,7 +935,7 @@ static void usbnet_tx_timeout (struct net_device *net)
 
 /*-------------------------------------------------------------------------*/
 
-static int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
+static int __usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 {
 	struct usbnet		*dev = netdev_priv(net);
 	int			length;
@@ -956,6 +969,7 @@ static int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 	entry->state = tx_start;
 	entry->length = length;
 
+	dev->tx_goingon = 1;
 	usb_fill_bulk_urb (urb, dev->udev, dev->out,
 			skb->data, skb->len, tx_complete, skb);
 
@@ -973,6 +987,7 @@ static int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 
 	spin_lock_irqsave (&dev->txq.lock, flags);
 
+	usb_mark_last_busy(dev->udev);
 	switch ((retval = usb_submit_urb (urb, GFP_ATOMIC))) {
 	case -EPIPE:
 		netif_stop_queue (net);
@@ -988,6 +1003,7 @@ static int usbnet_start_xmit (struct sk_buff *skb, struct net_device *net)
 		if (dev->txq.qlen >= TX_QLEN (dev))
 			netif_stop_queue (net);
 	}
+
 	spin_unlock_irqrestore (&dev->txq.lock, flags);
 
 	if (retval) {
@@ -1003,9 +1019,32 @@ drop:
 		devdbg (dev, "> tx, len %d, type 0x%x",
 			length, skb->protocol);
 	}
+
 	return retval;
 }
 
+static int usbnet_start_xmit(struct sk_buff *skb, struct net_device *net)
+{
+	struct usbnet		*dev = netdev_priv(net);
+	int			retval;
+	unsigned long		flags;
+
+	spin_lock_irqsave(&dev->txq.lock, flags);
+	if (dev->suspend_count) {
+		netif_stop_queue(net);
+		dev->tx_skb = skb;
+		if (!schedule_work (&dev->waker))
+			deverr(dev, "waker may have been dropped");
+		else
+			devdbg(dev, "waker scheduled");
+		spin_unlock_irqrestore(&dev->txq.lock, flags);
+		return NET_XMIT_SUCCESS;
+	}
+	spin_unlock_irqrestore(&dev->txq.lock, flags);
+
+	retval = __usbnet_start_xmit(skb, net);
+	return retval;
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -1025,6 +1064,7 @@ static void usbnet_bh (unsigned long param)
 			rx_process (dev, skb);
 			continue;
 		case tx_done:
+			dev->tx_goingon = 0;
 		case rx_cleanup:
 			usb_free_urb (entry->urb);
 			dev_kfree_skb (skb);
@@ -1044,6 +1084,7 @@ static void usbnet_bh (unsigned long param)
 	} else if (netif_running (dev->net)
 			&& netif_device_present (dev->net)
 			&& !timer_pending (&dev->delay)
+			&& !dev->suspend_count
 			&& !test_bit (EVENT_RX_HALT, &dev->flags)) {
 		int	temp = dev->rxq.qlen;
 		int	qlen = RX_QLEN (dev);
@@ -1162,6 +1203,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->bh.func = usbnet_bh;
 	dev->bh.data = (unsigned long) dev;
 	INIT_WORK (&dev->kevent, kevent);
+	INIT_WORK (&dev->waker, waker);
 	dev->delay.function = usbnet_bh;
 	dev->delay.data = (unsigned long) dev;
 	init_timer (&dev->delay);
@@ -1204,6 +1246,9 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 		if ((dev->driver_info->flags & FLAG_ETHER) != 0
 				&& (net->dev_addr [0] & 0x02) == 0)
 			strcpy (net->name, "eth%d");
+
+		if (dev->driver_info->flags & FLAG_MBN)
+			strcpy (net->name, "mb%d");
 
 		/* maybe the remote can't receive an Ethernet MTU */
 		if (net->mtu > (dev->hard_mtu - net->hard_header_len))
@@ -1267,24 +1312,62 @@ EXPORT_SYMBOL_GPL(usbnet_probe);
  * resume only when the last interface is resumed
  */
 
+static void waker(struct work_struct *work)
+{
+        struct usbnet *dev = container_of(work, struct usbnet, waker);
+
+        if (!usb_autopm_get_interface(dev->intf)) {
+                usb_autopm_put_interface(dev->intf);
+        } else {
+                devdbg(dev, "autoresume failed");
+        }
+}
+
+static void stop_traffic(struct usbnet *dev)
+{
+	int			temp;
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK (unlink_wakeup);
+	DECLARE_WAITQUEUE (wait, current);
+
+	// ensure there are no more active urbs
+	add_wait_queue (&unlink_wakeup, &wait);
+	dev->wait = &unlink_wakeup;
+	temp = unlink_urbs (dev, &dev->txq) + unlink_urbs (dev, &dev->rxq);
+
+	// maybe wait for deletions to finish.
+	while (!skb_queue_empty(&dev->rxq)
+			&& !skb_queue_empty(&dev->txq)
+			&& !skb_queue_empty(&dev->done)) {
+		msleep(UNLINK_TIMEOUT_MS);
+		if (netif_msg_ifdown (dev))
+			devdbg (dev, "waited for %d urb completions", temp);
+	}
+	dev->wait = NULL;
+	remove_wait_queue (&unlink_wakeup, &wait);
+
+	usb_kill_urb(dev->interrupt);
+}
+
 int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
 
-	if (!dev->suspend_count++) {
-		/*
-		 * accelerate emptying of the rx and queues, to avoid
-		 * having everything error out.
-		 */
-		netif_device_detach (dev->net);
-		(void) unlink_urbs (dev, &dev->rxq);
-		(void) unlink_urbs (dev, &dev->txq);
-		/*
-		 * reattach so runtime management can use and
-		 * wake the device
-		 */
-		netif_device_attach (dev->net);
+	if (dev->suspend_count++)
+		return 0;
+
+	/* check for ongoing tx traffic */
+	if (dev->tx_goingon && dev->udev->auto_pm) {
+		dev->suspend_count--;
+		return -EBUSY;
 	}
+
+	stop_traffic(dev);
+
+	/* cancel work */
+	dev->flags = 0;
+	del_timer_sync(&dev->delay);
+	cancel_work_sync(&dev->kevent);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_suspend);
@@ -1292,9 +1375,41 @@ EXPORT_SYMBOL_GPL(usbnet_suspend);
 int usbnet_resume (struct usb_interface *intf)
 {
 	struct usbnet		*dev = usb_get_intfdata(intf);
+	int                     status;
 
-	if (!--dev->suspend_count)
-		tasklet_schedule (&dev->bh);
+	devdbg(dev, "%s: begin", __FUNCTION__);
+
+	if (--dev->suspend_count)
+		return 0;
+
+	if (dev->used) {
+		status = init_status (dev, dev->intf);
+		if (status) {
+			devdbg(dev, "init_status failed");
+			return status;
+		}
+
+		/* start any status interrupt transfer */
+		if (dev->interrupt) {
+			status = usb_submit_urb (dev->interrupt, GFP_NOIO);
+			if (status < 0) {
+				devdbg(dev, "usb_submit intr urb failed");
+				return status;
+			}
+		}
+
+		tasklet_schedule(&dev->bh);
+
+		/* transmit package that triggered resume */
+		if (dev->tx_skb) {
+			status = __usbnet_start_xmit(dev->tx_skb, dev->net);
+			dev->tx_skb = NULL;
+		}
+
+		netif_wake_queue(dev->net);
+	}
+
+	devdbg(dev, "%s: end", __FUNCTION__);
 
 	return 0;
 }

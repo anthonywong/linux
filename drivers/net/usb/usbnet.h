@@ -23,7 +23,6 @@
 #ifndef	__USBNET_H
 #define	__USBNET_H
 
-
 /* interface from usbnet core to each USB networking link we handle */
 struct usbnet {
 	/* housekeeping */
@@ -65,6 +64,12 @@ struct usbnet {
 #		define EVENT_RX_MEMORY	2
 #		define EVENT_STS_SPLIT	3
 #		define EVENT_LINK_RESET	4
+
+	/* autosuspend helpers */
+	struct work_struct	waker;
+	int                     used;
+	int			tx_goingon;
+	struct sk_buff		*tx_skb; /* skb queued during suspend */
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -87,6 +92,8 @@ struct driver_info {
 #define FLAG_ETHER	0x0020		/* maybe use "eth%d" names */
 
 #define FLAG_FRAMING_AX 0x0040		/* AX88772/178 packets */
+
+#define FLAG_MBN	0x0100		/* use "mb%d" names */
 
 	/* init device ... can sleep, or cause probe() failure */
 	int	(*bind)(struct usbnet *, struct usb_interface *);

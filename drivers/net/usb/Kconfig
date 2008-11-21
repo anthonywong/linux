@@ -327,5 +327,21 @@ config USB_NET_ZAURUS
 	  really need this non-conformant variant of CDC Ethernet (or in
 	  some cases CDC MDLM) protocol, not "g_ether".
 
+config USB_NET_MBM
+	tristate "Ericsson Mobile Broadband Module"
+	depends on USB_USBNET
+	select USB_NET_CDCETHER
+	default y
+	help
+	  Choose this option to support Mobile Broadband devices from
+	  Ericsson MBM, Mobile Broadband Module.
+	  This driver should work with at least the following devices:
+	    * Ericsson Mobile Broadband Minicard
+	    * Ericsson F3507g Wireless Module
+	    * Dell Wireless 5530 HSPA
+	    * Toshiba F3507g
+	    * Sony Ericsson EC400
+	    * Sony Ericsson MD400
+
 
 endmenu
