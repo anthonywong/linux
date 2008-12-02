@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/module.h>
 
 #include <mach/hardware.h>
 #include <asm/page.h>
@@ -78,3 +79,5 @@ __msm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 
 	return __arm_ioremap(phys_addr, size, mtype);
 }
+
+EXPORT_SYMBOL(__msm_ioremap);
