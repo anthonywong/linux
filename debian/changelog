@@ -1,3 +1,11 @@
+linux (2.6.24-22.45netbook1) hardy; urgency=low
+
+  [Michael Frey]
+
+  * Merge with Hardy kernel
+
+ -- Michael Frey <michael.frey@canonical.com>  Tue, 09 Dec 2008 14:05:30 -0800
+
 linux (2.6.24-19.41netbook13) hardy; urgency=low
 
   [Upstream Kernel Changes]
