@@ -1,3 +1,11 @@
+linux (2.6.24-22.45netbook2) hardy; urgency=low
+
+  [Upstream Kernel Changes]
+
+  * Fix for suspend / resume (LP: 284062)
+
+ -- Michael Frey <michael.frey@canonical.com>  Thu, 11 Dec 2008 11:23:45 -0800
+
 linux (2.6.24-22.45netbook1) hardy; urgency=low
 
   [Michael Frey]
