@@ -1,3 +1,19 @@
+linux (2.6.24-22.45netbook3) hardy; urgency=low
+
+  [Upstream Kernel Changes]
+
+  * x86: fix: s2ram + P4 + tsc = annoyance
+    - LP: #304247
+
+  [Michael Frey]
+
+  * Elantech ps/2 touchpad driver. LP: #308752
+  * Patch to ps/2 driver to support new Elantech touchpad.
+  * Updated Ericsson mbm 3G module driver LP: #308765
+  * Turn on Elantech PS/2 touchpad option
+
+ -- Michael Frey <michael.frey@canonical.com>  Wed, 17 Dec 2008 11:41:32 -0500
+
 linux (2.6.24-22.45netbook2) hardy; urgency=low
 
   [Upstream Kernel Changes]
