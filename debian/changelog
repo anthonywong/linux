@@ -1,3 +1,12 @@
+linux (2.6.24-22.45netbook4) hardy; urgency=low
+
+  [Colin King]
+
+  * RT73 driver has shown to have poor performance. Backport of RT73 driver.
+    - LP: #294603
+
+ -- Michael Frey <michael.frey@canonical.com>  Wed, 17 Dec 2008 15:15:09 -0500
+
 linux (2.6.24-22.45netbook3) hardy; urgency=low
 
   [Upstream Kernel Changes]
