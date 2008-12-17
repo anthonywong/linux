@@ -1248,7 +1248,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 			strcpy (net->name, "eth%d");
 
 		if (dev->driver_info->flags & FLAG_MBN)
-			strcpy (net->name, "mb%d");
+			strcpy(net->name, "mb%d");
 
 		/* maybe the remote can't receive an Ethernet MTU */
 		if (net->mtu > (dev->hard_mtu - net->hard_header_len))

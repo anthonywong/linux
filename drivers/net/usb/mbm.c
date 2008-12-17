@@ -45,7 +45,7 @@ static const u8 mbm_guid[16] = {
 	0xa3, 0x17, 0xa8, 0x8b, 0x04, 0x5e, 0x4f, 0x01,
 	0xa6, 0x07, 0xc0, 0xff, 0xcb, 0x7e, 0x39, 0x2a,
 };
-static void dumpspeed(struct usbnet *dev, __le32 * speeds)
+static void dumpspeed(struct usbnet *dev, __le32 *speeds)
 {
 	struct mbm_data *data = (void *)&dev->data;
 
@@ -72,7 +72,7 @@ static void mbm_status(struct usbnet *dev, struct urb *urb)
 	struct mbm_data *data = (void *)&dev->data;
 	struct usb_cdc_notification *event;
 
-	if (urb->actual_length < sizeof *event)
+	if (urb->actual_length < sizeof(*event))
 		return;
 
 	/* SPEED_CHANGE can get split into two 8-byte packets */
@@ -97,10 +97,10 @@ static void mbm_status(struct usbnet *dev, struct urb *urb)
 		if (netif_msg_timer(dev))
 			dev_dbg(&dev->udev->dev, "CDC: speed change (len %d)\n",
 				urb->actual_length);
-		if (urb->actual_length != (sizeof *event + 8))
+		if (urb->actual_length != (sizeof(*event) + 8))
 			set_bit(EVENT_STS_SPLIT, &dev->flags);
 		else
-			dumpspeed(dev, (__le32 *) & event[1]);
+			dumpspeed(dev, (__le32 *) &event[1]);
 		break;
 	default:
 		dev_err(&dev->udev->dev, "CDC: unexpected notification %02x!\n",
@@ -125,7 +125,7 @@ get_ethernet_addr(struct usbnet *dev, struct usb_cdc_ether_desc *e)
 	int tmp, i;
 	unsigned char buf[13];
 
-	tmp = usb_string(dev->udev, e->iMACAddress, buf, sizeof buf);
+	tmp = usb_string(dev->udev, e->iMACAddress, buf, sizeof(buf));
 	if (tmp != 12) {
 		dev_dbg(&dev->udev->dev,
 			"bad MAC string %d fetch, %d\n", e->iMACAddress, tmp);
@@ -144,11 +144,11 @@ static void mbm_get_drvinfo(struct net_device *net,
 {
 	struct usbnet *dev = netdev_priv(net);
 
-	strncpy(info->driver, dev->driver_name, sizeof info->driver);
-	strncpy(info->version, DRIVER_VERSION, sizeof info->version);
+	strncpy(info->driver, dev->driver_name, sizeof(info->driver));
+	strncpy(info->version, DRIVER_VERSION, sizeof(info->version));
 	strncpy(info->fw_version, dev->driver_info->description,
-		sizeof info->fw_version);
-	usb_make_path(dev->udev, info->bus_info, sizeof info->bus_info);
+		sizeof(info->fw_version));
+	usb_make_path(dev->udev, info->bus_info, sizeof(info->bus_info));
 }
 
 static struct ethtool_ops mbm_ethtool_ops = {
@@ -181,7 +181,7 @@ static int mbm_bind(struct usbnet *dev, struct usb_interface *intf)
 	int len = intf->cur_altsetting->extralen;
 	int status;
 
-	memset(info, 0, sizeof *info);
+	memset(info, 0, sizeof(*info));
 	info->control = intf;
 	while (len > 3) {
 		if (buf[1] != USB_DT_CS_INTERFACE)
@@ -194,7 +194,7 @@ static int mbm_bind(struct usbnet *dev, struct usb_interface *intf)
 
 			desc = (void *)buf;
 
-			if (desc->bLength != sizeof *desc)
+			if (desc->bLength != sizeof(*desc))
 				goto bad_desc;
 
 			if (memcmp(&desc->bGUID, mbm_guid, 16))
@@ -207,7 +207,7 @@ static int mbm_bind(struct usbnet *dev, struct usb_interface *intf)
 			detail = (void *)buf;
 
 			if (detail->bGuidDescriptorType == 0) {
-				if (detail->bLength < (sizeof *detail + 1))
+			  if (detail->bLength < (sizeof(*detail) + 1))
 					goto bad_desc;
 			}
 			break;
@@ -217,7 +217,7 @@ static int mbm_bind(struct usbnet *dev, struct usb_interface *intf)
 
 			info->u = (void *)buf;
 
-			if (info->u->bLength != sizeof *info->u)
+			if (info->u->bLength != sizeof(*info->u))
 				goto bad_desc;
 
 			info->control = usb_ifnum_to_if(dev->udev,
@@ -245,13 +245,13 @@ static int mbm_bind(struct usbnet *dev, struct usb_interface *intf)
 				goto bad_desc;
 
 			info->ether = (void *)buf;
-			if (info->ether->bLength != sizeof *info->ether)
+			if (info->ether->bLength != sizeof(*info->ether))
 				goto bad_desc;
 			dev->hard_mtu =
 			    le16_to_cpu(info->ether->wMaxSegmentSize);
 			break;
 		}
-	      next_desc:
+next_desc:
 		len -= buf[0];	/* bLength */
 		buf += buf[0];
 	}
@@ -308,7 +308,7 @@ static int mbm_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	return 0;
 
-      bad_desc:
+bad_desc:
 	dev_info(&dev->udev->dev, "unsupported MDLM descriptors\n");
 	return -ENODEV;
 }
@@ -329,25 +329,25 @@ static const struct usb_device_id products[] = {
 	 .driver_info = (unsigned long)&mbm_info,
 	 },
 
-	{},			// END
+	{}, /* END */
 };
 
 MODULE_DEVICE_TABLE(usb, products);
 
 int mbm_suspend(struct usb_interface *intf, pm_message_t message)
 {
-	dev_dbg(&intf->dev, "mb%d_suspend\n", intf->minor);
+	dev_dbg(&intf->dev, "mbm%d_suspend\n", intf->minor);
 	return usbnet_suspend(intf, message);
 }
 
 int mbm_resume(struct usb_interface *intf)
 {
-	dev_dbg(&intf->dev, "mb%d_resume\n", intf->minor);
+	dev_dbg(&intf->dev, "mbm%d_resume\n", intf->minor);
 	return usbnet_resume(intf);
 }
 
 static struct usb_driver usbmbm_driver = {
-	.name = "mb",
+	.name = "mbm",
 	.id_table = products,
 	.probe = usbnet_probe,
 	.disconnect = usbnet_disconnect,
