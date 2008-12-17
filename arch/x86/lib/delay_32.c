@@ -23,6 +23,19 @@
 # include <asm/smp.h>
 #endif
 
+static int read_tsc_valid = 0;
+static int no_tsc_delay = 0;
+
+static int __init notscdelay_setup(char *str)
+{
+	no_tsc_delay = 1;
+	printk(KERN_INFO "Disabling TSC delay\n");
+	return 1;
+}
+
+__setup("delayloop", notscdelay_setup);
+
+
 /* simple loop based delay: */
 static void delay_loop(unsigned long loops)
 {
@@ -60,12 +73,15 @@ static void (*delay_fn)(unsigned long) = delay_loop;
 
 void use_tsc_delay(void)
 {
-	delay_fn = delay_tsc;
+	read_tsc_valid = 1;
+
+	if (!no_tsc_delay)
+		delay_fn = delay_tsc;
 }
 
 int read_current_timer(unsigned long *timer_val)
 {
-	if (delay_fn == delay_tsc) {
+	if (read_tsc_valid) {
 		rdtscl(*timer_val);
 		return 0;
 	}
