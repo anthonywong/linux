@@ -13,7 +13,6 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
@@ -127,8 +126,8 @@ static int ps2_adjust_timeout(struct ps2dev *ps2dev, int command, int timeout)
 			 * The next byte will come soon (keyboard) or not
 			 * at all (mouse).
 			 */
-			if (timeout > msecs_to_jiffies(100))
-				timeout = msecs_to_jiffies(100);
+			//if (timeout > msecs_to_jiffies(100))
+				timeout = msecs_to_jiffies(1100);//tom +
 			break;
 
 		case PS2_CMD_GETID:

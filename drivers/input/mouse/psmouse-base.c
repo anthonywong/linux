@@ -13,7 +13,6 @@
 
 #include <linux/delay.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
@@ -21,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/libps2.h>
 #include <linux/mutex.h>
+#include <linux/i8042.h>
 
 #include "psmouse.h"
 #include "synaptics.h"
@@ -29,6 +29,7 @@
 #include "lifebook.h"
 #include "trackpoint.h"
 #include "touchkit_ps2.h"
+#include "elantech.h"
 
 #define DRIVER_DESC	"PS/2 mouse driver"
 
@@ -572,6 +573,47 @@ static int psmouse_extensions(struct psmouse *psmouse,
 			      unsigned int max_proto, int set_properties)
 {
 	int synaptics_hardware = 0;
+        int repeat_elantech = 0;
+	int elantech_hardware = 0;
+
+/*
+ *Try Elan touchpad
+ */
+	if (max_proto > PSMOUSE_IMEX) {
+		for(repeat_elantech=0;repeat_elantech < 3;repeat_elantech++)
+		{
+			if (elantech_detect(psmouse, set_properties) == 0)
+			{
+				printk(KERN_DEBUG "elantech_detect(psmouse, set_properties) == 0\n");
+				if (elantech_init(psmouse,set_properties) == 0)
+				{
+					printk(KERN_DEBUG "elantech_init(psmouse) == 0\n");
+					return PSMOUSE_ELANTECH;
+				}
+				//else if(!set_properties){
+				//	printk(KERN_DEBUG "!set_properties is TRUE\n");
+				//	return PSMOUSE_ELANTECH;
+				//}
+				psmouse_reset(psmouse);
+				max_proto = PSMOUSE_IMEX;
+				printk(KERN_DEBUG "elantech_init not work\n");
+				clear_bit(EV_ABS, psmouse->dev->evbit);//tom
+				elantech_hardware=1;
+			}
+		}
+		if(!set_properties)
+			clear_bit(EV_ABS, psmouse->dev->evbit);//tom
+	}
+	if(repeat_elantech >= 3)
+		psmouse_reset(psmouse);
+
+	if(elantech_hardware){
+	//+chris
+		psmouse->protocol_handler = psmouse_process_byte;
+		psmouse->pktsize = 3;
+	//-chris
+	}
+
 
 /*
  * We always check for lifebook because it does not disturb mouse
@@ -762,6 +804,14 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.alias		= "touchkit",
 		.detect		= touchkit_ps2_detect,
 	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_ELANTECH
+        {       .type           = PSMOUSE_ELANTECH,
+                .name           = "ETPS/2",
+                .alias          = "elantech",
+                .detect         = elantech_detect,
+                .init           = elantech_init,
+        },
 #endif
 	{
 		.type		= PSMOUSE_CORTRON,
@@ -1218,7 +1268,9 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 	psmouse->resync_time = parent ? 0 : psmouse_resync_time;
 	psmouse->smartscroll = psmouse_smartscroll;
 
+	i8042_command(NULL,I8042_CMD_KBD_DISABLE);// tom +
 	psmouse_switch_protocol(psmouse, NULL);
+	i8042_command(NULL,I8042_CMD_KBD_ENABLE);// tom +
 
 	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
 	psmouse_initialize(psmouse);
