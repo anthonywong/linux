@@ -42,7 +42,7 @@
  * Module information.
  * DRV_NAME should be set within the individual module source files.
  */
-#define DRV_VERSION	"2.0.10"
+#define DRV_VERSION	"2.0.11"
 #define DRV_PROJECT	"http://rt2x00.serialmonkey.com"
 
 /*
@@ -133,20 +133,20 @@
  */
 static inline int is_rts_frame(u16 fc)
 {
-	return !!(((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
-		  ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_RTS));
+	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
+		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_RTS));
 }
 
 static inline int is_cts_frame(u16 fc)
 {
-	return !!(((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
-		  ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_CTS));
+	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_CTL) &&
+		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_CTS));
 }
 
 static inline int is_probe_resp(u16 fc)
 {
-	return !!(((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
-		  ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP));
+	return (((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_MGMT) &&
+		((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PROBE_RESP));
 }
 
 /*
@@ -180,18 +180,17 @@ struct rf_channel {
 };
 
 /*
- * To optimize the quality of the link we need to store
- * the quality of received frames and periodically
- * optimize the link.
+ * Antenna setup values.
  */
-struct link {
-	/*
-	 * Link tuner counter
-	 * The number of times the link has been tuned
-	 * since the radio has been switched on.
-	 */
-	u32 count;
+struct antenna_setup {
+	enum antenna rx;
+	enum antenna tx;
+};
 
+/*
+ * Quality statistics about the currently active link.
+ */
+struct link_qual {
 	/*
 	 * Statistics required for Link tuning.
 	 * For the average RSSI value we use the "Walking average" approach.
@@ -211,7 +210,6 @@ struct link {
 	 * the new values correctly allowing a effective link tuning.
 	 */
 	int avg_rssi;
-	int vgc_level;
 	int false_cca;
 
 	/*
@@ -240,6 +238,72 @@ struct link {
 #define WEIGHT_RSSI	20
 #define WEIGHT_RX	40
 #define WEIGHT_TX	40
+};
+
+/*
+ * Antenna settings about the currently active link.
+ */
+struct link_ant {
+	/*
+	 * Antenna flags
+	 */
+	unsigned int flags;
+#define ANTENNA_RX_DIVERSITY	0x00000001
+#define ANTENNA_TX_DIVERSITY	0x00000002
+#define ANTENNA_MODE_SAMPLE	0x00000004
+
+	/*
+	 * Currently active TX/RX antenna setup.
+	 * When software diversity is used, this will indicate
+	 * which antenna is actually used at this time.
+	 */
+	struct antenna_setup active;
+
+	/*
+	 * RSSI information for the different antenna's.
+	 * These statistics are used to determine when
+	 * to switch antenna when using software diversity.
+	 *
+	 *        rssi[0] -> Antenna A RSSI
+	 *        rssi[1] -> Antenna B RSSI
+	 */
+	int rssi_history[2];
+
+	/*
+	 * Current RSSI average of the currently active antenna.
+	 * Similar to the avg_rssi in the link_qual structure
+	 * this value is updated by using the walking average.
+	 */
+	int rssi_ant;
+};
+
+/*
+ * To optimize the quality of the link we need to store
+ * the quality of received frames and periodically
+ * optimize the link.
+ */
+struct link {
+	/*
+	 * Link tuner counter
+	 * The number of times the link has been tuned
+	 * since the radio has been switched on.
+	 */
+	u32 count;
+
+	/*
+	 * Quality measurement values.
+	 */
+	struct link_qual qual;
+
+	/*
+	 * TX/RX antenna setup.
+	 */
+	struct link_ant ant;
+
+	/*
+	 * Active VGC level
+	 */
+	int vgc_level;
 
 	/*
 	 * Work structure for scheduling periodic link tuning.
@@ -248,36 +312,47 @@ struct link {
 };
 
 /*
- * Clear all counters inside the link structure.
- * This can be easiest achieved by memsetting everything
- * except for the work structure at the end.
+ * Small helper macro to work with moving/walking averages.
  */
-static inline void rt2x00_clear_link(struct link *link)
-{
-	memset(link, 0x00, sizeof(*link) - sizeof(link->work));
-	link->rx_percentage = 50;
-	link->tx_percentage = 50;
-}
+#define MOVING_AVERAGE(__avg, __val, __samples) \
+	( (((__avg) * ((__samples) - 1)) + (__val)) / (__samples) )
 
 /*
- * Update the rssi using the walking average approach.
+ * When we lack RSSI information return something less then -80 to
+ * tell the driver to tune the device to maximum sensitivity.
  */
-static inline void rt2x00_update_link_rssi(struct link *link, int rssi)
-{
-	if (!link->avg_rssi)
-		link->avg_rssi = rssi;
-	else
-		link->avg_rssi = ((link->avg_rssi * 7) + rssi) / 8;
-}
+#define DEFAULT_RSSI	( -128 )
 
 /*
- * When the avg_rssi is unset or no frames  have been received),
- * we need to return the default value which needs to be less
- * than -80 so the device will select the maximum sensitivity.
+ * Link quality access functions.
  */
 static inline int rt2x00_get_link_rssi(struct link *link)
 {
-	return (link->avg_rssi && link->rx_success) ? link->avg_rssi : -128;
+	if (link->qual.avg_rssi && link->qual.rx_success)
+		return link->qual.avg_rssi;
+	return DEFAULT_RSSI;
+}
+
+static inline int rt2x00_get_link_ant_rssi(struct link *link)
+{
+	if (link->ant.rssi_ant && link->qual.rx_success)
+		return link->ant.rssi_ant;
+	return DEFAULT_RSSI;
+}
+
+static inline int rt2x00_get_link_ant_rssi_history(struct link *link,
+						   enum antenna ant)
+{
+	if (link->ant.rssi_history[ant - ANTENNA_A])
+		return link->ant.rssi_history[ant - ANTENNA_A];
+	return DEFAULT_RSSI;
+}
+
+static inline int rt2x00_update_ant_rssi(struct link *link, int rssi)
+{
+	int old_rssi = link->ant.rssi_history[link->ant.active.rx - ANTENNA_A];
+	link->ant.rssi_history[link->ant.active.rx - ANTENNA_A] = rssi;
+	return old_rssi;
 }
 
 /*
@@ -362,6 +437,8 @@ struct rt2x00lib_conf {
 	struct ieee80211_conf *conf;
 	struct rf_channel rf;
 
+	struct antenna_setup ant;
+
 	int phymode;
 
 	int basic_rates;
@@ -402,7 +479,8 @@ struct rt2x00lib_ops {
 	int (*set_device_state) (struct rt2x00_dev *rt2x00dev,
 				 enum dev_state state);
 	int (*rfkill_poll) (struct rt2x00_dev *rt2x00dev);
-	void (*link_stats) (struct rt2x00_dev *rt2x00dev);
+	void (*link_stats) (struct rt2x00_dev *rt2x00dev,
+			    struct link_qual *qual);
 	void (*reset_tuner) (struct rt2x00_dev *rt2x00dev);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev);
 
@@ -564,6 +642,13 @@ struct rt2x00_dev {
 	 * hw capability specifications.
 	 */
 	struct hw_mode_spec spec;
+
+	/*
+	 * This is the default TX/RX antenna setup as indicated
+	 * by the device's EEPROM. When mac80211 sets its
+	 * antenna value to 0 we should be using these values.
+	 */
+	struct antenna_setup default_ant;
 
 	/*
 	 * Register pointers
