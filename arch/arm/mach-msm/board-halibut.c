@@ -67,6 +67,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_hsusb,
 	&msm_device_i2c,
 	&smc91x_device,
+	&halibut_snd,
 };
 
 extern struct sys_timer msm_timer;
@@ -85,7 +86,7 @@ static struct msm_acpu_clock_platform_data halibut_clock_data = {
 };
 
 void msm_serial_debug_init(unsigned int base, int irq,
-			   struct device *clk_device, int signal_irq);
+				struct device *clk_device, int signal_irq);
 
 static void __init halibut_init(void)
 {
@@ -100,7 +101,7 @@ static void __init halibut_init(void)
 static void __init halibut_fixup(struct machine_desc *desc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
 {
-	mi->nr_banks=1;
+	mi->nr_banks = 1;
 	mi->bank[0].start = PHYS_OFFSET;
 	mi->bank[0].node = PHYS_TO_NID(PHYS_OFFSET);
 	mi->bank[0].size = (101*1024*1024);
