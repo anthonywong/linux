@@ -1,3 +1,16 @@
+linux (2.6.24-22.45netbook5) hardy; urgency=low
+
+  [Tony Espy]
+
+  * drm/i915 fixes to AR register restore; LP: #264284
+
+  [Upstream Kernel Changes]
+
+  * This patch provides an new kernel boot parameter "delayloop" to disable
+    tsc_delay() and use delay_loop() instead. (LP: #304247)
+
+ -- Steve Conklin <sconklin@ubuntu.com>  Wed, 04 Feb 2009 07:42:40 -0600
+
 linux (2.6.24-22.45netbook4) hardy; urgency=low
 
   [Colin King]
