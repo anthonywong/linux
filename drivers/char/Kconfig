@@ -437,6 +437,12 @@ config IMX_SIM
 	---help---
 	 Say Y to enable the SIM driver support.
 
+config MXC_IIM
+	tristate "MXC IIM device driver"
+	depends on ARCH_MXC
+	help
+	  Support for access to MXC IIM device, most people should say N here.
+
 source "drivers/serial/Kconfig"
 
 config UNIX98_PTYS
