@@ -1,3 +1,13 @@
+linux (2.6.24-22.45netbook7) netbook-common; urgency=low
+
+  [Michael Frey]
+
+  * debian/binary-custom.d/lpia/config.lpia
+  * Added CONFIG_USB_MOUSE=m
+  * Added CONFIG_USB_KBD=m
+
+ -- Michael Frey <michael.frey@canonical.com>  Tue, 17 Mar 2009 16:35:26 -0400
+
 linux (2.6.24-22.45netbook6) netbook-common; urgency=low
 
   [Michael Frey]
