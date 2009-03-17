@@ -1,3 +1,11 @@
+linux (2.6.24-22.45netbook6) netbook-common; urgency=low
+
+  [Michael Frey]
+
+  * Load USB HID as a module (LP: #320866)
+
+ -- Michael Frey <michael.frey@canonical.com>  Tue, 17 Mar 2009 15:27:59 -0400
+
 linux (2.6.24-22.45netbook5) netbook-common; urgency=low
 
   [Tony Espy]
