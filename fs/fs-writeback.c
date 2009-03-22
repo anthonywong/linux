@@ -897,6 +897,23 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 
 	if (unlikely(block_dump))
 		block_dump___mark_inode_dirty(inode);
+	if (unlikely(block_dump > 1)) {
+		struct dentry *dentry = NULL;
+		const char *name = "?";
+
+		if (!list_empty(&inode->i_dentry)) {
+			dentry = list_entry(inode->i_dentry.next,
+					    struct dentry, d_alias);
+			if (dentry && dentry->d_name.name)
+				name = (const char *) dentry->d_name.name;
+		}
+
+		if (inode->i_ino || strcmp(inode->i_sb->s_id, "bdev"))
+			printk(KERN_DEBUG
+			       "%s(%d): dirtied inode %lu (%s) on %s\n",
+			       current->comm, task_pid_nr(current), inode->i_ino,
+			       name, inode->i_sb->s_id);
+	}
 
 	spin_lock(&inode_lock);
 	if ((inode->i_state & flags) != flags) {
