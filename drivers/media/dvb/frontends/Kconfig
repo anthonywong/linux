@@ -361,6 +361,13 @@ config DVB_TUNER_DIB0070
 	  This device is only used inside a SiP called togther with a
 	  demodulator for now.
 
+config DVB_TUNER_MXL5007T
+	tristate "MaxLinear MxL5007T silicon tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the MaxLinear MxL5007T silicon tuner.
+
 comment "Miscellaneous devices"
 	depends on DVB_CORE
 
