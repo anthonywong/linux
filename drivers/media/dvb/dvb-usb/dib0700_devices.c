@@ -14,6 +14,8 @@
 #include "mt2060.h"
 #include "mt2266.h"
 #include "dib0070.h"
+#include "lgdt3305.h"
+#include "mxl5007t.h"
 
 static int force_lna_activation;
 module_param(force_lna_activation, int, 0644);
@@ -818,6 +820,76 @@ static int stk7070pd_frontend_attach1(struct dvb_usb_adapter *adap)
 	return adap->fe == NULL ? -ENODEV : 0;
 }
 
+static struct lgdt3305_config hcw_lgdt3305_config = {
+	.i2c_addr           = 0x0e,
+	.mpeg_mode          = LGDT3305_MPEG_PARALLEL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_LOW,
+	.deny_i2c_rptr      = 0,
+	.spectral_inversion = 1,
+	.qam_if_khz         = 6000,
+	.vsb_if_khz         = 6000,
+	.usref_8vsb         = 0x0500,
+};
+
+static struct mxl5007t_config hcw_mxl5007t_config = {
+	.xtal_freq_hz = MxL_XTAL_25_MHZ,
+	.if_freq_hz = MxL_IF_6_MHZ,
+	.invert_if = 1,
+#if 0
+	.loop_thru_enable = 1,
+	.clk_out_enable = 1,
+#endif
+};
+
+/* TIGER-ATSC map:
+   GPIO0  - LNA_CTR  (H: LNA power enabled, L: LNA power disabled)
+   GPIO1  - ANT_SEL  (H: VPA, L: MCX)
+   GPIO4  - SCL2
+   GPIO6  - EN_TUNER
+   GPIO7  - SDA2
+   GPIO10 - DEM_RST
+
+   MXL is behind LG's i2c repeater.  LG is on SCL2/SDA2 gpios on the DIB
+ */
+static int lgdt3305_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	struct dib0700_state *st = adap->dev->priv;
+
+	/* Make use of the new i2c functions from FW 1.20 */
+	st->fw_use_new_i2c_api = 1;
+
+	st->disable_streaming_master_mode = 1;
+
+	/* fe power enable */
+	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 0);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO6, GPIO_OUT, 1);
+	msleep(30);
+
+	/* demod reset */
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 0);
+	msleep(30);
+	dib0700_set_gpio(adap->dev, GPIO10, GPIO_OUT, 1);
+	msleep(30);
+
+	adap->fe = dvb_attach(lgdt3305_attach,
+			      &hcw_lgdt3305_config,
+			      &adap->dev->i2c_adap);
+
+	return adap->fe == NULL ? -ENODEV : 0;
+}
+
+static int mxl5007t_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	return dvb_attach(mxl5007t_attach, adap->fe,
+			  &adap->dev->i2c_adap, 0x60,
+			  &hcw_mxl5007t_config) == NULL ? -ENODEV : 0;
+}
+
+
 /* DVB-USB and USB stuff follows */
 struct usb_device_id dib0700_usb_id_table[] = {
 /* 0 */	{ USB_DEVICE(USB_VID_DIBCOM,    USB_PID_DIBCOM_STK7700P) },
@@ -843,6 +915,8 @@ struct usb_device_id dib0700_usb_id_table[] = {
 		{ USB_DEVICE(USB_VID_COMPRO,    USB_PID_COMPRO_VIDEOMATE_U500_PC) },
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK_52009) },
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_3) },
+		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC) },
+		{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_TIGER_ATSC_B210) },
 /* 20 */{ USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_EXPRESS) },
 		{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U7000) },
 		{ USB_DEVICE(USB_VID_ULTIMA_ELECTRONIC, USB_PID_ARTEC_T14BR) },
@@ -1113,6 +1187,30 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 				{ NULL },
 			},
 		}
+	}, { DIB0700_FW_1_20_DEVICE_PROPERTIES,
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.frontend_attach  = lgdt3305_frontend_attach,
+				.tuner_attach     = mxl5007t_tuner_attach,
+
+				DIB0700_DEFAULT_STREAMING_CONFIG(0x02),
+
+				.size_of_priv = sizeof(struct dib0700_adapter_state),
+			},
+		},
+
+		.num_device_descs = 2,
+		.devices = {
+			{   "Hauppauge ATSC MiniCard",
+				{ &dib0700_usb_id_table[28], NULL },
+				{ NULL },
+			},
+			{   "Dell Digital TV Receiver",
+				{ &dib0700_usb_id_table[29], NULL },
+				{ NULL },
+			},
+		},
 	},
 };
 
