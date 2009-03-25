@@ -41,6 +41,8 @@ static DEFINE_MUTEX(input_mutex);
 
 static struct input_handler *input_table[8];
 
+static int easelmode;
+
 static inline int is_event_supported(unsigned int code,
 				     unsigned long *bm, unsigned int max)
 {
@@ -71,6 +73,16 @@ static void input_pass_event(struct input_dev *dev,
 			     unsigned int type, unsigned int code, int value)
 {
 	struct input_handle *handle;
+
+	/*
+	 * Keep track of the display orientation, which is received as a keycode
+	 */
+	if (type == EV_KEY) {
+	    if (code == KEY_F23)
+		easelmode = 1;
+	    else if (code == KEY_F24)
+		easelmode = 0;
+	}
 
 	rcu_read_lock();
 
@@ -828,6 +840,22 @@ static const struct file_operations input_handlers_fileops = {
 	.release	= seq_release,
 };
 
+static int proc_read_easelmode(char *buffer, char **buffer_location,
+			       off_t offset, int buffer_length,
+			       int *eof, void *data)
+{
+	int ret;
+
+	if (offset > 0)
+	    ret  = 0;
+	else
+	    ret = sprintf(buffer, "%1d\n", easelmode);
+
+	return ret;
+
+}
+
+
 static int __init input_proc_init(void)
 {
 	struct proc_dir_entry *entry;
@@ -852,8 +880,17 @@ static int __init input_proc_init(void)
 	entry->owner = THIS_MODULE;
 	entry->proc_fops = &input_handlers_fileops;
 
+	entry = create_proc_entry("easelmode", 0, proc_bus_input_dir);
+	if (!entry)
+		goto fail3;
+
+	entry->owner = THIS_MODULE;
+	entry->read_proc = proc_read_easelmode;
+	entry->size = 8;
+
 	return 0;
 
+ fail3:	remove_proc_entry("easelmode", proc_bus_input_dir);
  fail2:	remove_proc_entry("devices", proc_bus_input_dir);
  fail1: remove_proc_entry("input", proc_bus);
 	return -ENOMEM;
@@ -861,6 +898,7 @@ static int __init input_proc_init(void)
 
 static void input_proc_exit(void)
 {
+	remove_proc_entry("easelmode", proc_bus_input_dir);
 	remove_proc_entry("devices", proc_bus_input_dir);
 	remove_proc_entry("handlers", proc_bus_input_dir);
 	remove_proc_entry("input", proc_bus);
