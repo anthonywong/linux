@@ -1,3 +1,30 @@
+linux (2.6.24-22.45netbook9) netbook-common; urgency=low
+
+  [Devin Heitmueller]
+
+  * V4L/DVB (9039): Add support for new i2c API provided in firmware
+    version 1.20
+  * add option, "disable_streaming_master_mode"
+
+  [Michael Krufky]
+
+  * dib0700: add support for Hauppauge Nova-TD Stick 52009
+  * dib0700: add basic support for Hauppauge Nova-TD-500 (84xxx)
+  * dib0700: prevent previous changeset from affecting older devices
+  * add support for LG Electronics LGDT3305 ATSC/QAM-B Demodulator
+  * add support for MaxLinear MxL5007T silicon tuner
+  * dib0700: add support for Hauppauge ATSC MiniCard
+
+  [Patrick Boettcher]
+
+  * V4L/DVB (7071): DiB0700: Start streaming the right way
+
+  [Michael Frey]
+
+  * Updated touchpad driver from Elantech
+
+ -- Michael Frey <michael.frey@canonical.com>  Thu, 26 Mar 2009 12:21:50 -0400
+
 linux (2.6.24-22.45netbook8) netbook-common; urgency=low
 
   [Michael Frey]
