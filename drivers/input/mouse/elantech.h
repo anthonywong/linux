@@ -27,7 +27,7 @@ struct elantech_data {
 	unsigned char reg_26;
 };
 
-
+static int EF_023_DEBUG=0;
 int elantech_detect(struct psmouse *psmouse, int set_properties);
 int elantech_init(struct psmouse *psmouse, int set_properties);
 
