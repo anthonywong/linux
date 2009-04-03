@@ -151,7 +151,8 @@ static int cistpl_funce(struct mmc_card *card, struct sdio_func *func,
 	if (ret) {
 		printk(KERN_ERR "%s: bad CISTPL_FUNCE size %u "
 		       "type %u\n", mmc_hostname(card->host), size, buf[0]);
-		return ret;
+		/* masked by feng for 8688 + CB debug . */
+		/* return ret; */
 	}
 
 	return 0;

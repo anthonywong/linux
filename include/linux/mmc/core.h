@@ -150,4 +150,20 @@ static inline void mmc_claim_host(struct mmc_host *host)
 	__mmc_claim_host(host, NULL);
 }
 
+/* feng add for temply use */
+#define DBG_2622 1
+
+#ifdef DBG_2622
+#define umd_dbg(f, x...) \
+	printk(KERN_INFO "[%s()]: " f "\n", __func__,##x)
+#define umd_enter() \
+	printk(KERN_INFO "[%s()]: enter\n", __func__)
+#define umd_exit() \
+	printk(KERN_INFO "[%s()]: exit\n", __func__)
+#else
+#define umd_dbg(f, x...)  do{} while(0)
+#define umd_enter()  do{} while(0)
+#define umd_exit()  do{} while(0)
+#endif /* end of DBG_2622 */
+
 #endif

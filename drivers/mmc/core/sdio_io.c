@@ -546,3 +546,72 @@ void sdio_f0_writeb(struct sdio_func *func, unsigned char b, unsigned int addr,
 		*err_ret = ret;
 }
 EXPORT_SYMBOL_GPL(sdio_f0_writeb);
+
+static char* sdio_version[4] = {
+	"version 1.00",
+	"version 1.10",
+	"version 1.20",
+	"version 2.00"
+};
+
+static char* sd_phy_version[4] = {
+	"version 1.01",
+	"version 1.10",
+	"version 2.00"
+};
+
+void sdio_dump_cccr(struct sdio_func *func)
+{
+	struct mmc_card *card = func->card;
+	u8       data, val;
+	u8      *str;
+	int      i;
+
+	printk(KERN_INFO "\nStart to dump SDIO CCCR registers:\n");
+
+	/* dump sdio version */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_CCCR, 0, &data);
+	val = (data >> 4) & 0xf;
+	if (val <= 3)
+		printk(KERN_INFO "SDIO Spec: %s\n", sdio_version[val]);
+	else
+		printk(KERN_INFO "This card doesn't comply with any SDIO spec version!!\n");
+
+	/* dump sd PHY version */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_SD, 0, &data);
+	val = data & 0xf;
+	if (val <= 2)
+		printk(KERN_INFO "SD PHY spec: %s\n", sd_phy_version[val]);
+	else
+		printk(KERN_INFO "This card doesn't comply with any SD PHY spec version!!\n");
+
+	/* dump IO Enalbe reg */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IOEx, 0, &data);
+	printk(KERN_INFO "IO Enable Reg: 0x%02x\n", data);
+
+	/* dump IO Ready reg */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IORx, 0, &data);
+	printk(KERN_INFO "IO Ready Reg: 0x%02x\n", data);
+
+	/* dump INT Enable reg */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IENx, 0, &data);
+	printk(KERN_INFO "INT Enable Reg: 0x%02x\n", data);
+
+	/* dump INT Pending reg */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_INTx, 0, &data);
+	printk(KERN_INFO "INT Pending Reg: 0x%02x\n", data);
+
+	/* dump Bus Interface reg */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_IF, 0, &data);
+	val = data & 0x3;
+	printk(KERN_INFO "Bus Width: %d bit\n", (val ? 4 : 1));
+
+	/* dump capability reg */
+	mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_CAPS, 0, &data);
+	printk(KERN_INFO "Multi-Block support: %s\n", (data & SDIO_CCCR_CAP_SMB) ? "YES" : "NO");
+	printk(KERN_INFO "Suspend/Resume support: %s\n", (data & SDIO_CCCR_CAP_SBS) ? "YES" : "NO");
+	printk(KERN_INFO "Low Speed Card: %s\n", (data & SDIO_CCCR_CAP_LSC) ? "YES" : "NO");
+	printk(KERN_INFO "4 bits Low Speed Card: %s\n", (data & SDIO_CCCR_CAP_4BLS) ? "YES" : "NO");
+}
+EXPORT_SYMBOL_GPL(sdio_dump_cccr);
+

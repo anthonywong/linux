@@ -645,6 +645,10 @@ void mmc_rescan(struct work_struct *work)
 		mmc_claim_host(host);
 
 		mmc_power_up(host);
+
+		/* add a 25ms delay for SiB workaround */
+		mmc_delay(25);
+
 		mmc_go_idle(host);
 
 		mmc_send_if_cond(host, host->ocr_avail);

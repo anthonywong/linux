@@ -332,6 +332,12 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	if (err)
 		goto remove;
 
+	/* add a workaround for Marvell SDIO dev */
+	if (card->cis.vendor == 0x2df) {
+		if (card->cis.max_dtr >= 25000000)
+			card->cis.max_dtr = 25000000;
+	}
+
 	/*
 	 * No support for high-speed yet, so just set
 	 * the card's maximum speed.
