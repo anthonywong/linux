@@ -51,6 +51,17 @@
 #define EHCI_USBLEGCTLSTS	4		/* legacy control/status */
 #define EHCI_USBLEGCTLSTS_SOOE	(1 << 13)	/* SMI on ownership change */
 
+void uhci_clear_usb_int(unsigned long base)
+{
+    outw(UHCI_USBCMD_HCRESET, base + UHCI_USBCMD);
+    mb();
+    udelay(5);
+    outw(0, base + UHCI_USBINTR);
+    outw(0, base + UHCI_USBCMD);
+    mb();
+    return;
+}
+EXPORT_SYMBOL (uhci_clear_usb_int);
 
 /*
  * Make sure the controller is completely inactive, unable to
