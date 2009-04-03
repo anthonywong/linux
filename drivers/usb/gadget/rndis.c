@@ -40,7 +40,7 @@
 
 #undef	RNDIS_PM
 #undef	RNDIS_WAKEUP
-#undef	VERBOSE
+#define	VERBOSE
 
 #include "rndis.h"
 
@@ -52,14 +52,14 @@
  * and will be happier if you provide the host_addr module parameter.
  */
 
-#if 0
+#if 1
 #define DBG(str,args...) do { \
 	if (rndis_debug) \
 		printk(KERN_DEBUG str , ## args ); \
 	} while (0)
-static int rndis_debug = 0;
+static int rndis_debug = 2;
 
-module_param (rndis_debug, int, 0);
+module_param (rndis_debug, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC (rndis_debug, "enable debugging");
 
 #else
@@ -586,12 +586,14 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	case OID_802_3_MAXIMUM_LIST_SIZE:
 		DBG("%s: OID_802_3_MAXIMUM_LIST_SIZE\n", __FUNCTION__);
 		/* Multicast base address only */
-		*outbuf = __constant_cpu_to_le32 (1);
+		*outbuf = __constant_cpu_to_le32 (32);
 		retval = 0;
 		break;
 
 	case OID_802_3_MAC_OPTIONS:
 		DBG("%s: OID_802_3_MAC_OPTIONS\n", __FUNCTION__);
+		*outbuf = __constant_cpu_to_le32 (0);
+		retval = 0;
 		break;
 
 	/* ieee802.3 statistics OIDs (table 4-4) */
@@ -898,7 +900,7 @@ static int rndis_query_response (int configNr, rndis_query_msg_type *buf)
 
 static int rndis_set_response (int configNr, rndis_set_msg_type *buf)
 {
-	u32			BufLength, BufOffset;
+	u32			BufLength, BufOffset, i;
 	rndis_set_cmplt_type	*resp;
 	rndis_resp_t		*r;
 

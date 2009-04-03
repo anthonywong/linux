@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* #define VERBOSE_DEBUG */
+#define VERBOSE_DEBUG
 
 #include <linux/kernel.h>
 #include <linux/utsname.h>
@@ -33,6 +33,10 @@
 #include <linux/usb/gadget.h>
 
 #include "gadget_chips.h"
+
+#ifdef CONFIG_USB_GADGET_IUSBC
+#include "iusbc.h"
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -68,7 +72,7 @@
  */
 
 #define DRIVER_DESC		"Ethernet Gadget"
-#define DRIVER_VERSION		"May Day 2005"
+#define	DRIVER_VERSION		"2.0.0.32L.0010"
 
 static const char shortname [] = "ether";
 static const char driver_desc [] = DRIVER_DESC;
@@ -236,6 +240,10 @@ MODULE_PARM_DESC(host_addr, "Host Ethernet Address");
 #endif
 
 #ifdef CONFIG_USB_GADGET_PXA27X
+#define DEV_CONFIG_CDC
+#endif
+
+#ifdef CONFIG_USB_GADGET_IUSBC
 #define DEV_CONFIG_CDC
 #endif
 
@@ -1353,11 +1361,31 @@ eth_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	u16			wIndex = le16_to_cpu(ctrl->wIndex);
 	u16			wValue = le16_to_cpu(ctrl->wValue);
 	u16			wLength = le16_to_cpu(ctrl->wLength);
+	__le16			status = 0;
 
 	/* descriptors just go into the pre-allocated ep0 buffer,
 	 * while config change events may enable network traffic.
 	 */
 	req->complete = eth_setup_complete;
+
+#ifdef CONFIG_USB_GADGET_IUSBC
+	/* software handles get_status in iusbc controller */
+	if (gadget_is_iusbc(dev->gadget)) {
+		if ((ctrl->bRequest == USB_REQ_GET_STATUS)
+			&& (ctrl->bRequestType & USB_DIR_IN)
+			&& (ctrl->bRequestType != 0x21)) {
+			struct iusbc *controller =
+				container_of(dev->gadget,
+						struct iusbc,
+						gadget);
+			status = controller->status_d;
+			DEBUG (dev, "status_d: %d\n", status);
+			value = sizeof status;
+			*(u16 *) req->buf = le16_to_cpu(status);
+		}
+	}
+#endif
+
 	switch (ctrl->bRequest) {
 
 	case USB_REQ_GET_DESCRIPTOR:
@@ -1421,7 +1449,7 @@ eth_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 				|| !dev->config
 				|| wIndex > 1)
 			break;
-		if (!cdc_active(dev) && wIndex != 0)
+		if (!rndis_active(dev) && !cdc_active(dev) && wIndex != 0)
 			break;
 		spin_lock (&dev->lock);
 
@@ -1556,9 +1584,9 @@ done_set_intf:
 			u32 n;
 
 			/* return the result */
-			buf = rndis_get_next_response(dev->rndis_config, &n);
+			buf = rndis_get_next_response (dev->rndis_config, &value);
 			if (buf) {
-				memcpy(req->buf, buf, n);
+				memcpy (req->buf, buf, value);
 				req->complete = rndis_response_complete;
 				rndis_free_response(dev->rndis_config, buf);
 				value = n;
@@ -2640,6 +2668,7 @@ static struct usb_gadget_driver eth_driver = {
 
 MODULE_DESCRIPTION (DRIVER_DESC);
 MODULE_AUTHOR ("David Brownell, Benedikt Spanger");
+MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE ("GPL");
 
 

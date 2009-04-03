@@ -244,18 +244,23 @@
 
 #include "gadget_chips.h"
 
+#ifdef CONFIG_USB_GADGET_IUSBC
+#include "iusbc.h"
+#include <linux/pci.h> /* for uevent usage */
+#endif
 
 /*-------------------------------------------------------------------------*/
 
 #define DRIVER_DESC		"File-backed Storage Gadget"
 #define DRIVER_NAME		"g_file_storage"
-#define DRIVER_VERSION		"7 August 2007"
+#define DRIVER_VERSION		"2.0.0.32L.0010"
 
 static const char longname[] = DRIVER_DESC;
 static const char shortname[] = DRIVER_NAME;
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Alan Stern");
+MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("Dual BSD/GPL");
 
 /* Thanks to NetChip Technologies for donating this product ID.
@@ -545,6 +550,7 @@ struct lun {
 	unsigned int	prevent_medium_removal : 1;
 	unsigned int	registered : 1;
 	unsigned int	info_valid : 1;
+	unsigned int	switch_flag : 1;
 
 	u32		sense_data;
 	u32		sense_data_info;
@@ -684,6 +690,7 @@ struct fsg_dev {
 	unsigned int		nluns;
 	struct lun		*luns;
 	struct lun		*curlun;
+	int			uevent_flag;
 };
 
 typedef void (*fsg_routine_t)(struct fsg_dev *);
@@ -1335,11 +1342,27 @@ static int standard_setup_req(struct fsg_dev *fsg,
 	int			value = -EOPNOTSUPP;
 	u16			w_index = le16_to_cpu(ctrl->wIndex);
 	u16			w_value = le16_to_cpu(ctrl->wValue);
+	__le16			status = 0;
 
 	/* Usually this just stores reply data in the pre-allocated ep0 buffer,
 	 * but config change events will also reconfigure hardware. */
 	switch (ctrl->bRequest) {
 
+#ifdef CONFIG_USB_GADGET_IUSBC
+	case USB_REQ_GET_STATUS:
+		/* software handles get_status in iusbc controller */
+		if (gadget_is_iusbc(fsg->gadget)) {
+			struct iusbc *controller =
+				container_of(fsg->gadget,
+						struct iusbc,
+						gadget);
+			status = controller->status_d;
+			DBG(fsg, "status_d: %d\n", status);
+			value = sizeof status;
+			*(u16 *) req->buf = le16_to_cpu(status);
+		}
+		break;
+#endif
 	case USB_REQ_GET_DESCRIPTOR:
 		if (ctrl->bRequestType != (USB_DIR_IN | USB_TYPE_STANDARD |
 				USB_RECIP_DEVICE))
@@ -1392,6 +1415,13 @@ get_config:
 		if (w_value == CONFIG_VALUE || w_value == 0) {
 			fsg->new_config = w_value;
 
+#ifdef CONFIG_USB_GADGET_IUSBC
+		/* for resume from S3 in iusbc controller */
+		if (gadget_is_iusbc(fsg->gadget)) {
+			fsg->state = FSG_STATE_IDLE;
+			fsg->config = 0;
+		}
+#endif
 			/* Raise an exception to wipe out previous transaction
 			 * state (queued bufs, etc) and set the new config. */
 			raise_exception(fsg, FSG_STATE_CONFIG_CHANGE);
@@ -2853,6 +2883,9 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		break;
 
 	case SC_TEST_UNIT_READY:
+		i = fsg->cmnd[2];
+		if (i == 0x55)
+			fsg->curlun->switch_flag = 1;
 		fsg->data_size_from_cmnd = 0;
 		reply = check_command(fsg, 6, DATA_DIR_NONE,
 				0, 1,
@@ -3357,6 +3390,13 @@ static void handle_exception(struct fsg_dev *fsg)
 
 	case FSG_STATE_CONFIG_CHANGE:
 		rc = do_set_config(fsg, new_config);
+#ifdef CONFIG_USB_GADGET_IUSBC
+		if (!fsg->uevent_flag){
+			struct iusbc *_iusbc=container_of(fsg->gadget,struct iusbc,gadget);
+			kobject_uevent(&(_iusbc->pdev->dev.kobj), KOBJ_ONLINE);
+			fsg->uevent_flag=1;
+		}
+#endif
 		if (fsg->ep0_req_tag != exception_req_tag)
 			break;
 		if (rc != 0)			// STALL on errors
@@ -3368,6 +3408,13 @@ static void handle_exception(struct fsg_dev *fsg)
 	case FSG_STATE_DISCONNECT:
 		fsync_all(fsg);
 		do_set_config(fsg, 0);		// Unconfigured state
+#ifdef CONFIG_USB_GADGET_IUSBC
+		if (fsg->uevent_flag) {
+			struct iusbc *_iusbc=container_of(fsg->gadget,struct iusbc,gadget);
+			kobject_uevent(&(_iusbc->pdev->dev.kobj), KOBJ_OFFLINE);
+			fsg->uevent_flag=0;
+		}
+#endif
 		break;
 
 	case FSG_STATE_EXIT:
@@ -3585,6 +3632,12 @@ static ssize_t show_file(struct device *dev, struct device_attribute *attr,
 	return rc;
 }
 
+static ssize_t show_switch(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct lun      *curlun = dev_to_lun(dev);
+
+	return sprintf(buf, "%d\n", curlun->switch_flag);
+}
 
 static ssize_t store_ro(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
@@ -3649,6 +3702,7 @@ static ssize_t store_file(struct device *dev, struct device_attribute *attr,
 /* The write permissions and store_xxx pointers are set in fsg_bind() */
 static DEVICE_ATTR(ro, 0444, show_ro, NULL);
 static DEVICE_ATTR(file, 0444, show_file, NULL);
+static DEVICE_ATTR(switch, 0444, show_switch, NULL);
 
 
 /*-------------------------------------------------------------------------*/
@@ -3684,6 +3738,7 @@ static void /* __init_or_exit */ fsg_unbind(struct usb_gadget *gadget)
 		if (curlun->registered) {
 			device_remove_file(&curlun->dev, &dev_attr_ro);
 			device_remove_file(&curlun->dev, &dev_attr_file);
+			device_remove_file(&curlun->dev, &dev_attr_switch);
 			device_unregister(&curlun->dev);
 			curlun->registered = 0;
 		}
@@ -3842,6 +3897,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
+		curlun->switch_flag = 0;
 		curlun->ro = mod_data.ro[i];
 		curlun->dev.release = lun_release;
 		curlun->dev.parent = &gadget->dev;
@@ -3857,7 +3913,9 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 		if ((rc = device_create_file(&curlun->dev,
 					&dev_attr_ro)) != 0 ||
 				(rc = device_create_file(&curlun->dev,
-					&dev_attr_file)) != 0) {
+					&dev_attr_file)) != 0 ||
+				(rc = device_create_file(&curlun->dev,
+					&dev_attr_switch)) != 0) {
 			device_unregister(&curlun->dev);
 			goto out;
 		}
