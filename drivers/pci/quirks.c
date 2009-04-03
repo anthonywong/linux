@@ -1486,6 +1486,17 @@ static void __devinit fixup_rev1_53c810(struct pci_dev* dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, fixup_rev1_53c810);
 
+
+static void __devinit fixup_poulsbo_hda(struct pci_dev* dev)
+{
+	/* poulsbo A2 HD audio controller has the wrong class type of 604h */
+	if (dev->class >> 8 == PCI_CLASS_BRIDGE_PCI) {
+		printk(KERN_INFO "Poulsbo A2 HDA detected, setting PCI class.\n");
+		dev->class = PCI_CLASS_MULTIMEDIA_AUDIO;
+	}
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_POULSBO_HDA, fixup_poulsbo_hda);
+
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_fixup *end)
 {
 	while (f < end) {
