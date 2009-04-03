@@ -1,0 +1,13 @@
+commit 7a0a51987004ee4157f008307091bc1c8eaa6a91
+Author: Andy Whitcroft <apw@canonical.com>
+Date:   Fri Apr 3 21:45:35 2009 +0100
+
+    NULL
+
+diff --git a/debian/NULL b/debian/NULL
+new file mode 100644
+index 0000000..7951def
+--- /dev/null
++++ b/debian/NULL
+@@ -0,0 +1 @@
++NULL
