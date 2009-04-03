@@ -866,6 +866,9 @@ static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 	return status;
 }
 
+struct usb_hub;
+void hub_port_logical_disconnect(struct usb_hub *hub, int port1);
+
 /* Caller has locked intf's usb_device's pm_mutex */
 static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 {
@@ -894,9 +897,15 @@ static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 				dev_err(&intf->dev, "%s error %d\n",
 						"reset_resume", status);
 		} else {
-			// status = -EOPNOTSUPP;
+			struct usb_device		*udev = interface_to_usbdev(intf);
+			struct usb_device               *parent_hdev = udev->parent;
+			/* status = -EOPNOTSUPP; */
 			dev_warn(&intf->dev, "no %s for driver %s?\n",
 					"reset_resume", driver->name);
+			if (parent_hdev) {
+				struct usb_hub *parent_hub = usb_get_intfdata(parent_hdev->actconfig->interface[0]);
+				hub_port_logical_disconnect(parent_hub, udev->portnum);
+			}
 		}
 	} else {
 		if (driver->resume) {
@@ -905,7 +914,7 @@ static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
 				dev_err(&intf->dev, "%s error %d\n",
 						"resume", status);
 		} else {
-			// status = -EOPNOTSUPP;
+			/* status = -EOPNOTSUPP; */
 			dev_warn(&intf->dev, "no %s for driver %s?\n",
 					"resume", driver->name);
 		}
