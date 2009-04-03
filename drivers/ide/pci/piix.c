@@ -438,6 +438,7 @@ static const struct ide_port_info piix_pci_info[] __devinitdata = {
 	/* 22 */ DECLARE_ICH_DEV("ICH4",	ATA_UDMA5),
 	/* 23 */ DECLARE_ICH_DEV("ESB2",	ATA_UDMA5),
 	/* 24 */ DECLARE_ICH_DEV("ICH8M",	ATA_UDMA5),
+	/* 25 */ DECLARE_ICH_DEV("POULSBO",	ATA_UDMA5),
 };
 
 /**
@@ -511,6 +512,7 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_82801DB_1),  22 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ESB2_18),    23 },
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_ICH8_6),     24 },
+	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_INTEL_POULSBO_IDE),     25 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, piix_pci_tbl);

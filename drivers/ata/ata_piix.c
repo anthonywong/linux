@@ -214,6 +214,7 @@ static const struct pci_device_id piix_pci_tbl[] = {
 	/* ICH7/7-R (i945, i975) UDMA 100*/
 	{ 0x8086, 0x27DF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 	{ 0x8086, 0x269E, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
+	{ 0x8086, 0x811A, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 	/* ICH8 Mobile PATA Controller */
 	{ 0x8086, 0x2850, PCI_ANY_ID, PCI_ANY_ID, 0, 0, ich_pata_100 },
 
@@ -737,6 +738,12 @@ static int ich_pata_cable_detect(struct ata_port *ap)
 		lap++;
 	}
 
+	/* workaround for Poulsbo PATA controller, this controller's
+	 * IOCFG register is "reserved"
+	 */
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
+		pdev->device == PCI_DEVICE_ID_INTEL_POULSBO_IDE)
+		return ATA_CBL_PATA80;
 	/* check BIOS cable detect results */
 	mask = ap->port_no == 0 ? PIIX_80C_PRI : PIIX_80C_SEC;
 	pci_read_config_byte(pdev, PIIX_IOCFG, &tmp);
@@ -758,8 +765,13 @@ static int piix_pata_prereset(struct ata_link *link, unsigned long deadline)
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no]))
-		return -ENOENT;
+	/* workaround for Poulsbo PATA controller, this controller's port
+	 * enable registers are "reserved"
+	 */
+	if (pdev->vendor != PCI_VENDOR_ID_INTEL ||
+		pdev->device != PCI_DEVICE_ID_INTEL_POULSBO_IDE)
+		if (!pci_test_config_bits(pdev, &piix_enable_bits[ap->port_no]))
+			return -ENOENT;
 	return ata_std_prereset(link, deadline);
 }
 
