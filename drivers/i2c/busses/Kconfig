@@ -239,6 +239,15 @@ config I2C_PIIX4
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-piix4.
 
+config I2C_POULSBO
+       tristate "Intel SCH (Poulsbo SMBUS 1.0)"
+       depends on I2C && PCI
+       help
+         If you say yes to this option, support will be included for the Intel
+         SCH
+           Intel  POULSBO
+         will be called i2c-sch.
+
 config I2C_IBM_IIC
 	tristate "IBM PPC 4xx on-chip I2C interface"
 	depends on IBM_OCP
