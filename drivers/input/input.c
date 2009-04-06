@@ -41,7 +41,7 @@ static DEFINE_MUTEX(input_mutex);
 
 static struct input_handler *input_table[8];
 
-static int easelmode;
+static int easelmode = -1;
 
 static inline int is_event_supported(unsigned int code,
 				     unsigned long *bm, unsigned int max)
@@ -849,10 +849,25 @@ static int proc_read_easelmode(char *buffer, char **buffer_location,
 	if (offset > 0)
 	    ret  = 0;
 	else
-	    ret = sprintf(buffer, "%1d\n", easelmode);
+	    switch (easelmode) {
+	    case -1:
+		strncpy(buffer, "-1\n", 3);
+		ret = 3;
+		break;
+	    case 0:
+		strncpy(buffer, "0\n", 2);
+		ret = 2;
+		break;
+	    case 1:
+		strncpy(buffer, "1\n", 2);
+		ret = 2;
+		break;
+	    default:
+		strncpy(buffer, "?\n", 2);
+		ret = 2;
+	    }
 
 	return ret;
-
 }
 
 
