@@ -1515,6 +1515,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	u16 value;
 	u16 eeprom;
+	int num_antennas;
 
 	/*
 	 * Read EEPROM word for configuration.
@@ -1548,6 +1549,11 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TX_DEFAULT);
 	rt2x00dev->default_ant.rx =
 	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RX_DEFAULT);
+
+	num_antennas = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_NUM);
+	INFO(rt2x00dev, "Number of antennas: %d\n", num_antennas);
+	INFO(rt2x00dev, "Tx default antenna control: 0x%x\n", rt2x00dev->default_ant.tx);
+	INFO(rt2x00dev, "Rx default antenna control: 0x%x\n", rt2x00dev->default_ant.rx);
 
 	/*
 	 * Read the Frame type.
