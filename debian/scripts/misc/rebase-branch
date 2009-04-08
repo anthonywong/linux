@@ -22,7 +22,7 @@ basever="2.6.24"
 patchDir=$targetDir/patches
 #masterTree=git://zinc.ubuntu.com/ubuntu/ubuntu-$release.git
 #masterName=ubuntu-$release
-baseTag="LPIA-Ubuntu-$basever-0.0"
+baseTag="NBK-Ubuntu-$basever-0.0"
 tmpTag="tmplpia"
 
 remoteBranch=auto-tmp-remote
