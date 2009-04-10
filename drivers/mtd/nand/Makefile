@@ -26,6 +26,7 @@ obj-$(CONFIG_MTD_NAND_NDFC)		+= ndfc.o
 obj-$(CONFIG_MTD_NAND_ATMEL)		+= atmel_nand.o
 obj-$(CONFIG_MTD_NAND_GPIO)		+= gpio.o
 obj-$(CONFIG_MTD_NAND_OMAP2) 		+= omap2.o
+obj-$(CONFIG_MTD_NAND_IMX_NFC)		+= imx_nfc.o
 obj-$(CONFIG_MTD_NAND_MXC_V2)		+= mxc_nd2.o
 obj-$(CONFIG_MTD_NAND_MXC_V3)		+= mxc_nd2.o
 obj-$(CONFIG_MTD_NAND_CM_X270)		+= cmx270_nand.o

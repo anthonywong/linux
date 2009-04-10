@@ -455,6 +455,12 @@ config MTD_NAND_FSL_UPM
 	  Enables support for NAND Flash chips wired onto Freescale PowerPC
 	  processor localbus with User-Programmable Machine support.
 
+config MTD_NAND_IMX_NFC
+	tristate "i.MX NAND Flash Controller driver"
+	depends on MTD_NAND
+	help
+	  Enables the i.MX NAND Flash controller driver.
+
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
 	depends on ARCH_MX2 || ARCH_MX3
