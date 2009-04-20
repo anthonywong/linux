@@ -1324,6 +1324,12 @@ static inline void hci_sync_conn_complete_evt(struct hci_dev *hdev, struct sk_bu
 		conn->type = SCO_LINK;
 	}
 
+	if (conn->out && ev->status == 0x1c && conn->attempt < 2) {
+		BT_INFO("reattempt due to ScoInterval rejected");
+		hci_setup_sync(conn, conn->link->handle);
+		goto unlock;
+	}
+
 	if (!ev->status) {
 		conn->handle = __le16_to_cpu(ev->handle);
 		conn->state  = BT_CONNECTED;

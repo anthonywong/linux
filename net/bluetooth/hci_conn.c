@@ -121,8 +121,14 @@ void hci_add_sco(struct hci_conn *conn, __u16 handle)
 	conn->state = BT_CONNECT;
 	conn->out = 1;
 
+	conn->attempt++;
+
 	cp.handle   = cpu_to_le16(handle);
-	cp.pkt_type = cpu_to_le16(hdev->pkt_type & SCO_PTYPE_MASK);
+	if (conn->attempt > 1)
+		cp.pkt_type = (hdev->esco_type & SCO_ESCO_MASK) |
+				(hdev->esco_type & EDR_ESCO_MASK);
+	else
+		cp.pkt_type = cpu_to_le16(hdev->esco_type);
 
 	hci_send_cmd(hdev, HCI_OP_ADD_SCO, sizeof(cp), &cp);
 }
@@ -217,6 +223,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 	conn->idle_timer.data = (unsigned long) conn;
 
 	atomic_set(&conn->refcnt, 0);
+	conn->sent = 0;
 
 	hci_dev_hold(hdev);
 
