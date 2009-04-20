@@ -200,11 +200,7 @@ static int sco_connect(struct sock *sk)
 
 	err = -ENOMEM;
 
-	/*
-	 * Since eSCO seems currently broken, always use SCO (LP#39414).
-	 * type = lmp_esco_capable(hdev) ? ESCO_LINK : SCO_LINK;
-	 */
-	type = SCO_LINK;
+	type = lmp_esco_capable(hdev) ? ESCO_LINK : SCO_LINK;
 
 	hcon = hci_connect(hdev, type, dst);
 	if (!hcon)
