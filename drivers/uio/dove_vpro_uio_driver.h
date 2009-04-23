@@ -2,23 +2,31 @@
 #define DOVE_VPRO_UIO_DRIVER_H
 
 /****************************************
-*	vPro Memory Management Define              *
+*	VPRO Memory Management Define   *
 *****************************************/
+#ifndef CONFIG_VPRO_NEW
 #define VPRO_MEM_MMAP_AREA_NUM		3
 #define VPRO_DMA_BUFFER_MAP_1		0
 #define VPRO_DMA_BUFFER_MAP_2		1
 #define VPRO_CONTROL_REGISTER_MAP	2
+#else /* CONFIG_VPRO_NEW */
+#define VPRO_MEM_MMAP_AREA_NUM		2
+#define VPRO_DMA_BUFFER_MAP		0
+#define VPRO_CONTROL_REGISTER_MAP	1
+#endif /* CONFIG_VPRO_NEW */
 
+#ifndef CONFIG_VPRO_NEW
 #define VPRO_DMA_BUFFER_1_SIZE		0x300000 // 3M
+#endif /* CONFIG_VPRO_NEW */
+
+#define DOVE_VPRO_IRQ_PIN		11
 
 /************************
-*   vPro Timer Define   *
+*   VPRO ioctl Define   *
 *************************/
-#define VPRO_TIMER_FREQ				HZ
+#define IOP_MAGIC	'v'
 
-/************************
-*   vPro ioctl Define   *
-*************************/
-#define VPRO_IOCTL_TEST				0
+#define UIO_VPRO_IRQ_ENABLE		_IO(IOP_MAGIC, 0)
+#define UIO_VPRO_IRQ_DISABLE		_IO(IOP_MAGIC, 1)
 
 #endif
