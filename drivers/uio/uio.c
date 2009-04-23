@@ -730,6 +730,29 @@ static int uio_mmap(struct file *filep, struct vm_area_struct *vma)
 	}
 }
 
+static int uio_ioctl(struct inode *inode, struct file *filep, unsigned int cmd, unsigned long arg)
+{
+	struct uio_device *idev;
+	int ret = 0;
+
+	idev = idr_find(&uio_idr, iminor(inode));
+	if (!idev)
+		return -ENODEV;
+
+	if (idev->info) {
+		if (idev->info->ioctl) {
+			if (!try_module_get(idev->owner))
+				return -ENODEV;
+			ret = idev->info->ioctl(idev->info, cmd, arg);
+			module_put(idev->owner);
+
+			return ret;
+		}
+	}
+
+	return -EINVAL;
+}
+
 static const struct file_operations uio_fops = {
 	.owner		= THIS_MODULE,
 	.open		= uio_open,
@@ -737,6 +760,7 @@ static const struct file_operations uio_fops = {
 	.read		= uio_read,
 	.write		= uio_write,
 	.mmap		= uio_mmap,
+	.ioctl		= uio_ioctl,
 	.poll		= uio_poll,
 	.fasync		= uio_fasync,
 };

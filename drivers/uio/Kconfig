@@ -113,4 +113,12 @@ config UIO_DOVE_VPRO_MEM_SIZE
 	  Use the following as a guideline:
 	  For video resolutions up to 1280x768 set this to 34 (MB).
 	  For higher resolutions set to 64 (MB).
+
+config VPRO_NEW
+	bool "VPRO Version 1.2 or higher"
+	depends on UIO_DOVE_VPRO
+	default n
+	help
+	  This is used for VPRO version 1.2 or higher.
+
 endif
