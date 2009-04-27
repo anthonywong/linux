@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.29.1
-# Sun Apr 26 18:41:07 2009
+# Linux kernel version: 2.6.29.1-dove-2.0.0-dev
+# Mon Apr 27 21:23:22 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -237,6 +237,7 @@ CONFIG_ARM_THUMB=y
 CONFIG_OUTER_CACHE=y
 CONFIG_CACHE_TAUROS2=y
 CONFIG_MRV_PTE_IN_L2=y
+CONFIG_FORCE_MAX_ZONEORDER=12
 
 #
 # Bus support
