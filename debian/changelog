@@ -1,3 +1,22 @@
+linux (2.6.24-24.51netbook12) netbook-common; urgency=low
+
+  [Andres Salomon]
+
+  * Revert "Bluetooth: SCO flow control to enable bluetooth headsets
+    OriginalLocation:
+    http://bluetooth-alsa.cvs.sourceforge.net/*checkout*/bluetooth-alsa/plu
+    gz/patches/sco-flowcontrol-v4.4.diff"
+  * Revert "SAUCE: Always use SCO protocol (disable eSCO support)"
+
+  [Upstream Kernel Changes]
+
+  * bluetooth: delete timer in l2cap_conn_del()
+  * l2cap info_timer delete fix in hci_conn_del
+  * Support the case when headset falls back to SCO link
+  * ESCO interval rejection fix
+
+ -- Steve Conklin <sconklin@ubuntu.com>  Mon, 27 Apr 2009 20:49:29 +0000
+
 linux (2.6.24-24.51netbook11) netbook-common; urgency=low
 
   [Andy Whitcroft]
