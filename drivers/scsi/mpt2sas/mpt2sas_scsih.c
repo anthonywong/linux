@@ -1860,7 +1860,8 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 	}
 	return;
  issue_host_reset:
-	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP, FORCE_BIG_HAMMER);
+	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+		MPT2SAS_FORCE_BIG_HAMMER);
 }
 
 /**
@@ -2090,7 +2091,7 @@ _scsih_host_reset(struct scsi_cmnd *scmd)
 	scsi_print_command(scmd);
 
 	retval = mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
-	    FORCE_BIG_HAMMER);
+	    MPT2SAS_FORCE_BIG_HAMMER);
 	r = (retval < 0) ? FAILED : SUCCESS;
 	printk(MPT2SAS_INFO_FMT "host reset: %s scmd(%p)\n",
 	    ioc->name, ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
@@ -5848,7 +5849,7 @@ _scsih_resume(struct pci_dev *pdev)
 	if (r)
 		return r;
 
-	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP, SOFT_RESET);
+	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP, MPT2SAS_SOFT_RESET);
 	scsi_unblock_requests(shost);
 	mpt2sas_base_start_watchdog(ioc);
 	return 0;
