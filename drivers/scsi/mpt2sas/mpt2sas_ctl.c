@@ -898,7 +898,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			mutex_unlock(&ioc->tm_cmds.mutex);
 		} else
 			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
-			    FORCE_BIG_HAMMER);
+			    MPT2SAS_FORCE_BIG_HAMMER);
 	}
 
  out:
@@ -1108,7 +1108,7 @@ _ctl_do_reset(void __user *arg)
 	    __func__));
 
 	retval = mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
-	    FORCE_BIG_HAMMER);
+	    MPT2SAS_FORCE_BIG_HAMMER);
 	printk(MPT2SAS_INFO_FMT "host reset: %s\n",
 	    ioc->name, ((!retval) ? "SUCCESS" : "FAILED"));
 	return 0;
@@ -1420,7 +1420,7 @@ _ctl_diag_register(void __user *arg, enum block_state state)
  issue_host_reset:
 	if (issue_reset)
 		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
-		    FORCE_BIG_HAMMER);
+		    MPT2SAS_FORCE_BIG_HAMMER);
 
  out:
 
@@ -1775,7 +1775,7 @@ _ctl_diag_release(void __user *arg, enum block_state state)
 
 	if (issue_reset)
 		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
-		    FORCE_BIG_HAMMER);
+		    MPT2SAS_FORCE_BIG_HAMMER);
 
 	mutex_unlock(&ioc->ctl_cmds.mutex);
 	return rc;
@@ -1943,7 +1943,7 @@ _ctl_diag_read_buffer(void __user *arg, enum block_state state)
  issue_host_reset:
 	if (issue_reset)
 		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
-		    FORCE_BIG_HAMMER);
+		    MPT2SAS_FORCE_BIG_HAMMER);
 
  out:
 
