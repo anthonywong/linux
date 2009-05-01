@@ -14,7 +14,7 @@ while (<LOGS>) {
 		next;
 	}
 
-	m|\s*UBUNTU: (NBK-Ubuntu-2\.6\.\S*)| or next;
+	m|^\s*UBUNTU: (NBK-Ubuntu-2\.6\.\S*)| or next;
 	$tag = $1;
 
 	($origtag) = grep(/^$tag.orig$/, @tags);
