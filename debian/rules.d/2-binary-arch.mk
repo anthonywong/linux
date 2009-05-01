@@ -79,9 +79,15 @@ endif
 	done
 
 	# Debug image is simple
-ifneq ($(do_debug_image),)
+ifneq ($(skipdbg),true)
 	install -m644 -D $(builddir)/build-$*/vmlinux \
-		$(dbgpkgdir)//boot/vmlinux-debug-$(release)$(debnum)-$*
+		$(dbgpkgdir)/usr/lib/debug/boot/vmlinux-$(release)$(debnum)-$*
+	$(kmake) O=$(builddir)/build-$* modules_install \
+		INSTALL_MOD_PATH=$(dbgpkgdir)/usr/lib/debug
+	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(release)$(debnum)-$*/build
+	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(release)$(debnum)-$*/source
+	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(release)$(debnum)-$*/modules.*
+	rm -fr $(dbgpkgdir)/usr/lib/debug/lib/firmware
 endif
 
 	# The flavour specific headers image
@@ -193,7 +199,7 @@ binary-%: install-%
 	dh_md5sums -p$(pkghdr)
 	dh_builddeb -p$(pkghdr)
 
-ifneq ($(do_debug_image),)
+ifneq ($(skipdbg),true)
 	dh_installchangelogs -p$(dbgpkg)
 	dh_installdocs -p$(dbgpkg)
 	dh_compress -p$(dbgpkg)
@@ -202,6 +208,14 @@ ifneq ($(do_debug_image),)
 	dh_gencontrol -p$(dbgpkg)
 	dh_md5sums -p$(dbgpkg)
 	dh_builddeb -p$(dbgpkg)
+
+	# Hokay...here's where we do a little twiddling...
+	mv ../$(dbgpkg)_$(release)-$(revision)_$(arch).deb \
+		../$(dbgpkg)_$(release)-$(revision)_$(arch).ddeb
+	grep -v '^$(dbgpkg)_.*$$' debian/files > debian/files.new
+	mv debian/files.new debian/files
+	# Now, the package wont get into the archive, but it will get put
+	# into the debug system.
 endif
 
 $(stampdir)/stamp-flavours:

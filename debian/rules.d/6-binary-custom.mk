@@ -40,6 +40,7 @@ $(stampdir)/stamp-custom-build-%: $(stampdir)/stamp-custom-prepare-%
 	@touch $@
 
 custom-install-%: pkgdir = $(CURDIR)/debian/linux-image-$(release)$(debnum)-$*
+custom-install-%: dbgpkgdir = $(CURDIR)/debian/linux-image-debug-$(release)$(debnum)-$*
 custom-install-%: basepkg = linux-headers-$(release)$(debnum)
 custom-install-%: hdrdir = $(CURDIR)/debian/$(basepkg)-$*/usr/src/$(basepkg)-$*
 custom-install-%: target_flavour = $*
@@ -51,6 +52,7 @@ custom-install-%: $(stampdir)/stamp-custom-build-%
 	dh_testroot
 	dh_clean -k -plinux-image-$(release)$(debnum)-$*
 	dh_clean -k -plinux-headers-$(release)$(debnum)-$*
+	dh_clean -k -plinux-image-debug-$(release)$(debnum)-$*
 
 	# The main image
 	# xen doesnt put stuff in the same directory. its quirky that way
@@ -85,6 +87,18 @@ endif
 	  chmod 755 $(pkgdir)/DEBIAN/$$script;                                  \
 	done
 
+	# Debug image is simple
+ifneq ($(skipdbg),true)
+	install -m644 -D $(builddir)/custom-build-$*/vmlinux \
+		$(dbgpkgdir)/usr/lib/debug/boot/vmlinux-$(release)$(debnum)-$*
+	$(kmake) O=$(builddir)/custom-build-$* modules_install \
+		INSTALL_MOD_PATH=$(dbgpkgdir)/usr/lib/debug
+	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(release)$(debnum)-$*/build
+	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(release)$(debnum)-$*/source
+	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(release)$(debnum)-$*/modules.*
+	rm -fr $(dbgpkgdir)/usr/lib/debug/lib/firmware
+endif
+
 	# The flavour specific headers image
 	# XXX Would be nice if we didn't have to dupe the original builddir
 	install -m644 -D $(srcdir)/.config \
@@ -109,6 +123,7 @@ endif
 
 custom-binary-%: pkgimg = linux-image-$(release)$(debnum)-$*
 custom-binary-%: pkghdr = linux-headers-$(release)$(debnum)-$*
+custom-binary-%: dbgpkg = linux-image-debug-$(release)$(debnum)-$*
 custom-binary-%: custom-install-%
 	dh_testdir
 	dh_testroot
@@ -131,3 +146,23 @@ custom-binary-%: custom-install-%
 	dh_gencontrol -p$(pkghdr)
 	dh_md5sums -p$(pkghdr)
 	dh_builddeb -p$(pkghdr)
+
+ifneq ($(skipdbg),true)
+	dh_installchangelogs -p$(dbgpkg)
+	dh_installdocs -p$(dbgpkg)
+	dh_compress -p$(dbgpkg)
+	dh_fixperms -p$(dbgpkg)
+	dh_installdeb -p$(dbgpkg)
+	dh_gencontrol -p$(dbgpkg)
+	dh_md5sums -p$(dbgpkg)
+	dh_builddeb -p$(dbgpkg)
+
+	# Hokay...here's where we do a little twiddling...
+	mv ../$(dbgpkg)_$(release)-$(revision)_$(arch).deb \
+		../$(dbgpkg)_$(release)-$(revision)_$(arch).ddeb
+	grep -v '^$(dbgpkg)_.*$$' debian/files > debian/files.new
+	mv debian/files.new debian/files
+	# Now, the package wont get into the archive, but it will get put
+	# into the debug system.
+endif
+
