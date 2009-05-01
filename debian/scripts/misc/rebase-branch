@@ -15,7 +15,7 @@
 #  5. Keep things in a state that they can be merged back
 #     into the main tree at the end of the dev cycle
 
-remoteTag=${1:?"Usage: $0 <target kernel dir> <remote-tag to rebase on>"}
+remoteTag=${1:?"Usage: $0 <remote-tag to rebase on>"}
 
 rebasing=".git/rebase-apply"
 
