@@ -32,7 +32,7 @@
  *************************************************************************************************************/
 extern u32 mvTclk;
 extern u32 mvSysclk;
-extern u32* mvUncachedParam;
+//extern u32* mvUncachedParam;
 
 //EXPORT_SYMBOL(mv_early_printk);
 //EXPORT_SYMBOL(arm926_dma_inv_range);
@@ -177,7 +177,7 @@ EXPORT_SYMBOL(asm_memzero);
 /*************************************************************************************************************
  * Networking
  *************************************************************************************************************/
-#ifdef CONFIG_MV_INCLUDE_GIG_ETH
+#ifdef CONFIG_MV_ETHERNET
 #include "eth/mvEth.h"
 #include "ctrlEnv/sys/mvSysGbe.h"
 #include "eth-phy/mvEthPhy.h"
@@ -275,5 +275,5 @@ EXPORT_SYMBOL(mvEthRxPolicyGet);
 #endif /* CONFIG_MV_GATEWAY */
 #endif
 #ifdef CONFIG_MV88F6281
-EXPORT_SYMBOL(mvUncachedParam);
+//EXPORT_SYMBOL(mvUncachedParam);
 #endif
