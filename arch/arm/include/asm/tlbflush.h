@@ -164,10 +164,24 @@
 # define v4wb_always_flags	(-1UL)
 #endif
 
+#ifdef CONFIG_CACHE_TAUROS2
+#ifdef CONFIG_MRV_PTE_IN_L2
 #define v6wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | \
 			 TLB_V6_I_FULL | TLB_V6_D_FULL | \
 			 TLB_V6_I_PAGE | TLB_V6_D_PAGE | \
 			 TLB_V6_I_ASID | TLB_V6_D_ASID)
+#else /* Non Table walking on L2 */
+#define v6wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | TLB_L2CLEAN_FR | \
+			 TLB_V6_I_FULL | TLB_V6_D_FULL |	\
+			 TLB_V6_I_PAGE | TLB_V6_D_PAGE |	\
+			 TLB_V6_I_ASID | TLB_V6_D_ASID)
+#endif
+#else
+#define v6wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | \
+			 TLB_V6_I_FULL | TLB_V6_D_FULL |	\
+			 TLB_V6_I_PAGE | TLB_V6_D_PAGE |	\
+			 TLB_V6_I_ASID | TLB_V6_D_ASID)
+#endif
 
 #ifdef CONFIG_CPU_TLB_V6
 # define v6wbi_possible_flags	v6wbi_tlb_flags
@@ -486,9 +500,13 @@ static inline void flush_pmd_entry(pmd_t *pmd)
 			: : "r" (pmd) : "cc");
 
 	if (tlb_flag(TLB_L2CLEAN_FR))
+#ifndef CONFIG_CACHE_TAUROS2
 		asm("mcr	p15, 1, %0, c15, c9, 1  @ L2 flush_pmd"
 			: : "r" (pmd) : "cc");
-
+#else
+	asm("mcr        p15, 1, %0, c7, c11, 1  @ L2 flush_pmd"
+	    		: : "r" (pmd) : "cc");
+#endif
 	if (tlb_flag(TLB_WB))
 		dsb();
 }
@@ -502,8 +520,13 @@ static inline void clean_pmd_entry(pmd_t *pmd)
 			: : "r" (pmd) : "cc");
 
 	if (tlb_flag(TLB_L2CLEAN_FR))
+#ifndef CONFIG_CACHE_TAUROS2
 		asm("mcr	p15, 1, %0, c15, c9, 1  @ L2 flush_pmd"
 			: : "r" (pmd) : "cc");
+#else
+		asm("mcr        p15, 1, %0, c7, c11, 1  @ L2 flush_pmd"
+		    	: : "r" (pmd) : "cc");
+#endif
 }
 
 #undef tlb_flag
