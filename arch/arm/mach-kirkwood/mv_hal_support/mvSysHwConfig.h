@@ -256,6 +256,10 @@ disclaimer.
 #define ETH_DEF_TXQ         0
 #define ETH_DEF_RXQ         0 
 
+#ifndef CONFIG_MV_ETH_RX_Q_NUM 
+#define CONFIG_MV_ETH_RX_Q_NUM 1
+#endif
+
 #define MV_ETH_RX_Q_NUM     CONFIG_MV_ETH_RX_Q_NUM
 #define MV_ETH_TX_Q_NUM     CONFIG_MV_ETH_TX_Q_NUM
 
