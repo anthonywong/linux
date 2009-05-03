@@ -44,7 +44,7 @@
 #include <asm/dma.h>
 #include <asm/sizes.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
-#include <asm/plat-orion/mvsdmmc-orion.h>
+#include <plat/mvsdmmc-orion.h>
 #endif
 
 #include "mvsdmmc.h"

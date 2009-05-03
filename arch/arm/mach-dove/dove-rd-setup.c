@@ -74,7 +74,7 @@ void __init dove_rd_eth_init(void)
 }
 #else
 static struct mv643xx_eth_platform_data dove_rd_ge00_data = {
-	.phy_addr       = MV643XX_ETH_PHY_ADDR_DEFAULT,
+	.phy_addr	= MV643XX_ETH_PHY_ADDR_DEFAULT,
 };
 #endif
 static struct orion_i2s_platform_data i2s0_data = {
