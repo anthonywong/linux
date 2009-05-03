@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29.1-dove-2.0.0-dev
-# Mon Apr 27 21:23:22 2009
+# Thu Apr 30 16:44:14 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1620,6 +1620,7 @@ CONFIG_RTC_INTF_DEV=y
 #
 # on-CPU RTC drivers
 #
+CONFIG_RTC_DRV_MV=y
 CONFIG_DMADEVICES=y
 
 #
