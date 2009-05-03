@@ -21,7 +21,8 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-//#include <mach/pxa-dma.h>
+#include <linux/mbus.h>
+#include <asm/hardware/pxa-dma.h>
 
 #include <mach/pxa-regs.h>
 
@@ -139,6 +140,40 @@ int __init pxa_init_dma(int num_ch)
 	}
 
 	num_dma_channels = num_ch;
+	return 0;
+}
+
+#define DMA_MAX_DECODE_WIN	4
+int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram)
+{
+	int i;
+	int ddr_csn;
+
+	/* First of all close all windows */
+	for (i = 0; i < DMA_MAX_DECODE_WIN; i++) {
+		DWCR(i) = 0x0;
+		DWBR(i) = 0x0;
+	}
+
+	if (dram->num_cs >= DMA_MAX_DECODE_WIN)
+		ddr_csn = (DMA_MAX_DECODE_WIN - 1);
+	else
+		ddr_csn = dram->num_cs;
+
+	/* Open DDR Windows */
+	for (i = 0; i < ddr_csn; i++) {
+		struct mbus_dram_window *cs = dram->cs + i;
+
+		DWBR(i) = cs->base;
+		DWCR(i) = ((((cs->size >> 14) - 1) << DWCR_SIZE_OFFS) |
+			   ((cs->mbus_attr << DWCR_ATTR_OFFS) & DWCR_ATTR_MASK) |
+			   DWCR_WINEN);
+	}
+
+	/* Open last window to NAND internal registers */
+	DWBR(DMA_MAX_DECODE_WIN - 1) = DOVE_SB_REGS_PHYS_BASE;
+	DWCR(DMA_MAX_DECODE_WIN - 1) = 0x03FF03C1; /* 16M, Attrib=0x03, Target=0xC, WinEn=1 */ 
+
 	return 0;
 }
 
