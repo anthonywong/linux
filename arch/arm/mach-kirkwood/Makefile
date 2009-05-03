@@ -12,3 +12,4 @@ obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
 include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 obj-y		+= mv_hal_support/
+obj-y           += ../plat-orion/mv_hal_drivers/
