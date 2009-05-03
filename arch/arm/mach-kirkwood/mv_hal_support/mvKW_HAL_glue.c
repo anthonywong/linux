@@ -39,7 +39,7 @@ disclaimer.
 #include "mvCommon.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
 #include "cpu/mvCpu.h"
-#ifdef CONFIG_MV_INCLUDE_GIG_ETH
+#ifdef CONFIG_MV_ETHERNET
 #include "eth/mvEth.h"
 #endif
 //#include "ctrlEnv/sys/mvCpuIf.h"
@@ -176,7 +176,7 @@ MV_U32 mvBoardTclkGet(MV_VOID)
 }
 
 #include <asm/mach-types.h>
-#ifdef CONFIG_MV_INCLUDE_GIG_ETH
+#ifdef CONFIG_MV_ETHERNET
 /*******************************************************************************
 * mvBoardPhyAddrGet - Get the phy address
 *
