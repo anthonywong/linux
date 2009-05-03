@@ -114,14 +114,14 @@ static int mv_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	month = (rtc_date >> RTC_MONTH_OFFS) & 0x3f;
 	year = (rtc_date >> RTC_YEAR_OFFS) & 0xff;
 
-	alm->time.tm_sec = BCD2BIN(second);
-	alm->time.tm_min = BCD2BIN(minute);
-	alm->time.tm_hour = BCD2BIN(hour);
-	alm->time.tm_mday = BCD2BIN(day);
-	alm->time.tm_wday = BCD2BIN(wday);
-	alm->time.tm_mon = BCD2BIN(month) - 1;
+	alm->time.tm_sec = bcd2bin(second);
+	alm->time.tm_min = bcd2bin(minute);
+	alm->time.tm_hour = bcd2bin(hour);
+	alm->time.tm_mday = bcd2bin(day);
+	alm->time.tm_wday = bcd2bin(wday);
+	alm->time.tm_mon = bcd2bin(month) - 1;
 	/* hw counts from year 2000, but tm_year is relative to 1900 */
-	alm->time.tm_year = BCD2BIN(year) + 100;
+	alm->time.tm_year = bcd2bin(year) + 100;
 
 	if (rtc_valid_tm(&alm->time) < 0) {
 		dev_err(dev, "retrieved alarm date/time is not valid.\n");
@@ -139,29 +139,29 @@ static int mv_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	u32 rtc_reg = 0;
 
 	if (alm->time.tm_sec >= 0)
-		rtc_reg |= (RTC_ALARM_VALID | BIN2BCD(alm->time.tm_sec))
+		rtc_reg |= (RTC_ALARM_VALID | bin2bcd(alm->time.tm_sec))
 			<< RTC_SECONDS_OFFS;
 	if (alm->time.tm_min >= 0)
-		rtc_reg |= (RTC_ALARM_VALID | BIN2BCD(alm->time.tm_min))
+		rtc_reg |= (RTC_ALARM_VALID | bin2bcd(alm->time.tm_min))
 			<< RTC_MINUTES_OFFS;
 	if (alm->time.tm_hour >= 0)
-		rtc_reg |= (RTC_ALARM_VALID | BIN2BCD(alm->time.tm_hour))
+		rtc_reg |= (RTC_ALARM_VALID | bin2bcd(alm->time.tm_hour))
 			<< RTC_HOURS_OFFS;
 
 	writel(rtc_reg, ioaddr + RTC_ALARM_TIME_REG_OFFS);
 
 	if (alm->time.tm_mday >= 0)
-		rtc_reg = (RTC_ALARM_VALID | BIN2BCD(alm->time.tm_mday))
+		rtc_reg = (RTC_ALARM_VALID | bin2bcd(alm->time.tm_mday))
 			<< RTC_MDAY_OFFS;
 	else
 		rtc_reg = 0;
 
 	if (alm->time.tm_mon >= 0)
-		rtc_reg |= (RTC_ALARM_VALID | BIN2BCD(alm->time.tm_mon + 1))
+		rtc_reg |= (RTC_ALARM_VALID | bin2bcd(alm->time.tm_mon + 1))
 			<< RTC_MONTH_OFFS;
 
 	if (alm->time.tm_year >= 0)
-		rtc_reg |= (RTC_ALARM_VALID | BIN2BCD(alm->time.tm_year % 100))
+		rtc_reg |= (RTC_ALARM_VALID | bin2bcd(alm->time.tm_year % 100))
 			<< RTC_YEAR_OFFS;
 
 	writel(rtc_reg, ioaddr + RTC_ALARM_DATE_REG_OFFS);
@@ -266,8 +266,10 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 
 	pdata->irq = platform_get_irq(pdev, 0);
 
+	platform_set_drvdata(pdev, pdata);
+
 	if(pdata->irq >= 0) {
-		writel(0, ioaddr + RTC_ALARM_INTERRUPT_MASK_REG_OFFS);
+		writel(0, pdata->ioaddr + RTC_ALARM_INTERRUPT_MASK_REG_OFFS);
                 if (devm_request_irq(&pdev->dev, pdata->irq, mv_rtc_interrupt,
 				     IRQF_DISABLED | IRQF_SHARED,
 				     pdev->name, pdata) < 0) {
@@ -277,19 +279,11 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 	}
 	if(pdata->irq >= 0) {
 		device_init_wakeup(&pdev->dev, 1);
-		rtc = rtc_device_register(pdev->name, &pdev->dev,
-					  &mv_rtc_alarm_ops, THIS_MODULE);
-	}
-	else
-		rtc = rtc_device_register(pdev->name, &pdev->dev,
-					  &mv_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc))
-		return PTR_ERR(rtc);
-
-	pdata->rtc = rtc;
-	platform_set_drvdata(pdev, pdata);
-	pdata->rtc = rtc_device_register(pdev->name, &pdev->dev,
-					 &mv_rtc_ops, THIS_MODULE);
+		pdata->rtc = rtc_device_register(pdev->name, &pdev->dev,
+						 &mv_rtc_alarm_ops, THIS_MODULE);
+	} else
+		pdata->rtc = rtc_device_register(pdev->name, &pdev->dev,
+						 &mv_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pdata->rtc))
 		return PTR_ERR(pdata->rtc);
 
