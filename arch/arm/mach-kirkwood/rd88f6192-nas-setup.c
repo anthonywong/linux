@@ -16,6 +16,7 @@
 #include <linux/spi/flash.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/orion_spi.h>
+#include <mach/gpio.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
@@ -60,7 +61,9 @@ static void __init rd88f6192_init(void)
 
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&rd88f6192_ge00_data);
+#ifdef CONFIG_MV_ETHERNET
 	kirkwood_eth0_init();
+#endif
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6192_sata_data);
 	spi_register_board_info(rd88F6192_spi_slave_info,
