@@ -42,7 +42,7 @@
 
 #define DOVE_RD_WAKEUP_GPIO	(3)
 
-//extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
+extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
 #ifdef CONFIG_MV_ETHERNET
 /*****************************************************************************
  * Ethernet
@@ -195,8 +195,8 @@ static void __init dove_rd_init(void)
 	 * On-chip device registration
 	 */
 	dove_rtc_init();
-//	pxa_init_dma_wins(&dove_mbus_dram_info);
-//	pxa_init_dma(16);
+	pxa_init_dma_wins(&dove_mbus_dram_info);
+	pxa_init_dma(16);
 	dove_xor0_init();
 	dove_xor1_init();
 	dove_ehci0_init();
