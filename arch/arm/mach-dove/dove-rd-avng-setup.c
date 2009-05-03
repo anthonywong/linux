@@ -44,7 +44,7 @@
 #endif
 #include "mpp.h"
 
-//extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
+extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
 extern void (*arm_shut_down)(void);
 extern int mvmpp_sys_init(void);
 
@@ -446,8 +446,8 @@ static void __init dove_rd_avng_init(void)
 	 * On-chip device registration
 	 */
 	dove_rtc_init();
-//	pxa_init_dma_wins(&dove_mbus_dram_info);
-//	pxa_init_dma(16);
+	pxa_init_dma_wins(&dove_mbus_dram_info);
+	pxa_init_dma(16);
 	dove_ehci0_init();
 	dove_ehci1_init();
 #ifdef CONFIG_MV_ETHERNET

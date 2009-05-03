@@ -51,7 +51,7 @@ module_param(left_tact, uint, 0);
 MODULE_PARM_DESC(left_tact, "Use left tact as mouse. this will disable I2S"
 		 "JPR 3 should be removed, JPR 6 on 2-3");
 
-//extern int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram);
+extern int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram);
 
 static struct orion_i2s_platform_data i2s1_data = {
 	.i2s_play	= 1,
@@ -327,8 +327,8 @@ static void __init dove_db_init(void)
 	dove_ac97_setup();
 
 	dove_rtc_init();
-//	pxa_init_dma_wins(&dove_mbus_dram_info);
-//	pxa_init_dma(16);
+	pxa_init_dma_wins(&dove_mbus_dram_info);
+	pxa_init_dma(16);
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
