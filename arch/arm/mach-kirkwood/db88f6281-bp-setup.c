@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/partitions.h>
 #include <linux/ata_platform.h>
-#include <asm/plat-orion/mvsdmmc-orion.h>
+#include <plat/mvsdmmc-orion.h>
 #include <linux/mv643xx_eth.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -63,8 +63,9 @@ static struct platform_device db88f6281_nand_flash = {
 	.resource	= &db88f6281_nand_resource,
 	.num_resources	= 1,
 };
+#ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
-
+#endif
 static struct mv643xx_eth_platform_data db88f6281_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
 };
@@ -95,6 +96,10 @@ static void __init db88f6281_init(void)
 	kirkwood_nand_init(ARRAY_AND_SIZE(db88f6281_nand_parts), 25);
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&db88f6281_ge00_data);
+#ifdef CONFIG_MV_ETHERNET
+	kirkwood_eth0_init();
+#endif
+	kirkwood_rtc_init();
 	kirkwood_sata_init(&db88f6281_sata_data);
 	kirkwood_uart0_init();
 	kirkwood_sdio_init(&db88f6281_mvsdio_data);
