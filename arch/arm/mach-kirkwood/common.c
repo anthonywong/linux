@@ -146,8 +146,9 @@ void __init kirkwood_ehci_init(void)
 	kirkwood_clk_ctrl |= CGC_USB0;
 	platform_device_register(&kirkwood_ehci);
 }
-
+#ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
+
 /*****************************************************************************
  * Ethernet
  ****************************************************************************/
@@ -176,7 +177,7 @@ void __init kirkwood_eth0_init(void)
 	kirkwood_eth0.dev.platform_data = &kirkwood_eth0_data;
 	platform_device_register(&kirkwood_eth0);
 }
-
+#endif
 /*****************************************************************************
  * GE00
  ****************************************************************************/
@@ -904,8 +905,8 @@ static struct resource kirkwood_i2c_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	}, {
 		.name	= "i2c irq",
-		.start	= IRQ_KIRKWOOD_I2C,
-		.end	= IRQ_KIRKWOOD_I2C,
+		.start	= IRQ_KIRKWOOD_TWSI,
+		.end	= IRQ_KIRKWOOD_TWSI,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
