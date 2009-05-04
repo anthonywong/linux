@@ -20,7 +20,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
 #include <linux/platform_device.h>
-#include <mach/gpio.h>
 
 #include <linux/leds.h>
 
@@ -45,7 +44,7 @@ static void sdhci_finish_data(struct sdhci_host *);
 
 static void sdhci_send_command(struct sdhci_host *, struct mmc_command *);
 static void sdhci_finish_command(struct sdhci_host *);
-
+//static void sdhci_sdio_gpio_irq_dump(struct sdhci_host *host);
 static void sdhci_dumpregs(struct sdhci_host *host)
 {
 	printk(KERN_DEBUG DRIVER_NAME ": ============== REGISTER DUMP ==============\n");
@@ -255,26 +254,23 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 
 	blksize = host->data->blksz;
 	chunk = 0;
-	
+
 	local_irq_save(flags);
-	
+
 	while (blksize) {
 		if (!sg_miter_next(&host->sg_miter))
 			BUG();
 
 		len = min(host->sg_miter.length, blksize);
-		
+
 		blksize -= len;
 		host->sg_miter.consumed = len;
-		
+
 		buf = host->sg_miter.addr;
-		
+
 		while (len) {
 			if (chunk == 0) {
-#if !defined(CONFIG_ARCH_DOVE)
-				scratch = sdhci_readl(host, SDHCI_BUFFER);
-#else
-				if (host->chip->pdev)
+				if (!(host->quirks & SDHCI_QUIRK_PIO_USE_WORD_ACCESS))
 					scratch = sdhci_readl(host, SDHCI_BUFFER);
 				else {
 					/* 
@@ -287,62 +283,58 @@ static void sdhci_read_block_pio(struct sdhci_host *host)
 						scratch |= sdhci_readw(host,
 							SDHCI_BUFFER + 2) << 16;
 				}
-#endif
 				chunk = 4;
-				
-				*buf = scratch & 0xFF;
-				
-				buf++;
-				scratch >>= 8;
-				chunk--;
-			len--;
 			}
-		}
+			*buf = scratch & 0xFF;
 
-		sg_miter_stop(&host->sg_miter);
-		
-		local_irq_restore(flags);
+			buf++;
+			scratch >>= 8;
+			chunk--;
+			len--;
+		}
+	}
+
+	sg_miter_stop(&host->sg_miter);
+
+	local_irq_restore(flags);
 }
-	
+
 static void sdhci_write_block_pio(struct sdhci_host *host)
 {
 	unsigned long flags;
 	size_t blksize, len, chunk;
 	u32 scratch;
 	u8 *buf;
-	
+
 	DBG("PIO writing\n");
-	
+
 	blksize = host->data->blksz;
 	chunk = 0;
 	scratch = 0;
-	
+
 	local_irq_save(flags);
-	
+
 	while (blksize) {
 		if (!sg_miter_next(&host->sg_miter))
 			BUG();
 
 		len = min(host->sg_miter.length, blksize);
-		
+
 		blksize -= len;
 		host->sg_miter.consumed = len;
-		
+
 		buf = host->sg_miter.addr;
-		
+
 		while (len) {
 			scratch |= (u32)*buf << (chunk * 8);
-			
+
 			buf++;
 			chunk++;
 			len--;
-			
+
 			if ((chunk == 4) || ((len == 0) && (blksize == 0))) {
-#if !defined(CONFIG_ARCH_DOVE)
-				sdhci_writel(host, scratch, SDHCI_BUFFER);
-#else
-				if (host->chip->pdev)
-					sdhci_writel(scratch, host, SDHCI_BUFFER);
+				if (!(host->quirks & SDHCI_QUIRK_PIO_USE_WORD_ACCESS))
+					writel(scratch, host->ioaddr + SDHCI_BUFFER);
 				else {
 	                                /*
 					 * Marvell soc sdhci needs the cpu to
@@ -352,15 +344,14 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
                                 	scratch = (0xFFFF0000 & scratch) >> 16;
 	                                sdhci_writew(scratch, host, SDHCI_BUFFER + 2);
 				}
-#endif
 				chunk = 0;
 				scratch = 0;
 			}
 		}
 	}
-	
+
 	sg_miter_stop(&host->sg_miter);
-	
+
 	local_irq_restore(flags);
 }
 
@@ -910,7 +901,8 @@ static void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 
 	WARN_ON(host->cmd);
 
-	sdhci_sdio_gpio_irq_disable(host);
+	if (host->ops->gpio_irq_disable)
+		host->ops->gpio_irq_disable(host);
 
 	if (cmd->data && (cmd->data->blksz & 0x3)) {
 		printk(KERN_ERR "%s: Unsupported block size (%d)!\n",
@@ -1208,7 +1200,8 @@ static void sdhci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	else
 		ctrl &= ~SDHCI_CTRL_4BITBUS;
 
-	if ((ios->timing == MMC_TIMING_SD_HS) && (!host->high_speed_wa))
+	if ((ios->timing == MMC_TIMING_SD_HS) && 
+	    (!host->quirks & SDHCI_QUIRK_HIGH_SPEED_WA))
 		ctrl |= SDHCI_CTRL_HISPD;
 	else
 		ctrl &= ~SDHCI_CTRL_HISPD;
@@ -1248,80 +1241,6 @@ static int sdhci_get_ro(struct mmc_host *mmc)
 	if (host->quirks & SDHCI_QUIRK_INVERTED_WRITE_PROTECT)
 		return !!(present & SDHCI_WRITE_PROTECT);
 	return !(present & SDHCI_WRITE_PROTECT);
-}
-
-static void sdhci_sdio_gpio_irq_enable(struct sdhci_host *host)
-{
-	u32 func_gpio_select;
-	if (!host->dove_card_int_wa)
-		return;
-
-	func_gpio_select = readl(DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
-	func_gpio_select |= host->dove_int_wa_info.func_select_bit << 1;
-	writel(func_gpio_select, DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
-
-	mmiowb();
-}
-
-static void sdhci_sdio_gpio_irq_disable(struct sdhci_host *host)
-{
-	u32 func_gpio_select;
-
-	if (!host->dove_card_int_wa)
-		return;
-
-	func_gpio_select = readl(DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
-	func_gpio_select &= ~(host->dove_int_wa_info.func_select_bit << 1);
-	writel(func_gpio_select, DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
-
-	mmiowb();
-}
-
-static void sdhci_sdio_gpio_irq_dump(struct sdhci_host *host)
-{
-	int gpio;
-
-	if (!host->dove_card_int_wa)
-		return;
-	
-	gpio = host->dove_int_wa_info.gpio;
-
-	printk(" dump gpio irq regs:\n");
-	printk(" select [0x%x] 0x%08x\n", DOVE_FUNC_GPIO_SELECT_VIRT_BASE,
-	       readl(DOVE_FUNC_GPIO_SELECT_VIRT_BASE));
-	printk(" gpio level [0x%x] 0x%08x\n", GPIO_LEVEL_MASK(gpio),
-	       readl(GPIO_LEVEL_MASK(gpio)));
-	printk(" gpio pol [0x%x] 0x%08x\n", GPIO_IN_POL(gpio),
-	       readl(GPIO_IN_POL(gpio)));
-	printk(" gpio data in [0x%x] 0x%08x\n", GPIO_DATA_IN(gpio),
-	       readl(GPIO_DATA_IN(gpio)));
-}
-static void sdhci_enable_sdio_gpio_irq(struct mmc_host *mmc, int enable)
-{
-	struct sdhci_host *host;
-	unsigned long flags;
-	struct sdhci_dove_int_wa *wa_info;
-	
-	host = mmc_priv(mmc);
-	
-	wa_info = &host->dove_int_wa_info;
-	spin_lock_irqsave(&host->lock, flags);
-
-	if (enable) {
-		if (wa_info->status == 0) {
-			enable_irq(wa_info->irq);
-			wa_info->status = 1;
-		}
-	} else {
-		if (wa_info->status == 1) {
-			disable_irq(wa_info->irq);
-			wa_info->status = 0;
-		}
-	}
-	
-	mmiowb();
-
-	spin_unlock_irqrestore(&host->lock, flags);
 }
 
 static void sdhci_enable_sdio_irq(struct mmc_host *mmc, int enable)
@@ -1365,7 +1284,6 @@ static void sdhci_tasklet_card(unsigned long param)
 	unsigned long flags;
 
 	host = (struct sdhci_host*)param;
-
 	spin_lock_irqsave(&host->lock, flags);
 
 	if (!(sdhci_readl(host, SDHCI_PRESENT_STATE) & SDHCI_CARD_PRESENT)) {
@@ -1384,7 +1302,6 @@ static void sdhci_tasklet_card(unsigned long param)
 	}
 
 	spin_unlock_irqrestore(&host->lock, flags);
-
 	mmc_detect_change(host->mmc, msecs_to_jiffies(200));
 }
 
@@ -1437,7 +1354,10 @@ static void sdhci_tasklet_finish(unsigned long param)
 #endif
 
 	mmiowb();
-	sdhci_sdio_gpio_irq_enable(host);
+
+	if (host->ops->gpio_irq_enable)
+		host->ops->gpio_irq_enable(host);
+
 	spin_unlock_irqrestore(&host->lock, flags);
 
 	mmc_request_done(host->mmc, mrq);
@@ -1623,22 +1543,6 @@ static void sdhci_data_irq(struct sdhci_host *host, u32 intmask)
 	}
 }
 
-static irqreturn_t sdhci_dove_gpio_irq(int irq, void *dev_id)
-{
-	struct sdhci_host* host = dev_id;
-#ifdef VERBOSE
-	DBG("*** %s got gpio interrupt\n",
-		mmc_hostname(host->mmc));
-#endif
-
-#ifdef VERBOSE
-	sdhci_dumpregs(host);
-#endif
-	mmc_signal_sdio_irq(host->mmc);
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t sdhci_irq(int irq, void *dev_id)
 {
 	irqreturn_t result;
@@ -1738,9 +1642,8 @@ static int sdhci_platform_resume(struct platform_device *dev) {
 	/* TODO: Add support for the SDHCI suspend resume */
 	return 0;
 }
-#ifdef CONFIG_PCI
 
-static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
+int sdhci_suspend_host(struct sdhci_host *host, pm_message_t state)
 {
 	int ret;
 
@@ -1829,8 +1732,11 @@ int sdhci_add_host(struct sdhci_host *host)
 		host->quirks = debug_quirks;
 
 	sdhci_reset(host, SDHCI_RESET_ALL);
-
+#if !defined(CONFIG_ARCH_DOVE)
 	host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
+#else
+	host->version = 0;// readw(host->ioaddr + SDHCI_HOST_VERSION);
+#end
 	host->version = (host->version & SDHCI_SPEC_VER_MASK)
 				>> SDHCI_SPEC_VER_SHIFT;
 	if (host->version > SDHCI_SPEC_200) {
@@ -1840,7 +1746,17 @@ int sdhci_add_host(struct sdhci_host *host)
 	}
 
 	caps = sdhci_readl(host, SDHCI_CAPABILITIES);
+#if !defined(CONFIG_ARCH_DOVE)
+        /*
+         * fix the clock rate value, should be 0x32 instead of 0x30
+         * as the clock is 50MHz
+         */
+        caps &= ~SDHCI_CLOCK_BASE_MASK;
+        caps |= 0x32 << SDHCI_CLOCK_BASE_SHIFT;
 
+        caps &= ~SDHCI_TIMEOUT_CLK_MASK;
+        caps |= 0x32;
+#endif
 	if (host->quirks & SDHCI_QUIRK_FORCE_DMA)
 		host->flags |= SDHCI_USE_SDMA;
 	else if (!(caps & SDHCI_CAN_DO_SDMA))
@@ -1951,7 +1867,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	if (!(host->quirks & SDHCI_QUIRK_FORCE_1_BIT_DATA))
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
-	if (host->chip->quirks & SDHCI_QUIRK_DISABLE_IRQ)
+	if (host->quirks & SDHCI_QUIRK_DISABLE_IRQ)
 		mmc->caps &= ~MMC_CAP_SDIO_IRQ;
 
 	if (caps & SDHCI_CAN_DO_HISPD)
@@ -2043,7 +1959,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	ret = request_irq(host->irq, sdhci_irq, IRQF_SHARED,
 		mmc_hostname(mmc), host);
 	if (ret)
-		return ret;
+		goto untasklet;
 
 	sdhci_init(host);
 
@@ -2061,7 +1977,7 @@ int sdhci_add_host(struct sdhci_host *host)
 
 	ret = led_classdev_register(mmc_dev(mmc), &host->led);
 	if (ret)
-		goto end;
+		goto reset;
 #endif
 
 	mmiowb();
@@ -2076,25 +1992,13 @@ int sdhci_add_host(struct sdhci_host *host)
 	sdhci_enable_card_detection(host);
 
 	return 0;
-end:
-	return ret;
-}
-
-static void sdhci_remove(struct sdhci_host *host, int slot) {
-	struct mmc_host *mmc = host->mmc;
-	struct sdhci_chip	*chip = host->chip;
-
-	chip->hosts[slot] = NULL;
-
-	mmc_remove_host(mmc);
 
 #ifdef SDHCI_USE_LEDS_CLASS
 reset:
 	sdhci_reset(host, SDHCI_RESET_ALL);
-	if (host->dove_card_int_wa)
-		free_irq(host->dove_int_wa_info.irq, host);
 	free_irq(host->irq, host);
-	del_timer_sync(&host->timer);
+#endif
+untasklet:
 	tasklet_kill(&host->card_tasklet);
 	tasklet_kill(&host->finish_tasklet);
 
@@ -2132,57 +2036,21 @@ void sdhci_remove_host(struct sdhci_host *host, int dead)
 	led_classdev_unregister(&host->led);
 #endif
 
-	host->high_speed_wa = 1;
-
-	if(data) {
-		host->dove_card_int_wa = 1;
-		host->dove_int_wa_info.irq = data->irq;
-		host->dove_int_wa_info.gpio = data->gpio;
-		host->dove_int_wa_info.func_select_bit = data->func_select_bit;
-		host->dove_int_wa_info.status = 0; //disabled
-	}	
-
 	if (!dead)
 		sdhci_reset(host, SDHCI_RESET_ALL);
 
-	version = 0;
-	version = (version & SDHCI_SPEC_VER_MASK) >> SDHCI_SPEC_VER_SHIFT;
-	if (version > 1) {
-		printk(KERN_ERR "%s: Unknown controller version (%d). "
-			"You may experience problems.\n", mmc_hostname(mmc),
-			version);
-	}
+	free_irq(host->irq, host);
 
-	caps = readl(host->ioaddr + SDHCI_CAPABILITIES);
-	/*
-	 * fix the clock rate value, should be 0x32 instead of 0x30
-	 * as the clock is 50MHz
-	 */
-	caps &= ~SDHCI_CLOCK_BASE_MASK;
-	caps |= 0x32 << SDHCI_CLOCK_BASE_SHIFT;
+	del_timer_sync(&host->timer);
 
-	caps &= ~SDHCI_TIMEOUT_CLK_MASK;
-	caps |= 0x32;
-
-	if (chip->quirks & SDHCI_QUIRK_FORCE_DMA)
-		host->flags |= SDHCI_USE_DMA;
-	else if (!(caps & SDHCI_CAN_DO_DMA))
-		DBG("Controller doesn't have DMA capability\n");
-	else
-		host->flags |= SDHCI_USE_DMA;
+	tasklet_kill(&host->card_tasklet);
+	tasklet_kill(&host->finish_tasklet);
 
 	kfree(host->adma_desc);
 	kfree(host->align_buffer);
 
 	host->adma_desc = NULL;
 	host->align_buffer = NULL;
-	if(ret)
-		goto err;
-
-		/* to balance disable/enable_irq */
-		disable_irq(host->dove_int_wa_info.irq);
-	}
-	return ret;
 }
 
 EXPORT_SYMBOL_GPL(sdhci_remove_host);
@@ -2194,8 +2062,6 @@ void sdhci_free_host(struct sdhci_host *host)
 
 EXPORT_SYMBOL_GPL(sdhci_free_host);
 
-#endif /* CONFIG_PCI */
-
 /*****************************************************************************\
  *                                                                           *
  * Driver init/exit                                                          *
@@ -2204,15 +2070,9 @@ EXPORT_SYMBOL_GPL(sdhci_free_host);
 
 static int __init sdhci_drv_init(void)
 {
-	int rc = -ENODEV;
-
 	printk(KERN_INFO DRIVER_NAME
 		": Secure Digital Host Controller Interface driver\n");
 	printk(KERN_INFO DRIVER_NAME ": Copyright(c) Pierre Ossman\n");
-#ifdef CONFIG_PCI
-	rc = pci_register_driver(&sdhci_pci_driver);
-	if (rc < 0)
-		return rc;
 
 	return 0;
 }
