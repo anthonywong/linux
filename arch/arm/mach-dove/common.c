@@ -209,7 +209,7 @@ static struct resource dove_sdio0_resources[] = {
 };
 
 static struct platform_device dove_sdio0 = {
-	.name		= "sdhci",
+	.name		= "sdhci-mv",
 	.id		= 0,
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
@@ -246,7 +246,7 @@ static struct resource dove_sdio1_resources[] = {
 };
 
 static struct platform_device dove_sdio1 = {
-	.name		= "sdhci",
+	.name		= "sdhci-mv",
 	.id		= 1,
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
