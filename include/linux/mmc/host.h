@@ -116,7 +116,7 @@ struct mmc_host {
 	struct device		*parent;
 	struct device		class_dev;
 	int			index;
-	const struct mmc_host_ops *ops;
+     /*const*/ struct mmc_host_ops *ops;
 	unsigned int		f_min;
 	unsigned int		f_max;
 	u32			ocr_avail;
