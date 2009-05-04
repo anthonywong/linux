@@ -52,17 +52,12 @@ config FB_DOVE_DCON
 choice
 	depends on FB_DOVE && FB_DOVE_DCON
 	prompt "DOVE DCON Panel PortA" 
-	default FB_DOVE_CLCD_DCONA_NONE
-
-config FB_DOVE_CLCD_DCONA_NONE
-	bool "NONE (No DCON device)"
-	help
-	  No Marvell DOVE DCON device. If not sure, Select it.
+	default FB_DOVE_CLCD_DCONA_BYPASS
 
 config FB_DOVE_CLCD_DCONA_BYPASS
-	bool "LCD0 Bypass(Not support now)"
+	bool "LCD0 Bypass"
 	help
-	  Marvell DOVE DCON LCD0 Bypass mode. Default is N.
+	  Marvell DOVE DCON LCD0 Bypass mode. Default is Y.
 
 config FB_DOVE_CLCD_DCONA_OLPC
 	bool "OLPC DCON Mode(Not support now)"
@@ -84,21 +79,15 @@ endchoice
 choice
 	depends on FB_DOVE && FB_DOVE_DCON
 	prompt "DOVE DCON Panel PortB"
-	default FB_DOVE_CLCD_DCONB_NONE
-
-config FB_DOVE_CLCD_DCONB_NONE
-	bool "NONE (No DCON device)"
-	help
-	  No Marvell DOVE DCON device. If not sure, Select it.
+	default FB_DOVE_CLCD_DCONB_BYPASS1
 
 config FB_DOVE_CLCD_DCONB_BYPASS1
-	bool "LCD1 Bypass (Not support now)"
+	bool "LCD1 Bypass"
 	help
-	  Marvell DOVE DCON LCD1 Bypass mode. Default is N.
+	  Marvell DOVE DCON LCD1 Bypass mode. Default is Y.
 
 config FB_DOVE_CLCD_DCONB_BYPASS0
-	bool "LCD0 Bypass (Not support now)"
-	depends on !FB_DOVE_CLCD_DCONA_BYPASS
+	bool "LCD0 Bypass"
 	help
 	  Say Y here if your DCON is bypass LCD0. Default is N.
 
