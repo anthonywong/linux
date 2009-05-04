@@ -48,6 +48,7 @@ MODULE_PARM_DESC(lcd1_enable, "set to 1 to enable LCD1 output.");
 	#ifndef CONFIG_ARCH_DOVENB_ON_TAHOE_AXI
 	#define	LCD_BASE_PHY_ADDR		0x80400000
 	#define	LCD1_BASE_PHY_ADDR		0x80410000
+	#define	DCON_BASE_PHY_ADDR		0x80420000
 	#else
 	#define	LCD_BASE_PHY_ADDR		0xB0020000
 	#define	LCD1_BASE_PHY_ADDR		0xB0010000
@@ -411,7 +412,7 @@ int clcd_platform_init(struct dovefb_mach_info *lcd0_dmi_data,
 #endif
 
 #ifdef CONFIG_FB_DOVE_DCON
-	if (lcd1_enable)
+	if (lcd0_enable || lcd1_enable)
 		platform_device_register(&dcon_platform_device);
 #endif
 
