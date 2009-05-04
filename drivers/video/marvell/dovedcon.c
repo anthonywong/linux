@@ -35,12 +35,22 @@ extern int enable_ebook;
 static int dovedcon_enable(struct dovedcon_info *ddi)
 {
 	unsigned int channel_ctrl;
+#ifdef CONFIG_FB_DOVE_CLCD_DCONB_BYPASS0
+	unsigned int ctrl0;
+#endif
 
 	channel_ctrl = 0x90C78;
 	writel(channel_ctrl, ddi->reg_base+DCON_VGA_DAC_CHANNEL_A_CTRL);
 	writel(channel_ctrl, ddi->reg_base+DCON_VGA_DAC_CHANNEL_B_CTRL);
 	writel(channel_ctrl, ddi->reg_base+DCON_VGA_DAC_CHANNEL_C_CTRL);
 
+#ifdef CONFIG_FB_DOVE_CLCD_DCONB_BYPASS0
+	/* enable lcd0 pass to PortB */
+	ctrl0 = readl(ddi->reg_base+DCON_CTRL0);
+	ctrl0 &= ~(0x3 << 8);
+	ctrl0 |= (0x1 << 8);
+	writel(ctrl0, ddi->reg_base+DCON_CTRL0);
+#endif
 	return 0;
 }
 
