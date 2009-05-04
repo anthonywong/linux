@@ -73,8 +73,13 @@ static struct dovefb_mach_info dove_avng_lcd0_dmi = {
 //	.num_modes		= ARRAY_SIZE(video_modes),
 //	.modes			= video_modes,
 	.pix_fmt		= PIX_FMT_RGB888PACK,
+#if defined(CONFIG_FB_DOVE_CLCD_DCONB_BYPASS0)
+	.io_pin_allocation	= IOPAD_DUMB24,
+	.panel_rgb_type		= DUMB24_RGB888_0,
+#else
 	.io_pin_allocation	= IOPAD_DUMB18GPIO,
 	.panel_rgb_type		= DUMB18_RGB666_0,
+#endif
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 3,
 	.gpio_output_mask	= 3,
