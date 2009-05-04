@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29.1-dove-2.0.0-dev
-# Thu Apr 30 16:44:14 2009
+# Mon May  4 15:41:12 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -409,7 +409,8 @@ CONFIG_WIRELESS=y
 CONFIG_WIRELESS_OLD_REGULATORY=y
 CONFIG_WIRELESS_EXT=y
 CONFIG_WIRELESS_EXT_SYSFS=y
-# CONFIG_LIB80211 is not set
+CONFIG_LIB80211=y
+# CONFIG_LIB80211_DEBUG is not set
 # CONFIG_MAC80211 is not set
 # CONFIG_WIMAX is not set
 # CONFIG_RFKILL is not set
@@ -526,7 +527,7 @@ CONFIG_MTD_NAND_IDS=y
 # CONFIG_MTD_NAND_PLATFORM is not set
 # CONFIG_MTD_ALAUDA is not set
 # CONFIG_MTD_NAND_ORION is not set
-# CONFIG_MTD_NAND_DOVE is not set
+CONFIG_MTD_NAND_DOVE=y
 # CONFIG_MTD_ONENAND is not set
 
 #
@@ -818,8 +819,17 @@ CONFIG_MV643XX_ETH=y
 # Wireless LAN
 #
 # CONFIG_WLAN_PRE80211 is not set
-# CONFIG_WLAN_80211 is not set
+CONFIG_WLAN_80211=y
+# CONFIG_LIBERTAS is not set
+# CONFIG_HERMES is not set
+# CONFIG_ATMEL is not set
+# CONFIG_PRISM54 is not set
+# CONFIG_USB_ZD1201 is not set
+# CONFIG_USB_NET_RNDIS_WLAN is not set
+# CONFIG_IPW2100 is not set
+# CONFIG_IPW2200 is not set
 # CONFIG_IWLWIFI_LEDS is not set
+# CONFIG_HOSTAP is not set
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
@@ -1542,7 +1552,9 @@ CONFIG_MMC_BLOCK_BOUNCE=y
 #
 # MMC/SD/SDIO Host Controller Drivers
 #
-# CONFIG_MMC_SDHCI is not set
+CONFIG_MMC_SDHCI=y
+# CONFIG_MMC_SDHCI_PCI is not set
+CONFIG_MMC_SDHCI_MV=y
 # CONFIG_MMC_TIFM_SD is not set
 # CONFIG_MMC_SPI is not set
 # CONFIG_MMC_MVSDMMC is not set
