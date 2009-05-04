@@ -237,6 +237,10 @@ struct sdhci_host {
 #define SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1<<24)
 /* Dove SDHCI has some issues in detecting IRQ */
 #define SDHCI_QUIRK_DISABLE_IRQ				(1<<25)
+/* Dove SDHCI needs dword access instead word accress */
+#define SDHCI_QUIRK_PIO_USE_WORD_ACCESS			(1<<26)
+/* Dove SDHCI needs dword access instead word accress */
+#define SDHCI_QUIRK_HIGH_SPEED_WA			(1<<27)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
@@ -290,9 +294,6 @@ struct sdhci_host {
 	struct timer_list	timer;		/* Timer for timeouts */
 
 	int			high_speed_wa;	/* high speed WA */
-	/* for dove card interrupt workaround */
-	int			dove_card_int_wa;
-	struct sdhci_dove_int_wa dove_int_wa_info;
 
 	struct platform_device	*plat_dev;
 	unsigned long		private[0] ____cacheline_aligned;
@@ -314,6 +315,8 @@ struct sdhci_ops {
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
 	unsigned int	(*get_min_clock)(struct sdhci_host *host);
 	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
+	void (*gpio_irq_enable)(struct sdhci_host *host);
+	void (*gpio_irq_disable)(struct sdhci_host *host);
 };
 
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS
