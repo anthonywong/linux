@@ -1,3 +1,9 @@
+linux (2.6.24-24.51netbook14) netbook-common; urgency=low
+
+  * Incorporate minor change to not rename debug debs
+
+ -- Steve Conklin <sconklin@canonical.com>  Tue, 05 May 2009 20:37:38 +0000
+
 linux (2.6.24-24.51netbook13) netbook-common; urgency=low
 
   [Jim Lieb]
