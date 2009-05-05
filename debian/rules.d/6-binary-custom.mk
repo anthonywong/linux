@@ -156,13 +156,5 @@ ifneq ($(skipdbg),true)
 	dh_gencontrol -p$(dbgpkg)
 	dh_md5sums -p$(dbgpkg)
 	dh_builddeb -p$(dbgpkg)
-
-	# Hokay...here's where we do a little twiddling...
-	mv ../$(dbgpkg)_$(release)-$(revision)_$(arch).deb \
-		../$(dbgpkg)_$(release)-$(revision)_$(arch).ddeb
-	grep -v '^$(dbgpkg)_.*$$' debian/files > debian/files.new
-	mv debian/files.new debian/files
-	# Now, the package wont get into the archive, but it will get put
-	# into the debug system.
 endif
 
