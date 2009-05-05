@@ -1,3 +1,21 @@
+linux (2.6.24-24.51netbook13) netbook-common; urgency=low
+
+  [Jim Lieb]
+
+  * SAUCE: Enable debug package generation
+    - LP: #340181
+
+  [Steve Conklin]
+
+  * changes to rebase script for netbook-lpia
+
+  [Upstream Kernel Changes]
+
+  * Fix help prompt in rebase script when argument is missing
+  * Fix tag parsing in the retag script
+
+ -- Steve Conklin <sconklin@canonical.com>  Tue, 05 May 2009 16:14:09 +0000
+
 linux (2.6.24-24.51netbook12) netbook-common; urgency=low
 
   [Andres Salomon]
