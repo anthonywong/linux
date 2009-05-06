@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29.1-dove-2.0.0-dev
-# Mon May  4 15:41:12 2009
+# Tue May  5 13:30:50 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -186,12 +186,56 @@ CONFIG_DOVE_PM_SUPPORT=y
 CONFIG_MV_INCLUDE_USB=y
 # CONFIG_MV_INCLUDE_XOR is not set
 CONFIG_MV_INCLUDE_CESA=y
-# CONFIG_MV_INCLUDE_GIG_ETH is not set
+CONFIG_MV_INCLUDE_GIG_ETH=y
 CONFIG_MV_INCLUDE_AUDIO=y
 # CONFIG_MV_INCLUDE_INTEG_SATA is not set
 CONFIG_MV_INCLUDE_PMU=y
 # CONFIG_MV_INCLUDE_NFC is not set
 CONFIG_MV_DDRMMC=y
+
+#
+# SoC Networking support
+#
+CONFIG_MV_ETHERNET=y
+CONFIG_MV_ETH_PORTS_NUM=1
+
+#
+# Network Interface Configuration
+#
+CONFIG_MV_ETH_0_MTU=1500
+CONFIG_MV_ETH_0_MACADDR=""
+
+#
+# Rx/Tx Queue Configuration
+#
+CONFIG_MV_ETH_RX_Q_NUM=1
+CONFIG_MV_ETH_TX_Q_NUM=1
+CONFIG_MV_ETH_NUM_OF_RX_DESCR=128
+CONFIG_MV_ETH_NUM_OF_TX_DESCR=532
+
+#
+# TCP/UDP Offloading
+#
+CONFIG_MV_ETH_TSO=y
+# CONFIG_MV_ETH_UFO is not set
+
+#
+# Control and Statistics
+#
+CONFIG_MV_ETH_PROC=y
+CONFIG_MV_ETH_STATS_ERROR=y
+CONFIG_MV_ETH_STATS_INFO=y
+# CONFIG_MV_ETH_STATS_DEBUG is not set
+# CONFIG_MV_LINUX_COUNTERS_DISABLE is not set
+
+#
+# Advanced Features
+#
+CONFIG_MV_ETH_TIMER_PERIOD=10
+CONFIG_MV_SKB_HEADROOM=16
+CONFIG_MV_SKB_REUSE=y
+# CONFIG_MV_ETH_NFP is not set
+# CONFIG_MV_GATEWAY is not set
 
 #
 # cesa options
@@ -806,7 +850,7 @@ CONFIG_E1000=y
 # CONFIG_VIA_VELOCITY is not set
 # CONFIG_TIGON3 is not set
 # CONFIG_BNX2 is not set
-CONFIG_MV643XX_ETH=y
+# CONFIG_MV643XX_ETH is not set
 # CONFIG_QLA3XXX is not set
 # CONFIG_ATL1 is not set
 # CONFIG_ATL1E is not set
