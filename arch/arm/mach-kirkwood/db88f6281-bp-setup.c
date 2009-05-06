@@ -11,6 +11,11 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/pci.h>
+#include <linux/irq.h>
+#include <linux/i2c.h>
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/ata_platform.h>
 #include <plat/mvsdmmc-orion.h>
@@ -85,6 +90,10 @@ static unsigned int db88f6281_mpp_config[] __initdata = {
 	0
 };
 
+static struct i2c_board_info __initdata i2c_a2d = {
+	I2C_BOARD_INFO("i2s_i2c", 0x4A),
+};
+
 static void __init db88f6281_init(void)
 {
 	/*
@@ -106,7 +115,10 @@ static void __init db88f6281_init(void)
 	
 	kirkwood_eth0_init();
 	kirkwood_rtc_init();
+	kirkwood_i2c_init();
+	kirkwood_i2s_init();
 	platform_device_register(&db88f6281_nand_flash);
+	i2c_register_board_info(0, &i2c_a2d, 1);
 }
 
 static int __init db88f6281_pci_init(void)
