@@ -32,7 +32,7 @@ disclaimer.
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/platform_device.h>
-#include <asm/plat-orion/mv_eth.h>
+#include <plat/mv_eth.h>
 
 #include "eth/mvEth.h"
 #include "eth-phy/mvEthPhy.h"

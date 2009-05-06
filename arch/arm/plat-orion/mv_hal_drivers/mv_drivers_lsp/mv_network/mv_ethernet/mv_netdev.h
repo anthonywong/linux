@@ -306,7 +306,7 @@ typedef struct _mv_priv
 
 } mv_net_priv;
 
-#define MV_ETH_PRIV(dev)        (((mv_net_priv*)((dev)->priv))->giga_priv)
+#define MV_ETH_PRIV(dev)        (((mv_net_priv*)(netdev_priv(dev)))->giga_priv)
 #define MV_NETDEV_STATS(dev)    (&((dev)->stats))
 #define MV_NETDEV_VLAN(dev)     (((mv_net_priv*)((dev)->priv))->vlan_cfg)
 #define MV_GTW_VLAN_TO_GROUP(vid)	((((vid) & 0xf00) >> 8)-1)
