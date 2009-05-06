@@ -14,6 +14,8 @@
 #include "mvCommon.h"
 #include "twsi/mvTwsi.h"
 
+#ifdef CONFIG_SND_MRVL_AUDIO
+
 struct i2c_adapter      *i2s_i2c_adapter = NULL;
 struct i2c_client *i2s_i2c_client = NULL;
 
@@ -135,3 +137,21 @@ module_exit(i2s_i2c_exit);
 MODULE_AUTHOR("Saeed Bishara <saeed@marvell.com>");
 MODULE_DESCRIPTION("I2C wrapper client driver for I2C HAL function Driver");
 MODULE_LICENSE("GPL");
+
+#else
+
+MV_STATUS mvTwsiRead(MV_U8 chanNum, MV_TWSI_SLAVE *pTwsiSlave, MV_U8 *pBlock,
+		     MV_U32 blockSize)
+{
+	printk(KERN_ERR "ERROR: DUMMY FUNCTION: %s\n", __func__);
+	return MV_ERROR;
+}
+
+MV_STATUS mvTwsiWrite(MV_U8 chanNum, MV_TWSI_SLAVE *pTwsiSlave, MV_U8 *pBlock,
+		      MV_U32 blockSize)
+{
+	printk(KERN_ERR "ERROR: DUMMY FUNCTION: %s\n", __func__);
+	return MV_ERROR;
+}
+
+#endif
