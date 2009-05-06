@@ -21,10 +21,10 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 
 	switch(cmd) {
 		case UIO_VPRO_IRQ_ENABLE:
-			enable_irq(DOVE_VPRO_IRQ_PIN);
+			enable_irq(info->irq);
 			break;
 		case UIO_VPRO_IRQ_DISABLE:
-			disable_irq(DOVE_VPRO_IRQ_PIN);
+			disable_irq(info->irq);
 			break;
 		default:
 			break;
@@ -35,7 +35,7 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 
 static irqreturn_t vpro_irqhandler(int irq, void *dev_id)
 {
-	disable_irq(DOVE_VPRO_IRQ_PIN);
+	disable_irq(irq);
 	return IRQ_HANDLED;
 }
 
@@ -127,7 +127,7 @@ static int dove_vpro_probe(struct platform_device *pdev)
 
 	vd->uio_info.name = "dove_vpro_uio";
 	vd->uio_info.version = "0.9.0";
-	vd->uio_info.irq = DOVE_VPRO_IRQ_PIN;
+	vd->uio_info.irq = platform_get_irq(pdev, 0);
 	vd->uio_info.handler = vpro_irqhandler;
 	vd->uio_info.ioctl = vpro_ioctl;
 
@@ -137,7 +137,7 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	}
 
 	// disable interrupt at initial time
-	disable_irq(DOVE_VPRO_IRQ_PIN);
+	disable_irq(vd->uio_info.irq);
 
 
 	printk(KERN_INFO "VPRO UIO driver registered successfully.\n");

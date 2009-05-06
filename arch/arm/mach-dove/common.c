@@ -1130,6 +1130,11 @@ static struct resource dove_vpro_resources[] = {
 		.end	= 0,
 		.flags	= IORESOURCE_MEM,
 	},
+	[2] = {
+		.start  = IRQ_DOVE_VPRO_DMA1,
+		.end    = IRQ_DOVE_VPRO_DMA1,
+		.flags  = IORESOURCE_IRQ,
+	}
 };
 
 void __init dove_vpro_init(void)
