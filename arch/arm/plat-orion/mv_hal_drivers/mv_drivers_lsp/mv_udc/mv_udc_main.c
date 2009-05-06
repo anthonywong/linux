@@ -70,6 +70,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "usb/api/mvUsbCh9.h"
 #include "usb/mvUsb.h"
 
+#include <linux/version.h>
 #include <linux/module.h> 
 #include <linux/moduleparam.h>
 #include <linux/wait.h>
@@ -79,6 +80,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <linux/platform_device.h>
 
 #include <asm/irq.h>
+#include <linux/device.h>
+#include <linux/workqueue.h>
+
+
+#ifdef MV_USB_VOLTAGE_FIX
+
+#define MV_USB_CONNECTED	1
+#define MV_USB_DISCONNECTED	2
+
+static int mv_usb_initialize_kobject (void);
+
+#endif /* MV_USB_VOLTAGE_FIX */
 
 #if defined(CONFIG_MV645xx) || defined(CONFIG_MV646xx)
 #   include "marvell_pic.h"
@@ -112,6 +125,14 @@ static int streaming = 0;
 #endif
 module_param_named(streaming, streaming, int, S_IRUGO);
 MODULE_PARM_DESC(streaming, "0 - Streaming Disable, 1 - Streaming Enable");
+
+static int epin_first = 1;  
+module_param_named(epin_first, epin_first, int, S_IRUGO);
+MODULE_PARM_DESC(epin_first, "First choose of IN endpoint number");
+
+static int epout_first = 1;  
+module_param_named(epout_first, epout_first, int, S_IRUGO);
+MODULE_PARM_DESC(epout_first, "First choose of OUT endpoint number");
 
 #if defined(USB_UNDERRUN_WA)
 #include "mvIdma.h" 
@@ -412,7 +433,7 @@ static struct mv_usb_dev*   the_controllers[MV_USB_MAX_PORTS] = {NULL};
 static const char driver_name [] = "mv_udc";
 static const char driver_desc [] = DRIVER_DESC;
 
-static char ep_name [2*ARC_USB_MAX_ENDPOINTS][10] = 
+static char ep_names [2*ARC_USB_MAX_ENDPOINTS][10] = 
 {
     "ep0out", "ep0in",
 };
@@ -484,40 +505,65 @@ static uint_8 mv_usb_start_ep0(struct mv_usb_dev *mv_dev)
     return USB_OK;
 }
 
+static void   mv_usb_ep_init(struct mv_usb_ep *ep, int num, int is_in)
+{
+    sprintf(&ep_names[num*2+is_in][0], "ep%d%s", num, is_in ? "in" : "out");
+    ep->ep.name = &ep_names[num*2+is_in][0];
+
+    ep->num = num;
+    ep->is_in = is_in;
+    ep->is_enabled = 0;
+
+    INIT_LIST_HEAD (&ep->req_list);
+    
+    ep->ep.maxpacket = ~0;
+    ep->ep.ops = &mv_usb_ep_ops;
+}
+
 static uint_8 mv_usb_reinit (struct mv_usb_dev *usb_dev)
 {
-    int                 i, num;
-    MV_BOOL             is_in;
+    int                 i, ep_num;
     struct mv_usb_ep    *ep;
 
     DBGMSG("%s: mv_dev=%p, mv_usb_handle=%p\n", 
            __FUNCTION__, usb_dev, usb_dev->mv_usb_handle);
 
     INIT_LIST_HEAD (&usb_dev->gadget.ep_list);
-    num = 0;
-    for(i=0; i<2*ARC_USB_MAX_ENDPOINTS; i++)
+
+    /* Enumerate IN endpoints */
+    ep_num = epin_first;
+    for(i=0; i<_usb_device_get_max_endpoint(usb_dev->mv_usb_handle); i++)
     {
-        is_in = i % 2;
-        ep = &usb_dev->ep[i];
-        if (num != 0)
+        ep = &usb_dev->ep[ep_num*2+1];
+        if (ep_num != 0)
         {
             INIT_LIST_HEAD(&ep->ep.ep_list);
             list_add_tail (&ep->ep.ep_list, &usb_dev->gadget.ep_list);
-            sprintf(&ep_name[i][0], "ep%d%s", num, is_in ? "in" : "out");
         }
-
-        ep->ep.name = &ep_name[i][0];
+        mv_usb_ep_init(ep, ep_num, 1);
         ep->usb_dev = usb_dev;
-        ep->num = num;
-        ep->is_in = is_in;
-        ep->is_enabled = 0;
 
-        INIT_LIST_HEAD (&ep->req_list);
-    
-        ep->ep.maxpacket = ~0;
-        ep->ep.ops = &mv_usb_ep_ops;
-        if(is_in)
-            num++;
+        ep_num++;
+        if(ep_num == _usb_device_get_max_endpoint(usb_dev->mv_usb_handle))
+            ep_num = 0;
+    }
+
+    /* Enumerate OUT endpoints */
+    ep_num = epout_first;
+    for(i=0; i<_usb_device_get_max_endpoint(usb_dev->mv_usb_handle); i++)
+    {
+        ep = &usb_dev->ep[ep_num*2];
+        if (ep_num != 0)
+        {
+            INIT_LIST_HEAD(&ep->ep.ep_list);
+            list_add_tail (&ep->ep.ep_list, &usb_dev->gadget.ep_list);
+        }
+        mv_usb_ep_init(ep, ep_num, 0);
+        ep->usb_dev = usb_dev;
+
+        ep_num++;
+        if(ep_num == _usb_device_get_max_endpoint(usb_dev->mv_usb_handle))
+            ep_num = 0;
     }
     usb_dev->ep[0].ep.maxpacket = 64;
     usb_dev->gadget.ep0 = &usb_dev->ep[0].ep;
@@ -542,7 +588,7 @@ void mv_usb_bus_reset_service(void*      handle,
         /* mv_usb_show(mv_dev, 0x3ff); */
 
         /* Stop Hardware and cancel all pending requests */
-        for (i=0; i<2*(ARC_USB_MAX_ENDPOINTS); i++)
+        for (i=0; i<2*_usb_device_get_max_endpoint(handle); i++)
         {
             mv_ep = &mv_dev->ep[i];
 
@@ -824,10 +870,59 @@ void mv_usb_ep0_complete_service(void*      handle,
 
 #ifdef MV_USB_VOLTAGE_FIX
 
+/* usb_state - state of usb:connected(1)/disconnected(2) */
+static int usb_state = MV_USB_DISCONNECTED;
+
+/* usb_device-device structure for kobject functionality */
+static struct device mv_usb_device;
+
+/* mv_usb_work_struct - workqueue structure using for creating and run work tasks */
+static struct work_struct mv_usb_work_struct;
+
+/* mv_bustype for inizialization usb_device structure */
+static struct bus_type mv_usb_bustype = {
+		.name		= "mv_udc",
+};
+
+/*******************************************************************************
+* mv_usb_work_struct_routine
+* DESCRIPTION: 	notify userspace by ending an uevent
+* INPUTS:       *ignored - structure work_struct - N/A
+* OUTPUTS:      N/A
+* RETURNS:      N/A
+*******************************************************************************/
+static int mv_usb_work_struct_routine(struct work_struct *ignored)
+{
+	int retval=1;
+
+	/* Usb device connected */
+	if(usb_state == MV_USB_CONNECTED)
+	{
+		retval = kobject_uevent(&mv_usb_device.kobj, KOBJ_ADD);
+		mvOsPrintf("Usb device connected\n");
+	}
+	/* Usb device disconnected */
+	else
+	{
+		retval = kobject_uevent(&mv_usb_device.kobj, KOBJ_REMOVE);
+		mvOsPrintf("Usb device disconnected\n");
+	}
+	
+	/* on error */
+	if(retval != 0)
+	{
+		mvOsPrintf("ERROR: %d, kobject_uevent() failed\n",retval);
+	}
+
+	return retval;
+}
+
+/* initialize a work-struct with work task -mv_usb_work_struct_routine */
+static DECLARE_WORK(mv_usb_work_struct, mv_usb_work_struct_routine);
 static irqreturn_t mv_usb_vbus_irq (int irq, void *_dev)
 {
     struct mv_usb_dev       *mv_dev = _dev;
-    int                     vbus_change;
+    int                     vbus_change, retval=0;
 
     vbus_change = mvUsbBackVoltageUpdate(mv_dev->dev_no, (int)mv_dev->vbus_gpp_no);
     if(vbus_change == 2)
@@ -838,6 +933,15 @@ static irqreturn_t mv_usb_vbus_irq (int irq, void *_dev)
             mv_dev->driver->disconnect (&mv_dev->gadget);
     }
 
+	usb_state=(vbus_change==2) ? MV_USB_DISCONNECTED : MV_USB_CONNECTED;
+	if(list_empty(&mv_usb_work_struct.entry))
+	{
+		retval = schedule_work(&mv_usb_work_struct);
+ 		if(retval == 0)
+		{
+			mvOsPrintf("ERROR: %d, schedule_work() failed\n",retval);
+		}
+	}
     return IRQ_HANDLED;
 }
 #endif /* MV_USB_VOLTAGE_FIX */
@@ -855,6 +959,44 @@ static irqreturn_t mv_usb_dev_irq (int irq, void *_dev)
 
     return IRQ_HANDLED;
 }
+
+#ifdef MV_USB_VOLTAGE_FIX
+
+/*******************************************************************************
+* mv_usb_initialize_kobject
+* DESCRIPTION: 	init device,set bus type, create and add kobject
+* INPUTS:       *dev - pointer for device structure
+* OUTPUTS:      N/A
+* RETURNS:      status USB_OK on success
+*******************************************************************************/
+static int mv_usb_initialize_kobject (void)
+{
+	int retval = 1;
+
+	/* init device */
+	device_initialize(&mv_usb_device);
+
+	/* set bus_type for device */
+	mv_usb_device.bus = &mv_usb_bustype;
+
+	/* init kobject */
+	retval = kobject_set_name(&mv_usb_device.kobj, "mv_udc_d");
+	if(retval != USB_OK)
+	{
+		mvOsPrintf("ERROR: %d, kobject_set_name() failed\n",retval);
+		return retval;
+	}
+
+	/* add kobject */
+	retval = kobject_add(&mv_usb_device.kobj);
+	if(retval != USB_OK)
+	{
+		mvOsPrintf("ERROR: %d, kobject_add() failed\n",retval);
+		return retval;
+	}
+	return USB_OK;
+}
+#endif /* MV_USB_VOLTAGE_FIX */
 
 /* when a driver is successfully registered, it will receive
  * control requests including set_configuration(), which enables
@@ -964,7 +1106,7 @@ int usb_gadget_unregister_driver (struct usb_gadget_driver *driver)
     MV_SPIN_LOCK_IRQSAVE(&mv_dev->lock, flags);
 
     /* Stop Endpoints */
-    for (i=0; i<2*(ARC_USB_MAX_ENDPOINTS); i++)
+    for (i=0; i<2*_usb_device_get_max_endpoint(mv_dev->mv_usb_handle); i++)
     {
         mv_ep = &mv_dev->ep[i];
         if(mv_ep->is_enabled == 0)
@@ -1021,7 +1163,7 @@ void    mv_usb_show(struct mv_usb_dev* mv_dev, unsigned int mode)
     if( MV_BIT_CHECK(mode, 3) )
         _usb_debug_print_trace_log();
 
-    for(i=0; i<ARC_USB_MAX_ENDPOINTS; i++)
+    for(i=0; i<_usb_device_get_max_endpoint(mv_dev->mv_usb_handle); i++)
     {
         if( MV_BIT_CHECK(mode, (8+i)) )
         {
@@ -1533,6 +1675,20 @@ static int __init mv_usb_gadget_probe(struct device *_dev)
         return -EINVAL;
     } /* Endif */
 
+    if( (epin_first < 1) || (epin_first >= _usb_device_get_max_endpoint(mv_dev->mv_usb_handle)) )
+    {
+        mvOsPrintf("\nUSB_%d: epin_first=%d is out of range 1..%d. Use default epin_first=1\n", 
+                    dev_no, epin_first, _usb_device_get_max_endpoint(mv_dev->mv_usb_handle) );
+        epin_first = 1;
+    }
+
+    if( (epout_first < 1) || (epout_first >= _usb_device_get_max_endpoint(mv_dev->mv_usb_handle)) )
+    {
+        mvOsPrintf("\nUSB_%d: epout_first=%d is out of range 1..%d. Use default epout_first=1\n", 
+                    dev_no, epout_first, _usb_device_get_max_endpoint(mv_dev->mv_usb_handle) );
+        epout_first = 1;
+    }
+
     /* Self Power, Remote wakeup disable */
     _usb_device_set_status(mv_dev->mv_usb_handle, ARC_USB_STATUS_DEVICE, (1 << DEVICE_SELF_POWERED));
 
@@ -1586,7 +1742,7 @@ static int __init mv_usb_gadget_probe(struct device *_dev)
         return error;
     } /* Endif */
 
-    for (i=1; i<ARC_USB_MAX_ENDPOINTS; i++)
+    for (i=1; i<_usb_device_get_max_endpoint(mv_dev->mv_usb_handle); i++)
     {
         error = _usb_device_register_service(mv_dev->mv_usb_handle, i, 
                                                     mv_usb_tr_complete_service);   
@@ -1602,6 +1758,24 @@ static int __init mv_usb_gadget_probe(struct device *_dev)
         return -EINVAL;
 
     retval = device_register (&mv_dev->gadget.dev);
+
+#ifdef MV_USB_VOLTAGE_FIX
+
+	if(retval!= USB_OK)
+	{
+		mvOsPrintf("ERROR: %d, device_register() failed\n", retval);
+		return retval;
+	}
+
+	/* create and init kobject */
+ 	retval = mv_usb_initialize_kobject();
+	if(retval != USB_OK)
+	{
+		mvOsPrintf("ERROR: %d, kobject_init() failed\n", retval);
+		return retval;
+	}
+
+#endif /* MV_USB_VOLTAGE_FIX */
 
     return retval; 
 }
@@ -1619,12 +1793,13 @@ static int __exit mv_usb_gadget_remove(struct device *_dev)
         /* should have been done already by driver model core */
         mvOsPrintf("pci remove, driver '%s' is still registered\n",
                     mv_dev->driver->driver.name);
+
         usb_gadget_unregister_driver (mv_dev->driver);
     }
 
     spin_lock (&mv_dev->lock);
 
-    for (i=0; i<ARC_USB_MAX_ENDPOINTS; i++)
+    for (i=0; i<_usb_device_get_max_endpoint(mv_dev->mv_usb_handle); i++)
         _usb_device_unregister_service(mv_dev->mv_usb_handle, i);   
 
     /* Deregister all other services */
@@ -1645,6 +1820,8 @@ static int __exit mv_usb_gadget_remove(struct device *_dev)
     {
         free_irq (IRQ_GPP_START + mv_dev->vbus_gpp_no, mv_dev); 
     }
+    /* delete kobject */
+	kobject_del(&mv_usb_device.kobj);
 
 #endif /* MV_USB_VOLTAGE_FIX */
 
@@ -1671,8 +1848,9 @@ int usb_resource_dump_write (struct file *file, const char *buffer,
 int usb_resource_dump_read (char *buffer, char **buffer_location, off_t offset,
                             int buffer_length, int *zero, void *ptr) 
 {
-    int         i;
-    static int  count = 0;
+    int                 i, dev;
+    static int          count = 0;
+    struct mv_usb_dev*  mv_dev;
 
     printk("usb_resource_dump_read_%-3d\n",  count);
     if(offset > 0)
@@ -1681,18 +1859,43 @@ int usb_resource_dump_read (char *buffer, char **buffer_location, off_t offset,
     count++;
     usb_resource_dump_result = count;
 
-    for(i=0; i<mvCtrlUsbMaxGet(); i++)
+    for(dev=0; dev<mvCtrlUsbMaxGet(); dev++)
     {
-        if(the_controllers[i] != NULL)
-            mv_usb_show(the_controllers[i], 0x3ff);
+        mv_dev = the_controllers[dev];
+
+        if(mv_dev != NULL)
+        {
+            mv_usb_show(mv_dev, 0xff);
+
+            _usb_ep_status(mv_dev->mv_usb_handle, 0, ARC_USB_RECV);
+            _usb_ep_status(mv_dev->mv_usb_handle, 0, ARC_USB_SEND);
+
+            for(i=1; i<_usb_device_get_max_endpoint(mv_dev->mv_usb_handle); i++)
+            {
+                struct mv_usb_ep    *ep;
+
+                /* OUT endpoint (RECV) */ 
+                ep = &mv_dev->ep[i*2];
+                if(ep->is_enabled)
+                    _usb_ep_status(mv_dev->mv_usb_handle, i, ARC_USB_RECV);
+
+                /* IN endpoint (SEND) */
+                ep = &mv_dev->ep[i*2+1];
+                if(ep->is_enabled)
+                    _usb_ep_status(mv_dev->mv_usb_handle, i, ARC_USB_SEND);
+            }
+        }
     }
- 
     return sprintf(buffer, "%x\n", usb_resource_dump_result);
 }
 
 int usb_start_resource_dump(void)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+  usb_resource_dump = create_proc_entry ("usb_dump" , 0666 , &proc_root);
+#else
   usb_resource_dump = create_proc_entry ("usb_dump" , 0666 , NULL);
+#endif
   usb_resource_dump->read_proc = usb_resource_dump_read;
   usb_resource_dump->write_proc = usb_resource_dump_write;
   usb_resource_dump->nlink = 1;
@@ -1729,6 +1932,12 @@ module_init (init);
 static void __exit cleanup (void)
 {
     mvOsPrintf("%s: version %s unloaded\n", driver_name, DRIVER_VERSION);
+    
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+    remove_proc_entry("usb_dump" , &proc_root);
+#else
+    remove_proc_entry("usb_dump" , NULL);
+#endif
     driver_unregister(&mv_usb_gadget_driver);
 }
 module_exit (cleanup);
