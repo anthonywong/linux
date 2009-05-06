@@ -944,7 +944,12 @@ static struct resource kirkwood_i2s_resources[] = {
 
 static u64 kirkwood_i2s_dmamask = 0xFFFFFFFFUL;
 
-struct orion_i2s_platform_data i2s_data;
+static struct orion_i2s_platform_data i2s_data = {
+	.i2s_play	= 1,
+	.i2s_rec	= 1,
+	.spdif_play	= 1,
+};
+
  
 static struct platform_device kirkwood_i2s = {
 	.name           = "mv88fx_snd",
@@ -957,8 +962,14 @@ static struct platform_device kirkwood_i2s = {
 	.resource       = kirkwood_i2s_resources,
 };
 
+static struct platform_device kirkwood_mv88fx_i2s = {
+	.name           = "mv88fx-i2s",
+	.id             = -1,
+};
+
 void __init kirkwood_i2s_init(void)
 {
+	platform_device_register(&kirkwood_mv88fx_i2s);
 	i2s_data.dram = &kirkwood_mbus_dram_info;
 	kirkwood_i2s.dev.platform_data = &i2s_data;
 	platform_device_register(&kirkwood_i2s);
