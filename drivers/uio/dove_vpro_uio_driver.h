@@ -19,7 +19,6 @@
 #define VPRO_DMA_BUFFER_1_SIZE		0x300000 // 3M
 #endif /* CONFIG_VPRO_NEW */
 
-#define DOVE_VPRO_IRQ_PIN		11
 
 /************************
 *   VPRO ioctl Define   *
