@@ -125,7 +125,7 @@ int mv_eth_resume(struct platform_device *pdev)
 {
 	int port = ((struct mv_netdev_platform_data *)(pdev->dev.platform_data))->port_number;
 	struct net_device *dev = mv_net_devs[port];
-	mv_eth_priv     *priv = MV_ETH_PRIV(dev);
+	/* mv_eth_priv     *priv = MV_ETH_PRIV(dev); */
 	int status = 0, winNum = 0, i = 0;
 
 	/* restore address decoding */
@@ -1106,10 +1106,10 @@ irqreturn_t     mv_eth_interrupt_handler(int irq , void *dev_id)
 #endif /* ETH_DEBUG */
 
     /* Verify that the device not already on the polling list */
-	 if (netif_rx_schedule_prep(dev, &priv->napi)) {
+	 if (netif_rx_schedule_prep(&priv->napi)) {
 	    /* schedule the work (rx+txdone+link) out of interrupt contxet */
         mv_eth_mask_interrupts(priv);
-	__netif_rx_schedule(dev, &priv->napi);
+	__netif_rx_schedule(&priv->napi);
 	 }    
     else {
 	    if(netif_running(dev)) {
@@ -1179,7 +1179,6 @@ static int eth_poll( struct napi_struct *napi, int budget )
 #endif /* (MV_ETH_RX_Q_NUM > 1) */
 
     budget -= rx_done;
-//    dev->quota -= rx_done;
 
 #if defined(CONFIG_MV_ETH_NFP) && !defined(ETH_TX_DONE_ISR)
     if( fp_is_enabled() )
@@ -1220,7 +1219,7 @@ static int eth_poll( struct napi_struct *napi, int budget )
     { 
         unsigned long flags;
         local_irq_save(flags);
-	netif_rx_complete(dev, &priv->napi);
+	netif_rx_complete(&priv->napi);
         ETH_STAT_INFO(priv->eth_stat.poll_complete++);
         mv_eth_unmask_interrupts(priv);
 	ETH_DBG( ETH_DBG_RX, ("unmask\n") );
@@ -2485,6 +2484,17 @@ static void eth_tx_timeout( struct net_device *dev )
     printk( KERN_INFO "%s: tx timeout\n", dev->name );
 }
 
+
+static const struct net_device_ops mv_eth_netdev_ops = {
+	.ndo_open		= mv_eth_open,
+	.ndo_stop		= mv_eth_stop,
+	.ndo_start_xmit		= eth_tx,
+	.ndo_set_multicast_list	= mv_eth_set_multicast_list,
+	.ndo_set_mac_address	= mv_eth_set_mac_addr,
+	.ndo_change_mtu		= mv_eth_change_mtu,
+	.ndo_tx_timeout		= eth_tx_timeout,
+};
+
 /*********************************************************** 
  * mv_netdev_init -- Allocate and initialize net_device    *
  *                   structure                             *
@@ -2499,7 +2509,7 @@ struct net_device* mv_netdev_init(mv_eth_priv *priv, int mtu, u8* mac)
         return NULL;
     }
 
-    net_priv = (mv_net_priv *)dev->priv;
+    net_priv = (mv_net_priv *)netdev_priv(dev);
     if( !net_priv ) { 
         return NULL;
     }
@@ -2509,32 +2519,23 @@ struct net_device* mv_netdev_init(mv_eth_priv *priv, int mtu, u8* mac)
     dev->irq = ETH_PORT_IRQ_NUM(priv->port);
     dev->mtu = mtu;
     memcpy(dev->dev_addr, mac, 6);
-//  dev->weight = (ETH_NUM_OF_RX_DESCR / 2);
     dev->tx_queue_len = CONFIG_MV_ETH_NUM_OF_TX_DESCR;
     dev->watchdog_timeo = 5*HZ;
 
-    dev->hard_start_xmit = eth_tx;
-    dev->tx_timeout = eth_tx_timeout;
-//  dev->poll = eth_poll;
+    dev->netdev_ops = &mv_eth_netdev_ops;
 
     priv->dev = dev;
     netif_napi_add(dev, &priv->napi, eth_poll, ETH_NUM_OF_RX_DESCR / 2);
-
-    dev->open = mv_eth_open;
-    dev->stop = mv_eth_stop;
-    dev->set_mac_address = mv_eth_set_mac_addr;
-    dev->set_multicast_list = mv_eth_set_multicast_list;
-    dev->change_mtu = &mv_eth_change_mtu; 
 
 #ifdef CONFIG_MV_GATEWAY
     if(priv->isGtw)
     {
         /* For Gateway driver replace some of callback functions */
-	dev->open = mv_gtw_start;
-        dev->stop = mv_gtw_stop;
-        dev->set_mac_address = mv_gtw_set_mac_addr;
-	dev->set_multicast_list = mv_gtw_set_multicast_list;
-        dev->change_mtu = &mv_gtw_change_mtu;
+	dev->netdev_ops->open = mv_gtw_start;
+        dev->netdev_ops->stop = mv_gtw_stop;
+        dev->netdev_ops->set_mac_address = mv_gtw_set_mac_addr;
+	dev->netdev_ops->set_multicast_list = mv_gtw_set_multicast_list;
+        dev->netdev_ops->change_mtu = &mv_gtw_change_mtu;
         dev->hard_header_len += ETH_MV_HEADER_SIZE;
     }
 #endif /* CONFIG_MV_GATEWAY */
@@ -2652,6 +2653,8 @@ void    mv_eth_netdev_print(unsigned int idx)
 extern struct Qdisc noop_qdisc;
 void mv_eth_set_noqueue(int idx, int enable)
 {
+/* TODO */
+#if 0
     struct net_device *dev = eth_net_device_by_idx(idx);
 
     if (dev->flags & IFF_UP) {
@@ -2661,6 +2664,7 @@ void mv_eth_set_noqueue(int idx, int enable)
     dev->tx_queue_len = enable ? 0 : CONFIG_MV_ETH_NUM_OF_TX_DESCR;
     dev->qdisc_sleeping = &noop_qdisc;
     printk(KERN_ERR "%s: device tx queue len is %d\n", dev->name, (int)dev->tx_queue_len);
+#endif
 }
 
 /* ***  print Ethernet port status
