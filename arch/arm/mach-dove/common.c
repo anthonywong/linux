@@ -929,8 +929,16 @@ static struct platform_device dove_i2s1 = {
 	.resource       = dove_i2s1_resources,
 };
 
+static struct platform_device dove_mv88fx_i2s = {
+	.name           = "mv88fx-i2s",
+	.id             = -1,
+};
+
+
+
 void __init dove_i2s_init(int port, struct orion_i2s_platform_data *i2s_data)
 {
+	platform_device_register(&dove_mv88fx_i2s);
 	switch(port){
 	case 0:
 		i2s_data->dram = &dove_mbus_dram_info;

@@ -18,5 +18,17 @@ config SND_DOVE_SOC_DB
 	help
 	  Say Y if you want to add support for SoC audio on Marvell
 	  Dove Development Board.
+
+
+config SND_DOVE_SOC_MRVL_AUDIO
+	tristate "Marvell mv88fx Audio ALSA SOC driver"
+	depends on MV_INCLUDE_AUDIO && SND_SOC
+	select SND_SOC_CS42L51
+	help
+	  Say Y if you want to add support for SoC audio on Marvell
+	  Dove Development Board.
+
+
+
 endmenu
 
