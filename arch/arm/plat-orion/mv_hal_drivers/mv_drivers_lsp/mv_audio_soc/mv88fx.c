@@ -554,7 +554,7 @@ static int mv88fx_snd_probe(struct platform_device *pdev)
 	if (mv88fx_initalize_machine_data(pdev) != 0)
 		goto error;
 
-	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", 0);
+	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", 1);
 	if (!mv88fx_machine_data.snd_dev) {
 		ret = -ENOMEM;
 		goto error;
