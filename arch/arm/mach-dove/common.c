@@ -38,10 +38,14 @@
 #include <plat/ehci-orion.h>
 #include <plat/i2s-orion.h>
 #include <plat/orion_nand.h>
+#include <plat/mv_eth.h>
 #include <plat/time.h>
 #include <plat/mv_xor.h>
 #include <ctrlEnv/mvCtrlEnvRegs.h>
 #include <audio/mvAudioRegs.h>
+#ifdef CONFIG_MV_ETHERNET
+#include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
+#endif
 
 /* used for memory allocation for the VPRO video engine */
 #ifdef CONFIG_UIO_DOVE_VPRO
@@ -397,6 +401,50 @@ void __init dove_ehci1_init(void)
 	platform_device_register(&dove_ehci1);
 #endif
 }
+
+/*****************************************************************************
+ * Ethernet
+ ****************************************************************************/
+struct mv_eth_addr_dec_platform_data dove_eth_addr_dec_data = {
+	.dram		= &dove_mbus_dram_info,
+};
+
+static struct platform_device dove_eth_addr_dec = {
+	.name		= MV_ETH_ADDR_DEC_NAME,
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &dove_eth_addr_dec_data,
+	},
+	.num_resources	= 0,
+};
+
+static struct mv_netdev_platform_data dove_eth_data = {
+	.port_number = 0
+};
+
+static struct resource dove_eth_resources[] = {
+	{
+		.name	= "eth irq",
+		.start	= IRQ_DOVE_GE00_SUM,
+		.end	= IRQ_DOVE_GE00_SUM,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device dove_eth = {
+	.name		= MV_NETDEV_ETH_NAME,
+	.id		= 0,
+	.num_resources	= 1,
+	.resource	= dove_eth_resources,
+};
+
+void __init dove_mv_eth_init(void)
+{
+	dove_eth.dev.platform_data = &dove_eth_data;
+	platform_device_register(&dove_eth);
+	platform_device_register(&dove_eth_addr_dec);
+}
+
 #if 1
 /*****************************************************************************
  * GE00
