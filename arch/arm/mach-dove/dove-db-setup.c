@@ -35,9 +35,6 @@
 #include <asm/hardware/pxa-dma.h>
 #include <mach/dove_nand.h>
 #include "common.h"
-#ifdef CONFIG_MV_ETHERNET
-#include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
-#endif
 #include "mpp.h"
 #include "dove-front-panel-common.h"
 
@@ -175,36 +172,6 @@ static struct i2c_board_info __initdata i2c_a2d = {
 	I2C_BOARD_INFO("i2s_i2c", 0x4A),
 };
 
-#ifdef CONFIG_MV_ETHERNET
-/*****************************************************************************
- * Ethernet
- ****************************************************************************/
-static struct mv_netdev_platform_data dove_db_eth_data = {
-	.port_number = 0
-};
-
-static struct resource dove_db_eth_resources[] = {
-	{
-		.name	= "eth irq",
-		.start	= IRQ_DOVE_GE00_SUM,
-		.end	= IRQ_DOVE_GE00_SUM,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device dove_db_eth = {
-	.name		= MV_NETDEV_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= dove_db_eth_resources,
-};
-
-void __init dove_db_eth_init(void)
-{
-	dove_db_eth.dev.platform_data = &dove_db_eth_data;
-	platform_device_register(&dove_db_eth);
-}
-#endif
 /*****************************************************************************
  * NAND
  ****************************************************************************/
@@ -332,7 +299,7 @@ static void __init dove_db_init(void)
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
-	dove_db_eth_init();
+	dove_mv_eth_init();
 #endif
 	dove_ehci0_init();
 	dove_ehci1_init();

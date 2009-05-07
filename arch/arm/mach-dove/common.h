@@ -32,6 +32,7 @@ void dove_init(void);
 void dove_init_irq(void);
 void dove_setup_cpu_mbus(void);
 void dove_ge00_init(struct mv643xx_eth_platform_data *eth_data);
+void dove_mv_eth_init(void);
 void dove_sata_init(struct mv_sata_platform_data *sata_data);
 void dove_fb_init(struct dovefb_mach_info *fb_data);
 void dove_pcie_init(int init_port0, int init_port1);
@@ -60,7 +61,6 @@ void dove_sd_card_int_wa_setup(int port);
 void dove_xor0_init(void);
 void dove_xor1_init(void);
 void dove_ac97_setup(void);
-
 /*
  * Basic Dove PM functions
  */
