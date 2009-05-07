@@ -1,3 +1,11 @@
+linux (2.6.24-24.53netbook01) netbook-common; urgency=low
+
+  * Now that the rebase is finished, remove the whitespace correction
+  * This branch has been rebased onto the hardy distro release
+	Ubuntu-2.6.24-24.53
+
+ -- Steve Conklin <sconklin@canonical.com>  Thu, 07 May 2009 19:23:35 +0000
+
 linux (2.6.24-24.51netbook14) netbook-common; urgency=low
 
   * Incorporate minor change to not rename debug debs
