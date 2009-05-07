@@ -163,7 +163,7 @@ $git commit -a -s -m "UBUNTU: AUTO: Start new changelog and revert to known abi"
 $git status
 
 # Apply pending patches
-$git am --whitespace=fix -C0 patches/*
+$git am -C0 patches/*
 if [ -d "$rebasing/" ]; then
     echo "\tFailed to apply patches"
     echo "\tPlease fix the patches on branch $remoteBranch and then sync to the master branch"
