@@ -39,9 +39,6 @@
 #include <mach/dove_nand.h>
 #include <mach/dove_bl.h>
 #include "common.h"
-#ifdef CONFIG_MV_ETHERNET
-#include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
-#endif
 #include "mpp.h"
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
@@ -113,36 +110,7 @@ static struct dovefb_mach_info dove_anvg_lcd0_vid_dmi = {
 	.active			= 0,
 	.enable_lcd0		= 0,
 };
-#ifdef CONFIG_MV_ETHERNET
-/*****************************************************************************
- * Ethernet
- ****************************************************************************/
-static struct mv_netdev_platform_data dove_rd_avng_eth_data = {
-	.port_number = 0
-};
 
-static struct resource dove_rd_avng_eth_resources[] = {
-	{
-		.name	= "eth irq",
-		.start	= IRQ_DOVE_GE00_SUM,
-		.end	= IRQ_DOVE_GE00_SUM,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device dove_rd_avng_eth = {
-	.name		= MV_NETDEV_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= dove_rd_avng_eth_resources,
-};
-
-void __init dove_rd_avng_eth_init(void)
-{
-	dove_rd_avng_eth.dev.platform_data = &dove_rd_avng_eth_data;
-	platform_device_register(&dove_rd_avng_eth);
-}
-#endif
 static struct orion_i2s_platform_data i2s0_data = {
 	.i2s_play	= 1,
 	.i2s_rec	= 1,
@@ -456,7 +424,7 @@ static void __init dove_rd_avng_init(void)
 	dove_ehci0_init();
 	dove_ehci1_init();
 #ifdef CONFIG_MV_ETHERNET
-	dove_rd_avng_eth_init();
+	dove_mv_eth_init();
 #endif
 	/* dove_sata_init(&dove_rd_sata_data); */
 	dove_spi0_init(0);

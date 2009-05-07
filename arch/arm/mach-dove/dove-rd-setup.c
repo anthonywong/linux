@@ -34,9 +34,6 @@
 #include <mach/dove.h>
 #include <asm/hardware/pxa-dma.h>
 #include "common.h"
-#ifdef CONFIG_MV_ETHERNET
-#include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
-#endif
 #include "mpp.h"
 #include "dove-front-panel-common.h"
 
@@ -44,34 +41,6 @@
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
 #ifdef CONFIG_MV_ETHERNET
-/*****************************************************************************
- * Ethernet
- ****************************************************************************/
-static struct mv_netdev_platform_data dove_rd_eth_data = {
-	.port_number = 0
-};
-
-static struct resource dove_rd_eth_resources[] = {
-	{
-		.name	= "eth irq",
-		.start	= IRQ_DOVE_GE00_SUM,
-		.end	= IRQ_DOVE_GE00_SUM,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device dove_rd_eth = {
-	.name		= MV_NETDEV_ETH_NAME,
-	.id		= 0,
-	.num_resources	= 1,
-	.resource	= dove_rd_eth_resources,
-};
-
-void __init dove_rd_eth_init(void)
-{
-	dove_rd_eth.dev.platform_data = &dove_rd_eth_data;
-	platform_device_register(&dove_rd_eth);
-}
 #else
 static struct mv643xx_eth_platform_data dove_rd_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR_DEFAULT,
@@ -202,7 +171,7 @@ static void __init dove_rd_init(void)
 	dove_ehci0_init();
 	dove_ehci1_init();
 #ifdef CONFIG_MV_ETHERNET
-	dove_rd_eth_init();
+	dove_mv_eth_init();
 #else
 	dove_ge00_init(&dove_rd_ge00_data);
 #endif
