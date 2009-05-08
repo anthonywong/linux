@@ -746,7 +746,7 @@ CONFIG_MXC_IIM=y
 CONFIG_IMX_SIM=m
 
 #
- Serial drivers
+# Serial drivers
 #
 # CONFIG_SERIAL_8250 is not set
 
