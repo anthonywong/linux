@@ -23,7 +23,9 @@
 #include <asm/irq.h>
 #include <mach/regs-ac97.h>
 #include <mach/pxa2xx-gpio.h>
+#ifndef CONFIG_ARCH_DOVE
 #include <mach/audio.h>
+#endif
 
 static DEFINE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
@@ -88,11 +90,18 @@ unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 
 	mutex_lock(&car_mutex);
 
+#ifndef CONFIG_ARCH_DOVE
 	/* set up primary or secondary codec space */
 	if (cpu_is_pxa25x() && reg == AC97_GPIO_STATUS)
 		reg_addr = ac97->num ? &SMC_REG_BASE : &PMC_REG_BASE;
 	else
 		reg_addr = ac97->num ? &SAC_REG_BASE : &PAC_REG_BASE;
+#else
+	if (reg == AC97_GPIO_STATUS)
+		reg_addr = ac97->num ? &SMC_REG_BASE : &PMC_REG_BASE;
+	else
+		reg_addr = ac97->num ? &SAC_REG_BASE : &PAC_REG_BASE;
+#endif
 	reg_addr += (reg >> 1);
 
 	/* start read access across the ac97 link */
@@ -129,10 +138,18 @@ void pxa2xx_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	mutex_lock(&car_mutex);
 
 	/* set up primary or secondary codec space */
+#ifndef CONFIG_ARCH_DOVE
 	if (cpu_is_pxa25x() && reg == AC97_GPIO_STATUS)
 		reg_addr = ac97->num ? &SMC_REG_BASE : &PMC_REG_BASE;
 	else
 		reg_addr = ac97->num ? &SAC_REG_BASE : &PAC_REG_BASE;
+#else
+	if (reg == AC97_GPIO_STATUS)
+		reg_addr = ac97->num ? &SMC_REG_BASE : &PMC_REG_BASE;
+	else
+		reg_addr = ac97->num ? &SAC_REG_BASE : &PAC_REG_BASE;
+#endif
+
 	reg_addr += (reg >> 1);
 
 	GSR = GSR_CDONE | GSR_SDONE;
@@ -199,7 +216,7 @@ static inline void pxa_ac97_cold_pxa27x(void)
 }
 #endif
 
-#ifdef CONFIG_PXA3xx
+#if defined(CONFIG_PXA3xx) || defined(CONFIG_ARCH_DOVE)
 static inline void pxa_ac97_warm_pxa3xx(void)
 {
 	int timeout = 100;
@@ -240,6 +257,7 @@ bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 {
 	unsigned long gsr;
 
+#ifndef CONFIG_ARCH_DOVE
 #ifdef CONFIG_PXA25x
 	if (cpu_is_pxa25x())
 		pxa_ac97_warm_pxa25x();
@@ -256,6 +274,10 @@ bool pxa2xx_ac97_try_warm_reset(struct snd_ac97 *ac97)
 	else
 #endif
 		BUG();
+#else
+	pxa_ac97_warm_pxa3xx();
+#endif
+
 	gsr = GSR | gsr_bits;
 	if (!(gsr & (GSR_PCR | GSR_SCR))) {
 		printk(KERN_INFO "%s: warm reset timeout (GSR=%#lx)\n",
@@ -272,6 +294,7 @@ bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 {
 	unsigned long gsr;
 
+#ifndef CONFIG_ARCH_DOVE
 #ifdef CONFIG_PXA25x
 	if (cpu_is_pxa25x())
 		pxa_ac97_cold_pxa25x();
@@ -288,6 +311,9 @@ bool pxa2xx_ac97_try_cold_reset(struct snd_ac97 *ac97)
 	else
 #endif
 		BUG();
+#else
+	pxa_ac97_cold_pxa3xx();
+#endif
 
 	gsr = GSR | gsr_bits;
 	if (!(gsr & (GSR_PCR | GSR_SCR))) {
@@ -319,6 +345,7 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 		gsr_bits |= status;
 		wake_up(&gsr_wq);
 
+#ifndef CONFIG_ARCH_DOVE
 		/* Although we don't use those we still need to clear them
 		   since they tend to spuriously trigger when MMC is used
 		   (hardware bug? go figure)... */
@@ -327,6 +354,7 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 			PISR = PISR_EOC;
 			MCSR = MCSR_EOC;
 		}
+#endif
 
 		return IRQ_HANDLED;
 	}
@@ -345,6 +373,7 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_suspend);
 
 int pxa2xx_ac97_hw_resume(void)
 {
+#ifndef CONFIG_ARCH_DOVE
 	if (cpu_is_pxa25x() || cpu_is_pxa27x()) {
 		pxa_gpio_mode(GPIO31_SYNC_AC97_MD);
 		pxa_gpio_mode(GPIO30_SDATA_OUT_AC97_MD);
@@ -355,6 +384,8 @@ int pxa2xx_ac97_hw_resume(void)
 		/* Use GPIO 113 or 95 as AC97 Reset on Bulverde */
 		set_resetgpio_mode(RESETGPIO_NORMAL_ALTFUNC);
 	}
+#endif
+	GCR &= ~GCR_ACLINK_OFF;
 	clk_enable(ac97_clk);
 	return 0;
 }
@@ -364,6 +395,7 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_resume);
 int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 {
 	int ret;
+#ifndef CONFIG_ARCH_DOVE
 	pxa2xx_audio_ops_t *pdata = dev->dev.platform_data;
 
 	if (pdata) {
@@ -403,7 +435,7 @@ int __devinit pxa2xx_ac97_hw_probe(struct platform_device *dev)
 			goto err_conf;
 		}
 	}
-
+#endif
 	ac97_clk = clk_get(&dev->dev, "AC97CLK");
 	if (IS_ERR(ac97_clk)) {
 		ret = PTR_ERR(ac97_clk);
