@@ -254,7 +254,7 @@ static int internal_soc_probe(struct platform_device *pdev, int type)
 
 	vendor_id2 = ac97_read(codec, AC97_VENDOR_ID2);
 
-	if (vendor_id2 != 0x5370) {
+	if ((vendor_id2 != 0x5370) && (vendor_id2 != 0x5368)) {
 		if (vendor_id2 != 0x5374)
 			goto reset_err;
 		else
