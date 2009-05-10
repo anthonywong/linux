@@ -24,6 +24,6 @@
  */
 #define __AC97(x)	*((volatile u32 *)(DOVE_AC97_VIRT_BASE + (x)))
 #define AC97_REG_4_PDMA(x)	(0x58190000 | (x & 0xFFFF))
-//#include <asm/hardware/pxa-ac97-regs.h>
+#include <asm/hardware/pxa-ac97-regs.h>
 
 #endif
