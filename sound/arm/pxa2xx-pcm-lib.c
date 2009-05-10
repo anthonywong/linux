@@ -54,9 +54,11 @@ int __pxa2xx_pcm_hw_params(struct snd_pcm_substream *substream,
 		dma_desc->ddadr = next_desc_phys;
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			dma_desc->dsadr = dma_buff_phys;
-			dma_desc->dtadr = rtd->params->dev_addr;
+			dma_desc->dtadr =
+				AC97_REG_4_PDMA(rtd->params->dev_addr);
 		} else {
-			dma_desc->dsadr = rtd->params->dev_addr;
+			dma_desc->dsadr =
+				AC97_REG_4_PDMA(rtd->params->dev_addr);
 			dma_desc->dtadr = dma_buff_phys;
 		}
 		if (period > totsize)
