@@ -47,21 +47,23 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_lfe_out = {
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
 
-
-static int pxa3xx_ac97_surround_probe(struct platform_device *pdev)
+static int pxa3xx_ac97_surround_probe(struct platform_device *pdev,
+		struct snd_soc_dai *dai)
 {
 	return 0;
 }
 
-static void pxa3xx_ac97_surround_remove(struct platform_device *pdev)
+static void pxa3xx_ac97_surround_remove(struct platform_device *pdev,
+		struct snd_soc_dai *dai)
 {
 }
 
 static int pxa2xx_ac97_hw_surround_params(struct snd_pcm_substream *substream,
-		struct snd_pcm_hw_params *params)
+		struct snd_pcm_hw_params *params,
+		struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		cpu_dai->dma_data = &pxa2xx_ac97_pcm_surround_out;
@@ -70,10 +72,11 @@ static int pxa2xx_ac97_hw_surround_params(struct snd_pcm_substream *substream,
 }
 
 static int pxa2xx_ac97_hw_lfe_params(struct snd_pcm_substream *substream,
-		struct snd_pcm_hw_params *params)
+		struct snd_pcm_hw_params *params,
+		struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_cpu_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		cpu_dai->dma_data = &pxa2xx_ac97_pcm_lfe_out;
@@ -89,11 +92,11 @@ static int pxa2xx_ac97_hw_lfe_params(struct snd_pcm_substream *substream,
  * There is only 1 physical AC97 interface for pxa2xx, but it
  * has extra fifo's that can be used for aux DACs and ADCs.
  */
-struct snd_soc_cpu_dai pxa_ac97_surround_dai[] = {
+struct snd_soc_dai pxa_ac97_surround_dai[] = {
 {
 	.name = "pxa2xx-surround-ac97",
 	.id = 0,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.probe = pxa3xx_ac97_surround_probe,
 	.remove = pxa3xx_ac97_surround_remove,
 	.playback = {
@@ -108,7 +111,7 @@ struct snd_soc_cpu_dai pxa_ac97_surround_dai[] = {
 {
 	.name = "pxa2xx-lfe-ac97",
 	.id = 1,
-	.type = SND_SOC_DAI_AC97,
+	.ac97_control = 1,
 	.playback = {
 		.stream_name = "AC97 LFE Playback",
 		.channels_min = 2,
@@ -120,6 +123,21 @@ struct snd_soc_cpu_dai pxa_ac97_surround_dai[] = {
 },
 };
 EXPORT_SYMBOL_GPL(pxa_ac97_surround_dai);
+
+static int __init pxa_ac97_surround_init(void)
+{
+	return snd_soc_register_dais(pxa_ac97_surround_dai,
+			ARRAY_SIZE(pxa_ac97_surround_dai));
+}
+module_init(pxa_ac97_surround_init);
+
+static void __exit pxa_ac97_surround_exit(void)
+{
+	snd_soc_unregister_dais(pxa_ac97_surround_dai,
+			ARRAY_SIZE(pxa_ac97_surround_dai));
+}
+module_exit(pxa_ac97_surround_exit);
+
 
 MODULE_AUTHOR("Shadi Ammouri");
 MODULE_DESCRIPTION("AC97 surround driver for the Intel PXA3xx chip");
