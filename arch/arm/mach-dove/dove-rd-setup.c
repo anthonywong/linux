@@ -35,6 +35,7 @@
 #include <asm/hardware/pxa-dma.h>
 #include "common.h"
 #include "mpp.h"
+#include "clock.h"
 #include "dove-front-panel-common.h"
 
 #define DOVE_RD_WAKEUP_GPIO	(3)
@@ -111,25 +112,6 @@ static struct dove_mpp_mode dove_rd_mpp_modes[] __initdata = {
 	{ -1 },
 };
 
-/*****************************************************************************
- * PCI
- ****************************************************************************/
-static int __init dove_rd_pci_init(void)
-{
-	if (machine_is_dove_rd()) {
-		/*
-		 * Init both PCIe ports.
-		 * tzachi: really need both?
-		 */
-		dove_pcie_init(1, 1);
-	}
-
-	return 0;
-}
-
-subsys_initcall(dove_rd_pci_init);
-
-
 void __init dove_battery_init(void)
 {
 	platform_device_register_simple("bq2084-battery", 0, NULL, 0);
@@ -170,6 +152,12 @@ static void __init dove_rd_init(void)
 	dove_xor1_init();
 	dove_ehci0_init();
 	dove_ehci1_init();
+
+	/* ehci init functions access the usb port, only now it's safe to disable
+	 * all clocks
+	 */
+	clks_disable_all(1, 1);
+
 #ifdef CONFIG_MV_ETHERNET
 	dove_mv_eth_init();
 #else
