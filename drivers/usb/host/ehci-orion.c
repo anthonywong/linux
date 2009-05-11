@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mbus.h>
+#include <linux/clk.h>
 #include <plat/ehci-orion.h>
 
 #define rdl(off)	__raw_readl(hcd->regs + (off))
@@ -245,6 +246,14 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
+#if defined(CONFIG_HAVE_CLK)
+	hcd->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(hcd->clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(hcd->clk);
+#endif
+
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = res->end - res->start + 1;
 	hcd->regs = regs;
@@ -285,6 +294,13 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	return 0;
 
 err4:
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(hcd->clk)) {
+		clk_disable(hcd->clk);
+		clk_put(hcd->clk);
+	}
+#endif
+
 	usb_put_hcd(hcd);
 err3:
 	iounmap(regs);
@@ -305,6 +321,12 @@ static int __exit ehci_orion_drv_remove(struct platform_device *pdev)
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(hcd->clk)) {
+		clk_disable(hcd->clk);
+		clk_put(hcd->clk);
+	}
+#endif
 
 	return 0;
 }
