@@ -1,6 +1,12 @@
 struct clk {
-	unsigned int dummy;
-	char *name;
+	unsigned long		*rate;
+	u32			flags;
+	__s8                    usecount;
+	u32			mask;
 };
 
-void clks_register(struct clk *clks, size_t num);
+/* Clock flags */
+#define ALWAYS_ENABLED          1
+
+int dove_devclks_init(void);
+unsigned int  dove_tclk_get(void);
