@@ -452,6 +452,8 @@ config ARCH_DOVE
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK
+	select COMMON_CLKDEV
 	select PLAT_ORION
 	help
 	  Support for the Marvell Dove SoC MV88F6781
