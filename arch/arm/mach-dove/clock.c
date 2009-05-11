@@ -22,24 +22,21 @@
 
 #include "clock.h"
 
-void clks_disable_all()
+void clks_disable_all(int include_pci0, int include_pci1)
 {
-//	writel(0, CLOCK_GATING_CONTROL);
-	writel(CLOCK_GATING_GBE_MASK |
-	       CLOCK_GATING_SATA_MASK|
-	       CLOCK_GATING_PCIE0_MASK|
-	       CLOCK_GATING_PCIE1_MASK|
-	       CLOCK_GATING_SDIO0_MASK|
-	       CLOCK_GATING_SDIO1_MASK|
-	       CLOCK_GATING_NAND_MASK|
-	       CLOCK_GATING_CAMERA_MASK|
-	       CLOCK_GATING_I2S0_MASK|
-	       CLOCK_GATING_I2S1_MASK|
-	       CLOCK_GATING_CRYPTO_MASK|
-	       CLOCK_GATING_PDMA_MASK|
-	       CLOCK_GATING_XOR0_MASK|
-	       CLOCK_GATING_XOR1_MASK
-	       , CLOCK_GATING_CONTROL);
+	u32 ctrl = readl(CLOCK_GATING_CONTROL);
+	
+	ctrl &= ~(CLOCK_GATING_USB0_MASK |
+		  CLOCK_GATING_USB1_MASK |
+		  CLOCK_GATING_SATA_MASK);
+
+	if (include_pci0)
+		ctrl &= ~CLOCK_GATING_PCIE0_MASK;
+
+	if (include_pci1)
+		ctrl &= ~CLOCK_GATING_PCIE1_MASK;
+
+	writel(ctrl, CLOCK_GATING_CONTROL);
 }
 
 static int __clk_enable(struct clk *clk)
@@ -233,8 +230,8 @@ static struct clk_lookup dove_clocks[] = {
 	INIT_CK("orion-ehci.1", NULL, &clk_usb1),
 	INIT_CK("mv_netdev.0", NULL, &clk_gbe),
 	INIT_CK("sata_mv.0", NULL, &clk_sata),
-	INIT_CK("pcie.0", NULL, &clk_pcie0),
-	INIT_CK("pcie.1", NULL, &clk_pcie1),
+	INIT_CK(NULL, "PCI0", &clk_pcie0),
+	INIT_CK(NULL, "PCI1", &clk_pcie1),
 	INIT_CK("sdhci-mv.0", NULL, &clk_sdio0),
 	INIT_CK("sdhci-mv.1", NULL, &clk_sdio1),
 	INIT_CK("dove-nand", NULL, &clk_nand),
