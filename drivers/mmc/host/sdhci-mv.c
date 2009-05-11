@@ -13,6 +13,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/clk.h>
 #include <linux/mmc/host.h>
 #include <linux/platform_device.h>
 #include <linux/dove_sdhci.h>
@@ -25,6 +26,10 @@ struct sdhci_mv_host {
         /* for dove card interrupt workaround */
         int                     dove_card_int_wa;
         struct sdhci_dove_int_wa dove_int_wa_info;
+#if defined(CONFIG_HAVE_CLK)
+	struct clk		*clk;
+#endif
+
 };
 #ifdef CONFIG_PM
 
@@ -228,6 +233,14 @@ static int __devinit sdhci_mv_probe(struct platform_device *pdev)
 		mv_host->dove_card_int_wa = 0;
 	}
 
+#if defined(CONFIG_HAVE_CLK)
+	mv_host->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mv_host->clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(mv_host->clk);
+#endif
+
 	ret = sdhci_add_host(host);
 	if (ret)
 		goto err_add_host;
@@ -247,9 +260,19 @@ err_get_resource:
 static int __devexit sdhci_mv_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = dev_get_drvdata(&pdev->dev);
+#if defined(CONFIG_HAVE_CLK)
+	struct sdhci_mv_host *mv_host = sdhci_priv(host);
+#endif
 
 	sdhci_remove_host(host, 0);
 	sdhci_free_host(host);
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(mv_host->clk)) {
+		clk_disable(mv_host->clk);
+		clk_put(mv_host->clk);
+	}
+#endif
+
 	return 0;
 }
 
