@@ -35,6 +35,7 @@
 #include <asm/hardware/pxa-dma.h>
 #include <mach/dove_nand.h>
 #include "common.h"
+#include "clock.h"
 #include "mpp.h"
 #include "dove-front-panel-common.h"
 
