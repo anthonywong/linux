@@ -22,9 +22,24 @@
 
 #include "clock.h"
 
-static void __clks_disable_all()
+void clks_disable_all()
 {
-	writel(0, CLOCK_GATING_CONTROL);
+//	writel(0, CLOCK_GATING_CONTROL);
+	writel(CLOCK_GATING_GBE_MASK |
+	       CLOCK_GATING_SATA_MASK|
+	       CLOCK_GATING_PCIE0_MASK|
+	       CLOCK_GATING_PCIE1_MASK|
+	       CLOCK_GATING_SDIO0_MASK|
+	       CLOCK_GATING_SDIO1_MASK|
+	       CLOCK_GATING_NAND_MASK|
+	       CLOCK_GATING_CAMERA_MASK|
+	       CLOCK_GATING_I2S0_MASK|
+	       CLOCK_GATING_I2S1_MASK|
+	       CLOCK_GATING_CRYPTO_MASK|
+	       CLOCK_GATING_PDMA_MASK|
+	       CLOCK_GATING_XOR0_MASK|
+	       CLOCK_GATING_XOR1_MASK
+	       , CLOCK_GATING_CONTROL);
 }
 
 static int __clk_enable(struct clk *clk)
@@ -131,7 +146,7 @@ static struct clk clk_usb1 = {
 
 static struct clk clk_gbe = {
 	.rate	= &tclk_rate,
-	.mask	= CLOCK_GATING_GBE_MASK,
+	.mask	= CLOCK_GATING_GBE_MASK | CLOCK_GATING_GIGA_PHY_MASK,
 };
 
 static struct clk clk_sata = {
@@ -204,10 +219,10 @@ static struct clk clk_xor1 = {
 	.mask	= CLOCK_GATING_XOR1_MASK,
 };
 
-static struct clk clk_giga_phy = {
-	.rate	= &tclk_rate,
-	.mask	= CLOCK_GATING_GIGA_PHY_MASK,
-};
+//static struct clk clk_giga_phy = {
+//	.rate	= &tclk_rate,
+//	.mask	= CLOCK_GATING_GIGA_PHY_MASK,
+//};
 
 #define INIT_CK(dev,con,ck)			\
 	{ .dev_id = dev, .con_id = con, .clk = ck }
@@ -231,7 +246,7 @@ static struct clk_lookup dove_clocks[] = {
 	INIT_CK(NULL, "PDMA", &clk_pdma),
 	INIT_CK("mv_xor_shared.0", NULL, &clk_xor0),
 	INIT_CK("mv_xor_shared.1", NULL, &clk_xor1),
-	INIT_CK(NULL, "GIGA_PHY", &clk_giga_phy),
+//	INIT_CK(NULL, "GIGA_PHY", &clk_giga_phy),
 };
 
 int __init dove_devclks_init(void)
@@ -240,8 +255,14 @@ int __init dove_devclks_init(void)
 
 	tclk_rate = dove_tclk_get();
 
+	/* disable the clocks of all peripherals */
+	//__clks_disable_all();
+
 	for (i = 0; i < ARRAY_SIZE(dove_clocks); i++)
                 clkdev_add(&dove_clocks[i]);
 
+//	__clk_disable(&clk_usb0);
+//	__clk_disable(&clk_usb1);
+//	__clk_disable(&clk_ac97);
 	return 0;
 }

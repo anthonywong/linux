@@ -10,3 +10,4 @@ struct clk {
 
 int dove_devclks_init(void);
 unsigned int  dove_tclk_get(void);
+void clks_disable_all(void);
