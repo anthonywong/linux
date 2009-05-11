@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/serial_8250.h>
+#include <linux/clk.h>
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
@@ -46,6 +47,7 @@
 #ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
 #endif
+#include "clock.h"
 
 /* used for memory allocation for the VPRO video engine */
 #ifdef CONFIG_UIO_DOVE_VPRO
@@ -1273,12 +1275,6 @@ void __init dove_tact_init(struct gpio_mouse_platform_data *tact_data)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
-int dove_tclk_get(void)
-{
-	/* tzachi: use DOVE_RESET_SAMPLE_HI/LO to detect tclk
-	 * wait for spec, currently use hard code */
-	return 166666667;
-}
 
 static void dove_timer_init(void)
 {
@@ -1574,8 +1570,15 @@ void __init dove_config_arbitration(void)
 void __init dove_init(void)
 {
 	int tclk;
+	struct clk *clk;
 
-	tclk = dove_tclk_get();
+	dove_devclks_init();
+	clk = clk_get(NULL, "tclk");
+	if (IS_ERR(clk)) {
+	     printk(KERN_ERR "failed to get tclk \n");
+	     return;
+	}
+	tclk = clk_get_rate(clk);
 
 	printk(KERN_INFO "Dove MV88F6781 SoC, ");
 	printk("TCLK = %dMHz\n", (tclk + 499999) / 1000000);
@@ -1586,6 +1589,7 @@ void __init dove_init(void)
 	if (!noL2)
 		tauros2_init();
 #endif
+
 	dove_clocks_init();
 
 
