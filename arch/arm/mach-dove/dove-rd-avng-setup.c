@@ -39,6 +39,7 @@
 #include <mach/dove_nand.h>
 #include <mach/dove_bl.h>
 #include "common.h"
+#include "clock.h"
 #include "mpp.h"
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
