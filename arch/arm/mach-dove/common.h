@@ -21,8 +21,6 @@ struct cafe_cam_platform_data;
 extern struct sys_timer dove_timer;
 extern struct mbus_dram_target_info dove_mbus_dram_info;
 
-int dove_tclk_get(void);
-
 /*
  * Basic Dove init functions used early by machine-setup.
  */
