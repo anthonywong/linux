@@ -41,6 +41,7 @@
 #endif
 
 struct mv88fx_snd_chip *mv88fx_pcm_snd_chip;
+EXPORT_SYMBOL_GPL(mv88fx_pcm_snd_chip);
 
 static struct snd_pcm_hardware mv88fx_pcm_hardware = {
 	.info = (SNDRV_PCM_INFO_INTERLEAVED |
