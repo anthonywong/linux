@@ -111,6 +111,10 @@ struct usb_hcd {
 	u64			rsrc_len;	/* memory/io resource length */
 	unsigned		power_budget;	/* in mA, 0 = no limit */
 
+#if defined(CONFIG_HAVE_CLK)
+	struct clk		*clk;
+#endif
+
 #define HCD_BUFFER_POOLS	4
 	struct dma_pool		*pool [HCD_BUFFER_POOLS];
 
