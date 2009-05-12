@@ -1198,6 +1198,15 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 
 	this = &info->nand_chip;
 	mtd->priv = info;
+	mtd->owner = THIS_MODULE;
+
+        info->clk = clk_get(&pdev->dev, NULL);
+        if (IS_ERR(info->clk)) {
+		dev_err(&pdev->dev, "failed to get nand clock\n");
+		ret = PTR_ERR(info->clk);
+		goto fail_free_mtd;
+        }
+        clk_enable(info->clk);
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (r == NULL) {
@@ -1229,25 +1238,27 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		goto fail_put_clk;
 	}
 
-	r = request_mem_region(r->start, r->end - r->start + 1, pdev->name);
+	r = devm_request_mem_region(&pdev->dev, r->start, r->end - r->start + 1,
+				    pdev->name);
 	if (r == NULL) {
 		dev_err(&pdev->dev, "failed to request memory resource\n");
 		ret = -EBUSY;
 		goto fail_put_clk;
 	}
 
-	info->mmio_base = ioremap(r->start, r->end - r->start + 1);
+	info->mmio_base = devm_ioremap(&pdev->dev, r->start,
+				       r->end - r->start + 1);
 	if (info->mmio_base == NULL) {
 		dev_err(&pdev->dev, "ioremap() failed\n");
 		ret = -ENODEV;
-		goto fail_free_res;
+		goto fail_put_clk;
 	}
 
 	info->mmio_phys_base = r->start;
 
 	ret = pxa3xx_nand_init_buff(info);
 	if (ret)
-		goto fail_free_io;
+		goto fail_put_clk;
 
 	ret = request_irq(IRQ_NAND, pxa3xx_nand_irq, IRQF_DISABLED,
 				pdev->name, info);
@@ -1284,13 +1295,10 @@ fail_free_buf:
 			info->data_buff, info->data_buff_phys);
 	} else
 		kfree(info->data_buff);
-fail_free_io:
-	iounmap(info->mmio_base);
-fail_free_res:
-	release_mem_region(r->start, r->end - r->start + 1);
 fail_put_clk:
 	clk_disable(info->clk);
 	clk_put(info->clk);
+fail_free_mtd:
 	kfree(mtd);
 	return ret;
 }
@@ -1311,6 +1319,9 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 				info->data_buff, info->data_buff_phys);
 	} else
 		kfree(info->data_buff);
+
+	clk_disable(info->clk);
+	clk_put(info->clk);
 	kfree(mtd);
 	return 0;
 }
@@ -1346,6 +1357,7 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 static struct platform_driver pxa3xx_nand_driver = {
 	.driver = {
 		.name	= "dove-nand",
+		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa3xx_nand_probe,
 	.remove		= pxa3xx_nand_remove,
