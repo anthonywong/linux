@@ -30,7 +30,8 @@ void clks_disable_all(int include_pci0, int include_pci1)
 		  CLOCK_GATING_USB1_MASK |
 		  CLOCK_GATING_SATA_MASK |
 		  CLOCK_GATING_SDIO0_MASK |
-		  CLOCK_GATING_SDIO1_MASK);
+		  CLOCK_GATING_SDIO1_MASK |
+		  CLOCK_GATING_NAND_MASK);
 
 	if (include_pci0)
 		ctrl &= ~CLOCK_GATING_PCIE0_MASK;
