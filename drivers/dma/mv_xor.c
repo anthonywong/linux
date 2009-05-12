@@ -1325,6 +1325,14 @@ static int mv_xor_shared_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, msp);
 
+#if defined(CONFIG_HAVE_CLK)
+	msp->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(msp->clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(msp->clk);
+#endif
+
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
 	 */
@@ -1336,6 +1344,14 @@ static int mv_xor_shared_probe(struct platform_device *pdev)
 
 static int mv_xor_shared_remove(struct platform_device *pdev)
 {
+#if defined(CONFIG_HAVE_CLK)
+	struct mv_xor_shared_private *msp = platform_get_drvdata(pdev);
+
+	if (!IS_ERR(msp->clk)) {
+		clk_disable(msp->clk);
+		clk_put(msp->clk);
+	}
+#endif
 	return 0;
 }
 
