@@ -30,6 +30,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
+#include <linux/clk.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
@@ -193,6 +194,9 @@ struct cafe_camera
 	wait_queue_head_t smbus_wait;	/* Waiting on i2c events */
 	wait_queue_head_t iowait;	/* Waiting on frame data */
 
+#if defined(CONFIG_HAVE_CLK)
+	struct clk		*clk;
+#endif
 	/* Board info */
 	u32 power_down; /* value to set into GPR to power down the sensor*/
 	u32 reset;	/* value to set into GPR to reset the senser */
@@ -2125,14 +2129,33 @@ static int cafe_platform_probe(struct platform_device *pdev)
 		cam->power_down = GPR_C1;
 		cam->reset = GPR_C0;
 	}
+#if defined(CONFIG_HAVE_CLK)
+	cam->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(cam->clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(cam->clk);
+#endif
+
 	return cafe_init_cam(cam);
 }
 
 static int cafe_platform_remove(struct platform_device *pdev)
 {
 	struct cafe_camera *cam = platform_get_drvdata(pdev);
+#if defined(CONFIG_HAVE_CLK)
+	struct clk	*clk = cam->clk;
+#endif
 
 	cam_remove(cam);
+
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(clk)) {
+		clk_disable(clk);
+		clk_put(clk);
+	}
+#endif
+
 	return 0;
 }
 
