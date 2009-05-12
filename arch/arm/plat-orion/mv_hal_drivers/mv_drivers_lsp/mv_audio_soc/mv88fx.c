@@ -18,6 +18,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
@@ -534,6 +535,13 @@ static int mv88fx_initalize_machine_data(struct platform_device *pdev)
 		err = -ENXIO;
 		goto error;
 	}
+#if defined(CONFIG_HAVE_CLK)
+	mv88fx_machine_data.clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(mv88fx_machine_data.clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(mv88fx_machine_data.clk);
+#endif
 
 	return 0;
 error:
@@ -572,6 +580,14 @@ static int mv88fx_snd_probe(struct platform_device *pdev)
 	return 0;
 error:
 	mv88fx_snd_error("");
+
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(mv88fx_machine_data.clk)) {
+		clk_disable(mv88fx_machine_data.clk);
+		clk_put(mv88fx_machine_data.clk);
+	}
+#endif
+
 	if (mv88fx_machine_data.snd_dev)
 		platform_device_unregister(mv88fx_machine_data.snd_dev);
 	return ret;
@@ -581,6 +597,13 @@ error:
 static int mv88fx_snd_remove(struct platform_device *dev)
 {
 	mv88fx_snd_debug("");
+
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(mv88fx_machine_data.clk)) {
+		clk_disable(mv88fx_machine_data.clk);
+		clk_put(mv88fx_machine_data.clk);
+	}
+#endif
 	mv88fx_machine_data.snd_dev->dev.platform_data = NULL;
 	platform_device_unregister(mv88fx_machine_data.snd_dev);
 	release_mem_region(mv88fx_machine_data.res->start, SZ_16K);
