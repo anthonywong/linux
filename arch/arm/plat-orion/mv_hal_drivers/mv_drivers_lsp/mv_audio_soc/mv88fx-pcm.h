@@ -83,6 +83,9 @@ struct mv88fx_snd_machine_data {
 	int irq;
 	struct resource *res;	/* resource for IRQ and base */
 	struct orion_i2s_platform_data *pdata;	/* platform dara */
+#if defined(CONFIG_HAVE_CLK)
+	struct clk		*clk;
+#endif
 };
 
 
