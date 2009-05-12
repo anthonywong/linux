@@ -424,6 +424,11 @@ static void __init dove_rd_avng_init(void)
 	pxa_init_dma(16);
 	dove_ehci0_init();
 	dove_ehci1_init();
+	/* ehci init functions access the usb port, only now it's safe to disable
+	 * all clocks
+	 */
+	clks_disable_all(1, 1);
+
 #ifdef CONFIG_MV_ETHERNET
 	dove_mv_eth_init();
 #endif
