@@ -457,7 +457,7 @@ config MTD_NAND_SH_FLCTL
           for NAND Flash using FLCTL. This driver support SH7723.
 
 config MTD_NAND_DOVE
-	bool "Support for NAND flash devices on Dove"
+	tristate "Support for NAND flash devices on Dove"
 	depends on MTD_NAND
 	help
 	  This enables the driver for the NAND flash device found on
