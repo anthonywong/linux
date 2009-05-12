@@ -15,6 +15,7 @@ config SND_DOVE_SOC_DB
 	select SND_PXA2XX_SOC
 	select SND_PXA2XX_LIB
 	select SND_PXA2XX_SOC_AC97
+	select SND_PXA2XX_SOC_AC97_SURROUND
 	select SND_SOC_AD1980
 	help
 	  Say Y if you want to add support for SoC audio on Marvell
