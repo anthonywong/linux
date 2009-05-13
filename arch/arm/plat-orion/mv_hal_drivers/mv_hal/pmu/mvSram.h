@@ -75,23 +75,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Assembler labels */
 extern MV_VOID mvPmuSramDdrReconfigFunc(MV_U32, MV_U32);
 extern MV_U32 mvPmuSramDdrReconfigFuncSZ;
-extern MV_VOID mvPmuSramStandbyEnterFunc(MV_U32);
+extern MV_VOID mvPmuSramDeepIdleEnterFunc(MV_U32);
+extern MV_U32 mvPmuSramDeepIdleEnterFuncSZ;
+extern MV_VOID mvPmuSramDeepIdleExitFunc(MV_VOID);
+extern MV_U32 mvPmuSramDeepIdleExitFuncSZ;
+extern MV_VOID mvPmuSramStandbyEnterFunc(MV_VOID);
 extern MV_U32 mvPmuSramStandbyEnterFuncSZ;
 extern MV_VOID mvPmuSramStandbyExitFunc(MV_VOID);
 extern MV_U32 mvPmuSramStandbyExitFuncSZ;
-extern MV_VOID mvPmuSramSleepEnterFunc(MV_VOID);
-extern MV_U32 mvPmuSramSleepEnterFuncSZ;
-extern MV_VOID mvPmuSramSleepExitFunc(MV_VOID);
-extern MV_U32 mvPmuSramSleepExitFuncSZ;
 
 
 /* Function APIs */
 MV_STATUS 	mvPmuSramLoad (MV_VOID);
 MV_VOID 	mvPmuSramDdrReconfig(MV_U32 paramcnt);
 MV_STATUS 	mvPmuSramDdrTimingPrep(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_U32 * cnt);
-MV_VOID 	mvPmuSramStandby(MV_U32 ddrSelfRefresh);
-MV_VOID 	mvPmuSramSleep(MV_VOID);
-MV_STATUS 	mvPmuSramStandbyResumePrep(MV_VOID);
-MV_STATUS 	mvPmuSramSleepResumePrep(MV_U32 ddrFreq);
+MV_VOID 	mvPmuSramDeepIdle(MV_U32 ddrSelfRefresh);
+MV_VOID 	mvPmuSramStandby(MV_VOID);
+MV_STATUS 	mvPmuSramDeepIdleResumePrep(MV_VOID);
+MV_STATUS 	mvPmuSramStandbyResumePrep(MV_U32 ddrFreq);
 
 #endif /* __INCMVsramh */
