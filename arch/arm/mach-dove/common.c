@@ -141,12 +141,15 @@ static u32 dove_downstream_regs[DOVE_DWNSTRM_BRDG_SIZE];
  * I/O Address Mapping
  ****************************************************************************/
 static struct map_desc dove_io_desc[] __initdata = {
+#ifdef CONFIG_DOVE_REV_Z0
 	{
 		.virtual	= DOVE_PMUSP_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_PMUSP_PHYS_BASE),
 		.length		= DOVE_PMUSP_SIZE,
 		.type		= MT_EXEC_REGS,
-	}, {
+	}, 
+#endif
+	{
 		.virtual	= DOVE_SCRATCHPAD_VIRT_BASE,
 		.pfn		= __phys_to_pfn(DOVE_SCRATCHPAD_PHYS_BASE),
 		.length		= DOVE_SCRATCHPAD_SIZE,

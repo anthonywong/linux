@@ -280,6 +280,7 @@ MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARA
 	MV_U32 i, cnt;
 	MV_U32 idx = 0;
 
+#ifdef CONFIG_DOVE_REV_Z0
 	/* First configuration is the DDR clk source and ratio */
 	params[idx].addr = (PMU_CLK_DIVIDER_1_REG | DOVE_SB_REGS_VIRT_BASE);		/* DDR clk source and ratio */
 	switch (cpuFreq/ddrFreq)
@@ -300,6 +301,7 @@ MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARA
 			return MV_FAIL;
 	}
 	idx++;
+#endif
 
 	switch (ddrFreq)
 	{
