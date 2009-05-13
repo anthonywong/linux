@@ -8,6 +8,21 @@ config  MV_HAL_RULES_PATH
 #source "arch/arm/plat-orion/mv_hal_drivers/Kconfig"
 
 menu "Marvell Dove Implementations"
+choice
+	prompt "Dove SoC Silicon Revision"
+	default DOVE_REV_Y0
+
+config DOVE_REV_Z0
+	bool "Dove Revision Z0"
+	help
+	  This enables support for Dove Z0 silicon
+
+config DOVE_REV_Y0
+	bool "Dove Revision Y0"
+	help
+	  This enables support for Dove Y0 silicon
+
+endchoice
 
 config MACH_DOVE_RD_AVNG
 	bool "Marvell RD-MV88F6781 Avengers Reference design platform"
