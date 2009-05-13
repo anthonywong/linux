@@ -44,6 +44,10 @@ static int acpi_video;
 
 MODULE_ALIAS("wmi:"DELL_EVENT_GUID);
 
+/* Temporary workaround until the WMI sysfs interface goes in.
+   Borrowed from acer-wmi */
+MODULE_ALIAS("dmi:*:*Dell*:*:");
+
 struct key_entry {
 	char type;		/* See KE_* below */
 	u16 code;
