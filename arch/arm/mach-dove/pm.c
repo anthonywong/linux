@@ -10,7 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#define DEBUG
+#undef DEBUG
 
 #include <linux/module.h>
 #include <linux/sysfs.h>
@@ -26,6 +26,7 @@
 #include "pmu/mvPmuRegs.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "common.h"
+#include <asm/cpu-single.h>
 
 #define CONFIG_PMU_PROC
 
@@ -34,18 +35,20 @@
  * This should be replaced by the PMU flag register
  */
 static suspend_state_t dove_target_pm_state = PM_SUSPEND_ON;
+static void cpu_do_idle_enabled(void);
+static void cpu_do_idle_disabled(void);
 
 #ifdef CONFIG_PMU_PROC
-void dove_standby(void);
-MV_U32 idle_mode = 1;
 extern MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr);
 extern MV_STATUS mvPmuCpuFreqScale (MV_PMU_CPU_SPEED cpuSpeed);
+void dove_pm_cpuidle_deepidle (void);
+static deepIdleCtr = 0;
 int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		     void *data)
 {
 	int len = 0;
 	char *str;
-	unsigned int ints;
+	unsigned long ints;
 	unsigned int mc, mc2;
 	int dummy;
 	MV_U32 reg;
@@ -151,13 +154,20 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 	str = "idle ";
 	if(!strncmp(buffer+len, str,strlen(str))) {
 		len += strlen(str);
+		str = "deep";
+		if(!strncmp(buffer+len, str,strlen(str))) {
+			len += strlen(str);
+			printk("Use Deep Idle for OS IDLE.\n");
+			pm_idle = dove_pm_cpuidle_deepidle;
+			goto done;
+		}
 		str = "wfill";
 		if(!strncmp(buffer+len, str,strlen(str))) {
 			len += strlen(str);
 			printk("Use WFI with L1 and L2 low leakage for OS IDLE.\n");
-			idle_mode = 1;
+			pm_idle = cpu_do_idle_enabled;
 			reg = MV_REG_READ(PMU_CTRL_REG);
-			reg &= ~PMU_CTRL_DEEP_IDLE_EN_MASK;
+			reg &= ~PMU_CTRL_L2_LOWLEAK_EN_MASK;
 			MV_REG_WRITE(PMU_CTRL_REG, reg);
 			goto done;
 		}
@@ -165,17 +175,17 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		if(!strncmp(buffer+len, str,strlen(str))) {
 			len += strlen(str);
 			printk("Use WFI for OS IDLE.\n");
-			idle_mode = 1;
+			pm_idle = cpu_do_idle_enabled;
 			reg = MV_REG_READ(PMU_CTRL_REG);
-			reg |= PMU_CTRL_DEEP_IDLE_EN_MASK;
+			reg |= PMU_CTRL_L2_LOWLEAK_EN_MASK;
 			MV_REG_WRITE(PMU_CTRL_REG, reg);
 			goto done;
 		}
 		str = "none";
 		if(!strncmp(buffer+len, str,strlen(str))) {
 			len += strlen(str);
-			printk("Don't use WFI for OS IDLE.\n");
-			idle_mode = 0;
+			printk("Don't use WFI for OS IDLE.\n");	
+			pm_idle = cpu_do_idle_disabled;
 			goto done;
 		}
 		goto done;
@@ -201,34 +211,37 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		goto done;
 	}
 
-	str = "standby";
+	str = "deepidle";
 	if(!strncmp(buffer+len, str,strlen(str))) {
-		printk("Enter Standby mode ");
+		dove_pm_cpuidle_deepidle();
+		goto done;
+	}
+
+	str = "deepidle_block";
+	if(!strncmp(buffer+len, str,strlen(str))) {
+		printk("Enter DeepIdle mode ");
 		mc = MV_REG_READ(0x20204);
 		mc2 = MV_REG_READ(0x20214);
 		MV_REG_WRITE(0x20204, 0x100); /* disable all interrupts except for the serial port */
 		MV_REG_WRITE(0x20214, 0x0);
-
-		mvPmuStandby(MV_FALSE);
-		cpu_init();
-
+		dove_pm_cpuidle_deepidle();
 		MV_REG_WRITE(0x20204, mc);
 		MV_REG_WRITE(0x20214, mc2);
 		goto done;
 	}
 
-	str = "sleep";
+	str = "standby";
 	if(!strncmp(buffer+len, str,strlen(str))) {
-		printk("Enter Sleep mode ");
+		printk("Enter Standby mode ");
 
-		if (mvPmuSleep() != MV_OK)
+		if (mvPmuStandby() != MV_OK)
 			printk(">>>>>> FAILED\n");
 		else
 			printk("\n");
 		goto done;
 	}
 
-	str = "wfi";
+	str = "wfi_block";
 	if(!strncmp(buffer+len, str,strlen(str))) {
 		printk("Enter WFI mode ");
 		mc = MV_REG_READ(0x20204);
@@ -420,24 +433,6 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		goto done;
 	}
 
-	str = "test";
-	if(!strncmp(buffer+len, str,strlen(str)))
-	{
-		int i, cnt;
-	
-		len += strlen(str);
-		sscanf(buffer+len, "%d", &cnt);
-		printk("Testing Standby for %d times:\n", cnt);
-
-		for (i=0; i<cnt; i++)
-		{
-			printk("test #%d\n", i);
-			local_irq_save(ints);
-			dove_standby();
-			local_irq_restore(ints);
-		}
-	}
-
 	str = "freqs";
 	if(!strncmp(buffer+len, str,strlen(str)))
 	{
@@ -451,6 +446,11 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 				freqs.cpuFreq, freqs.axiFreq, freqs.l2Freq, freqs.ddrFreq);
 	}
 
+	str = "deepcnt";
+	if(!strncmp(buffer+len, str,strlen(str)))
+	{
+		printk("Deep Idle Entered for %d times.\n", deepIdleCtr);
+	}
 done:
 	return count;
 }
@@ -465,14 +465,16 @@ int pmu_proc_read(char* page, char** start, off_t off, int count,int* eof,
 	len += sprintf(page+len,"   cpudfs <turbo|ddr>\n");
 	len += sprintf(page+len,"   sysdfs <cpu> <l2> <ddr>\n");
 	len += sprintf(page+len,"   freqs\n");
+	len += sprintf(page+len,"   deepidle\n");
 	len += sprintf(page+len,"   standby\n");
-	len += sprintf(page+len,"   sleep\n");
-	len += sprintf(page+len,"   wfi\n");
+	len += sprintf(page+len,"   deepidle_block\n");
+	len += sprintf(page+len,"   wfi_block\n");
 	len += sprintf(page+len,"   idle <wfi|wfiwll|none>\n");
 	len += sprintf(page+len,"   dvfs <hi|lo>\n");
 	len += sprintf(page+len,"   gpu <on|off>\n");
 	len += sprintf(page+len,"   vpu <on|off>\n");
 	len += sprintf(page+len,"   wlan <on|off>\n");
+	len += sprintf(page+len,"   deepcnt\n");
 	return len;
 }
 
@@ -517,36 +519,29 @@ static struct kobj_attribute ebook_attr =
 	__ATTR(ebook, 0644, ebook_show, ebook_store);
 
 /*
- * This routine replaces the default_idle() routine to reduce power while idle.
- * Disable all clocks and wait for an interrupt.
+ * Idle routine in normal operation
  */
-void dove_pm_idle(void)
-{
-#ifdef CONFIG_PMU_PROC
-	if (idle_mode)
-#endif
-		cpu_do_idle();
+void cpu_do_idle_enabled(void) {
+	cpu_do_idle();
 }
 
 /*
  * This routine replaces the default_idle() routine during the PM state changes,
  * to avoid calling the WFI instruction.
  */
-void dove_pm_idle_disabled(void)
-{
-
+void cpu_do_idle_disabled(void) {
 }
 
 /*
- * Enter the Dove STANDBY mode (power off CPU only)
+ * Enter the Dove DEEP IDLE mode (power off CPU only)
  */
-void dove_standby(void)
+void dove_deepidle(void)
 {
 	MV_U32 reg;
 
-	pr_debug("dove_standby: Entering Dove STANDBY mode.\n");
+	pr_debug("dove_deepidle: Entering Dove DEEP IDLE mode.\n");
 
-	/* Put on the Standby/Sleep Led on MPP7 */
+	/* Put on the Led on MPP7 */
 	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
 	reg &= ~PMU_SIG_7_SLCT_CTRL_MASK;
 	reg |= (PMU_SIGNAL_0 << PMU_SIG_7_SLCT_CTRL_OFFS);
@@ -561,7 +556,7 @@ void dove_standby(void)
 #endif
 
 	/* Suspend the CPU only */
-	mvPmuStandby(enable_ebook);
+	mvPmuDeepIdle(enable_ebook);
 	cpu_init();
 
 #if defined(CONFIG_VFP)
@@ -572,21 +567,21 @@ void dove_standby(void)
 #if defined(CONFIG_CACHE_TAUROS2)	
 	tauros2_resume();
 #endif
-	/* Put off the Standby/Sleep Led */
+	/* Put off the Led on MPP7 */
 	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
 	reg &= ~PMU_SIG_7_SLCT_CTRL_MASK;
 	reg |= (PMU_SIGNAL_1 << PMU_SIG_7_SLCT_CTRL_OFFS);
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
-	pr_debug("dove_standby: Exiting Dove STANDBY mode.\n");
+	pr_debug("dove_deepidle: Exiting Dove DEEP IDLE mode.\n");
 }
 
 /*
- * Enter the Dove SLEEP mode (Power off all SoC)
+ * Enter the Dove STANDBY mode (Power off all SoC)
  */
-void dove_sleep(void)
+void dove_standby(void)
 {
-	pr_debug("dove_sleep: Entering Dove SLEEP mode.\n");
+	pr_debug("dove_standby: Entering Dove STANDBY mode.\n");
 
 	/* Save CPU Peripherals state */
 	dove_save_cpu_wins();
@@ -603,7 +598,7 @@ void dove_sleep(void)
 #endif
 
 	/* Suspend the CPU only */
-	mvPmuSleep();
+	mvPmuStandby();
 	cpu_init();
 
 #if defined(CONFIG_VFP)
@@ -622,7 +617,7 @@ void dove_sleep(void)
 	dove_restore_cpu_wins();
 	//dove_restore_pcie_regs(); /* Should be done after restoring cpu configuration registers */
 
-	pr_debug("dove_sleep: Exiting Dove SLEEP mode.\n");
+	pr_debug("dove_standby: Exiting Dove STANDBY mode.\n");
 }
 
 /*
@@ -665,7 +660,7 @@ EXPORT_SYMBOL(dove_io_core_lost_power);
 static int dove_pm_prepare(void)
 {
 	pr_debug("PM DEBUG: Preparing to enter PM state.\n");
-	pm_idle = dove_pm_idle_disabled;
+	pm_idle = cpu_do_idle_disabled;
 	return 0;
 }
 
@@ -677,10 +672,10 @@ static int dove_pm_enter(suspend_state_t state)
 	pr_debug("PM DEBUG: Entering PM state (%d).\n", state);
 	switch (state)	{
 	case PM_SUSPEND_STANDBY:
-		dove_standby();
+		dove_deepidle();
 		break;
 	case PM_SUSPEND_MEM:
-		dove_sleep();
+		dove_standby();
 		break;
 	default:
 		return -EINVAL;
@@ -691,12 +686,12 @@ static int dove_pm_enter(suspend_state_t state)
 
 /*
  * This is called when the system has just left a sleep state, right after
- * the nonboot CPUs have been enabled and before devices are resumed (it is
+ * the nonboot CPUs have been enabled pm_idle = dove_pand before devices are resumed (it is
  * executed with IRQs enabled
  */
 static void dove_pm_finish(void)
 {
-	pm_idle = dove_pm_idle;
+	pm_idle = cpu_do_idle_enabled;
 }
 
 /*
@@ -718,6 +713,31 @@ static struct platform_suspend_ops dove_pm_ops = {
 	.end		= dove_pm_end,
 };
 
+int dove_timekeeping_resume(void);
+int dove_timekeeping_suspend(void);
+
+void dove_pm_cpuidle_deepidle (void)
+{
+	unsigned long ints;
+
+	//MV_U32 ier, lcr;
+#ifdef CONFIG_PMU_PROC
+	deepIdleCtr++;
+#endif
+	dove_pm_prepare();
+	local_irq_save(ints);
+	//ier = MV_REG_READ(0x12104);
+	//lcr = MV_REG_READ(0x1210C);
+	sysdev_suspend(PMSG_SUSPEND);
+	dove_pm_enter(PM_SUSPEND_STANDBY);
+	sysdev_resume();	
+	//MV_REG_WRITE(0x1210C, lcr);
+	//MV_REG_WRITE(0x12104, ier);	
+	//MV_REG_WRITE(0x2031C, 0x1000000);
+	local_irq_restore(ints);
+	dove_pm_finish();
+}
+
 static int __init dove_pm_init(void)
 {
 	MV_U32 reg;
@@ -734,7 +754,7 @@ static int __init dove_pm_init(void)
 	pmuInitInfo.deepIdleStatus = MV_FALSE; 	/* Disable L2 retention */
 	pmuInitInfo.cpuPwrGoodEn = MV_FALSE;	/* Don't wait for external power good signal */
 	pmuInitInfo.batFltMngDis = MV_FALSE;	/* Keep battery fault enabled */
-	pmuInitInfo.exitOnBatFltDis = MV_FALSE;	/* Keep exit from SLEEP on battery fail enabled */
+	pmuInitInfo.exitOnBatFltDis = MV_FALSE;	/* Keep exit from STANDBY on battery fail enabled */
 	pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_CPU_PWRDWN;	/* 0: CPU off, 1: CPU on */
 	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_NC/*SLP_PWRDWN*/;	/* 0: I/O off, 1: I/O on */
@@ -742,7 +762,7 @@ static int __init dove_pm_init(void)
 	pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby/Sleep Led - inverted */
+	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
 	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;		/* Generic debug led5 */
 	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC/*PMU_SIGNAL_CPU_PWRGOOD*/;	/* CPU power good */
 	pmuInitInfo.sigSelctor[10] = PMU_SIGNAL_SDI;		/* Voltage regulator control */
@@ -759,7 +779,7 @@ static int __init dove_pm_init(void)
 	printk(KERN_NOTICE "\n");
 
 	/* Configure wakeup events */
-	mvPmuWakeupEventSet(PMU_SLP_WKUP_CTRL_EXT0_FALL | PMU_SLP_WKUP_CTRL_RTC_MASK);
+	mvPmuWakeupEventSet(PMU_STBY_WKUP_CTRL_EXT0_FALL | PMU_STBY_WKUP_CTRL_RTC_MASK);
 
 	/* Configure PMU pins to PMU instead of MPP */
 	reg = MV_REG_READ(0xD0210);
@@ -767,7 +787,7 @@ static int __init dove_pm_init(void)
 	reg |= 0x078E;
 	MV_REG_WRITE(0xD0210, reg);
 
-	pm_idle = dove_pm_idle;
+	pm_idle = cpu_do_idle_enabled;
 	suspend_set_ops(&dove_pm_ops);
 
 	/* Create EBook control file in sysfs */

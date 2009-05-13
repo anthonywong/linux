@@ -92,7 +92,8 @@ typedef enum
 	PMU_SIGNAL_BAT_FAULT = 0xA,
 	PMU_SIGNAL_EXT0_WKUP = 0xB,
 	PMU_SIGNAL_EXT1_WKUP = 0xC,
-	PMU_SIGNAL_EXT2_WKUP = 0xD
+	PMU_SIGNAL_EXT2_WKUP = 0xD,
+	PMU_SiGNAL_BLINK = 0xE
 } MV_PMU_SIG_SRC;
 
 /* CPU Clock Speed - DFS */
@@ -112,7 +113,7 @@ typedef struct
 	MV_BOOL     	deepIdleStatus; /* enable/disable L2 retention enable in WFI */
 	MV_BOOL		cpuPwrGoodEn;	/* Enable/Disable monioring the CPU Power Good pin */
 	MV_BOOL		batFltMngDis;	/* Disable the handling of battery fault assertion */
-	MV_BOOL     	exitOnBatFltDis;/* Disable resume in battery fault situation in Sleep */
+	MV_BOOL     	exitOnBatFltDis;/* Disable resume in battery fault situation in Standby */
 	MV_PMU_SIG_SRC	sigSelctor[16]; /* PMU signal selector of signal 0-15 */
 	MV_U32		dvsDelay;	/* Delay for waiting the voltage change to complete */
 } MV_PMU_INFO;
@@ -176,8 +177,8 @@ typedef struct
 
 /* Function Prototypes */
 MV_STATUS mvPmuInit 		(MV_PMU_INFO * pPmu);
-MV_STATUS mvPmuStandby		(MV_BOOL lcdRefresh);
-MV_STATUS mvPmuSleep		(MV_VOID);
+MV_STATUS mvPmuDeepIdle		(MV_BOOL lcdRefresh);
+MV_STATUS mvPmuStandby		(MV_VOID);
 MV_STATUS mvPmuWakeupEventSet 	(MV_U32 wkupEvents);
 MV_STATUS mvPmuWakeupEventGet	(MV_U32 * wkupEvents);
 MV_STATUS mvPmuCpuFreqScale 	(MV_PMU_CPU_SPEED cpuSpeed);
@@ -193,6 +194,17 @@ MV_STATUS mvPmuTempSensorCalib  (MV_VOID);
 MV_STATUS mvPmuGpuPowerDown	(MV_BOOL pwrStat);
 MV_STATUS mvPmuVpuPowerDown	(MV_BOOL pwrStat);
 MV_STATUS mvPmuGetCurrentFreq	(MV_PMU_FREQ_INFO * freqs);
-
+#ifndef CONFIG_DOVE_REV_Z0
+MV_VOID   mvPmuCpuIdleThresholdsSet	(MV_U32 hiThreshold, MV_U32 lowThreshold);
+MV_VOID   mvPmuCpuIdleTimeBaseValueSet	(MV_U32 timeBase);
+MV_VOID   mvPmuCpuIdleIntMaskSet	(MV_BOOL hiIntEnable, MV_BOOL lowIntEnable);
+MV_U32 	  mvPmuCpuIdleTimeGet		(void);
+MV_VOID   mvPmuCpuIdleIntStatGet	(MV_BOOL *hiIntStat, MV_BOOL *lowIntStat);
+MV_VOID   mvPmuMcIdleThresholdsSet	(MV_U32 hiThreshold, MV_U32 lowThreshold);
+MV_VOID   mvPmuMcIdleTimeBaseValueSet	(MV_U32 timeBase);
+MV_VOID   mvPmuMcIdleIntMaskSet		(MV_BOOL hiIntEnable, MV_BOOL lowIntEnable);
+MV_U32 	  mvPmuMcIdleTimeGet		(void);
+MV_VOID   mvPmuMcIdleIntStatGet		(MV_BOOL *hiIntStat, MV_BOOL *lowIntStat);
+#endif
 
 #endif /* __INCMVpmuh */

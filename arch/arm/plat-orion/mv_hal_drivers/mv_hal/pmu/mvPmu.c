@@ -68,37 +68,29 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "pmu/mvSram.h"
 #include "ddrmc/mvDramIf.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "ctrlEnv/sys/mvCpuIfRegs.h"
+#include "ctrlEnv/mvCtrlEnvRegs.h"
 
 #define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
 
+#ifdef CONFIG_DOVE_REV_Z0
 /* PMU uController code fixes <add,val> couples */
 MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
-		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, /*{239, 0x0B},*/ {252,0x44}, {253,0x00}, {254,0xF3}, \
-		{255,0xF0}, {297, 0x7C}, \
-            	{388, 0x71}, {389, 0x30}, {390, 0x49}, {391, 0xa8}, {392, 0x18}, \
+		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {252,0x44}, {253,0x00}, {254,0xF3}, \
+		{255,0xF0}, {297, 0x7C}, {388, 0x71}, {389, 0x30}, {390, 0x49}, {391, 0xa8}, {392, 0x18}, \
 		{393, 0x80}, {394, 0x39}, {395, 0xa8}, {396, 0x14}, {397, 0x80}, {398, 0x90}, {399, 0x28}, \
             	{400, 0x80}, {401, 0xff}, {402, 0x00}, {403, 0x04}, {404, 0x20}, {405, 0x69}, {406, 0x80}, \
             	{407, 0x28}, {408, 0x80}, {409, 0xff}, {410, 0x08}, {411, 0x20}, {412, 0x80}, {413, 0x28}, \
             	{414, 0x80}, {415, 0xff}, {416, 0x04}, {417, 0x20}, {418, 0x59}, {419, 0x08}, {420, 0x94}, \
-            	{421 ,0x41}, {422 ,0x70}, {423, 0x7D}, {424, 0x94}, {425, 0x40}, {426, 0x94}, {427, 0x42}, {428, 0xFF}};
-#if 0
-            {350, 0x80}, {351, 0x28}, {352, 0x80}, {353, 0xff}, {354, 0x01}, {355, 0x20}, {356, 0x60}, \
-            {357, 0x58}, {358, 0x18}, {359, 0x90}, {360, 0x40}, {361, 0x00}, {362, 0x04}, {363, 0x04}, \
-            {364, 0x00}, {365, 0x80}, {366, 0x24}, {367, 0x80}, {368, 0x03}, {369, 0x0a}, {370, 0xa8}, \
-            {371, 0x24}, {372, 0x80}, {373, 0x38}, {374, 0xa0}, {375, 0x24}, {376, 0x80}, {377, 0x03}, \
-            {378, 0x00}, {379, 0x00}, {380, 0x10}, {381, 0xa8}, {382, 0x24}, {383, 0x80}, {384, 0x04}, \
-            {385, 0x0c}, {386, 0x68}, {387, 0x48}, {388, 0x30}, {389, 0x49}, {390, 0xa8}, {391, 0x18}, \
-            {392, 0x80}, {393, 0x39}, {394, 0xa8}, {395, 0x14}, {396, 0x80}, {397, 0x90}, {398, 0x28}, \
-            {399, 0x80}, {400, 0xff}, {401, 0x00}, {402, 0x04}, {403, 0x20}, {404, 0x69}, {405, 0x80}, \
-            {406, 0x28}, {407, 0x80}, {408, 0xff}, {409, 0x08}, {410, 0x20}, {411, 0x80}, {412, 0x28}, \
-            {413, 0x80}, {414, 0xff}, {415, 0x04}, {416, 0x20}, {417, 0x59}, {418, 0x08}, {419, 0x94}, \
-            {420,0x41}, {421,0x70}, {422,0x7D}, {423,0x94}, {424, 0x40}, {425, 0x94}, {426, 0x42}, {427, 0xFF}};
+            	{421 ,0x41}, {422 ,0x70}, {423, 0x7D}, {424, 0x94}, {425, 0x40}, {426, 0x94}, {427, 0x42}, \
+		{428, 0xFF}};
 #endif
 
 /* Save L2 ratio at system power up */
 static MV_U32 l2TurboRatio;
 
 /* PLL 2 DDR Ratio Divider Map Table */
+#ifdef CONFIG_DOVE_REV_Z0
 #define MAX_RATIO_MAP_CNT	9
 MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x1}, 	/* DDR:PLL 1:2 */
 						{3,0xD}, 	/* DDR:PLL 1:3 */
@@ -109,9 +101,23 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x1}, 	/* DDR:PLL 1:2 */
 						{8,0x4}, 	/* DDR:PLL 1:8 */
 						{10,0x5}, 	/* DDR:PLL 1:10 */
 						{12,0x6}}; 	/* DDR:PLL 1:12 */
+#else
+#define MAX_RATIO_MAP_CNT	9
+MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x2}, 	/* DDR:PLL 1:2 */
+						{3,0x3}, 	/* DDR:PLL 1:3 */
+						{4,0x4}, 	/* DDR:PLL 1:4 */
+						{5,0x5}, 	/* DDR:PLL 1:5 */
+						{6,0x6}, 	/* DDR:PLL 1:6 */
+						{7,0x7}, 	/* DDR:PLL 1:7 */
+						{8,0x8}, 	/* DDR:PLL 1:8 */
+						{10,0xA}, 	/* DDR:PLL 1:10 */
+						{12,0xC}}; 	/* DDR:PLL 1:12 */
+#endif
 
 /* Timing delays for CPU and Core powers */
-#define PMU_STBY_CPU_PWR_DLY	0x1C0000		/* TCLK clock cycles - ~11.2ms */
+#define PMU_STBY_CPU_PWR_DLY	0x170000		/* TCLK clock cycles - ~9.04ms */
+//#define PMU_STBY_CPU_PWR_DLY	0x180000		/* TCLK clock cycles - ~9.4ms */
+//#define PMU_STBY_CPU_PWR_DLY	0x1C0000		/* TCLK clock cycles - ~11.01ms */
 #define PMU_SLP_CPU_PWR_DLY	0x400			/* RTC 32KHz clock cycles */
 #define PMU_SLP_CORE_PWR_DLY	0x10			/* RTC 32KHz clock cycles */
 
@@ -140,12 +146,12 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	MV_U32 reg;
 	MV_32 i;
 
-	/* Configure the Deep Idle status in the PMU Control Register */
+	/* Configure the L2$ Low Leakage status in the PMU Control Register */
 	reg = MV_REG_READ(PMU_CTRL_REG);
 	if (pmu->deepIdleStatus)
-		reg &= ~PMU_CTRL_DEEP_IDLE_EN_MASK;
+		reg &= ~PMU_CTRL_L2_LOWLEAK_EN_MASK;
 	else
-		reg |= PMU_CTRL_DEEP_IDLE_EN_MASK;
+		reg |= PMU_CTRL_L2_LOWLEAK_EN_MASK;
 	MV_REG_WRITE(PMU_CTRL_REG, reg);
 
 	/* Set the Power Good Pin monitoring control */
@@ -156,30 +162,40 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 		reg &= ~PMU_PWR_GOOD_PIN_EN_MASK;
 	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
 
-	/* Set the Standby and Sleep power delays */
-      	MV_REG_WRITE(PMU_SLEEP_PWR_DELAY_REG, PMU_SLP_CORE_PWR_DLY);
+	/* Set the DeepIdle and Standby power delays */
+      	MV_REG_WRITE(PMU_STANDBY_PWR_DELAY_REG, PMU_SLP_CORE_PWR_DLY);
 
 	/* Configure the Battery Management Control register */
 	reg = 0;
 	if (pmu->batFltMngDis) reg |= PMU_BAT_FLT_DISABLE_MASK;
-	if (pmu->exitOnBatFltDis) reg |= PMU_BAT_FLT_SLP_EXIT_DIS_MASK;
+	if (pmu->exitOnBatFltDis) reg |= PMU_BAT_FLT_STBY_EXIT_DIS_MASK;
 	MV_REG_WRITE(PMU_BAT_MNGMT_CTRL_REG, reg);
 	
-	/* Invert the CPU Power Down Polarity */
-	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);	
-	reg |= PMU_PWR_CPU_PWR_DWN_MASK;
+#ifdef CONFIG_DOVE_REV_Z0
+	/* Invert the CPU and whole chip Power Down Polarity */
+	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
+	reg &= ~PMU_PWR_CPU_OFF_LEVEL_MASK;	/* 0 - CPU is powered down (DEEP IDLE) */
+	reg |= PMU_PWR_CPU_ON_LEVEL_MASK;	/* 1 - CPU is powered up */
 	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
 
-	/* Enable the PMU Control on the CPU reset) */
-	reg = MV_REG_READ(0xD025C);
-	reg |= 0x2;
-	MV_REG_WRITE(0xD025C, reg);
-
-	/* TODO: This should be removed in Y0 */
-	/* Reset Bit0 in the Reset Strap since it is mixed up with the test mode in the BootROM */
-	reg = MV_REG_READ(0xD0214);
+	/* Reset bit0 in the Reset Strap since it is mixed up with the test mode in the BootROM */
+	reg = MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0);
 	reg &= ~0x1;
-	MV_REG_WRITE(0xD0214, reg);
+	MV_REG_WRITE(MPP_SAMPLE_AT_RESET_REG0, reg);
+#else
+	/* Invert the CPU and whole chip Power Down Polarity */
+	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
+	reg &= ~PMU_PWR_CPU_OFF_LEVEL_MASK;	/* 0 - CPU is powered down (DEEP IDLE) */
+	reg |= PMU_PWR_CPU_ON_LEVEL_MASK;	/* 1 - CPU is powered up */
+	reg &= ~PMU_PWR_STBY_ON_LEVEL_MASK;	/* 0 - Dove is powered down (STANDBY) */
+	reg |= PMU_PWR_STBY_OFF_LEVEL_MASK;	/* 1 - Dove is powered up */
+	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
+#endif
+
+	/* Enable the PMU Control on the CPU reset) */
+	reg = MV_REG_READ(CPU_CONTROL_REG);
+	reg |= CPU_CTRL_PMU_CPU_RST_EN_MASK;
+	MV_REG_WRITE(CPU_CONTROL_REG, reg);
 
 	/* Configure the PMU Signal selection */
 	reg = 0;
@@ -195,6 +211,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	/* Configure the DVS delay */
 	MV_REG_WRITE(PMU_DVS_DELAY_REG, pmu->dvsDelay);
 
+#ifdef CONFIG_DOVE_REV_Z0
 	/* Initialize the uCode PCs of the different PMU operations */
 	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_PRE_PC_MASK) | PMU_DFS_PRE_PC_VAL));
 	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_CPU_PC_MASK) | PMU_DFS_CPU_PC_VAL));
@@ -204,10 +221,10 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	MV_REG_WRITE(PMU_DFS_PROC_PC_2_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_2_REG) & ~PMU_DFS_POST_PC_MASK) | PMU_DFS_POST_PC_VAL));
 	MV_REG_WRITE(PMU_DVS_PROC_PC_REG, ((MV_REG_READ(PMU_DVS_PROC_PC_REG) & ~PMU_DVS_PRE_PC_MASK) | PMU_DVS_PRE_PC_VAL));
 	MV_REG_WRITE(PMU_DVS_PROC_PC_REG, ((MV_REG_READ(PMU_DVS_PROC_PC_REG) & ~PMU_DVS_POST_PC_MASK) | PMU_DVS_POST_PC_VAL));
-	MV_REG_WRITE(PMU_STBY_SLEEP_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_SLEEP_PROC_PC_REG) & ~PMU_STBY_PC_MASK) | PMU_STBY_PC_VAL));
-	MV_REG_WRITE(PMU_STBY_SLEEP_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_SLEEP_PROC_PC_REG) & ~PMU_SLP_PRE_PC_MASK) | PMU_SLP_PRE_PC_VAL));
-	MV_REG_WRITE(PMU_SLP_PROC_PC_REG, ((MV_REG_READ(PMU_SLP_PROC_PC_REG) & ~PMU_SLP_DDR_PC_MASK) | PMU_SLP_DDR_PC_VAL));
-	MV_REG_WRITE(PMU_SLP_PROC_PC_REG, ((MV_REG_READ(PMU_SLP_PROC_PC_REG) & ~PMU_SLP_POST_PC_MASK) | PMU_SLP_POST_PC_VAL));
+	MV_REG_WRITE(PMU_DEEPIDLE_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_DEEPIDLE_STBY_PROC_PC_REG) & ~PMU_DPIDL_PC_MASK) | PMU_DPIDL_PC_VAL));
+	MV_REG_WRITE(PMU_DEEPIDLE_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_DEEPIDLE_STBY_PROC_PC_REG) & ~PMU_STBY_PRE_PC_MASK) | PMU_STBY_PRE_PC_VAL));
+	MV_REG_WRITE(PMU_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_PROC_PC_REG) & ~PMU_STBY_DDR_PC_MASK) | PMU_STBY_DDR_PC_VAL));
+	MV_REG_WRITE(PMU_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_PROC_PC_REG) & ~PMU_STBY_POST_PC_MASK) | PMU_STBY_POST_PC_VAL));
 
 	/* Update uCode */
 	for (i=0; i< (sizeof(uCfix) / sizeof(uCfix[0])); i++)
@@ -217,6 +234,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 		reg |= (uCfix[i][1] << PMU_PROGRAM_OFFS(uCfix[i][0]));
 		MV_REG_WRITE(PMU_PROGRAM_REG(uCfix[i][0]), reg);
 	}
+#endif
 
 	/* Save L2 ratio at reset - Needed in DFS scale up */
 	reg = MV_REG_READ(PMU_CLK_DIVIDER_0_REG);
@@ -226,7 +244,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 }
 
 /*******************************************************************************
-* mvPmuStandby - Power down the CPU and enter WFI. This api blocks untill
+* mvPmuDeepIdle - Power down the CPU and enter WFI. This api blocks untill
 *                receiving an interrupt, which wakes up the CPU and this
 *                api returns to the caller.
 *
@@ -257,7 +275,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 *      only after exiting the DDR self refresh mode).
 * ^11. Configure LCD registers with new values to adapt to the new frequency.
 * ^12. UNBlock data requests to the MC from the SB.
-*  13. Configure the PMU to execute the Standby Enter sequence.
+*  13. Configure the PMU to execute the DeepIdle Enter sequence.
 *  14. Save CPU context on the stack
 *  15. Enater the WFI, where the PMU starts executing the pre-loaded micro code.
 *
@@ -304,25 +322,17 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 * OUTPUT:
 *	None
 * RETURN:
-*    MV_ERROR   : Failed to enter Standby mode
+*    MV_ERROR   : Failed to enter DeepIdle mode
 *    MV_OK      : Resumed successfully after receiving an interrupt
 *******************************************************************************/
-MV_STATUS mvPmuStandby (MV_BOOL lcdRefresh)
+MV_STATUS mvPmuDeepIdle (MV_BOOL lcdRefresh)
 {
 	MV_U32 reg, reg1;
 
 	/* Prepare resume info in SRAM */
-	if (mvPmuSramStandbyResumePrep() != MV_OK)
+	if (mvPmuSramDeepIdleResumePrep() != MV_OK)
 		return MV_FAIL;
-#if 0
-	/* Configure LCD refresh mode if requested */
-	reg = MV_REG_READ(PMU_CTRL_REG);
-	if (lcdRefresh)
-		reg |= PMU_CTRL_LCD_RFRSH_EN_MASK;
-	else
-		reg &= ~PMU_CTRL_LCD_RFRSH_EN_MASK;
-	MV_REG_WRITE(PMU_CTRL_REG, reg);	
-#endif
+
 	/* mask out IRQ and FIQ from being assereted to the cpu */
 	reg = MV_REG_READ(PMU_CTRL_REG);
 	reg |= (PMU_CTRL_MASK_IRQ_MASK | PMU_CTRL_MASK_FIQ_MASK);
@@ -332,21 +342,19 @@ MV_STATUS mvPmuStandby (MV_BOOL lcdRefresh)
 	MV_REG_WRITE(PMU_CPU_PWR_DELAY_REG, PMU_STBY_CPU_PWR_DLY);
 
 	/* Assume that DDR and L2 clock ratios wil not be changed */
-	/* 0xD0044[28:24] ==> 0xD0000[7:3] keep DDR ratio */
-	/* 0xD0044[20:16] ==> 0xD0000[12:8] keep L2 ratio */
 	reg = (MV_REG_READ(PMU_CPU_DFS_CTRL_REG) & ~(PMU_DFS_CTRL_DDR_RATIO_MASK | PMU_DFS_CTRL_L2_RATIO_MASK));
 	reg1 = MV_REG_READ(PMU_CLK_DIVIDER_0_REG);
 	reg |= (((reg1 & PMU_CLK_DIV_XPRATIO_MASK) >> PMU_CLK_DIV_XPRATIO_OFFS) << PMU_DFS_CTRL_L2_RATIO_OFFS); /* L2 */
 	reg |= (((reg1 & PMU_CLK_DIV_DPRATIO_MASK) >> PMU_CLK_DIV_DPRATIO_OFFS) << PMU_DFS_CTRL_DDR_RATIO_OFFS); /* DDR */
 	MV_REG_WRITE(PMU_CPU_DFS_CTRL_REG, reg);
 
-	/* Jump to the SRAM and execute the Standby routine */
-	mvPmuSramStandby((MV_U32)lcdRefresh);
+	/* Jump to the SRAM and execute the DeepIdle routine */
+	mvPmuSramDeepIdle((MV_U32)lcdRefresh);
 
-	/* Clear the Standby & Sleep Flags in the PMU Status register */
+	/* Clear the DeepIdle & Standby Flags in the PMU Status register */
 	/* Otherwise the BootROM will try to resume on the next boot */
 	reg = MV_REG_READ(PMU_STATUS_REG);
-	reg &= ~(PMU_STATUS_STBY_MASK | PMU_STATUS_SLEEP_MASK);
+	reg &= ~(PMU_STATUS_DEEPIDLE_MASK | PMU_STATUS_STANDBY_OFFS);
 	MV_REG_WRITE(PMU_STATUS_REG, reg);
 	
 	/* Finally unmask IRQ and FIQ */
@@ -358,7 +366,7 @@ MV_STATUS mvPmuStandby (MV_BOOL lcdRefresh)
 }
 
 /*******************************************************************************
-* mvPmuSleep - Power down the whole SoC. This api blocks untill
+* mvPmuStandby - Power down the whole SoC. This api blocks untill
 *              receiving an interrupt, which wakes up the SoC and this
 *              api returns to the caller.
 *
@@ -380,7 +388,7 @@ MV_STATUS mvPmuStandby (MV_BOOL lcdRefresh)
 *   3. Read the DDR configuration paramters and write them to the scratch pad.
 *   4. Jump to the scratch pad and start executing from there.
 *   5. Block all data requests to the DDR controller (from the SB).
-*   6. Configure the PMU to execute the Sleep Enter sequence.
+*   6. Configure the PMU to execute the Standby Enter sequence.
 *   7. Save CPU context on the stack
 *   8. Enater the WFI, where the PMU starts executing the pre-loaded micro code.
 *
@@ -415,10 +423,10 @@ MV_STATUS mvPmuStandby (MV_BOOL lcdRefresh)
 * OUTPUT:
 *	None
 * RETURN:
-*    	MV_ERROR   : Failed to enter Sleep mode
+*    	MV_ERROR   : Failed to enter Standby mode
 *   	MV_OK      : Resumed successfully after receiving an unmased Wake-up event
 *******************************************************************************/
-MV_STATUS mvPmuSleep (void)
+MV_STATUS mvPmuStandby (void)
 {
 	MV_U32 reg;
 	MV_U32 pllFreq, n, m, k;
@@ -448,7 +456,7 @@ MV_STATUS mvPmuSleep (void)
 		return MV_FAIL;
 	
 	/* Prepare resume info in SRAM */
-	if (mvPmuSramSleepResumePrep(pllFreq/ddrDiv) != MV_OK)
+	if (mvPmuSramStandbyResumePrep(pllFreq/ddrDiv) != MV_OK)
 		return MV_FAIL;
 
 	/* Mast out the M_RESETn for DDR3 */
@@ -461,13 +469,13 @@ MV_STATUS mvPmuSleep (void)
 	/* Set CPU Power delay in RTC clock cyclec */
 	MV_REG_WRITE(PMU_CPU_PWR_DELAY_REG, PMU_SLP_CPU_PWR_DLY);	
 
-	/* Jump to thsd SRAM and execute the Sleep routine */
-	mvPmuSramSleep();
+	/* Jump to thsd SRAM and execute the Standby routine */
+	mvPmuSramStandby();
 
-	/* Clear the Standby & Sleep Flags in the PMU Status register */
+	/* Clear the DeepIdle & Standby Flags in the PMU Status register */
 	/* Otherwise the BootROM will try to resume on the next boot */
 	reg = MV_REG_READ(PMU_STATUS_REG);
-	reg &= ~(PMU_STATUS_STBY_MASK | PMU_STATUS_SLEEP_MASK);
+	reg &= ~(PMU_STATUS_DEEPIDLE_MASK | PMU_STATUS_STANDBY_OFFS);
 	MV_REG_WRITE(PMU_STATUS_REG, reg);
 
 	/* Finally unmask IRQ and FIQ */
@@ -498,10 +506,10 @@ MV_STATUS mvPmuWakeupEventSet (MV_U32 wkupEvents)
 	MV_U32 reg;
 
 	/* Read and modify the Wakeup events */
-	reg = MV_REG_READ(PMU_SLP_WKUP_EVENT_CTRL_REG);
-	reg &= ~(PMU_SLP_WKUP_CTRL_ALL_EV_MASK);
-	reg |= (wkupEvents & PMU_SLP_WKUP_CTRL_ALL_EV_MASK);
-	MV_REG_WRITE(PMU_SLP_WKUP_EVENT_CTRL_REG, reg);
+	reg = MV_REG_READ(PMU_STBY_WKUP_EVENT_CTRL_REG);
+	reg &= ~(PMU_STBY_WKUP_CTRL_ALL_EV_MASK);
+	reg |= (wkupEvents & PMU_STBY_WKUP_CTRL_ALL_EV_MASK);
+	MV_REG_WRITE(PMU_STBY_WKUP_EVENT_CTRL_REG, reg);
 	return MV_OK;
 }
 
@@ -520,7 +528,7 @@ MV_STATUS mvPmuWakeupEventSet (MV_U32 wkupEvents)
 *******************************************************************************/
 MV_STATUS mvPmuWakeupEventGet (MV_U32 * wkupEvents)
 {
-	*wkupEvents = (MV_REG_READ(PMU_SLP_WKUP_EVENT_CTRL_REG) & PMU_SLP_WKUP_CTRL_ALL_EV_MASK);
+	*wkupEvents = (MV_REG_READ(PMU_STBY_WKUP_EVENT_CTRL_REG) & PMU_STBY_WKUP_CTRL_ALL_EV_MASK);
 	return MV_OK;
 }
 
@@ -539,7 +547,7 @@ MV_STATUS mvPmuWakeupEventGet (MV_U32 * wkupEvents)
 *******************************************************************************/
 MV_STATUS mvPmuWakeupEventStatusGet (MV_U32 * wkupEvents)
 {
-	*wkupEvents = (MV_REG_READ(PMU_SLP_WKUP_EVENT_STAT_REG) & PMU_SLP_WKUP_STAT_ALL_EV_MASK);
+	*wkupEvents = (MV_REG_READ(PMU_STBY_WKUP_EVENT_STAT_REG) & PMU_STBY_WKUP_CTRL_ALL_EV_MASK);
 	return MV_OK;
 }
 
@@ -782,7 +790,10 @@ MV_STATUS mvPmuSysFreqScale (MV_U32 ddrFreq, MV_U32 l2Freq, MV_U32 cpuFreq)
 *******************************************************************************/	
 MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 {
-	MV_U32 reg, i;
+	MV_U32 reg;
+#ifdef CONFIG_DOVE_REV_Z0
+	MV_U32 i;
+#endif
 
 	/* Clean the PMU cause register */
 	MV_REG_WRITE(PMU_INT_CAUSE_REG, 0x0);
@@ -792,23 +803,11 @@ MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 	reg |= ((rAddr << PMU_DVS_CTRL_PMIC_RADDR_OFFS) & PMU_DVS_CTRL_PMIC_RADDR_MASK);
 	reg |= ((vSet << PMU_DVS_CTRL_PMIC_VSET_OFFS) & PMU_DVS_CTRL_PMIC_VSET_MASK);
 	reg |= ((pSet << PMU_DVS_CTRL_PMIC_PSET_OFFS) & PMU_DVS_CTRL_PMIC_PSET_MASK);
+	MV_REG_WRITE(PMU_CPU_DVS_CTRL_REG, reg);
 	reg |= PMU_DVS_CTRL_DVS_EN_MASK;
 	MV_REG_WRITE(PMU_CPU_DVS_CTRL_REG, reg);
-#if 0
-	/* Workarround for the PMU stuck waiting on WAIT_FOR */
-	/* Wait for PMU WAIT_FOR state */
-	for (i=0; i<1000000; i++)
-		if ((MV_REG_READ(0xD8064) & 0x20) == 0x20)
-	MV_REG_WRITE(0xD8028, 0x2);
-	
-	/* Wait for completion */
-	for (i=0; i<1000000; i++)
-	{
-		if ((MV_REG_READ(PMU_CPU_DVS_CTRL_REG) & PMU_DVS_CTRL_DVS_EN_MASK) == 0)
-			return MV_OK;
-	}
-#endif
 
+#ifdef CONFIG_DOVE_REV_Z0	
 	/* Workarround for the PMU race with CPU */
 	udelay(2);
 
@@ -829,7 +828,13 @@ MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 	}
 	MV_REG_WRITE(PMU_INT_MASK_REG, reg);
 
-	return MV_TIMEOUT;	
+	return MV_TIMEOUT;
+#else
+	/* Block waiting for DVS to be completed */
+	while (MV_REG_READ(PMU_CPU_DVS_CTRL_REG) & PMU_DVS_CTRL_DVS_EN_MASK);
+
+	return MV_OK;	
+#endif
 }
 
 /*******************************************************************************
@@ -1284,3 +1289,243 @@ MV_STATUS mvPmuGetCurrentFreq(MV_PMU_FREQ_INFO * freqs)
 	
 	return MV_OK;
 }
+
+#ifndef CONFIG_DOVE_REV_Z0
+
+/*******************************************************************************
+* mvPmuCpuIdleThresholdsSet - Set Hi and Low Thresholds	
+*
+* DESCRIPTION:
+*       Set thresholds value in core clock cycles. If Idle time exceeds the
+*       hi threshold, a HIGH interrupt is issued. If Idle time drops below
+*       the low threshold, a LOW interrupt is issued.
+*
+* INPUT:
+*	hiThreshold: Core clock cycles fixing the HIGH threshold
+*       lowThreshold: Core clock cycles fixing the LOW threshold
+* OUTPUT:
+*       None
+* RETURN:
+*    	None
+*******************************************************************************/
+MV_VOID mvPmuCpuIdleThresholdsSet(MV_U32 hiThreshold, MV_U32 lowThreshold)
+{
+	MV_REG_WRITE(PMU_CPU_IDLE_HI_THRSHLD_REG, hiThreshold);
+	MV_REG_WRITE(PMU_CPU_IDLE_LOW_THRSHLD_REG, lowThreshold);
+}
+
+/*******************************************************************************
+* mvPmuCpuIdleTimeBaseValueSet - Set the IDLE base value
+*
+* DESCRIPTION:
+*       Set the Time base for calculating the IDLE time.
+*
+* INPUT:
+*       timeBase: Core clock cycles for each iteration
+* OUTPUT:
+*       None
+* RETURN:
+*    	None
+*******************************************************************************/
+MV_VOID mvPmuCpuIdleTimeBaseValueSet(MV_U32 timeBase)
+{
+	MV_REG_WRITE(PMU_CPU_IDLE_TMR_VAL_REG, timeBase);
+}
+
+/*******************************************************************************
+* mvPmuCpuIdleIntMaskSet - Set the interrupt Mask
+*
+* DESCRIPTION:
+*       Enable/Disable the Hi/low interrupts
+*
+* INPUT:
+*       hiIntEnable: enable/disable (MV_TRUE/MV_FALSE) hi interrupt
+*       lowIntEnable: enable/disable (MV_TRUE/MV_FALSE) low interrupt
+* OUTPUT:
+*       None
+* RETURN:
+*    	None
+*******************************************************************************/
+MV_VOID mvPmuCpuIdleIntMaskSet(MV_BOOL hiIntEnable, MV_BOOL lowIntEnable)
+{
+	MV_U32 reg = MV_REG_READ(PMU_IDLE_CTRL_STAT_REG);
+	
+	if (hiIntEnable)
+		reg |= PMU_CPU_IDLE_HI_MASK_MASK;
+	else
+		reg &= ~PMU_CPU_IDLE_HI_MASK_MASK;
+
+	if (lowIntEnable)
+		reg |= PMU_CPU_IDLE_LOW_MASK_MASK;
+	else
+		reg &= ~PMU_CPU_IDLE_LOW_MASK_MASK;
+
+	MV_REG_WRITE(PMU_IDLE_CTRL_STAT_REG, reg);
+}
+
+/*******************************************************************************
+* mvPmuCpuIdleTimeGet - Get the latest Idle
+*
+* DESCRIPTION:
+*       Get the value of the IDLE counter in the last iteration
+*
+* INPUT:
+*       None
+* OUTPUT:
+*       None
+* RETURN:
+*    	Core clock cycles the CPU was IDLE in last iteratio
+*******************************************************************************/
+MV_U32 mvPmuCpuIdleTimeGet(void)
+{
+	return MV_REG_READ(PMU_CPU_IDLE_RESULT_REG);
+}
+
+/*******************************************************************************
+* mvPmuCpuIdleIntStatGet - Get the interrupt cause status
+*
+* DESCRIPTION:
+*       Get the interrupt status if asserted/deasserted (MV_TRUE/MV_FALSE)
+*
+* INPUT:
+*       None
+* OUTPUT:
+*       hiIntStat: return the hi interrupt status
+*	lowintStat: return the low interrupt status
+* RETURN:
+*    	None
+*******************************************************************************/
+MV_VOID mvPmuCpuIdleIntStatGet(MV_BOOL *hiIntStat, MV_BOOL *lowIntStat)
+{
+	MV_U32 reg = MV_REG_READ(PMU_IDLE_CTRL_STAT_REG);
+
+	if (reg & PMU_CPU_IDLE_HI_STAT_MASK)
+		*hiIntStat = MV_TRUE;
+	else
+		*hiIntStat = MV_FALSE;
+
+	if (reg & PMU_CPU_IDLE_LOW_STAT_MASK)
+		*hiIntStat = MV_TRUE;
+	else
+		*hiIntStat = MV_FALSE;
+}
+
+/*******************************************************************************
+* mvPmuMcIdleThresholdsSet - Set Hi and Low Thresholds	
+*
+* DESCRIPTION:
+*       Set thresholds value in core clock cycles. If Idle time exceeds the
+*       hi threshold, a HIGH interrupt is issued. If Idle time drops below
+*       the low threshold, a LOW interrupt is issued.
+*
+* INPUT:
+*	hiThreshold: Core clock cycles fixing the HIGH threshold
+*       lowThreshold: Core clock cycles fixing the LOW threshold
+* OUTPUT:
+*       None
+* RETURN:
+*    	None
+*******************************************************************************/
+MV_VOID mvPmuMcIdleThresholdsSet(MV_U32 hiThreshold, MV_U32 lowThreshold)
+{
+	MV_REG_WRITE(PMU_MC_IDLE_HI_THRSHLD_REG, hiThreshold);
+	MV_REG_WRITE(PMU_MC_IDLE_LOW_THRSHLD_REG, lowThreshold);
+}
+
+/*******************************************************************************
+* mvPmuMcIdleTimeBaseValueSet - Set the IDLE base value
+*
+* DESCRIPTION:
+*       Set the Time base for calculating the IDLE time.
+*
+* INPUT:
+*       timeBase: Core clock cycles for each iteration
+* OUTPUT:
+*       None
+* RETURN:
+*    	None
+*******************************************************************************/
+MV_VOID mvPmuMcIdleTimeBaseValueSet(MV_U32 timeBase)
+{
+	MV_REG_WRITE(PMU_MC_IDLE_TMR_VAL_REG, timeBase);
+}
+
+/*******************************************************************************
+* mvPmuMcIdleIntMaskSet - Set the interrupt Mask
+*
+* DESCRIPTION:
+*       Enable/Disable the Hi/low interrupts
+*
+* INPUT:
+*       hiIntEnable: enable/disable (MV_TRUE/MV_FALSE) hi interrupt
+*       lowIntEnable: enable/disable (MV_TRUE/MV_FALSE) low interrupt
+* OUTPUT:
+*       None
+* RETURN:
+*    	None	
+*******************************************************************************/
+MV_VOID mvPmuMcIdleIntMaskSet(MV_BOOL hiIntEnable, MV_BOOL lowIntEnable)
+{
+	MV_U32 reg = MV_REG_READ(PMU_IDLE_CTRL_STAT_REG);
+	
+	if (hiIntEnable)
+		reg |= PMU_MC_IDLE_HI_MASK_MASK;
+	else
+		reg &= ~PMU_MC_IDLE_HI_MASK_MASK;
+
+	if (lowIntEnable)
+		reg |= PMU_MC_IDLE_LOW_MASK_MASK;
+	else
+		reg &= ~PMU_MC_IDLE_LOW_MASK_MASK;
+
+	MV_REG_WRITE(PMU_IDLE_CTRL_STAT_REG, reg);
+}
+
+/*******************************************************************************
+* mvPmuMcIdleTimeGet - Get the latest Idle
+*
+* DESCRIPTION:
+*       Get the value of the IDLE counter in the last iteration
+*
+* INPUT:
+*       None
+* OUTPUT:
+*       None
+* RETURN:
+*    	Core clock cycles the CPU was IDLE in last iteratio
+*******************************************************************************/
+MV_U32 mvPmuMcIdleTimeGet(void)
+{
+	return MV_REG_READ(PMU_MC_IDLE_RESULT_REG);
+}
+
+/*******************************************************************************
+* mvPmuMcIdleIntStatGet - Get the interrupt cause status
+*
+* DESCRIPTION:
+*       Get the interrupt status if asserted/deasserted (MV_TRUE/MV_FALSE)
+*
+* INPUT:
+*       None
+* OUTPUT:
+*       hiIntStat: return the hi interrupt status
+*	lowintStat: return the low interrupt status
+* RETURN:
+*    	None
+*******************************************************************************/
+MV_VOID mvPmuMcIdleIntStatGet(MV_BOOL *hiIntStat, MV_BOOL *lowIntStat)
+{
+	MV_U32 reg = MV_REG_READ(PMU_IDLE_CTRL_STAT_REG);
+
+	if (reg & PMU_MC_IDLE_HI_STAT_MASK)
+		*hiIntStat = MV_TRUE;
+	else
+		*hiIntStat = MV_FALSE;
+
+	if (reg & PMU_MC_IDLE_LOW_STAT_MASK)
+		*hiIntStat = MV_TRUE;
+	else
+		*hiIntStat = MV_FALSE;
+}
+
+#endif /* CONFIG_DOVE_REV_Z0 */

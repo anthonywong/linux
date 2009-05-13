@@ -99,13 +99,13 @@ ENTRY(mvPmuSramDdrReconfigFunc)
 	 * Set DDR in Self refresh mode and poll status bit
 	 */
 	ldr	r2, pmu_ddrfs_ctrl_reg
-	mov	r3, #PMU_CTRL_MC_SLEEP_REQ_MASK
+	mov	r3, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r4, [r2]
 	orr	r4, r4, r3
 	str	r4, [r2]
 ddr_fs_sr_loop:
 	ldr	r4, [r2]
-	tst	r4, #PMU_CTRL_MC_SLEEP_ACK_MASK
+	tst	r4, #PMU_CTRL_MC_SR_ACK_MASK
 	beq	ddr_fs_sr_loop
 
 	/*
@@ -124,7 +124,7 @@ mc_init_loop:
 mc_init_done:
 
 	/*
-	 * Enter standby by entering WFI
+	 * Enter WFI
 	 */
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4
@@ -133,15 +133,15 @@ mc_init_done:
 	 * Exit DDR self refresh mode if active
 	 */
 	ldr	r0, pmu_ddrfs_ctrl_reg
-	mov	r1, #PMU_CTRL_MC_SLEEP_REQ_MASK
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
-	tst 	r2, #PMU_CTRL_MC_SLEEP_REQ_MASK
+	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
 	beq	skip_ddrfs_sr_exit
 	bic	r2, r2, r1
 	str	r2, [r0]
 ddrfs_sr_exit_loop:
 	ldr	r2, [r0]
-	tst	r2, #PMU_CTRL_MC_SLEEP_ACK_MASK
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
 	bne	ddrfs_sr_exit_loop
 skip_ddrfs_sr_exit:
 
@@ -200,13 +200,13 @@ ENTRY(mvPmuSramDdrReconfigFuncSZ)
 
 
 /***************************************************************
- * mvPmuSramStandbyEnterFunc: Enter Standby mode
+ * mvPmuSramDeepIdleEnterFunc: Enter Deep Idle mode
  * Inputs:
- *    r0: 0x0: don't enter ddr SR, else enter
+ *    r0: 0x0: enter ddr SR, else enter
  * Outputs:
  *    None
  **************************************************************/
-ENTRY(mvPmuSramStandbyEnterFunc)
+ENTRY(mvPmuSramDeepIdleEnterFunc)
 	stmfd	sp!, {r4-r12, lr}		@ save general regs
 	mrc 	p15, 0, r2, c1, c0, 0		@ save CP15 - CR
 	mrc 	p15, 0, r3, c3, c0, 0		@ save CP15 - DACR
@@ -244,22 +244,22 @@ sb_pc_v2p_res:
 	cmp	r4, #0
 	bne	skip_ddr_sr
 	ldr	r0, pmu_sbe_ctrl_reg
-	mov	r1, #PMU_CTRL_MC_SLEEP_REQ_MASK
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
 	str	r2, [r0]
 ddr_sr_loop:
 	ldr	r2, [r0]
-	tst	r2, #PMU_CTRL_MC_SLEEP_ACK_MASK
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
 	beq	ddr_sr_loop	
 
 skip_ddr_sr:
 
 	/*
-	 * Initiate standby flow
+	 * Initiate Deep Idle flow
 	 */
 	ldr	r0, pmu_sbe_ctrl_reg
-	ldr	r1, =PMU_CTRL_STBY_MODE_EN_MASK
+	ldr	r1, =PMU_CTRL_DEEPIDLE_MODE_EN_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
 	str	r2, [r0]
@@ -272,7 +272,7 @@ skip_ddr_sr:
 	str	r0, [r1]	
 
 	/*
-	 * Enter standby by entering WFI
+	 * Enter Deep Idle by entering WFI
 	 */
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4	
@@ -284,19 +284,19 @@ pmu_sbe_ctrl_reg:
 pmu_sbe_irb_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + 0x20080) 
 
-ENTRY(mvPmuSramStandbyEnterFuncSZ)
-	.word	. - mvPmuSramStandbyEnterFunc
+ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
+	.word	. - mvPmuSramDeepIdleEnterFunc
 
 
 
 /***************************************************************
- * mvPmuSramStandbyExitFunc: Rollback from Standby mode
+ * mvPmuSramDeepIdleExitFunc: Rollback from Deep Idle mode
  * Inputs:
  *    None
  * Outputs:
  *    None
  **************************************************************/
-ENTRY(mvPmuSramStandbyExitFunc)
+ENTRY(mvPmuSramDeepIdleExitFunc)
 	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
 
 	/*
@@ -316,15 +316,15 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	 * Exit DDR self refresh mode if active
 	 */
 	ldr	r0, pmu_sbx_ctrl_reg
-	mov	r1, #PMU_CTRL_MC_SLEEP_REQ_MASK
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
-	tst 	r2, #PMU_CTRL_MC_SLEEP_REQ_MASK
+	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
 	beq	skip_ddr_sr_exit
 	bic	r2, r2, r1
 	str	r2, [r0]
 ddr_sr_exit_loop:
 	ldr	r2, [r0]
-	tst	r2, #PMU_CTRL_MC_SLEEP_ACK_MASK
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
 	bne	ddr_sr_exit_loop
 
 skip_ddr_sr_exit:
@@ -361,18 +361,18 @@ pmu_sbx_virt_mask:
 pmu_sbx_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
 
-ENTRY(mvPmuSramStandbyExitFuncSZ)
-	.word	. - mvPmuSramStandbyExitFunc
+ENTRY(mvPmuSramDeepIdleExitFuncSZ)
+	.word	. - mvPmuSramDeepIdleExitFunc
 
 
 /***************************************************************
- * mvPmuSramSleepEnterFunc: Enter Sleep mode
+ * mvPmuSramStandbyEnterFunc: Enter Standby mode
  * Inputs:
  *    None
  * Outputs:
  *    None
  **************************************************************/
-ENTRY(mvPmuSramSleepEnterFunc)
+ENTRY(mvPmuSramStandbyEnterFunc)
 
 	stmfd	sp!, {r4-r12, lr}		@ save general regs
 	mrc 	p15, 0, r2, c1, c0, 0		@ save CP15 - CR
@@ -393,9 +393,10 @@ ENTRY(mvPmuSramSleepEnterFunc)
 	adr	lr, slp_pc_v2p_res
 	mov	pc, r1
 slp_pc_v2p_res:
-	adr	r1, sleep_saved_sp
+	adr	r1, standby_saved_sp
 	sub	r1, r1, #4
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+#ifdef CONFIG_DOVE_REV_Z0
 	/*
 	 * ScratchPad Workarround - Write SP to scratch pad and not SRAM
 	 */
@@ -403,6 +404,7 @@ slp_pc_v2p_res:
 	and	r1, r1, r2
 	ldr	r2, pmu_slpe_sram_base
 	orr	r1, r1, r2
+#endif
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	str	r0, [r1]
 
@@ -423,10 +425,10 @@ slp_pc_v2p_res:
 	str	r1, [r0]	
 
 	/*
-	 * Initiate sleep flow
+	 * Initiate standby flow
 	 */
 	ldr	r0, pmu_slpe_ctrl_reg
-	ldr	r1, =(PMU_CTRL_SLEEP_MODE_EN_MASK | PMU_CTRL_DDR_SLF_RFRSH_EN_MASK)
+	ldr	r1, =(PMU_CTRL_STANDBY_MODE_EN_MASK | PMU_CTRL_DDR_SLF_RFRSH_EN_MASK)
 	ldr	r2, [r0]
 	orr	r2, r2, r1
 	str	r2, [r0]
@@ -436,11 +438,12 @@ slp_pc_v2p_res:
 	 */
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4	
-
+#ifdef CONFIG_DOVE_REV_Z0
 pmu_slpe_sram_base:
 	.word (DOVE_PMUSP_VIRT_BASE + PMU_PMUSP_OFFS)
 pmu_slpe_sram2sp_mask:
 	.word (0x7FF)
+#endif
 pmu_slpe_vtp:
 	.word mvPmuSramVirt2Phys
 pmu_slpe_ctrl_reg:
@@ -448,19 +451,19 @@ pmu_slpe_ctrl_reg:
 pmu_slpe_mc_ctrl_reg:
 	.word (DOVE_NB_REGS_VIRT_BASE + 0x7E0)
 
-ENTRY(mvPmuSramSleepEnterFuncSZ)
-	.word	. - mvPmuSramSleepEnterFunc
+ENTRY(mvPmuSramStandbyEnterFuncSZ)
+	.word	. - mvPmuSramStandbyEnterFunc
 
 
 
 /***************************************************************
- * mvPmuSramSleepExitFunc: Rollback from Sleep mode
+ * mvPmuSramStandbyExitFunc: Rollback from Standby mode
  * Inputs:
  *    None
  * Outputs:
  *    None
  **************************************************************/
-ENTRY(mvPmuSramSleepExitFunc)
+ENTRY(mvPmuSramStandbyExitFunc)
 	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
 
 	mov	r1, #0
@@ -469,7 +472,7 @@ ENTRY(mvPmuSramSleepExitFunc)
 	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
 	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs
 
-	ldr	r0, sleep_saved_sp		@ stack phys addr
+	ldr	r0, standby_saved_sp		@ stack phys addr
 	ldmfd	r0, {r2-r8}
 
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 extra features		
@@ -485,7 +488,7 @@ ENTRY(mvPmuSramSleepExitFunc)
 	mcr 	p15, 0, r2, c1, c0, 0		@ restore CP15 - CR
 	mov	pc, r3
 
-sleep_saved_sp:
+standby_saved_sp:
 	.word	0				@ physical SP saved here
 
 	.text
@@ -498,5 +501,5 @@ pmu_slpx_virt_mask:
 pmu_slpx_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
 
-ENTRY(mvPmuSramSleepExitFuncSZ)
-	.word	. - mvPmuSramSleepExitFunc
+ENTRY(mvPmuSramStandbyExitFuncSZ)
+	.word	. - mvPmuSramStandbyExitFunc
