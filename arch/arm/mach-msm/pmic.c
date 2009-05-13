@@ -185,13 +185,13 @@ static int do_remote_value(const uint32_t set_value,
 	return rc;
 }
 
-int spkr_en_right_chan(const unsigned char enable)
+int pmic_spkr_en_right_chan(const unsigned char enable)
 {
 	return do_remote_value(enable, NULL, SPKR_EN_RIGHT_CHAN_PROC);
 }
-EXPORT_SYMBOL(spkr_en_right_chan);
+EXPORT_SYMBOL(pmic_spkr_en_right_chan);
 
-int spkr_is_right_chan_en(unsigned char * const enabled)
+int pmic_spkr_is_right_chan_en(unsigned char * const enabled)
 {
 	uint32_t word_enabled;
 	int rc;
@@ -204,15 +204,15 @@ int spkr_is_right_chan_en(unsigned char * const enabled)
 		*enabled = (unsigned char)word_enabled;
 	return rc;
 }
-EXPORT_SYMBOL(spkr_is_right_chan_en);
+EXPORT_SYMBOL(pmic_spkr_is_right_chan_en);
 
-int spkr_en_left_chan(const unsigned char enable)
+int pmic_spkr_en_left_chan(const unsigned char enable)
 {
 	return do_remote_value(enable, NULL, SPKR_EN_LEFT_CHAN_PROC);
 }
-EXPORT_SYMBOL(spkr_en_left_chan);
+EXPORT_SYMBOL(pmic_spkr_en_left_chan);
 
-int spkr_is_left_chan_en(unsigned char * const enabled)
+int pmic_spkr_is_left_chan_en(unsigned char * const enabled)
 {
 	uint32_t word_enabled;
 	int rc;
@@ -225,19 +225,19 @@ int spkr_is_left_chan_en(unsigned char * const enabled)
 		*enabled = (unsigned char)word_enabled;
 	return rc;
 }
-EXPORT_SYMBOL(spkr_is_left_chan_en);
+EXPORT_SYMBOL(pmic_spkr_is_left_chan_en);
 
-int spkr_is_en(const enum spkr_left_right left_right,
+int pmic_spkr_is_en(const enum spkr_left_right left_right,
 	       unsigned char * const enabled)
 {
 	if (left_right >= SPKR_OUT_OF_RANGE)
 		return -EINVAL;
 
 	return left_right == LEFT_SPKR ?
-		spkr_is_left_chan_en(enabled) :
-		spkr_is_right_chan_en(enabled);
+		pmic_spkr_is_left_chan_en(enabled) :
+		pmic_spkr_is_right_chan_en(enabled);
 }
-EXPORT_SYMBOL(spkr_is_en);
+EXPORT_SYMBOL(pmic_spkr_is_en);
 
 static int do_std_rpc_req2(struct get_value_rep *rep, uint32_t proc,
 				uint32_t value1, uint32_t value2)
@@ -268,7 +268,7 @@ static int do_std_rpc_req2(struct get_value_rep *rep, uint32_t proc,
 	return modem_to_linux_err(rep->reply_hdr.result);
 }
 
-int spkr_get_gain(const enum spkr_left_right left_right,
+int pmic_spkr_get_gain(const enum spkr_left_right left_right,
 		  enum spkr_gain * const gain)
 {
 	struct get_value_rep rep;
@@ -291,27 +291,27 @@ int spkr_get_gain(const enum spkr_left_right left_right,
 
 	return rc;
 }
-EXPORT_SYMBOL(spkr_get_gain);
+EXPORT_SYMBOL(pmic_spkr_get_gain);
 
-int set_speaker_gain(const enum spkr_gain speaker_gain)
+int pmic_set_speaker_gain(const enum spkr_gain speaker_gain)
 {
 	if (speaker_gain >= SPKR_GAIN_OUT_OF_RANGE)
 		return -EINVAL;
 
 	return do_remote_value(speaker_gain, NULL, SET_SPEAKER_GAIN_PROC);
 }
-EXPORT_SYMBOL(set_speaker_gain);
+EXPORT_SYMBOL(pmic_set_speaker_gain);
 
-int speaker_cmd(const enum spkr_cmd cmd)
+int pmic_speaker_cmd(const enum spkr_cmd cmd)
 {
 	if (cmd >= SPKR_CMD_OUT_OF_RANGE)
 		return -EINVAL;
 
 	return do_remote_value(cmd, NULL, SPEAKER_CMD_PROC);
 }
-EXPORT_SYMBOL(speaker_cmd);
+EXPORT_SYMBOL(pmic_speaker_cmd);
 
-int set_spkr_configuration(const struct spkr_config_mode * const t)
+int pmic_set_spkr_configuration(const struct spkr_config_mode * const t)
 {
 	struct set_spkr_configuration_req req;
 	struct std_rpc_reply rep;
@@ -337,9 +337,9 @@ int set_spkr_configuration(const struct spkr_config_mode * const t)
 
 	return modem_to_linux_err(rep.result);
 }
-EXPORT_SYMBOL(set_spkr_configuration);
+EXPORT_SYMBOL(pmic_set_spkr_configuration);
 
-int get_spkr_configuration(struct spkr_config_mode * const t)
+int pmic_get_spkr_configuration(struct spkr_config_mode * const t)
 {
 	struct std_rpc_req req;
 	struct get_spkr_configuration_rep rep;
@@ -373,15 +373,15 @@ int get_spkr_configuration(struct spkr_config_mode * const t)
 
 	return modem_to_linux_err(rep.reply_hdr.result);
 }
-EXPORT_SYMBOL(get_spkr_configuration);
+EXPORT_SYMBOL(pmic_get_spkr_configuration);
 
-int mic_en(const unsigned char enable)
+int pmic_mic_en(const unsigned char enable)
 {
 	return do_remote_value(enable, NULL, MIC_EN_PROC);
 }
-EXPORT_SYMBOL(mic_en);
+EXPORT_SYMBOL(pmic_mic_en);
 
-int mic_is_en(unsigned char * const enabled)
+int pmic_mic_is_en(unsigned char * const enabled)
 {
 	uint32_t word_enabled;
 	int rc;
@@ -395,36 +395,36 @@ int mic_is_en(unsigned char * const enabled)
 
 	return rc;
 }
-EXPORT_SYMBOL(mic_is_en);
+EXPORT_SYMBOL(pmic_mic_is_en);
 
-int mic_set_volt(const enum mic_volt type)
+int pmic_mic_set_volt(const enum mic_volt type)
 {
 	if (type >= MIC_VOLT_OUT_OF_RANGE)
 		return -EINVAL;
 
 	return do_remote_value(type, NULL, MIC_SET_VOLT_PROC);
 }
-EXPORT_SYMBOL(mic_set_volt);
+EXPORT_SYMBOL(pmic_mic_set_volt);
 
-int mic_get_volt(enum mic_volt * const voltage)
+int pmic_mic_get_volt(enum mic_volt * const voltage)
 {
 	if (voltage == NULL)
 		return modem_to_linux_err(PM_ERR_FLAG__PAR1_OUT_OF_RANGE);
 
 	return do_remote_value(0, voltage, MIC_GET_VOLT_PROC);
 }
-EXPORT_SYMBOL(mic_get_volt);
+EXPORT_SYMBOL(pmic_mic_get_volt);
 
 /* Cannot use 'current' as the parameter name because 'current' is defined as
  * a macro to get a pointer to the current task.
  */
-int flash_led_set_current(const uint16_t milliamps)
+int pmic_flash_led_set_current(const uint16_t milliamps)
 {
 	return do_remote_value(milliamps, NULL, FLASH_LED_SET_CURRENT_PROC);
 }
-EXPORT_SYMBOL(flash_led_set_current);
+EXPORT_SYMBOL(pmic_flash_led_set_current);
 
-int set_led_intensity(const enum ledtype type, int level)
+int pmic_set_led_intensity(const enum ledtype type, int level)
 {
 	struct get_value_rep rep;
 
@@ -434,7 +434,7 @@ int set_led_intensity(const enum ledtype type, int level)
 	return do_std_rpc_req2(&rep, SET_LED_INTENSITY_PROC,
 				(uint32_t)type, level);
 }
-EXPORT_SYMBOL(set_led_intensity);
+EXPORT_SYMBOL(pmic_set_led_intensity);
 
 #if defined(CONFIG_DEBUG_FS)
 static void debugfs_log_return_status(const int caller_rc,
@@ -452,8 +452,8 @@ static void debugfs_log_return_status(const int caller_rc,
 static int debugfs_spkr_en_chan(void *data, u64 val)
 {
 	int rc = ((enum spkr_left_right)data) == LEFT_SPKR ?
-		  spkr_en_left_chan((const unsigned char)val) :
-		  spkr_en_right_chan((const unsigned char)val);
+		  pmic_spkr_en_left_chan((const unsigned char)val) :
+		  pmic_spkr_en_right_chan((const unsigned char)val);
 
 	debugfs_log_return_status(rc, __func__, val);
 	return rc;
@@ -463,8 +463,8 @@ static int debugfs_spkr_is_chan_en(void *data, u64 *val)
 {
 	unsigned char enabled;
 	int rc = ((enum spkr_left_right)data) == LEFT_SPKR ?
-		  spkr_is_left_chan_en(&enabled) :
-		  spkr_is_right_chan_en(&enabled);
+		  pmic_spkr_is_left_chan_en(&enabled) :
+		  pmic_spkr_is_right_chan_en(&enabled);
 
 	if (!rc)
 		*val = (u64)enabled;
@@ -480,7 +480,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_spkr_en_chan_fops,
 static int debugfs_spkr_get_gain(void *data, u64 *val)
 {
 	enum spkr_gain gain;
-	int rc = spkr_get_gain((enum spkr_left_right)data, &gain);
+	int rc = pmic_spkr_get_gain((enum spkr_left_right)data, &gain);
 
 	if (!rc)
 		*val = (u64)gain;
@@ -491,7 +491,7 @@ static int debugfs_spkr_get_gain(void *data, u64 *val)
 
 static int debugfs_set_speaker_gain(void *data, u64 val)
 {
-	int rc = set_speaker_gain((enum spkr_gain)val);
+	int rc = pmic_set_speaker_gain((enum spkr_gain)val);
 
 	debugfs_log_return_status(rc, __func__, val);
 	return rc;
@@ -503,7 +503,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_spkr_gain_fops,
 
 static int debugfs_speaker_cmd(void *data, u64 val)
 {
-	int rc = speaker_cmd((const enum spkr_cmd)val);
+	int rc = pmic_speaker_cmd((const enum spkr_cmd)val);
 
 	debugfs_log_return_status(rc, __func__, val);
 	return rc;
@@ -536,7 +536,7 @@ static ssize_t debugfs_spkr_get_configuration(struct file *filp,
 					      size_t cnt, loff_t *ppos)
 {
 	struct spkr_config_mode type;
-	int rc = get_spkr_configuration(&type);
+	int rc = pmic_get_spkr_configuration(&type);
 
 	if (!rc) {
 		/* Hopefully, 100 additional chars is enough. The number is
@@ -622,7 +622,7 @@ static ssize_t debugfs_spkr_set_configuration(struct file *filp,
 		return -EINVAL;
 	}
 
-	rc = set_spkr_configuration(&t);
+	rc = pmic_set_spkr_configuration(&t);
 	if (!rc)
 		printk(KERN_INFO "%s: succeeded, %s\n", __func__, buf);
 	else
@@ -641,7 +641,7 @@ static const struct file_operations debugfs_spkr_configuration_fops = {
 
 static int debugfs_mic_en(void *data, u64 val)
 {
-	int rc = mic_en((const unsigned char)val);
+	int rc = pmic_mic_en((const unsigned char)val);
 
 	debugfs_log_return_status(rc, __func__, val);
 	return rc;
@@ -650,7 +650,7 @@ static int debugfs_mic_en(void *data, u64 val)
 static int debugfs_mic_is_en(void *data, u64 *val)
 {
 	unsigned char enabled;
-	int rc = mic_is_en(&enabled);
+	int rc = pmic_mic_is_en(&enabled);
 
 	if (!rc)
 		*val = (u64)enabled;
@@ -665,7 +665,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_mic_en_fops,
 
 static int debugfs_mic_set_volt(void *data, u64 val)
 {
-	int rc = mic_set_volt((const enum mic_volt)val);
+	int rc = pmic_mic_set_volt((const enum mic_volt)val);
 
 	debugfs_log_return_status(rc, __func__, val);
 	return rc;
@@ -674,7 +674,7 @@ static int debugfs_mic_set_volt(void *data, u64 val)
 static int debugfs_mic_get_volt(void *data, u64 *val)
 {
 	enum mic_volt voltage;
-	int rc = mic_get_volt(&voltage);
+	int rc = pmic_mic_get_volt(&voltage);
 
 	if (!rc)
 		*val = (u64)voltage;
@@ -690,7 +690,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_mic_volt_fops,
 static uint16_t debugfs_flash_led_milliamps;
 static int debugfs_flash_led_set_current_execute(void *data, u64 val)
 {
-	int rc = flash_led_set_current((const uint16_t)val);
+	int rc = pmic_flash_led_set_current((const uint16_t)val);
 
 	if (!rc)
 		debugfs_flash_led_milliamps = (const uint16_t)val;
@@ -714,7 +714,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debugfs_flash_led_current_fops,
 static uint16_t debugfs_lcd_intensity;
 static int debugfs_set_lcd_intensity(void *data, u64 val)
 {
-	int rc = set_led_intensity(LED_LCD, (const uint16_t)val);
+	int rc = pmic_set_led_intensity(LED_LCD, (const uint16_t)val);
 
 	if (!rc)
 		debugfs_lcd_intensity = (const uint16_t)val;
