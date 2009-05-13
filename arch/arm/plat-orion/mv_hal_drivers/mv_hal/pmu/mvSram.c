@@ -69,8 +69,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Constants */
 #define PMU_MAX_DESCR_CNT		7		
-#define PMU_SLP_DESCR_CNT		1
-#define PMU_STBY_DESCR_CNT		0
+#define PMU_STANDBY_DESCR_CNT		1
+#define PMU_DEEPIDLE_DESCR_CNT		0
 
 /* DDR parameters pointer */
 static MV_VOID * _mvPmuSramDdrParamPtr;
@@ -81,10 +81,10 @@ static unsigned long mvPmuSramSize;
 
 /* SRAM functions pointer */
 static MV_VOID (*_mvPmuSramDdrReconfigPtr)(MV_U32 cplPtr, MV_U32 cplCnt);
-static MV_VOID (*_mvPmuSramStandbyEnterPtr)(MV_U32 ddrSelfRefresh);
+static MV_VOID (*_mvPmuSramDeepIdleEnterPtr)(MV_U32 ddrSelfRefresh);
+static MV_VOID (*_mvPmuSramDeepIdleExitPtr)(MV_VOID);
+static MV_VOID (*_mvPmuSramStandbyEnterPtr)(MV_VOID);
 static MV_VOID (*_mvPmuSramStandbyExitPtr)(MV_VOID);
-static MV_VOID (*_mvPmuSramSleepEnterPtr)(MV_VOID);
-static MV_VOID (*_mvPmuSramSleepExitPtr)(MV_VOID);
 
 /* Macros */
 #define PmuSpVirt2Phys(addr)	(((MV_U32)addr - DOVE_SCRATCHPAD_VIRT_BASE) + DOVE_SCRATCHPAD_PHYS_BASE)
@@ -165,33 +165,34 @@ MV_VOID mvPmuSramDdrReconfig(MV_U32 paramcnt)
 }	
 
 /*******************************************************************************
-* mvPmuSramStandby - Enter Standby mode
+* mvPmuSramDeepIdle - Enter Deep Idle mode
 *
 * DESCRIPTION:
 *   	This call executes from the SRAM and performs all configurations needed
-*	to enter standby mode (power down the CPU and caches)
+*	to enter deep Idle mode (power down the CPU, VFP and caches)
 *
 * INPUT:
-*	ddrSelfRefresh: Enable/Disable (0x1/0x0) DDR selfrefresh in Standby
+*	ddrSelfRefresh: Enable/Disable (0x1/0x0) DDR selfrefresh while in Deep
+*                       Idle.
 * OUTPUT:
 *	None
 * RETURN:
 *	None
 *******************************************************************************/
-MV_VOID mvPmuSramStandby(MV_U32 ddrSelfRefresh)
+MV_VOID mvPmuSramDeepIdle(MV_U32 ddrSelfRefresh)
 {
-	if (!_mvPmuSramStandbyEnterPtr)
+	if (!_mvPmuSramDeepIdleEnterPtr)
 		panic("Function not yet relocated in SRAM\n");
 
-	return _mvPmuSramStandbyEnterPtr(ddrSelfRefresh);
+	return _mvPmuSramDeepIdleEnterPtr(ddrSelfRefresh);
 }
 
 /*******************************************************************************
-* mvPmuSramSleep - Enter Sleep mode
+* mvPmuSramStandby - Enter Standby mode
 *
 * DESCRIPTION:
 *   	This call executes from the SRAM and performs all configurations needed
-*	to enter sleep mode (power down the whole SoC). On exiting the Sleep
+*	to enter standby mode (power down the whole SoC). On exiting the Standby
 *	mode the CPU returns from this call normally
 *
 * INPUT:
@@ -201,12 +202,12 @@ MV_VOID mvPmuSramStandby(MV_U32 ddrSelfRefresh)
 * RETURN:
 *	None
 *******************************************************************************/
-MV_VOID mvPmuSramSleep(MV_VOID)
+MV_VOID mvPmuSramStandby(MV_VOID)
 {
-	if (!_mvPmuSramSleepEnterPtr)
+	if (!_mvPmuSramStandbyEnterPtr)
 		panic("Function not yet relocated in SRAM\n");
 
-	return _mvPmuSramSleepEnterPtr();
+	return _mvPmuSramStandbyEnterPtr();
 }
 
 /*******************************************************************************
@@ -214,7 +215,7 @@ MV_VOID mvPmuSramSleep(MV_VOID)
 *
 * DESCRIPTION:
 *   	Initialize the scratch pad SRAM region in the PMU so that all routines
-*	needed for standby, sleep and DVFS are relocated from the DDR into the
+*	needed for deepIdle, standby and DVFS are relocated from the DDR into the
 *	SRAM
 *
 * INPUT:
@@ -241,20 +242,20 @@ MV_STATUS mvPmuSramLoad (MV_VOID)
 		mvPmuSramDdrReconfigFuncSZ)) == NULL)
 		return MV_FAIL;
 
+	/* Relocate the DeepIdle functions */
+	if ((_mvPmuSramDeepIdleEnterPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDeepIdleEnterFunc,
+		mvPmuSramDeepIdleEnterFuncSZ)) == NULL)
+		return MV_FAIL;
+	if ((_mvPmuSramDeepIdleExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDeepIdleExitFunc,
+		mvPmuSramDeepIdleExitFuncSZ)) == NULL)
+		return MV_FAIL;
+
 	/* Relocate the Standby functions */
 	if ((_mvPmuSramStandbyEnterPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyEnterFunc,
 		mvPmuSramStandbyEnterFuncSZ)) == NULL)
 		return MV_FAIL;
 	if ((_mvPmuSramStandbyExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyExitFunc,
 		mvPmuSramStandbyExitFuncSZ)) == NULL)
-		return MV_FAIL;
-
-	/* Relocate the Sleep functions */
-	if ((_mvPmuSramSleepEnterPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramSleepEnterFunc,
-		mvPmuSramSleepEnterFuncSZ)) == NULL)
-		return MV_FAIL;
-	if ((_mvPmuSramSleepExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramSleepExitFunc,
-		mvPmuSramSleepExitFuncSZ)) == NULL)
 		return MV_FAIL;
 
 	return MV_OK;
@@ -291,8 +292,8 @@ MV_STATUS mvPmuSramDdrTimingPrep(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_U32 * cnt)
 }
 
 /*******************************************************************************
-* mvPmuSramStbyResumePrep - Prepare information needed by the BootROM to resume
-*       from STANDBY.
+* mvPmuSramDeepIdleResumePrep - Prepare information needed by the BootROM to resume
+*       from Deep Idle Mode.
 *
 * DESCRIPTION:
 *	Prepare the necessary register configuration to be executed by the 
@@ -305,26 +306,25 @@ MV_STATUS mvPmuSramDdrTimingPrep(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_U32 * cnt)
 * RETURN:
 *	status
 *******************************************************************************/
-MV_STATUS mvPmuSramStandbyResumePrep(MV_VOID)
+MV_STATUS mvPmuSramDeepIdleResumePrep(MV_VOID)
 {
 	MV_U32 reg, i;
 
 	/* set the resume address */
-	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramStandbyExitPtr)); 
-	/*(((MV_U32)_mvPmuSramStandbyExitPtr - DOVE_SCRATCHPAD_VIRT_BASE) + DOVE_SCRATCHPAD_PHYS_BASE)*/
+	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramDeepIdleExitPtr)); 
 
 	/* Prepare the resume descriptors */
-	reg = ((PMU_STBY_DESCR_CNT << PMU_RD_CFG_DISC_CNT_OFFS) & PMU_RD_CFG_DISC_CNT_MASK);
-	MV_REG_WRITE(PMU_RESUME_DESC_CFG_REG, reg); 
+	reg = ((PMU_DEEPIDLE_DESCR_CNT << PMU_RC_DISC_CNT_OFFS) & PMU_RC_DISC_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_CTRL_REG, reg); 
 
 	/* Fill in the used descriptors */
-	for (i=0; i<PMU_STBY_DESCR_CNT; i++)
+	for (i=0; i<PMU_DEEPIDLE_DESCR_CNT; i++)
 	{
 		// TBD
 	}
 
 	/* Clear out all non used descriptors */
-	for (i=PMU_STBY_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
+	for (i=PMU_DEEPIDLE_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
 	{
 		MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(i), 0x0);
 		MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(i), 0x0);
@@ -334,34 +334,36 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_VOID)
 }
 
 /*******************************************************************************
-* mvPmuSramSleepResumePrep - Prepare information needed by the BootROM to resume
-*       from SLEEP.
+* mvPmuSramStandbyResumePrep - Prepare information needed by the BootROM to resume
+*       from Standby Mode.
 *
 * DESCRIPTION:
 *	Prepare the necessary register configuration to be executed by the 
 *	BootROM before jumping back to the resume code in the SRAM.
 *
 * INPUT:
-*       ddrFreq: DDR frequency to be configured upon Sleep resume
+*       ddrFreq: DDR frequency to be configured upon resume from Standby
 * OUTPUT:
 *	None
 * RETURN:
 *	status
 *******************************************************************************/
-MV_STATUS mvPmuSramSleepResumePrep(MV_U32 ddrFreq)
+MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 {
 	MV_U32 reg, i;
-	MV_U32 * srcptr = (MV_U32*) (DOVE_SCRATCHPAD_VIRT_BASE + PMU_SCRATCHPAD_OFFS);
-	MV_U32 * dstptr = (MV_U32*) (DOVE_PMUSP_VIRT_BASE + PMU_PMUSP_OFFS);
 	MV_U32 clear_size = (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS));
 	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtr;
+#ifdef CONFIG_DOVE_REV_Z0
+	MV_U32 * srcptr = (MV_U32*) (DOVE_SCRATCHPAD_VIRT_BASE + PMU_SCRATCHPAD_OFFS);
+	MV_U32 * dstptr = (MV_U32*) (DOVE_PMUSP_VIRT_BASE + PMU_PMUSP_OFFS);
+#endif
 
 	/* set the resume address */
-	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramSleepExitPtr));
+	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramStandbyExitPtr));
 
 	/* Prepare the resume descriptors */
-	reg = ((PMU_SLP_DESCR_CNT << PMU_RD_CFG_DISC_CNT_OFFS) & PMU_RD_CFG_DISC_CNT_MASK);
-	MV_REG_WRITE(PMU_RESUME_DESC_CFG_REG, reg); 
+	reg = ((PMU_STANDBY_DESCR_CNT << PMU_RC_DISC_CNT_OFFS) & PMU_RC_DISC_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_CTRL_REG, reg); 
 
 	/* Prepare DDR paramters in the scratch pad for BootROM */
 	for (i=0; i<(clear_size/4); i++)	
@@ -376,24 +378,26 @@ MV_STATUS mvPmuSramSleepResumePrep(MV_U32 ddrFreq)
 	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
 
 	/* Descriptor 1: TBD */
-	for (i=1; i<PMU_SLP_DESCR_CNT; i++)
+	for (i=1; i<PMU_STANDBY_DESCR_CNT; i++)
 	{
 		// TBD
 	}
 
 	/* Clear out all non used descriptors */
-	for (i=PMU_SLP_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
+	for (i=PMU_STANDBY_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
 	{
 		MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(i), 0x0);
 		MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(i), 0x0);
 	}
 
+#ifdef CONFIG_DOVE_REV_Z0
 	/*
 	 * PMU ScratchPad BUG workaround
 	 * Copy all SRAM to PMUSP in 32bit access
 	 */	
 	for (i=0; i<512; i++)
 		dstptr[i] = srcptr[i];
+#endif
 
 	return MV_OK;
 }
