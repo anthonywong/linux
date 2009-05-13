@@ -22,17 +22,20 @@
 /*
  * Generic Address Decode Windows bit settings
  */
-#define TARGET_DDR		0
-#define TARGET_BOOTROM		1
-#define TARGET_CESA			3
-#define TARGET_PCIE0		4
-#define TARGET_PCIE1		8
-#define ATTR_CESA			0x01
+#define TARGET_DDR		0x0
+#define TARGET_BOOTROM		0x1
+#define TARGET_CESA		0x3
+#define TARGET_PCIE0		0x4
+#define TARGET_PCIE1		0x8
+#define TARGET_SCRATCHPAD	0xd
+
+#define ATTR_CESA		0x01
 #define ATTR_BOOTROM		0xfd
 #define ATTR_DEV_SPI0_ROM	0xfe
 #define ATTR_DEV_SPI1_ROM	0xfb
 #define ATTR_PCIE_IO		0xe0
 #define ATTR_PCIE_MEM		0xe8
+#define ATTR_SCRATCHPAD		0x0
 
 /*
  * CPU Address Decode Windows registers
@@ -110,12 +113,19 @@ void __init dove_setup_cpu_mbus(void)
 	setup_cpu_win(4, DOVE_CESA_PHYS_BASE, DOVE_CESA_SIZE,
 		      TARGET_CESA, ATTR_CESA, -1);
 
-
 	/*
 	 * Setup the Window to the BootROM for Stanby and Sleep Resume
 	 */
 	setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
 		      TARGET_BOOTROM, ATTR_BOOTROM, -1);
+
+#ifndef CONFIG_DOVE_REV_Z0
+	/*
+	 * Setup the Window to the PMU Scratch Pad space
+	 */
+	setup_cpu_win(6, DOVE_SCRATCHPAD_PHYS_BASE, DOVE_SCRATCHPAD_SIZE,
+		      TARGET_SCRATCHPAD, ATTR_SCRATCHPAD, -1);
+#endif
 
 	/*
 	 * Setup MBUS dram target info.
