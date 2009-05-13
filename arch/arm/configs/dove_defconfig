@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29.1-dove-2.0.0-dev
-# Sun May 17 15:12:08 2009
+# Wed May 20 13:17:04 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -174,6 +174,8 @@ CONFIG_MV_HAL_RULES_PATH="arch/arm/mach-dove/mv_hal_support/mvRules.mk"
 #
 # Marvell Dove Implementations
 #
+CONFIG_DOVE_REV_Z0=y
+# CONFIG_DOVE_REV_Y0 is not set
 CONFIG_MACH_DOVE_RD_AVNG=y
 CONFIG_MV_INCLUDE_MPP_SYSFS=y
 CONFIG_MACH_DOVE_RD=y
@@ -1736,7 +1738,6 @@ CONFIG_UIO_PDRV=y
 # CONFIG_UIO_SERCOS3 is not set
 CONFIG_UIO_DOVE_VPRO=y
 CONFIG_UIO_DOVE_VPRO_MEM_SIZE=34
-# CONFIG_VPRO_NEW is not set
 # CONFIG_STAGING is not set
 
 #
