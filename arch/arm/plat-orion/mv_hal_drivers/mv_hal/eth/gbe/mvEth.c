@@ -180,8 +180,11 @@ void    mvEthHalInit(void)
 	}		
 #endif
 
+#if 0
+	/* Dove: Assuming ports are not powered down because they were powered up first thing in mv_eth_probe */
 	/* Skip power down ports */
 	if (MV_FALSE == mvCtrlPwrClckGet(ETH_GIG_UNIT_ID, port)) continue;
+#endif
 
         /* Disable Giga Ethernet Unit interrupts */
         MV_REG_WRITE(ETH_UNIT_INTR_MASK_REG(port), 0);
