@@ -41,6 +41,7 @@ disclaimer.
 #include <linux/tcp.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
+#include <linux/clk.h>
 
 #include "mvOs.h"
 #include "mvDebug.h"
@@ -85,6 +86,9 @@ disclaimer.
 
 struct mv_netdev_platform_data {
 	int		port_number;
+#if defined(CONFIG_HAVE_CLK)
+	struct clk			*clk;
+#endif
 };
 
 /************************************************************************************************************************/
