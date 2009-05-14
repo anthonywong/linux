@@ -49,7 +49,8 @@ disclaimer.
 
 #include "mv_netdev.h"
 
-/*static int __init mv_eth_init_module( void );
+/*
+static int __init mv_eth_init_module( void );
 static void __exit mv_eth_exit_module( void );
 module_init( mv_eth_init_module );
 module_exit( mv_eth_exit_module);
@@ -2957,14 +2958,22 @@ void print_skb(struct sk_buff* skb)
  *   main driver initialization. loading the interfaces.   *
  ***********************************************************/
 static int mv_eth_probe(struct platform_device *pdev)
-/*static int __init mv_eth_init_module( void ) */
 {
+    struct mv_netdev_platform_data *pd = pdev->dev.platform_data;
     u32             i, port, netdev=0;
     mv_eth_priv     *priv;
     u8              mac_addr[6];
     int             mtu;
 
     printk( "Load Marvell Ethernet Driver\n");
+
+#if defined(CONFIG_HAVE_CLK)
+	pd->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pd->clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(pd->clk);
+#endif
 
     /* Initialize mv_eth_rxq_desc array */
     for(i=0; i<MV_ETH_RX_Q_NUM; i++) 
@@ -2986,6 +2995,7 @@ static int mv_eth_probe(struct platform_device *pdev)
 
     mv_eth_config_show();
 
+    /* TODO: need to port this to a nicer platform driver and platform device support */
     mv_eth_ports_num = mvCtrlEthMaxPortGet();
 #ifdef CONFIG_MV_ETH_PORTS_NUM
     if (CONFIG_MV_ETH_PORTS_NUM < mv_eth_ports_num)
@@ -3022,11 +3032,14 @@ static int mv_eth_probe(struct platform_device *pdev)
 		continue;
 	}		
 #endif
+#if 0
+	/* Dove: Assuming ports are not powered down because they were powered up first thing in mv_eth_probe */
 	if (MV_FALSE == mvCtrlPwrClckGet(ETH_GIG_UNIT_ID, port)) 
 	{
 	    printk("\nWarning: Giga %d is Powered Off\n", port);
 	    continue;
         }
+#endif
 
 	/* we deal with gateway ports later */
 #if defined(CONFIG_MV_GATEWAY)
@@ -3080,12 +3093,14 @@ static int mv_eth_probe(struct platform_device *pdev)
 #if defined(CONFIG_MV_GATEWAY)
     for (port = 0; port < mv_eth_ports_num; port++)
     {
+#if 0
+	/* Dove: Assuming ports are not powered down because they were powered up first thing in mv_eth_probe */
 	if (MV_FALSE == mvCtrlPwrClckGet(ETH_GIG_UNIT_ID, port)) 
 	{
 	    printk("\nWarning: Giga %d is Powered Off\n", port);
 	    continue;
         }
-
+#endif
 	/* disregard non-gateway ports */
 	if (!(mvBoardIsSwitchConnected(port)))
 		continue;
@@ -3176,8 +3191,15 @@ static int mv_eth_probe(struct platform_device *pdev)
 }
 
 static int mv_eth_remove(struct platform_device *pdev)
-/*static void __exit mv_eth_exit_module(void)*/
 {
+#if defined(CONFIG_HAVE_CLK)
+	struct mv_netdev_platform_data *pd = pdev->dev.platform_data;
+
+	if (!IS_ERR(pd->clk)) {
+		clk_disable(pd->clk);
+		clk_put(pd->clk);
+	}
+#endif
     printk("Marvell Ethernet Driver REMOVE\n");
     return 0;
 }
