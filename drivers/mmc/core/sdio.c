@@ -130,17 +130,8 @@ static int sdio_read_cccr(struct mmc_card *card)
 		if (ret)
 			goto out;
 
-		/* enable high speed mode, this mode must be enabled when 
-		 * working at 50MHz
-		*/
-		if (data & SDIO_SPEED_SHS) {
+		if (data & SDIO_SPEED_SHS)
 			card->cccr.high_speed = 1;
-
-			data |= SDIO_SPEED_EHS;
-			ret = mmc_io_rw_direct(card, 1, 0, SDIO_CCCR_SPEED, data, NULL);
-			if (ret)
-			     goto out;
-		}
 	}
 
 out:
