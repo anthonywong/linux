@@ -78,25 +78,15 @@ static void mv_eth_set_port_addr_dec(int port, struct mbus_dram_target_info *dra
 static int mv_eth_addr_dec_probe(struct platform_device *pdev)
 {
 	struct mv_eth_addr_dec_platform_data *pd = pdev->dev.platform_data;
-	unsigned int num_of_ports;
-	int i;
+	int port = pdev->id;
 
-	num_of_ports = mvCtrlEthMaxPortGet();
+	mv_eth_set_port_addr_dec(port, pd->dram);
 
-	for(i = 0; i < num_of_ports; i++)
-	{
-		if (MV_FALSE == mvCtrlPwrClckGet(ETH_GIG_UNIT_ID, i)) 
-		{
-	   		continue;
-  		}
-		mv_eth_set_port_addr_dec(i,pd->dram);
-	}
 	return 0;
 }
 
 static int mv_eth_addr_dec_remove(struct platform_device *pdev)
 {
-	// Nothing to do meanwhile...
 	return 0;
 }
 
