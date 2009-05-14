@@ -28,7 +28,7 @@ void clks_disable_all(int include_pci0, int include_pci1)
 	
 	ctrl &= ~(CLOCK_GATING_USB0_MASK |
 		  CLOCK_GATING_USB1_MASK |
-		  /* CLOCK_GATING_GBE_MASK |*/
+		  CLOCK_GATING_GBE_MASK  | CLOCK_GATING_GIGA_PHY_MASK | 
 		  CLOCK_GATING_SATA_MASK |
 		  /* CLOCK_GATING_PCIE0_MASK | */
 		  /* CLOCK_GATING_PCIE1_MASK | */
@@ -60,7 +60,7 @@ static int __clk_enable(struct clk *clk)
 
 	if (clk->flags & ALWAYS_ENABLED)
 		return 0;
-	
+
 	ctrl = readl(CLOCK_GATING_CONTROL);
 	ctrl |= clk->mask;
 	writel(ctrl, CLOCK_GATING_CONTROL);
