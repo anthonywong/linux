@@ -451,6 +451,7 @@ static void __init dove_rd_avng_init(void)
 
 	dove_vpro_init();
 	dove_gpu_init();
+	dove_cesa_init();
 
 	dove_cam_init(NULL);
 #ifdef CONFIG_FB_DOVE
