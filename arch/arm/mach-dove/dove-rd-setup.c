@@ -33,6 +33,7 @@
 #include <asm/mach/arch.h>
 #include <mach/dove.h>
 #include <asm/hardware/pxa-dma.h>
+#include <mach/dove_nand.h>
 #include "common.h"
 #include "mpp.h"
 #include "clock.h"
@@ -60,13 +61,6 @@ static struct orion_i2s_platform_data i2s0_data = {
 static struct mv_sata_platform_data dove_rd_sata_data = {
 	.n_ports	= 1,
 };
-
-/*****************************************************************************
- * NAND 16GB
- ****************************************************************************/
-/* tzachi: wait for dove support in pxa nand driver.
- * e.g. pxa3xx_nand_platform_data is under include/asm/arch-pxa/pxa3xx_nand.h
- */
 
 /*****************************************************************************
  * SPI Devices:
@@ -102,6 +96,77 @@ static struct i2c_board_info __initdata dove_rd_i2c_devs[] = {
 	{ I2C_BOARD_INFO("max1535_i2c", 0x09) },	/* SMBus Charger */
 };
 
+/*****************************************************************************
+ * NAND
+ ****************************************************************************/
+static struct mtd_partition partition_dove[] = {
+	{ .name		= "UBoot",
+	  .offset	= 0,
+	  .size		= 1 * SZ_1M },
+	{ .name		= "UImage",
+	  .offset	= MTDPART_OFS_APPEND,
+	  .size		= 4 * SZ_1M },
+	{ .name		= "Root",
+	  .offset	= MTDPART_OFS_APPEND,
+	  .size		= 2043 * SZ_1M },
+};
+static u64 nfc_dmamask = DMA_BIT_MASK(32);
+static struct dove_nand_platform_data dove_rd_nfc_data = {
+	.nfc_width	= 8,
+	.use_dma	= 1,
+	.use_ecc	= 1,
+	.use_bch	= 1,
+	.parts = partition_dove,
+	.nr_parts = ARRAY_SIZE(partition_dove)
+};
+
+static struct resource dove_nfc_resources[]  = {
+	[0] = {
+		.start	= (DOVE_NFC_PHYS_BASE),
+		.end	= (DOVE_NFC_PHYS_BASE + 0xFF),
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_NAND,
+		.end	= IRQ_NAND,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* DATA DMA */
+		.start	= 97,
+		.end	= 97,
+		.flags	= IORESOURCE_DMA,
+	},
+	[3] = {
+		/* COMMAND DMA */
+		.start	= 99,
+		.end	= 99,
+		.flags	= IORESOURCE_DMA,
+	},
+};
+
+static struct platform_device dove_nfc = {
+	.name		= "dove-nand",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &nfc_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &dove_rd_nfc_data,
+	},
+	.resource	= dove_nfc_resources,
+	.num_resources	= ARRAY_SIZE(dove_nfc_resources),
+};
+
+static void __init dove_rd_nfc_init(void)
+{
+	dove_rd_nfc_data.tclk = dove_tclk_get();
+	platform_device_register(&dove_nfc);
+}
+
+
+/*****************************************************************************
+ * MPP
+ ****************************************************************************/
 static struct dove_mpp_mode dove_rd_mpp_modes[] __initdata = {
 	{ 12, MPP_GPIO },
 	{ 13, MPP_GPIO },
@@ -177,6 +242,7 @@ static void __init dove_rd_init(void)
 	dove_sdhci_cam_mbus_init();
 	dove_sdio0_init();
 	dove_sdio1_init();
+	dove_rd_nfc_init();
 	dove_i2s_init(0, &i2s0_data);
 
 	dove_cam_init(&dove_cafe_cam_data);
