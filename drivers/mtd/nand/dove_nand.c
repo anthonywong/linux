@@ -599,7 +599,7 @@ static void start_data_dma(struct pxa3xx_nand_info *info, int dir_out)
 	int dma_len = ALIGN(info->data_size, 32);
 
 	desc->ddadr = DDADR_STOP;
-	desc->dcmd = DCMD_ENDIRQEN | DCMD_WIDTH4 | DCMD_BURST32 | dma_len;
+	desc->dcmd = DCMD_ENDIRQEN | DCMD_WIDTH8 | DCMD_BURST32 | dma_len;
 
 	if (dir_out) {
 		desc->dsadr = info->data_buff_phys;
