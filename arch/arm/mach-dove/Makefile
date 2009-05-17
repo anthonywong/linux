@@ -8,7 +8,7 @@ obj-$(CONFIG_CPU_FREQ_DOVE)	+= cpufreq.o
 obj-$(CONFIG_FB_DOVE_CLCD)	+= clcd.o
 obj-$(CONFIG_FB_DOVE_CLCD1)	+= clcd.o
 obj-$(CONFIG_MV_INCLUDE_MPP_SYSFS)	+= avng_mpp.o
-
+obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 obj-$(CONFIG_PROC_FS)		+= dump_cp15_regs.o
 
 include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
