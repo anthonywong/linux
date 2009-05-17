@@ -185,6 +185,8 @@ static void __init dove_rd_init(void)
 	dove_vpro_init();
 	dove_gpu_init();
 	dove_tact_init(&tact_dove_fp_data);
+	dove_cesa_init();
+
 	/*
 	 * On-board device registration
 	 */
