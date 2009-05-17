@@ -1007,6 +1007,27 @@ void __init dove_i2s_init(int port, struct orion_i2s_platform_data *i2s_data)
 }
 
 /*****************************************************************************
+ * CESA
+ ****************************************************************************/
+static struct platform_device dove_cesa_ocf = {
+	.name           = "dove_cesa_ocf",
+	.id             = -1,
+};
+
+static struct platform_device dove_cesadev = {
+	.name           = "dove_cesadev",
+	.id             = -1,
+};
+
+
+void __init dove_cesa_init(void)
+{
+	platform_device_register(&dove_cesa_ocf);
+	platform_device_register(&dove_cesadev);
+}
+
+
+/*****************************************************************************
  * GPU and AXI clocks
  ****************************************************************************/
 static u32 dove_clocks_get_bits(u32 addr, u32 start_bit, u32 end_bit)

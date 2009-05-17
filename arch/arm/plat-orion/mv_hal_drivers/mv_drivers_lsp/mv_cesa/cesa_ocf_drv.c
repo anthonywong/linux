@@ -45,6 +45,7 @@ disclaimer.
 #include "cesa/mvCesa.h" /* moved here before cryptodev.h due to include dependencies */
 #include <cryptodev.h>
 #include <uio.h>
+#include <linux/platform_device.h>
 
 #include "mvDebug.h"
 
@@ -1233,8 +1234,48 @@ void cesa_ocf_debug(void)
 
 }
 
-module_init(cesa_ocf_init);
-module_exit(cesa_ocf_exit);
+
+
+
+
+static int cesa_ocf_probe(struct platform_device *pdev)
+{
+	dprintk("%s\n", __func__);
+	return cesa_ocf_init();
+}
+
+static int cesa_ocf_remove(struct platform_device *pdev)
+{
+	dprintk("%s\n", __func__);
+	cesa_ocf_exit();
+	return 0;
+}
+
+
+
+static struct platform_driver cesa_ocf_driver = {
+	.probe		= cesa_ocf_probe,
+	.remove		= cesa_ocf_remove,
+	.driver		= {
+		.name	= "dove_cesa_ocf",
+	},
+};
+
+static int __init cesa_ocf_modinit(void)
+{
+	dprintk("%s\n", __func__);
+	return platform_driver_register(&cesa_ocf_driver);
+}
+
+static void __exit cesa_ocf_modexit(void)
+{
+	dprintk("%s\n", __func__);
+	platform_driver_unregister(&cesa_ocf_driver);
+}
+
+module_init(cesa_ocf_modinit);
+module_exit(cesa_ocf_modexit);
+
 
 MODULE_LICENSE("Marvell/GPL");
 MODULE_AUTHOR("Ronen Shitrit");
