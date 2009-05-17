@@ -225,6 +225,7 @@
 #define DCMD_WIDTH1	(1 << 14)	/* 1 byte width */
 #define DCMD_WIDTH2	(2 << 14)	/* 2 byte width (HalfWord) */
 #define DCMD_WIDTH4	(3 << 14)	/* 4 byte width (Word) */
+#define DCMD_WIDTH8	(0 << 14)	/* 8 byte width */
 #define DCMD_OVERREAD	(1 << 13)	/* Over read data */
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
