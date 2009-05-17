@@ -336,6 +336,7 @@ struct cryptodesc {
 #define crd_key		CRD_INI.cri_key
 #define crd_alg		CRD_INI.cri_alg
 #define crd_klen	CRD_INI.cri_klen
+#define crd_mlen	CRD_INI.cri_mlen
 
 	struct cryptodesc *crd_next;
 };
