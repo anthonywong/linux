@@ -1671,7 +1671,7 @@ crypto_exit(void)
 	CRYPTO_DRIVER_LOCK();
 	p = cryptoproc;
 	cryptoproc = (pid_t) -1;
-	kill_proc(p, SIGTERM, 1);
+	kill_proc_info(SIGTERM, SEND_SIG_PRIV, p);
 	wake_up_interruptible(&cryptoproc_wait);
 	CRYPTO_DRIVER_UNLOCK();
 
@@ -1680,7 +1680,7 @@ crypto_exit(void)
 	CRYPTO_DRIVER_LOCK();
 	p = cryptoretproc;
 	cryptoretproc = (pid_t) -1;
-	kill_proc(p, SIGTERM, 1);
+	kill_proc_info(SIGTERM, SEND_SIG_PRIV, p);
 	wake_up_interruptible(&cryptoretproc_wait);
 	CRYPTO_DRIVER_UNLOCK();
 
