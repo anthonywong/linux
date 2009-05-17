@@ -123,6 +123,7 @@ struct pxa3xx_nand_timing {
 	unsigned int	tR;   /* ND_nWE high to ND_nRE low for read */
 	unsigned int	tWHR; /* ND_nWE high to ND_nRE low for status read */
 	unsigned int	tAR;  /* ND_ALE low to ND_nRE low delay */
+	unsigned int	tRHW; /* ND_nRE high to ND_nWE low delay */
 };
 
 struct pxa3xx_nand_cmdset {
@@ -275,28 +276,16 @@ static struct pxa3xx_nand_flash samsung512MbX16 = {
 };
 
 static struct pxa3xx_nand_timing samsung16GbX8_timing = {
-#if 1
-/* Use the non-optimized timing */
-	.tCH	= 0xffff,
-	.tCS	= 0xffff,
-	.tWH	= 0xffff,
-	.tWP	= 0xffff,
-	.tRH	= 0xffff,
-	.tRP	= 0xffff,
-	.tR	= 0xffff,
-	.tWHR	= 0xffff,
-	.tAR	= 0xffff,
-#else
 	.tCH	= 5,
 	.tCS	= 20,
 	.tWH	= 10,
-	.tWP	= 12,
-	.tRH	= 10,
-	.tRP	= 12,
-	.tR	= 25121,
+	.tWP	= 15,
+	.tRH	= 15,
+	.tRP	= 15,
+	.tR	= 60000,
 	.tWHR	= 60,
 	.tAR	= 10,
-#endif
+	.tRHW	= 100,
 };
 
 static struct pxa3xx_nand_flash samsung16GbX8 = {
@@ -351,6 +340,7 @@ static struct pxa3xx_nand_timing st_timing = {
 	.tR	= 25121,
 	.tWHR	= 60,
 	.tAR	= 10,
+	.tRHW	= 100,
 };
 
 static struct pxa3xx_nand_flash st8GbX8 = {
@@ -381,6 +371,7 @@ static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 #define NDTR1_tR(c)	(min((c), 65535) << 16)
 #define NDTR1_tWHR(c)	(min((c), 15) << 4)
 #define NDTR1_tAR(c)	(min((c), 15) << 0)
+#define NDTR1_tRHW(c)	(min((c), 3) << 8)
 
 /* convert nano-seconds to nand flash controller clock cycles */
 #define ns2cycle(ns, clk)	(int)(((ns) * (clk / 1000000) / 1000) + 1)
@@ -402,6 +393,9 @@ static void pxa3xx_nand_set_timing(struct pxa3xx_nand_info *info,
 	ndtr1 = NDTR1_tR(ns2cycle(t->tR, nand_clk)) |
 		NDTR1_tWHR(ns2cycle(t->tWHR, nand_clk)) |
 		NDTR1_tAR(ns2cycle(t->tAR, nand_clk));
+	if (t->tRHW != 0) {
+		ndtr1 |= NDTR1_tRHW(ns2cycle(t->tRHW, nand_clk));
+	}
 
 	nand_writel(info, NDTR0CS0, ndtr0);
 	nand_writel(info, NDTR1CS0, ndtr1);
