@@ -181,19 +181,11 @@ static struct mtd_partition partition_dove[] = {
 	  .offset	= 0,
 	  .size		= 1 * SZ_1M },
 	{ .name		= "UImage",
-	  .offset	= 1 * SZ_1M,
+	  .offset	= MTDPART_OFS_APPEND,
 	  .size		= 4 * SZ_1M },
 	{ .name		= "Root",
-	  .offset	= 5 * SZ_1M,
-	  .size		= 1018 * SZ_1M },
-	/* Important for Bad Block Table:
-	 *   This should be the last partition in the flash.
-	 *   with the size of 8 blocks (8 * 128K = 1M)
-	 */
-	{ .name		= "BBT",
-	  .offset	= 1023 * SZ_1M,
-	  .size		= 1 * SZ_1M,
-	  .mask_flags	= MTD_WRITEABLE },        /* read only */
+	  .offset	= MTDPART_OFS_APPEND,
+	  .size		= 1019 * SZ_1M },
 };
 static u64 nfc_dmamask = DMA_BIT_MASK(32);
 static struct dove_nand_platform_data dove_db_nfc_data = {
