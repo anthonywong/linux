@@ -14,6 +14,8 @@
 #include <linux/miscdevice.h>
 #include <linux/version.h>
 #include <asm/uaccess.h>
+#include <linux/platform_device.h>
+
 
 #include "cesa_dev.h"
 
@@ -221,7 +223,7 @@ static struct miscdevice cesadev = {
 	.fops = &cesadev_fops,
 };
 
-static int __init
+static int
 cesadev_init(void)
 {
 	int rc;
@@ -239,15 +241,52 @@ cesadev_init(void)
 	return(0);
 }
 
-static void __exit
+static void
 cesadev_exit(void)
 {
 	dprintk("%s()\n", __FUNCTION__);
 	misc_deregister(&cesadev);
 }
 
-module_init(cesadev_init);
-module_exit(cesadev_exit);
+
+static int cesadev_probe(struct platform_device *pdev)
+{
+	dprintk("%s\n", __func__);
+	return cesadev_init();
+}
+
+static int cesadev_remove(struct platform_device *pdev)
+{
+	dprintk("%s\n", __func__);
+	cesadev_exit();
+	return 0;
+}
+
+
+
+static struct platform_driver cesadev_driver = {
+	.probe		= cesadev_probe,
+	.remove		= cesadev_remove,
+	.driver		= {
+		.name	= "dove_cesadev",
+	},
+};
+
+static int __init cesadev_modinit(void)
+{
+	dprintk("%s\n", __func__);
+	return platform_driver_register(&cesadev_driver);
+}
+
+static void __exit cesadev_modexit(void)
+{
+	dprintk("%s\n", __func__);
+	platform_driver_unregister(&cesadev_driver);
+}
+
+module_init(cesadev_modinit);
+module_exit(cesadev_modexit);
+
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ronen Shitrit");
