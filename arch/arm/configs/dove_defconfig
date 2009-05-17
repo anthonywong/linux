@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.29.1-dove-2.0.0-dev
-# Thu May 14 17:43:23 2009
+# Sun May 17 14:26:54 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -242,8 +242,8 @@ CONFIG_MV_SKB_REUSE=y
 # cesa options
 #
 CONFIG_MV_CESA=y
+CONFIG_MV_CESA_OCF=y
 CONFIG_MV_CESA_TOOL=y
-# CONFIG_MV_CESA_TEST is not set
 # CONFIG_SCSI_MVSATA is not set
 
 #
@@ -2082,7 +2082,18 @@ CONFIG_CRYPTO_HW=y
 #
 # OCF Configuration
 #
-# CONFIG_OCF_OCF is not set
+CONFIG_OCF_OCF=y
+# CONFIG_OCF_RANDOMHARVEST is not set
+CONFIG_OCF_CRYPTODEV=y
+CONFIG_OCF_CRYPTOSOFT=y
+# CONFIG_OCF_SAFE is not set
+# CONFIG_OCF_IXP4XX is not set
+# CONFIG_OCF_HIFN is not set
+# CONFIG_OCF_HIFNHIPP is not set
+# CONFIG_OCF_TALITOS is not set
+# CONFIG_OCF_EP80579 is not set
+# CONFIG_OCF_OCFNULL is not set
+# CONFIG_OCF_BENCH is not set
 
 #
 # Library routines
