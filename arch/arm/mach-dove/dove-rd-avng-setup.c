@@ -169,17 +169,15 @@ static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
  * NAND
  ****************************************************************************/
 static struct mtd_partition partition_dove[] = {
-	{ .name		= "Root",
+	{ .name		= "UBoot",
 	  .offset	= 0,
-	  .size		= 2040 * SZ_1M },
-	/* Important for Bad Block Table:
-	 *   This should be the last partition in the flash.
-	 *   with the size of 8 blocks (8 * 128K = 1M)
-	 */
-	{ .name		= "BBT",
-	  .offset	= 2047 * SZ_1M,
-	  .size		= 1 * SZ_1M,
-	  .mask_flags	= MTD_WRITEABLE },        /* read only */
+	  .size		= 1 * SZ_1M },
+	{ .name		= "UImage",
+	  .offset	= MTDPART_OFS_APPEND,
+	  .size		= 4 * SZ_1M },
+	{ .name		= "Root",
+	  .offset	= MTDPART_OFS_APPEND,
+	  .size		= 2043 * SZ_1M },
 };
 static u64 nfc_dmamask = DMA_BIT_MASK(32);
 static struct dove_nand_platform_data dove_rd_avng_nfc_data = {
