@@ -117,7 +117,14 @@ struct cesa_ocf_process {
 	int 					need_cb;
 };
 
+struct cesa_ocf_pm_info {
+	MV_U32 tdma_ctl;
+	MV_U32 isr_mask;
+};
+
+
 /* global variables */
+static struct cesa_ocf_pm_info cesa_ocf_pm;
 static int32_t			cesa_ocf_id 		= -1;
 static struct cesa_ocf_data 	*cesa_ocf_sessions[CESA_OCF_MAX_SES];
 static spinlock_t 		cesa_lock;
@@ -1252,10 +1259,46 @@ static int cesa_ocf_remove(struct platform_device *pdev)
 }
 
 
+static int cesa_ocf_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	dprintk("%s\n", __func__);
+
+	/* save registers */
+	cesa_ocf_pm.tdma_ctl = MV_REG_READ(MV_CESA_TDMA_CTRL_REG);
+	cesa_ocf_pm.isr_mask = MV_REG_READ(MV_CESA_ISR_MASK_REG);
+
+	/* clear interrupts */
+	MV_REG_WRITE(MV_CESA_ISR_CAUSE_REG, 0);
+	/* disable all interrupts */
+	MV_REG_WRITE(MV_CESA_ISR_MASK_REG, 0);
+	/* disable tdma */
+	if (cesa_ocf_pm.tdma_ctl & MV_CESA_TDMA_ENABLE_MASK)
+		MV_REG_WRITE(MV_CESA_TDMA_CTRL_REG,
+			cesa_ocf_pm.tdma_ctl &  (~MV_CESA_TDMA_ENABLE_MASK));
+
+	return 0;
+}
+
+static int cesa_ocf_resume(struct platform_device *pdev)
+{
+	dprintk("%s\n", __func__);
+
+	/* clear interrupts */
+	MV_REG_WRITE(MV_CESA_ISR_CAUSE_REG, 0);
+
+	/* restore registers */
+	MV_REG_WRITE(MV_CESA_TDMA_CTRL_REG, cesa_ocf_pm.tdma_ctl);
+	MV_REG_WRITE(MV_CESA_ISR_MASK_REG, cesa_ocf_pm.isr_mask);
+
+	return 0;
+}
+
 
 static struct platform_driver cesa_ocf_driver = {
 	.probe		= cesa_ocf_probe,
 	.remove		= cesa_ocf_remove,
+	.suspend	= cesa_ocf_suspend,
+	.resume		= cesa_ocf_resume,
 	.driver		= {
 		.name	= "dove_cesa_ocf",
 	},
