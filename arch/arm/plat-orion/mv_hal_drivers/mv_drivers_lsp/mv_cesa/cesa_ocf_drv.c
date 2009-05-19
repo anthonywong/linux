@@ -1181,6 +1181,8 @@ cesa_ocf_init(void)
 
 	memset(cesa_ocf_sessions, 0, sizeof(struct cesa_ocf_data *) * CESA_OCF_MAX_SES);
 
+	spin_lock_init(&cesa_lock);
+
 #define	REGISTER(alg) \
 	crypto_register(cesa_ocf_id, alg, 0,0)
 	REGISTER(CRYPTO_AES_CBC);
