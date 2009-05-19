@@ -236,6 +236,12 @@ static struct clk clk_xor1 = {
 //	.mask	= CLOCK_GATING_GIGA_PHY_MASK,
 //};
 
+/* dummy clk for gpu just to make the clk_get work*/
+static struct clk clk_gpu = {
+	.rate	= &tclk_rate,
+	.mask	= 0,
+};
+
 #define INIT_CK(dev,con,ck)			\
 	{ .dev_id = dev, .con_id = con, .clk = ck }
 
@@ -259,6 +265,7 @@ static struct clk_lookup dove_clocks[] = {
 	INIT_CK("mv_xor_shared.0", NULL, &clk_xor0),
 	INIT_CK("mv_xor_shared.1", NULL, &clk_xor1),
 //	INIT_CK(NULL, "GIGA_PHY", &clk_giga_phy),
+	INIT_CK(NULL, "GCCLK", &clk_gpu),
 };
 
 int __init dove_devclks_init(void)
