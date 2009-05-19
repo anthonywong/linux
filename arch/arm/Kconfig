@@ -452,6 +452,7 @@ config ARCH_DOVE
 	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
+	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select COMMON_CLKDEV
 	select PLAT_ORION
@@ -1354,7 +1355,6 @@ endmenu
 menu "CPU Power Management"
 
 if ARCH_HAS_CPUFREQ
-
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_SA1100
@@ -1433,6 +1433,13 @@ config CPU_FREQ_S3C24XX_DEBUGFS
 	depends on CPU_FREQ_S3C24XX && DEBUG_FS
 	help
 	  Export status information via debugfs.
+
+config CPU_FREQ_DOVE
+	tristate "CPUfreq driver for Dove SoC"
+	depends on CPU_FREQ && ARCH_DOVE
+	default n
+	help
+	  This enables the CPUfreq driver for Dove SoC.
 
 endif
 
