@@ -63,6 +63,8 @@ extern int mx51_babbage_init_mc13892(void);
 extern void __init mx51_babbage_io_init(void);
 extern struct cpu_wp *(*get_cpu_wp)(int *wp);
 extern void __init mxc_map_io(void);
+extern void (*set_num_cpu_wp)(int num);
+static int num_cpu_wp = 3;
 
 /* working point(wp): 0 - 1GHz; 1 - 800MHz, 2 - 167MHz; */
 static struct cpu_wp cpu_wp_auto[] = {
@@ -97,10 +99,15 @@ static struct cpu_wp cpu_wp_auto[] = {
 
 struct cpu_wp *mx51_babbage_get_cpu_wp(int *wp)
 {
-	*wp = 3;
+	*wp = num_cpu_wp;
 	return cpu_wp_auto;
 }
 
+void mx51_babbage_set_num_cpu_wp(int num)
+{
+	num_cpu_wp = num;
+	return;
+}
 static void mxc_nop_release(struct device *dev)
 {
 	/* Nothing */
@@ -575,6 +582,7 @@ static void __init fixup_mxc_board(struct machine_desc *desc, struct tag *tags,
 	mxc_cpu_init();
 
 	get_cpu_wp = mx51_babbage_get_cpu_wp;
+	set_num_cpu_wp = mx51_babbage_set_num_cpu_wp;
 
 	for_each_tag(t, tags) {
 		if (t->hdr.tag != ATAG_MEM)
