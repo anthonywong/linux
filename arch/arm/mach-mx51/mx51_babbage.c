@@ -64,8 +64,17 @@ extern void __init mx51_babbage_io_init(void);
 extern struct cpu_wp *(*get_cpu_wp)(int *wp);
 extern void __init mxc_map_io(void);
 
-/* working point(wp): 0 - 800MHz; 1 - 200MHz; */
+/* working point(wp): 0 - 1GHz; 1 - 800MHz, 2 - 167MHz; */
 static struct cpu_wp cpu_wp_auto[] = {
+	{
+	 .pll_rate = 1000000000,
+	 .cpu_rate = 1000000000,
+	 .pdf = 0,
+	 .mfi = 10,
+	 .mfd = 11,
+	 .mfn = 5,
+	 .cpu_podf = 0,
+	 .cpu_voltage = 1175000,},
 	{
 	 .pll_rate = 800000000,
 	 .cpu_rate = 800000000,
@@ -77,7 +86,7 @@ static struct cpu_wp cpu_wp_auto[] = {
 	 .cpu_voltage = 1050000,},
 	{
 	 .pll_rate = 800000000,
-	 .cpu_rate = 160000000,
+	 .cpu_rate = 167000000,
 	 .pdf = 4,
 	 .mfi = 8,
 	 .mfd = 2,
@@ -88,7 +97,7 @@ static struct cpu_wp cpu_wp_auto[] = {
 
 struct cpu_wp *mx51_babbage_get_cpu_wp(int *wp)
 {
-	*wp = 2;
+	*wp = 3;
 	return cpu_wp_auto;
 }
 
