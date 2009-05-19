@@ -121,6 +121,14 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x2}, 	/* DDR:PLL 1:2 */
 #define PMU_SLP_CPU_PWR_DLY	0x400			/* RTC 32KHz clock cycles */
 #define PMU_SLP_CORE_PWR_DLY	0x10			/* RTC 32KHz clock cycles */
 
+
+#define DOVE_PSET_HI		0x0
+#define DOVE_VSET_HI		0x0
+#define DOVE_PSET_LO		0xB
+#define DOVE_VSET_LO		0x8
+#define DOVE_RADDR		0x2
+#define DOVE_SADDR		0x5
+
 /* Static functions */
 static MV_U32 mvPmuGetPllFreq(void);
 static MV_U32 mvPmuRatio2Divider(MV_U32 ratio);
@@ -1288,6 +1296,49 @@ MV_STATUS mvPmuGetCurrentFreq(MV_PMU_FREQ_INFO * freqs)
 	freqs->ddrFreq = (pllFreq/div);
 	
 	return MV_OK;
+}
+
+/*******************************************************************************
+* mvPmuCpuSetOP - Set the CPU operating point
+*
+* DESCRIPTION:
+*       CPU frequency TURBO->DDR: step down frequency, then step down voltage
+*	CPU frequency DDR->TURBO: step up voltage, then step up frequency
+*
+* INPUT:
+*	cpuSpeed: desired spu speed
+* OUTPUT:
+*       None
+* RETURN:
+*    	MV_OK      : operating point changed successfully
+*******************************************************************************/
+MV_STATUS mvPmuCpuSetOP (MV_PMU_CPU_SPEED cpuSpeed)
+{
+	MV_STATUS ret = MV_OK;
+
+	/* based on requested Operating Point set volatge and frequency */
+	switch (cpuSpeed) {
+		case CPU_CLOCK_TURBO:
+			if (mvPmuDvs (DOVE_PSET_HI, DOVE_VSET_HI, DOVE_RADDR, DOVE_SADDR) != MV_OK)
+				ret = MV_FAIL;
+
+			if (mvPmuCpuFreqScale (CPU_CLOCK_TURBO) != MV_OK)
+				ret = MV_FAIL;
+			break;
+
+		case CPU_CLOCK_SLOW:
+			if (mvPmuCpuFreqScale (CPU_CLOCK_SLOW) != MV_OK)
+				ret = MV_FAIL;
+
+			if (mvPmuDvs (DOVE_PSET_LO, DOVE_VSET_LO, DOVE_RADDR, DOVE_SADDR) != MV_OK)
+				ret = MV_FAIL;
+			break;
+
+		default:
+			return MV_FAIL;
+	};
+
+	return ret;
 }
 
 #ifndef CONFIG_DOVE_REV_Z0
