@@ -25,7 +25,19 @@
 *************************/
 #define IOP_MAGIC	'v'
 
-#define UIO_VPRO_IRQ_ENABLE		_IO(IOP_MAGIC, 0)
-#define UIO_VPRO_IRQ_DISABLE		_IO(IOP_MAGIC, 1)
+struct vpro_xv_frame {
+	unsigned long phy_addr; 	// video frame physical addr
+	unsigned long size;		// frame size
+};
+
+#define UIO_VPRO_RESERVED0		_IO(IOP_MAGIC, 0)
+#define UIO_VPRO_RESERVED1		_IO(IOP_MAGIC, 1)
+#define UIO_VPRO_IRQ_ENABLE		_IO(IOP_MAGIC, 2)
+#define UIO_VPRO_IRQ_DISABLE		_IO(IOP_MAGIC, 3)
+#define UIO_VPRO_XV_IN_QUEUE		_IOW(IOP_MAGIC, 4, struct vpro_xv_frame)	// used for vpro decoder to put a video frame in queue
+#define UIO_VPRO_XV_DQUEUE		_IOR(IOP_MAGIC, 5, struct vpro_xv_frame)	// used for vpro decoder to free a video frame in queue
+#define UIO_VPRO_XV_QUERY_VIDEO		_IOR(IOP_MAGIC, 6, struct vpro_xv_frame)	// used for vo xv interface to query a video frame that from vpro
+#define UIO_VPRO_XV_FREE_VIDEO          _IOW(IOP_MAGIC, 7, struct vpro_xv_frame)	// used for vo xv interface to free a video frame
+#define UIO_VPRO_XV_INIT_QUEUE		_IO(IOP_MAGIC, 8)
 
 #endif
