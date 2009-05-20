@@ -87,6 +87,12 @@
 /* Wait for vsync happen. */
 #define DOVEFB_IOCTL_WAIT_VSYNC			_IO(DOVEFB_IOC_MAGIC, 18)
 
+/* for xv+vpro/sw decoder w/o memory move. */
+#define DOVEFB_IOCTL_GET_FBPA			_IO(DOVEFB_IOC_MAGIC, 19)
+#define DOVEFB_IOCTL_GET_FBID			_IO(DOVEFB_IOC_MAGIC, 20)
+#define DOVEFB_IOCTL_SET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 21)
+#define DOVEFB_IOCTL_GET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 22)
+
 #define	DOVEFB_VMODE_YUV422PACKED		0x0
 #define	DOVEFB_VMODE_YUV422PACKED_SWAPUV	0x1
 #define	DOVEFB_VMODE_YUV422PACKED_SWAPYUorV	0x2
@@ -169,6 +175,22 @@ struct _sCursorConfig {
 	unsigned short height;
 	unsigned char *pBuffer;		/* cursor data */
 };
+
+#define SHM_NORMAL		0x01
+#define SHM_VPRO		0x02
+#define SHM_SOFTWARE_MAP	0x04
+
+struct shm_private_info {
+	unsigned int method;
+	unsigned int fbid;
+	unsigned int format;
+	unsigned int width;
+	unsigned int height;
+	unsigned long fb_pa;
+};
+
+/* MAX bytes per yuv pixel. */
+#define MAX_YUV_PIXEL	2
 
 /* Dumb interface */
 #define DOVEFB_PINS_DUMB_24		0
@@ -261,6 +283,11 @@ struct dovefb_layer_info {
 	 */
 	unsigned		mem_status:1;
 
+	/*
+	 * current frame id for mapping to user.
+	 */
+	int			cur_fbid;
+	int			src_mode;
 };
 
 /*
