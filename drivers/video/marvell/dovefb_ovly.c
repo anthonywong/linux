@@ -395,6 +395,9 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 				mutex_unlock(&dfli->access_ok);
 				kfree(surface);
 				return -EFAULT;
+			} else {
+				/* printk(KERN_INFO "addFreeBuf(0x%08x) ok.\n",
+					start_addr); */
 			}
 		} else {
 			if (check_surface(fi, surface->videoMode,
@@ -520,8 +523,42 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 			writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL0);
 		}
 		break;
+	case DOVEFB_IOCTL_GET_FBID:
+		mutex_lock(&dfli->access_ok);
+		copy_to_user(argp, &dfli->cur_fbid, sizeof(unsigned int));
+		mutex_unlock(&dfli->access_ok);
+		break;
+	case DOVEFB_IOCTL_GET_SRC_MODE:
+		mutex_lock(&dfli->access_ok);
+		copy_to_user(argp, &dfli->src_mode, sizeof(int));
+		mutex_unlock(&dfli->access_ok);
+		break;
+	case DOVEFB_IOCTL_SET_SRC_MODE:
+		mutex_lock(&dfli->access_ok);
+		copy_from_user(&dfli->src_mode, argp, sizeof(int));
+		mutex_unlock(&dfli->access_ok);
+		break;
+	case DOVEFB_IOCTL_GET_FBPA:
+		{
+		struct shm_private_info info;
+		int i, index;
+
+		if (copy_from_user(&info, argp,
+		    sizeof(struct shm_private_info)))
+			return -EFAULT;
+
+		/* which frame want to find. */
+		index = info.fbid;
+
+		/* calc physical address. */
+		info.fb_pa = (unsigned long)(dfli->fb_start_dma+
+				(index*info.width*info.height*MAX_YUV_PIXEL));
+		copy_to_user(argp, &info, sizeof(struct shm_private_info));
+
+		break;
+		}
 	default:
-		printk(KERN_INFO "ioctl_ovly() No match.\n");
+		printk(KERN_INFO "ioctl_ovly(0x%x) No match.\n", cmd);
 		break;
 	}
 
@@ -638,6 +675,7 @@ static int dovefb_ovly_open(struct fb_info *fi, int user)
 
 	dmi = dfli->dev->platform_data;
 	dfli->new_addr = 0;
+	dfli->cur_fbid = 0;
 	fi->fix.smem_start = dfli->fb_start_dma;
 	fi->fix.smem_len = dfli->fb_size;
 	fi->screen_base = dfli->fb_start;
@@ -677,13 +715,13 @@ static int dovefb_release(struct fb_info *fi, int user)
 	return 0;
 }
 
-
 static int dovefb_switch_buff(struct fb_info *fi)
 {
 	struct dovefb_layer_info *dfli = fi->par;
 	int i = 0;
 	struct _sOvlySurface *pOvlySurface = 0;
-
+	unsigned long startaddr;
+	int fbid;
 	/*
 	 * Find the latest frame.
 	 */
@@ -694,11 +732,19 @@ static int dovefb_switch_buff(struct fb_info *fi)
 		}
 	}
 
+	if (!pOvlySurface) {
+		/*printk(KERN_INFO "********Oops: pOvlySurface"
+			" is NULL!!!!\n\n");
+		*/
+		return -1;
+	}
+
+	startaddr = (unsigned long)pOvlySurface->videoBufferAddr.startAddr;
+	fbid = (int)pOvlySurface->videoBufferAddr.frameID;
 	/*
 	 * Got new frame?
 	 */
-	if (pOvlySurface && (dfli->new_addr !=
-		(unsigned long)pOvlySurface->videoBufferAddr.startAddr)) {
+	if (dfli->new_addr != startaddr) {
 		/*
 		 * Collect expired frame to list.
 		 */
@@ -710,13 +756,10 @@ static int dovefb_switch_buff(struct fb_info *fi)
 		if (check_surface(fi, pOvlySurface->videoMode,
 				&pOvlySurface->viewPortInfo,
 				&pOvlySurface->viewPortOffset,
-				&pOvlySurface->videoBufferAddr))
+				&pOvlySurface->videoBufferAddr)) {
 			dovefb_ovly_set_par(fi);
-	} else {
-		/*printk(KERN_INFO "********Oops: pOvlySurface"
-			" is NULL!!!!\n\n");
-		*/
-		return -1;
+			dfli->cur_fbid = fbid;
+		}
 	}
 
 	return 0;
@@ -814,6 +857,14 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 		addr = dfli->fb_start_dma +
 			(pixel_offset * (var->bits_per_pixel >> 3));
 	}
+
+	/* Because we set DMA buffer to cacheable, we should flush cache
+	 * before we enable the dma. But currently, we use three buffers
+	 * to avoid this issue. Because video frame is always bigger than
+	 * cache size, when we use three buffers, cache flush will be
+	 * done before we use it. So that, we mark this code.
+	 */
+	/*dma_cache_maint( dfli->fb_start, dfli->fb_size, DMA_TO_DEVICE);*/
 
 	writel(addr, dfli->reg_base + LCD_SPU_DMA_START_ADDR_Y0);
 
@@ -1003,11 +1054,58 @@ int dovefb_ovly_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 }
 
 
+/* Fix me: Currently, bufferable property can't be enabled correctly. It has
+ * to be enabled cacheable. Or write buffer won't act properly. Here
+ * we override the attribute when any program wants to map to this
+ * buffer. When HW is ready, this function could simply be removed.
+ */
+static int dovefb_ovly_mmap(struct fb_info *info, struct vm_area_struct *vma)
+{
+	unsigned long off;
+	unsigned long start;
+	u32 len;
+
+	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
+		return -EINVAL;
+	off = vma->vm_pgoff << PAGE_SHIFT;
+
+	lock_kernel();
+
+	/* frame buffer memory */
+	start = info->fix.smem_start;
+	len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.smem_len);
+	if (off >= len) {
+		/* memory mapped io */
+		off -= len;
+		if (info->var.accel_flags) {
+			unlock_kernel();
+			return -EINVAL;
+		}
+		start = info->fix.mmio_start;
+		len = PAGE_ALIGN((start & ~PAGE_MASK) + info->fix.mmio_len);
+	}
+	unlock_kernel();
+	start &= PAGE_MASK;
+	if ((vma->vm_end - vma->vm_start + off) > len)
+		return -EINVAL;
+	off += start;
+	vma->vm_pgoff = off >> PAGE_SHIFT;
+	/* This is an IO map - tell maydump to skip this VMA */
+	vma->vm_flags |= VM_IO | VM_RESERVED;
+
+	vma->vm_page_prot |= L_PTE_CACHEABLE | L_PTE_BUFFERABLE;
+
+	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
+		return -EAGAIN;
+	return 0;
+}
+
 struct fb_ops dovefb_ovly_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= dovefb_ovly_open,
 	.fb_release	= dovefb_release,
-
+	.fb_mmap	= dovefb_ovly_mmap,
 	.fb_check_var	= dovefb_check_var,
 	.fb_set_par	= dovefb_ovly_set_par,
 /*	.fb_setcolreg	= dovefb_setcolreg,*/
