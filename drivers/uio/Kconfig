@@ -116,7 +116,8 @@ config UIO_DOVE_VPRO_MEM_SIZE
 
 config VPRO_NEW
 	bool "VPRO Version 1.2 or higher"
-	depends on UIO_DOVE_VPRO
+	depends on UIO_DOVE_VPRO && DOVE_REV_Y0
+	default y if DOVE_REV_Y0
 	default n
 	help
 	  This is used for VPRO version 1.2 or higher.
