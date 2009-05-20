@@ -663,11 +663,12 @@ static int dovefb_gfx_ioctl(struct fb_info *info, unsigned int cmd,
 	return 0;
 }
 
-static u8 *dove_read_edid(struct fb_info *info, struct dovefb_mach_info *dmi)
+static u8 *dove_read_edid(struct fb_info *fi, struct dovefb_mach_info *dmi)
 {
 #ifdef CONFIG_FB_DOVE_CLCD_EDID
 	struct i2c_adapter *dove_i2c;
-	struct dovefb_info *dfli = info->par;
+	struct dovefb_layer_info *dfli = fi->par;
+	struct dovefb_info *info = dfli->info;
 	int loop = 0;
 #endif
 	char *edid_data = NULL;
@@ -676,7 +677,7 @@ static u8 *dove_read_edid(struct fb_info *info, struct dovefb_mach_info *dmi)
 		return edid_data;
 
 #ifdef CONFIG_FB_DOVE_CLCD_EDID
-	if (dfli->edid_en) {
+	if (info->edid_en) {
 		/*
 		 * Loop through all I2C adapters and find the matching one
 		 * for Dove.
@@ -714,15 +715,19 @@ static u8 *dove_read_edid(struct fb_info *info, struct dovefb_mach_info *dmi)
 static int dovefb_fill_edid(struct fb_info *fi,
 				struct dovefb_mach_info *dmi)
 {
-	struct dovefb_info *dfli = fi->par;
+	struct dovefb_layer_info *dfli = fi->par;
+	struct dovefb_info *info = dfli->info;
 	int ret = 0;
 	char *edid;
 
 	/*
 	 * check edid is ready.
 	 */
-	if (dfli->edid)
+	if (info->edid)
 		return ret;
+
+	if (!info->edid_en)
+		return -3;
 
 	/*
 	 * Try to read EDID
@@ -744,7 +749,7 @@ static int dovefb_fill_edid(struct fb_info *fi,
 			fb_videomode_to_modelist(specs->modedb,
 						specs->modedb_len,
 						&fi->modelist);
-			dfli->edid = 1;
+			info->edid = 1;
 		} else {
 			ret = -2;
 		}
