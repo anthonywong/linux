@@ -442,6 +442,11 @@ int __init dovefb_parse_options(char *options, struct dovefb_info *info,
 		return -1;
 	name += strlen(devname);
 
+	if (strstr(name, "edid") != 0)
+		info->edid_en = 1;
+	else
+		info->edid_en = 0;
+
 	namelen = strlen(name);
 	info->mode_option = options;
 
@@ -474,9 +479,6 @@ int __init dovefb_parse_options(char *options, struct dovefb_info *info,
 		/* This can be either "edid" or the fixed output resolution */
 		if (strncmp("-edid", name, 5) == 0) {
 			name += 5;
-			info->edid_en = 1;
-		} else {
-			info->edid_en = 0;
 		}
 
 		if (name[0] == '-') {
@@ -524,10 +526,14 @@ int __init dovefb_parse_options(char *options, struct dovefb_info *info,
 	return 0;
 
 bad_options:
-	printk(KERN_INFO "  o Bad FB driver option %s , \
+	if (!info->edid_en) {
+		printk(KERN_INFO "  o Bad FB driver option %s , \
 			use <xres>x<yres>-<bpp>@<refresh>[-edid][-out res]"
 			"[-<outx>x<outy>].\n", options);
-	return -1;
+		return -1;
+	}
+
+	return 0;
 }
 #endif
 
@@ -779,7 +785,6 @@ static int __init dovefb_probe(struct platform_device *pdev)
 	 */
 	ret = dovefb_parse_options(option, info, dmi, pdev->id);
 #endif
-
 	ret = dovefb_gfx_init(info, dmi);
 	if (ret) {
 		printk(KERN_ERR "DoveFB: dovefb_gfx_init() "
