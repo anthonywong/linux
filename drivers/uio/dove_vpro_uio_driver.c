@@ -7,10 +7,24 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/mutex.h>
+#include <linux/list.h>
+#include <asm/uaccess.h>
 
 #include "dove_vpro_uio_driver.h"
 
 /* local control  */
+struct vpro_xv_video_queue {
+	struct list_head list;
+	struct vpro_xv_frame frame_info;
+};
+
+struct vpro_xv_data {
+	struct mutex lock;			// for vpro xv enhancement
+	struct vpro_xv_video_queue iqueue;	// for vpro xv enhancement
+	struct vpro_xv_video_queue oqueue;	// for vpro xv enhancement
+};
+
 struct vpro_uio_data {
 	struct uio_info		uio_info;
 };
@@ -19,12 +33,107 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 {
 	int ret = 0;
 
+	struct vpro_xv_data *xv_data = (struct vpro_xv_data*)info->priv;
+
 	switch(cmd) {
 		case UIO_VPRO_IRQ_ENABLE:
 			enable_irq(info->irq);
 			break;
 		case UIO_VPRO_IRQ_DISABLE:
 			disable_irq(info->irq);
+			break;
+		case UIO_VPRO_XV_IN_QUEUE: {
+			struct vpro_xv_frame video_frame;
+			struct vpro_xv_video_queue *video_queue_data;
+
+			__copy_from_user(&(video_frame), (int __user*)arg, sizeof(struct vpro_xv_frame));
+			video_queue_data = kzalloc(sizeof(struct vpro_xv_video_queue), GFP_KERNEL);
+			video_queue_data->frame_info.phy_addr = video_frame.phy_addr;
+			video_queue_data->frame_info.size =  video_frame.size;
+
+			mutex_lock(&xv_data->lock);
+			list_add(&video_queue_data->list, &xv_data->iqueue.list);
+			mutex_unlock(&xv_data->lock);
+			}
+			break;
+		case UIO_VPRO_XV_DQUEUE: {
+			struct vpro_xv_frame video_frame;
+
+			if (!list_empty(&xv_data->oqueue.list)) {
+				struct vpro_xv_video_queue *video_queue_data;
+				
+				mutex_lock(&xv_data->lock);
+				video_queue_data = list_first_entry(&xv_data->oqueue.list, struct vpro_xv_video_queue, list);
+				video_frame.phy_addr = video_queue_data->frame_info.phy_addr;
+				video_frame.size = video_queue_data->frame_info.size;
+				list_del(&video_queue_data->list);
+				kfree(video_queue_data);
+				mutex_unlock(&xv_data->lock);
+			} else {
+				video_frame.phy_addr = 0;
+				video_frame.size = 0;
+			}
+
+			__copy_to_user((int __user*)arg, &video_frame, sizeof(struct vpro_xv_frame));
+			}
+			break;
+		case UIO_VPRO_XV_QUERY_VIDEO: {
+			struct vpro_xv_frame video_frame;
+
+			if (!list_empty(&xv_data->iqueue.list)) {
+				struct vpro_xv_video_queue *video_queue_data;
+				
+				mutex_lock(&xv_data->lock);
+				video_queue_data = list_first_entry(&xv_data->iqueue.list, struct vpro_xv_video_queue, list);
+				video_frame.phy_addr = video_queue_data->frame_info.phy_addr;
+				video_frame.size = video_queue_data->frame_info.size;
+				list_del(&video_queue_data->list);
+				kfree(video_queue_data);
+				mutex_unlock(&xv_data->lock);
+			} else {
+				video_frame.phy_addr = 0;
+				video_frame.size = 0;
+			}
+
+			__copy_to_user((int __user*)arg, &video_frame, sizeof(struct vpro_xv_frame));
+			}
+			break;
+		case UIO_VPRO_XV_FREE_VIDEO: {
+			struct vpro_xv_frame video_frame;
+			struct vpro_xv_video_queue *video_queue_data;
+
+			__copy_from_user(&(video_frame), (int __user*)arg, sizeof(struct vpro_xv_frame));
+			video_queue_data = kzalloc(sizeof(struct vpro_xv_video_queue), GFP_KERNEL);
+			video_queue_data->frame_info.phy_addr = video_frame.phy_addr;
+			video_queue_data->frame_info.size = video_frame.size;
+
+			mutex_lock(&xv_data->lock);
+			list_add(&video_queue_data->list, &xv_data->oqueue.list);
+			mutex_unlock(&xv_data->lock);
+			}
+			break;
+		case UIO_VPRO_XV_INIT_QUEUE: {
+			mutex_lock(&xv_data->lock);
+			while (!list_empty(&xv_data->iqueue.list)) {
+				struct vpro_xv_video_queue *iqueue_data;
+				
+				iqueue_data = list_first_entry(&xv_data->iqueue.list, struct vpro_xv_video_queue, list);
+				list_del(&iqueue_data->list);
+				kfree(iqueue_data);
+				printk(KERN_INFO "warning: [vpro uio driver] Here is a xv frame buffer not be free in iqueue.\n");
+			}
+			while (!list_empty(&xv_data->oqueue.list)) {
+				struct vpro_xv_video_queue *oqueue_data;
+				
+				oqueue_data = list_first_entry(&xv_data->oqueue.list, struct vpro_xv_video_queue, list);
+				list_del(&oqueue_data->list);
+				kfree(oqueue_data);
+				printk(KERN_INFO "warning: [vpro uio driver] Here is a xv     frame buffer not be free in oqueue.\n");
+			}
+			INIT_LIST_HEAD(&xv_data->iqueue.list);
+			INIT_LIST_HEAD(&xv_data->oqueue.list);
+			mutex_unlock(&xv_data->lock);
+			}
 			break;
 		default:
 			break;
@@ -45,6 +154,7 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	unsigned long start, size;
 	struct resource *res;
 	struct vpro_uio_data *vd;
+	struct vpro_xv_data *xvd;
 
 	printk(KERN_INFO "Registering VPRO UIO driver:.\n");
 
@@ -68,8 +178,7 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	vd->uio_info.mem[id].addr = res->start;
 	vd->uio_info.mem[id].size = res->end - res->start + 1;
 	vd->uio_info.mem[id].memtype = UIO_MEM_PHYS;
-
-	printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
+printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
 			res->start, vd->uio_info.mem[id].size >> 10);
 	/* Get VPRO reserved memory area. */
 #ifndef CONFIG_VPRO_NEW
@@ -131,6 +240,19 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	vd->uio_info.handler = vpro_irqhandler;
 	vd->uio_info.ioctl = vpro_ioctl;
 
+	// init video buffer queue for vpro xv interface
+	xvd = kzalloc(sizeof(struct vpro_xv_data), GFP_KERNEL);
+	if (xvd == NULL) {
+		printk(KERN_ERR "vdec_prvdec_probe: "
+				"Failed to allocate memory.\n");
+		ret = -ENOMEM;
+		goto uio_register_fail;
+	}
+	mutex_init(&xvd->lock);
+	INIT_LIST_HEAD(&xvd->iqueue.list);
+	INIT_LIST_HEAD(&xvd->oqueue.list);
+	vd->uio_info.priv = (void*)xvd;
+
 	if (uio_register_device(&pdev->dev, &vd->uio_info)) {
 		ret = -ENODEV;
 		goto uio_register_fail;
@@ -172,6 +294,7 @@ static int dove_vpro_remove(struct platform_device *pdev)
 	iounmap(vd->uio_info.mem[VPRO_CONTROL_REGISTER_MAP].internal_addr);
 	memset(vd->uio_info.mem, 0, sizeof(vd->uio_info.mem));
 
+	kfree(vd->uio_info.priv);
 	kfree(vd);
 
 	return 0;
