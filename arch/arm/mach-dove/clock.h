@@ -1,4 +1,12 @@
+struct clkops {
+	void			(*enable)(struct clk *);
+	void			(*disable)(struct clk *);
+	unsigned long		(*getrate)(struct clk *);
+	unsigned long		(*setrate)(struct clk *);
+};
+
 struct clk {
+	const struct clkops     *ops;
 	unsigned long		*rate;
 	u32			flags;
 	__s8                    usecount;
@@ -10,4 +18,4 @@ struct clk {
 
 int dove_devclks_init(void);
 unsigned int  dove_tclk_get(void);
-void clks_disable_all(int include_pci0, int include_pci1);
+void ds_clks_disable_all(int include_pci0, int include_pci1);
