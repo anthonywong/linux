@@ -110,13 +110,13 @@ static void sdhci_enable_sdio_gpio_irq(struct mmc_host *mmc, int enable)
 static void sdhci_sdio_gpio_irq_enable(struct sdhci_host *host)
 {
 	struct sdhci_mv_host *mv_host = sdhci_priv(host);
-	u32 func_gpio_select;
+	u32 mpp_ctrl4;
 	if (!mv_host->dove_card_int_wa)
 		return;
 
-	func_gpio_select = readl(DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
-	func_gpio_select |= mv_host->dove_int_wa_info.func_select_bit << 1;
-	writel(func_gpio_select, DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
+	mpp_ctrl4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
+	mpp_ctrl4 |= mv_host->dove_int_wa_info.func_select_bit << 1;
+	writel(mpp_ctrl4, DOVE_MPP_CTRL4_VIRT_BASE);
 
 	mmiowb();
 }
@@ -124,14 +124,14 @@ static void sdhci_sdio_gpio_irq_enable(struct sdhci_host *host)
 static void sdhci_sdio_gpio_irq_disable(struct sdhci_host *host)
 {
 	struct sdhci_mv_host *mv_host = sdhci_priv(host);
-	u32 func_gpio_select;
+	u32 mpp_ctrl4;
 
 	if (!mv_host->dove_card_int_wa)
 		return;
 
-	func_gpio_select = readl(DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
-	func_gpio_select &= ~(mv_host->dove_int_wa_info.func_select_bit << 1);
-	writel(func_gpio_select, DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
+	mpp_ctrl4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
+	mpp_ctrl4 &= ~(mv_host->dove_int_wa_info.func_select_bit << 1);
+	writel(mpp_ctrl4, DOVE_MPP_CTRL4_VIRT_BASE);
 
 	mmiowb();
 }
@@ -147,8 +147,8 @@ static void sdhci_sdio_gpio_irq_dump(struct sdhci_host *host)
 	gpio = mv_host->dove_int_wa_info.gpio;
 
 	printk(" dump gpio irq regs:\n");
-	printk(" select [0x%x] 0x%08x\n", DOVE_FUNC_GPIO_SELECT_VIRT_BASE,
-	       readl(DOVE_FUNC_GPIO_SELECT_VIRT_BASE));
+	printk(" mpp ctrl 4 [0x%x] 0x%08x\n", DOVE_MPP_CTRL4_VIRT_BASE,
+	       readl(DOVE_MPP_CTRL4_VIRT_BASE));
 	printk(" gpio level [0x%x] 0x%08x\n", GPIO_LEVEL_MASK(gpio),
 	       readl(GPIO_LEVEL_MASK(gpio)));
 	printk(" gpio pol [0x%x] 0x%08x\n", GPIO_IN_POL(gpio),
