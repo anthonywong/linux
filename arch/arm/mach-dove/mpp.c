@@ -98,7 +98,7 @@ void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 	u32 mpp_ctrl0 = readl(DOVE_MPP_VIRT_BASE);
 	u32 mpp_ctrl1 = readl(DOVE_MPP_VIRT_BASE + 4);
 	u32 mpp_ctrl2 = readl(DOVE_MPP_VIRT_BASE + 8);
-	u32 func_gpio_select = readl(DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
+	u32 mpp_ctrl4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
 
 	while (mode->mpp >= 0) {
 		u32 *reg;
@@ -113,7 +113,7 @@ void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 		else if (mode->mpp >= 16 && mode->mpp <= 23)
 			reg = &mpp_ctrl2;
 		else if (mode->mpp >= 24 && mode->mpp <= 30)
-			reg = &func_gpio_select;
+			reg = &mpp_ctrl4;
 		else {
 			printk(KERN_ERR "%s: invalid MPP "
 			       "(%d)\n", __func__, mode->mpp);
@@ -143,5 +143,5 @@ void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 	writel(mpp_ctrl0, DOVE_MPP_VIRT_BASE);
 	writel(mpp_ctrl1, DOVE_MPP_VIRT_BASE + 4);
 	writel(mpp_ctrl2, DOVE_MPP_VIRT_BASE + 8);
-	writel(func_gpio_select, DOVE_FUNC_GPIO_SELECT_VIRT_BASE);
+	writel(mpp_ctrl4, DOVE_MPP_CTRL4_VIRT_BASE);
 }
