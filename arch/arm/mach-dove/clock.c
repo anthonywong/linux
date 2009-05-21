@@ -85,13 +85,192 @@ const struct clkops ds_clk_ops = {
 	.disable	= __ds_clk_disable,
 };
 
+/*****************************************************************************
+ * GPU and AXI clocks
+ ****************************************************************************/
+static u32 dove_clocks_get_bits(u32 addr, u32 start_bit, u32 end_bit)
+{
+	u32 mask;
+	u32 value;
+
+	value = readl(addr);
+	mask = ((1 << (end_bit + 1 - start_bit)) - 1) << start_bit;
+	value = (value & mask) >> start_bit;
+	return value;
+}
+
+static void dove_clocks_set_bits(u32 addr, u32 start_bit, u32 end_bit,
+				 u32 value)
+{
+	u32 mask;
+	u32 new_value;
+	u32 old_value;
+
+
+	old_value = readl(addr);
+
+	mask = ((1 << (end_bit + 1 - start_bit)) -1) << start_bit;
+	new_value = old_value & (~mask);
+	new_value |= (mask & (value << start_bit));
+	writel(new_value, addr);
+}
+
+static u32 dove_clocks_divide(u32 dividend, u32 divisor)
+{
+	u32 result = dividend / divisor;
+	u32 r      = dividend % divisor;
+
+	if ((r << 1) >= divisor)
+		result++;
+	return result;
+}
+
+static void dove_clocks_set_gpu_clock(u32 divider)
+{
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0068, 10, 10, 1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 8, 13,
+			     divider);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 14, 14, 1);
+	udelay(1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 14, 14, 0);
+}
+
+static void dove_clocks_set_axi_clock(u32 divider)
+{
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0068, 10, 10, 1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 1, 6, 
+			     divider);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 7, 7, 1);
+	udelay(1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 7, 7, 0);
+}
+
+static unsigned long gpu_get_clock(struct clk *clk)
+{
+	u32 divider;
+	u32 c;
+
+	divider = dove_clocks_get_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 8, 13);
+	c = dove_clocks_divide(2000, divider);
+
+	return c * 1000000UL;
+}
+
+static int gpu_set_clock(struct clk *clk, unsigned long rate)
+{
+	u32 divider;
+
+	divider = dove_clocks_divide(2000, rate/1000000);
+	printk(KERN_INFO "Setting gpu clock to %lu (divider: %u)\n",
+	       rate, divider);
+	dove_clocks_set_gpu_clock(divider);
+	return 0;
+}
+
+static unsigned long axi_get_clock(struct clk *clk)
+{
+	u32 divider;
+	u32 c;
+
+	divider = dove_clocks_get_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 1, 6);
+	c = dove_clocks_divide(2000, divider);
+
+        return c * 1000000UL;
+}
+
+static int axi_set_clock(struct clk *clk, unsigned long rate)
+{
+	u32 divider;
+
+	divider = dove_clocks_divide(2000, rate/1000000);
+	printk(KERN_INFO "Setting axi clock to %lu (divider: %u)\n",
+		 rate, divider);
+	dove_clocks_set_axi_clock(divider);
+	return 0;
+}
+
+#ifdef CONFIG_SYSFS
+static struct platform_device dove_clocks_sysfs = {
+	.name		= "dove_clocks_sysfs",
+	.id		= 0,
+	.num_resources  = 0,
+	.resource       = NULL,
+};
+
+static ssize_t dove_clocks_axi_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu \n", axi_get_clock(NULL));
+}
+
+static ssize_t dove_clocks_axi_store(struct kobject *kobj,
+				    struct kobj_attribute *attr,
+				    const char *buf, size_t n)
+{
+	unsigned long value;
+
+	if (sscanf(buf, "%lu", &value) != 1)
+		return -EINVAL;
+	axi_set_clock(NULL, value);
+	return n;
+}
+
+static ssize_t dove_clocks_gpu_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", gpu_get_clock(NULL));
+}
+
+static ssize_t dove_clocks_gpu_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t n)
+{
+	unsigned long value;
+
+	if (sscanf(buf, "%lu", &value) != 1)
+		return -EINVAL;
+	gpu_set_clock(NULL, value);
+	return n;
+}
+
+static struct kobj_attribute dove_clocks_axi_attr =
+	__ATTR(axi, 0644, dove_clocks_axi_show, dove_clocks_axi_store);
+
+static struct kobj_attribute dove_clocks_gpu_attr =
+	__ATTR(gpu, 0644, dove_clocks_gpu_show, dove_clocks_gpu_store);
+
+static int __init dove_upstream_clocks_sysfs_setup(void)
+{
+	platform_device_register(&dove_clocks_sysfs);
+
+	if (sysfs_create_file(&dove_clocks_sysfs.dev.kobj,
+			&dove_clocks_axi_attr.attr))
+		printk(KERN_ERR "%s: sysfs_create_file failed!", __func__);
+	if (sysfs_create_file(&dove_clocks_sysfs.dev.kobj,
+			&dove_clocks_gpu_attr.attr))
+		printk(KERN_ERR "%s: sysfs_create_file failed!", __func__);
+
+	return 0;
+}
+#endif
+const struct clkops gpu_clk_ops = {
+	.getrate	= gpu_get_clock,
+	.setrate	= gpu_set_clock,
+};
+
+const struct clkops axi_clk_ops = {
+	.getrate	= axi_get_clock,
+	.setrate	= axi_set_clock,
+};
+
 int clk_enable(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
 	if (clk->usecount++ == 0)
-		clk->ops->enable(clk);
+		if (clk->ops->enable)
+			clk->ops->enable(clk);
 
 	return 0;
 }
@@ -103,7 +282,8 @@ void clk_disable(struct clk *clk)
 		return;
 
 	if (clk->usecount > 0 && !(--clk->usecount))
-		clk->ops->disable(clk);
+		if (clk->ops->disable)
+			clk->ops->disable(clk);
 }
 EXPORT_SYMBOL(clk_disable);
 
@@ -111,6 +291,9 @@ unsigned long clk_get_rate(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
+
+	if (clk->ops->getrate)
+		return clk->ops->getrate(clk);
 
 	return *(clk->rate);
 }
@@ -130,7 +313,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
-	/* changing the clk rate is not supported */
+	if (clk->ops->setrate)
+		return clk->ops->setrate(clk, rate);
+
 	return -EINVAL;
 }
 
@@ -146,6 +331,7 @@ unsigned int  dove_tclk_get(void)
 static unsigned long tclk_rate;
 
 static struct clk clk_core = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.flags	= ALWAYS_ENABLED,
 };
@@ -257,11 +443,12 @@ static struct clk clk_xor1 = {
 //	.mask	= CLOCK_GATING_GIGA_PHY_MASK,
 //};
 
-/* dummy clk for gpu just to make the clk_get work*/
 static struct clk clk_gpu = {
-	.ops	= &ds_clk_ops,
-	.rate	= &tclk_rate,
-	.mask	= 0,
+	.ops	= &gpu_clk_ops,
+};
+
+static struct clk clk_axi = {
+	.ops	= &axi_clk_ops,
 };
 
 #define INIT_CK(dev,con,ck)			\
@@ -288,12 +475,31 @@ static struct clk_lookup dove_clocks[] = {
 	INIT_CK("mv_xor_shared.1", NULL, &clk_xor1),
 //	INIT_CK(NULL, "GIGA_PHY", &clk_giga_phy),
 	INIT_CK(NULL, "GCCLK", &clk_gpu),
+	INIT_CK(NULL, "AXICLK", &clk_axi),
 };
+
+int __init dove_clk_config(struct device *dev, const char *id, unsigned long rate)
+{
+	struct clk *clk;
+	int ret = 0;
+
+	clk = clk_get(dev, id);
+	if (IS_ERR(clk)) {
+		printk(KERN_ERR "failed to get clk %s\n", dev ? dev_name(dev):
+		       id);
+		return PTR_ERR(clk);
+	}
+	ret = clk_set_rate(clk, rate); 
+	if (ret < 0) 
+		printk(KERN_ERR "failed to set %s clk to %lu \n", 
+		       dev?dev_name(dev):id, rate);
+	return ret;
+}
 
 int __init dove_devclks_init(void)
 {
 	int i;
-
+	
 	tclk_rate = dove_tclk_get();
 
 	/* disable the clocks of all peripherals */
@@ -302,6 +508,9 @@ int __init dove_devclks_init(void)
 	for (i = 0; i < ARRAY_SIZE(dove_clocks); i++)
                 clkdev_add(&dove_clocks[i]);
 
+#ifdef CONFIG_SYSFS
+	dove_upstream_clocks_sysfs_setup();
+#endif
 //	__clk_disable(&clk_usb0);
 //	__clk_disable(&clk_usb1);
 //	__clk_disable(&clk_ac97);
