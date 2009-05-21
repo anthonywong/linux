@@ -22,7 +22,8 @@
 
 #include "clock.h"
 
-void clks_disable_all(int include_pci0, int include_pci1)
+/* downstream clocks*/
+void ds_clks_disable_all(int include_pci0, int include_pci1)
 {
 	u32 ctrl = readl(CLOCK_GATING_CONTROL);
 	
@@ -54,20 +55,20 @@ void clks_disable_all(int include_pci0, int include_pci1)
 	writel(ctrl, CLOCK_GATING_CONTROL);
 }
 
-static int __clk_enable(struct clk *clk)
+static void __ds_clk_enable(struct clk *clk)
 {
 	u32 ctrl;
 
 	if (clk->flags & ALWAYS_ENABLED)
-		return 0;
+		return;
 
 	ctrl = readl(CLOCK_GATING_CONTROL);
 	ctrl |= clk->mask;
 	writel(ctrl, CLOCK_GATING_CONTROL);
-	return 0;
+	return;
 }
 
-static void __clk_disable(struct clk *clk)
+static void __ds_clk_disable(struct clk *clk)
 {
 	u32 ctrl;
 
@@ -79,17 +80,20 @@ static void __clk_disable(struct clk *clk)
 	writel(ctrl, CLOCK_GATING_CONTROL);
 }
 
+const struct clkops ds_clk_ops = {
+	.enable		= __ds_clk_enable,
+	.disable	= __ds_clk_disable,
+};
+
 int clk_enable(struct clk *clk)
 {
-	int ret = 0;
-	
 	if (clk == NULL || IS_ERR(clk))
 		return -EINVAL;
 
 	if (clk->usecount++ == 0)
-		ret = __clk_enable(clk);
+		clk->ops->enable(clk);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(clk_enable);
 
@@ -99,7 +103,7 @@ void clk_disable(struct clk *clk)
 		return;
 
 	if (clk->usecount > 0 && !(--clk->usecount))
-		__clk_disable(clk);
+		clk->ops->disable(clk);
 }
 EXPORT_SYMBOL(clk_disable);
 
@@ -147,86 +151,103 @@ static struct clk clk_core = {
 };
 
 static struct clk clk_usb0 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_USB0_MASK,
 };
 
 static struct clk clk_usb1 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_USB1_MASK,
 };
 
 static struct clk clk_gbe = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_GBE_MASK | CLOCK_GATING_GIGA_PHY_MASK,
 };
 
 static struct clk clk_sata = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_SATA_MASK,
 };
 
 static struct clk clk_pcie0 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_PCIE0_MASK,
 };
 
 static struct clk clk_pcie1 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_PCIE1_MASK,
 };
 
 static struct clk clk_sdio0 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_SDIO0_MASK,
 };
 
 static struct clk clk_sdio1 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_SDIO1_MASK,
 };
 
 static struct clk clk_nand = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_NAND_MASK,
 };
 
 static struct clk clk_camera = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_CAMERA_MASK,
 };
 
 static struct clk clk_i2s0 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_I2S0_MASK,
 };
 
 static struct clk clk_i2s1 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_I2S1_MASK,
 };
 
 static struct clk clk_crypto = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_CRYPTO_MASK,
 };
 
 static struct clk clk_ac97 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_AC97_MASK,
 };
 
 static struct clk clk_pdma = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_PDMA_MASK,
 };
 
 static struct clk clk_xor0 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_XOR0_MASK,
 };
 
 static struct clk clk_xor1 = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_XOR1_MASK,
 };
@@ -238,6 +259,7 @@ static struct clk clk_xor1 = {
 
 /* dummy clk for gpu just to make the clk_get work*/
 static struct clk clk_gpu = {
+	.ops	= &ds_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= 0,
 };

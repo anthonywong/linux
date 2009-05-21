@@ -300,7 +300,7 @@ static void __init dove_db_init(void)
 	/* ehci init functions access the usb port, only now it's safe to disable
 	 * all clocks
 	 */
-	clks_disable_all(0, 0);
+	ds_clks_disable_all(0, 0);
 #if 1
 	dove_ge00_init(&dove_db_ge00_data);
 #endif
