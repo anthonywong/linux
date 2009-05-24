@@ -38,7 +38,7 @@
 #include <mach/lm.h>
 
 #ifdef CONFIG_CACHE_TAUROS2
-#include <asm/plat-orion/cache-tauros2.h>
+#include <asm/hardware/cache-tauros2.h>
 #endif
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>

@@ -35,7 +35,7 @@
 #include <asm/mach/arch.h>
 #include <mach/gpio.h>
 #include <linux/irq.h>
-#include <plat/cache-tauros2.h>
+#include <asm/hardware/cache-tauros2.h>
 #include <plat/ehci-orion.h>
 #include <plat/i2s-orion.h>
 #include <plat/orion_nand.h>
