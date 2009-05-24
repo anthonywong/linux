@@ -18,7 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/interrupt.h>
-#include <plat/cache-tauros2.h>
+#include <asm/hardware/cache-tauros2.h>
 #include <asm/mach/arch.h>
 #include <asm-arm/vfp.h>
 #include "mvOs.h"
