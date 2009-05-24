@@ -18,7 +18,7 @@
 
 #include <linux/init.h>
 #include <asm/cacheflush.h>
-#include <plat/cache-tauros2.h>
+#include <asm/hardware/cache-tauros2.h>
 
 static int ignore_extra_features;
 static int __init ignore_extra_features_setup(char *__unused)
