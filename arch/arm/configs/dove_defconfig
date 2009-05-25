@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.29.1-dove-2.0.0-dev
-# Wed May 20 15:09:20 2009
+# Linux kernel version: 2.6.29.1-dove-2.0.0
+# Mon May 25 15:25:05 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1055,6 +1055,7 @@ CONFIG_I2C_ALGOBIT=y
 #
 # CONFIG_I2C_GPIO is not set
 CONFIG_I2C_MV64XXX=y
+CONFIG_I2C_MV64XXX_PORT_EXPANDER=y
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_SIMTEC is not set
 
