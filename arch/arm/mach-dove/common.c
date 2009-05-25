@@ -876,6 +876,32 @@ static struct platform_device dove_i2c_exp_port0 = {
 		.platform_data = &dove_i2c_exp_port0_data,
 	},
 };
+
+static struct mv64xxx_i2c_exp_pdata dove_i2c_exp_port1_data = {
+	.hw_adapter	= &dove_i2c,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct platform_device dove_i2c_exp_port1 = {
+	.name		= MV64XXX_I2C_EXPANDER_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data = &dove_i2c_exp_port1_data,
+	},
+};
+
+static struct mv64xxx_i2c_exp_pdata dove_i2c_exp_port2_data = {
+	.hw_adapter	= &dove_i2c,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct platform_device dove_i2c_exp_port2 = {
+	.name		= MV64XXX_I2C_EXPANDER_NAME,
+	.id		= 2,
+	.dev		= {
+		.platform_data = &dove_i2c_exp_port2_data,
+	},
+};
 #endif
 void __init dove_i2c_init(void)
 {
@@ -883,6 +909,12 @@ void __init dove_i2c_init(void)
 #ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
 	dove_i2c_exp_port0_data.hw_adapter = &dove_i2c;
 	platform_device_register(&dove_i2c_exp_port0);
+#ifndef CONFIG_DOVE_REV_Z0
+	dove_i2c_exp_port1_data.hw_adapter = &dove_i2c;
+	platform_device_register(&dove_i2c_exp_port1);
+	dove_i2c_exp_port2_data.hw_adapter = &dove_i2c;
+	platform_device_register(&dove_i2c_exp_port2);
+#endif
 #endif
 }
 
