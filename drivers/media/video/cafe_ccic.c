@@ -200,6 +200,8 @@ struct cafe_camera
 	/* Board info */
 	u32 power_down; /* value to set into GPR to power down the sensor*/
 	u32 reset;	/* value to set into GPR to reset the senser */
+	int numbered_i2c_bus;
+	unsigned int i2c_bus_id;
 };
 
 /*
@@ -526,7 +528,13 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	strcpy(adap->name, "cafe_ccic");
 	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, &cam->v4l2_dev);
-	ret = i2c_add_adapter(adap);
+	
+	if(cam->numbered_i2c_bus == 0)
+		ret = i2c_add_adapter(adap);
+	else {
+		adap->nr = cam->i2c_bus_id;
+		ret = i2c_add_numbered_adapter(adap);
+	}
 	if (ret)
 		printk(KERN_ERR "Unable to register cafe i2c adapter\n");
 	return ret;
@@ -2125,9 +2133,12 @@ static int cafe_platform_probe(struct platform_device *pdev)
 		(struct cafe_cam_platform_data *)pdev->dev.platform_data;
 		cam->power_down = platform_data->power_down;
 		cam->reset = platform_data->reset;
+		cam->numbered_i2c_bus = platform_data->numbered_i2c_bus;
+		cam->i2c_bus_id = platform_data->i2c_bus_id;
 	} else {
 		cam->power_down = GPR_C1;
 		cam->reset = GPR_C0;
+		cam->numbered_i2c_bus = 0;
 	}
 #if defined(CONFIG_HAVE_CLK)
 	cam->clk = clk_get(&pdev->dev, NULL);
@@ -2206,6 +2217,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
  */
 	cam->power_down = GPR_C1;
 	cam->reset = GPR_C0;
+	cam->numbered_i2c_bus = 0;
 	return cafe_init_cam(cam);
 }
 
