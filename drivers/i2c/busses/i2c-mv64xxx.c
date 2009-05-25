@@ -9,7 +9,6 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#define DEBUG
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -100,26 +99,20 @@ struct mv64xxx_i2c_data {
 	spinlock_t		lock;
 	struct device		*dev;
 	struct i2c_msg		*msg;
+	struct i2c_adapter	*adapter;
 #ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
 	struct semaphore	exp_sem;
 	int	(*select_exp_port)(unsigned int port_id);
-	struct i2c_adapter	*adapter;
-#else
-	struct i2c_adapter	adapter;
 #endif
 };
 
 struct mv64xxx_i2c_exp_data {
 	struct mv64xxx_i2c_data	*hw_adapter;
-	struct i2c_msg		*msg;
 	struct i2c_adapter	adapter;
 };
 
-#ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
 #define	get_adapter(pdata) ((pdata)->adapter)
-#else
-#define	get_adapter(pdata) (&((pdata)->adapter))
-#endif
+
 /*
  *****************************************************************************
  *
@@ -452,7 +445,7 @@ mv64xxx_i2c_functionality(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_10BIT_ADDR | I2C_FUNC_SMBUS_EMUL;
 }
-
+#ifndef CONFIG_I2C_MV64XXX_PORT_EXPANDER
 static int
 mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
@@ -470,7 +463,7 @@ static const struct i2c_algorithm mv64xxx_i2c_algo = {
 	.master_xfer = mv64xxx_i2c_xfer,
 	.functionality = mv64xxx_i2c_functionality,
 };
-
+#endif
 /*
  *****************************************************************************
  *
@@ -517,6 +510,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 {
 	struct mv64xxx_i2c_data		*drv_data;
 	struct mv64xxx_i2c_pdata	*pdata = pd->dev.platform_data;
+	struct i2c_adapter	*adapter;
 	int	rc;
 
 	if ((pd->id != 0) || !pdata)
@@ -525,7 +519,13 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	drv_data = kzalloc(sizeof(struct mv64xxx_i2c_data), GFP_KERNEL);
 	if (!drv_data)
 		return -ENOMEM;
+#ifndef CONFIG_I2C_MV64XXX_PORT_EXPANDER
+	adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
+	if (!adapter)
+		return -ENOMEM;
 
+	drv_data->adapter = adapter;
+#endif
 	if (mv64xxx_i2c_map_regs(pd, drv_data)) {
 		rc = -ENODEV;
 		goto exit_kfree;
@@ -546,13 +546,15 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	}
 	drv_data->dev = &pd->dev;
 #ifndef CONFIG_I2C_MV64XXX_PORT_EXPANDER
-	drv_data->adapter.dev.parent = &pd->dev;
-	drv_data->adapter.algo = &mv64xxx_i2c_algo;
-	drv_data->adapter.owner = THIS_MODULE;
-	drv_data->adapter.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
-	drv_data->adapter.timeout = msecs_to_jiffies(pdata->timeout);
-	drv_data->adapter.nr = pd->id;
-	i2c_set_adapdata(&drv_data->adapter, drv_data);
+	strlcpy(drv_data->adapter->name, MV64XXX_I2C_CTLR_NAME " adapter",
+		sizeof(drv_data->adapter->name));
+	drv_data->adapter->dev.parent = &pd->dev;
+	drv_data->adapter->algo = &mv64xxx_i2c_algo;
+	drv_data->adapter->owner = THIS_MODULE;
+	drv_data->adapter->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	drv_data->adapter->timeout = pdata->timeout;
+	drv_data->adapter->nr = pd->id;
+	i2c_set_adapdata(drv_data->adapter, drv_data);
 #endif
 	platform_set_drvdata(pd, drv_data);
 
@@ -566,7 +568,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 		rc = -EINVAL;
 		goto exit_unmap_regs;
 #ifndef CONFIG_I2C_MV64XXX_PORT_EXPANDER
-	} else if ((rc = i2c_add_numbered_adapter(&drv_data->adapter)) != 0) {
+	} else if ((rc = i2c_add_numbered_adapter(drv_data->adapter)) != 0) {
 		dev_err(drv_data->dev,
 			"mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
 		goto exit_free_irq;
@@ -591,7 +593,7 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 	int	rc = 0;
 
 #ifndef CONFIG_I2C_MV64XXX_PORT_EXPANDER
-	rc = i2c_del_adapter(&drv_data->adapter);
+	rc = i2c_del_adapter(drv_data->adapter);
 #endif
 	free_irq(drv_data->irq, drv_data);
 	mv64xxx_i2c_unmap_regs(drv_data);
@@ -615,17 +617,19 @@ mv64xxx_i2c_exp_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct mv64xxx_i2c_exp_data *exp_drv_data = i2c_get_adapdata(adap);
 	struct mv64xxx_i2c_data *drv_data = exp_drv_data->hw_adapter;
-	int	i, rc = num;
+	int	i, rc;
 
 	down(&drv_data->exp_sem);
 	drv_data->adapter = adap;
 	drv_data->select_exp_port(adap->id);
 	for (i=0; i<num; i++)
-		if ((rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[i])) < 0)
-			break;
+		if ((rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[i])) < 0) {
+			up(&drv_data->exp_sem);
+			return rc;
+		}
 
 	up(&drv_data->exp_sem);
-	return rc;
+	return num;
 }
 
 static const struct i2c_algorithm mv64xxx_i2c_exp_algo = {
@@ -648,6 +652,8 @@ mv64xxx_i2c_exp_probe(struct platform_device *pd)
 	if (!exp_drv_data)
 		return -ENOMEM;
 
+	strlcpy(exp_drv_data->adapter.name, MV64XXX_I2C_EXPANDER_NAME " adapter",
+		sizeof(exp_drv_data->adapter.name));
 	exp_drv_data->adapter.dev.parent = &pd->dev;
 	exp_drv_data->adapter.algo = &mv64xxx_i2c_exp_algo;
 	exp_drv_data->adapter.owner = THIS_MODULE;
@@ -692,17 +698,18 @@ mv64xxx_i2c_init(void)
 		return rc;
 
 #ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
-	return platform_driver_register(&mv64xxx_i2c_exp_driver);
+	rc = platform_driver_register(&mv64xxx_i2c_exp_driver);
 #endif
+	return rc;
 }
 
 static void __exit
 mv64xxx_i2c_exit(void)
 {
 #ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
-	platform_driver_unregister(&mv64xxx_i2c_driver);
-#endif
 	platform_driver_unregister(&mv64xxx_i2c_exp_driver);
+#endif
+	platform_driver_unregister(&mv64xxx_i2c_driver);
 }
 
 module_init(mv64xxx_i2c_init);
