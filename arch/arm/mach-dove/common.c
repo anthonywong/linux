@@ -830,10 +830,19 @@ void __init dove_lcd_spi_init(void)
 /*****************************************************************************
  * I2C
  ****************************************************************************/
+#ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
+int dove_select_exp_port(unsigned int port_id)
+{
+	return 0;
+}
+#endif
 static struct mv64xxx_i2c_pdata dove_i2c_data = {
 	.freq_m		= 10, /* assumes 166 MHz TCLK gets 94.3kHz */
 	.freq_n		= 3,
 	.timeout	= 1000, /* Default timeout of 1 second */
+#ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
+	.select_exp_port = dove_select_exp_port,
+#endif
 };
 
 static struct resource dove_i2c_resources[] = {
@@ -859,10 +868,27 @@ static struct platform_device dove_i2c = {
 		.platform_data = &dove_i2c_data,
 	},
 };
+#ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
+static struct mv64xxx_i2c_exp_pdata dove_i2c_exp_port0_data = {
+	.hw_adapter	= &dove_i2c,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
 
+static struct platform_device dove_i2c_exp_port0 = {
+	.name		= MV64XXX_I2C_EXPANDER_NAME,
+	.id		= 0,
+	.dev		= {
+		.platform_data = &dove_i2c_exp_port0_data,
+	},
+};
+#endif
 void __init dove_i2c_init(void)
 {
 	platform_device_register(&dove_i2c);
+#ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
+	dove_i2c_exp_port0_data.hw_adapter = &dove_i2c;
+	platform_device_register(&dove_i2c_exp_port0);
+#endif
 }
 
 /*****************************************************************************
