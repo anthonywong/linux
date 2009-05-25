@@ -138,7 +138,7 @@ static void calc_best_clock_div(u64 tar_freq, u32 *axi_div,
 		temp = tar_freq * (unsigned long long)i;
 		borders = req_div;
 		do_div(borders, i);
-		if (borders < _64K) {
+		if (borders < SZ_64K) {
 			tmp_lcd_div = AXI_BASE_CLK;
 			do_div(tmp_lcd_div, temp);
 			rem = AXI_BASE_CLK - (temp * tmp_lcd_div);
@@ -170,7 +170,7 @@ static void calc_best_clock_div(u64 tar_freq, u32 *axi_div,
 			temp = tar_freq * i;
 			borders = req_div;
 			do_div(borders, i);
-			if (borders < _64K) {
+			if (borders < SZ_64K) {
 				tmp_lcd_div = AXI_BASE_CLK * 10;
 				do_div(tmp_lcd_div, temp);
 				rem = (AXI_BASE_CLK * 10 -
