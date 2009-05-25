@@ -12,5 +12,7 @@
 struct cafe_cam_platform_data {
 	int power_down; /* value to set into GPR to power down the sensor*/ 
 	int reset;	/* value to set into GPR to reset the senser */
+	int numbered_i2c_bus;
+	unsigned int i2c_bus_id;
 };
 #endif
