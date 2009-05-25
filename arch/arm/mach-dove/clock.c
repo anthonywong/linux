@@ -135,6 +135,18 @@ static void dove_clocks_set_gpu_clock(u32 divider)
 	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 14, 14, 0);
 }
 
+#ifndef CONFIG_DOVE_REV_Z0
+static void dove_clocks_set_lcd_clock(u32 divider)
+{
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0068, 10, 10, 1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 22, 27,
+			     divider);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 28, 28, 1);
+	udelay(1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 28, 28, 0);
+}
+#endif
+
 static void dove_clocks_set_axi_clock(u32 divider)
 {
 	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0068, 10, 10, 1);
@@ -167,6 +179,18 @@ static int gpu_set_clock(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+#ifndef CONFIG_DOVE_REV_Z0
+static int lcd_set_clock(struct clk *clk, unsigned long rate)
+{
+	u32 divider;
+
+	divider = dove_clocks_divide(2000, rate/1000000);
+	printk(KERN_INFO "Setting LCD clock to %lu (divider: %u)\n",
+		 rate, divider);
+	dove_clocks_set_lcd_clock(divider);
+	return 0;
+}
+#endif
 static unsigned long axi_get_clock(struct clk *clk)
 {
 	u32 divider;
@@ -511,6 +535,11 @@ int __init dove_devclks_init(void)
 #ifdef CONFIG_SYSFS
 	dove_upstream_clocks_sysfs_setup();
 #endif
+
+#ifndef CONFIG_DOVE_REV_Z0
+	lcd_set_clock(NULL, 2000000000ll);
+#endif
+
 //	__clk_disable(&clk_usb0);
 //	__clk_disable(&clk_usb1);
 //	__clk_disable(&clk_ac97);
