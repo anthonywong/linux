@@ -53,6 +53,168 @@ static int dovefb_fill_edid(struct fb_info *fi,
 static int wait_for_vsync(struct dovefb_layer_info *dfli);
 static void dovefb_set_defaults(struct dovefb_layer_info *dfli);
 
+#ifndef CONFIG_DOVE_REV_Z0
+
+#define AXI_BASE_CLK	(2000000000ll)	/* 2000MHz */
+
+#define GLOBAL_CONFIG_1_REG	(0xE802C)
+#define GLOBAL_CONFIG_2_REG	(0xE8030)
+
+#define GLOBAL_CFG_REG_ACCESS(offs)		\
+	(*((volatile u32*)(DOVE_NB_REGS_VIRT_BASE + (offs))))
+
+static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
+{
+	u32	reg;
+
+	/* disable preemption, the gen conf regs might be accessed by other
+	** drivers.
+	*/
+	preempt_disable();
+
+	/* Clear LCD_Clk_Enable (Enable LCD Clock).			*/
+	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG);
+	reg &= ~(1 << 17);
+	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+
+	/* Set LCD_CLK_DIV_SEL in LCD TWSI and CPU Configuration 1	*/
+	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG);
+	reg |= (1 << 9);
+	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+
+
+	/* Configure division factor (N = LCD_EXT_DIV[5:0], N<32) in 	*/
+	/* Config 1 Register.						*/
+	reg &= ~(0x3F << 10);
+	reg |= (clock_div << 10);
+
+	/* Set LCD_Half_integer_divider = 1 in LCD TWSI and CPU Config 1*/
+	if (is_half_div)
+		reg |= (1 << 16);
+	else
+		reg &= ~(1 << 16);
+
+	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+
+	/* Set LCD_Ext_Clk_Div_Load in LCD TWSI and CPU Config 2.	*/
+	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG);
+	reg |= (1 << 24);
+	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG) = reg;
+
+	preempt_enable();
+
+	/* Insert S/W delay of at least 200 nsec.			*/
+	udelay(1);
+
+	preempt_disable();
+	/* Clear LCD_Ext_Clk_Div_Load.					*/
+	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG);
+	reg &= ~(1 << 24);
+	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG) = reg;
+
+	/* Set LCD_Clk_Enable (Enable LCD Clock).			*/
+	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG);
+	reg |= (1 << 17);
+	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+	preempt_enable();
+
+	return;
+}
+
+
+static void calc_best_clock_div(u64 tar_freq, u32 *axi_div,
+		u32 *lcd_div, u32 *is_ext_rem)
+{
+	unsigned long long req_div;
+	unsigned int best_rem = 0xFFFFFFFF;
+	unsigned int best_axi_div = 0;
+	unsigned int best_lcd_div = 0;
+	unsigned long long tmp_lcd_div;
+	int ext_rem = 0;
+	unsigned int i, borders;
+	unsigned int rem;
+	unsigned long long temp;
+
+	/* Calculate required dividor */
+	req_div = AXI_BASE_CLK;
+	do_div(req_div, tar_freq);
+
+	/* Look for the whole division with the smallest remainder */
+	for (i = 5; i < 64; i++) {
+		temp = tar_freq * (unsigned long long)i;
+		borders = req_div;
+		do_div(borders, i);
+		if (borders < _64K) {
+			tmp_lcd_div = AXI_BASE_CLK;
+			do_div(tmp_lcd_div, temp);
+			rem = AXI_BASE_CLK - (temp * tmp_lcd_div);
+			if (rem < best_rem) {
+				best_rem = rem;
+				best_axi_div = i;
+				best_lcd_div = tmp_lcd_div;
+			}
+			if (best_rem == 0)
+				break;
+			/* Check the next LCD divider */
+			tmp_lcd_div++;
+			rem = (temp * tmp_lcd_div) - AXI_BASE_CLK;
+			if (rem < best_rem) {
+				best_rem = rem;
+				best_axi_div = i;
+				best_lcd_div = tmp_lcd_div;
+			}
+			if (best_rem == 0)
+				break;
+		}
+	}
+
+	/* Look for the extended division with the smallest remainder */
+	req_div = AXI_BASE_CLK * 10;
+	do_div(req_div, tar_freq);
+	if (best_rem != 0) {
+		for (i = 125; i <= 315; i += 10) {
+			temp = tar_freq * i;
+			borders = req_div;
+			do_div(borders, i);
+			if (borders < _64K) {
+				tmp_lcd_div = AXI_BASE_CLK * 10;
+				do_div(tmp_lcd_div, temp);
+				rem = (AXI_BASE_CLK * 10 -
+						(tmp_lcd_div * temp));
+				do_div(rem, 10);
+				if (rem < best_rem) {
+					ext_rem = 1;
+					best_rem = rem;
+					best_axi_div = i;
+					best_lcd_div = tmp_lcd_div;
+				}
+				if (best_rem == 0)
+					break;
+				/* Check next LCD divider */
+				tmp_lcd_div++;
+				rem = ((tmp_lcd_div * temp) -
+						AXI_BASE_CLK * 10);
+				do_div(rem, 10);
+				if (rem < best_rem) {
+					ext_rem = 1;
+					best_rem = rem;
+					best_axi_div = i;
+					best_lcd_div = tmp_lcd_div;
+				}
+				if (best_rem == 0)
+					break;
+			}
+		}
+	}
+
+	*is_ext_rem = ext_rem;
+	*lcd_div = best_lcd_div;
+	*axi_div = best_axi_div;
+	return;
+}
+#endif /* CONFIG_DOVE_REV_Z0 */
+
+
 /*
  * The hardware clock divider has an integer and a fractional
  * stage:
@@ -70,7 +232,12 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	int needed_pixclk;
 	u64 div_result;
 	u32 x = 0;
+#ifdef CONFIG_DOVE_REV_Z0
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
+#else
+	u32 axi_div, lcd_div, is_ext;
+#endif
+
 
 	/*
 	 * Notice: The field pixclock is used by linux fb
@@ -100,14 +267,20 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	do_div(div_result, m->pixclock);
 	needed_pixclk = (u32)div_result;
 
+#ifdef CONFIG_DOVE_REV_Z0
 	divider_int = dmi->sclk_clock / needed_pixclk;
-
 	/* check whether divisor is too small. */
 	if (divider_int < 2) {
 		printk(KERN_WARNING "Warning: clock source is too slow."
 				 "Try smaller resolution\n");
 		divider_int = 2;
 	}
+#else
+	calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
+	divider_int = lcd_div;
+
+	set_external_lcd_clock(axi_div, is_ext);
+#endif /* CONFIG_DOVE_REV_Z0 */
 
 	/*
 	 * Set setting to reg.
