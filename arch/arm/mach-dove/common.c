@@ -48,6 +48,7 @@
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
 #endif
 #include "clock.h"
+#include "twsi.h"
 
 /* used for memory allocation for the VPRO video engine */
 #ifdef CONFIG_UIO_DOVE_VPRO
@@ -830,12 +831,6 @@ void __init dove_lcd_spi_init(void)
 /*****************************************************************************
  * I2C
  ****************************************************************************/
-#ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
-int dove_select_exp_port(unsigned int port_id)
-{
-	return 0;
-}
-#endif
 static struct mv64xxx_i2c_pdata dove_i2c_data = {
 	.freq_m		= 10, /* assumes 166 MHz TCLK gets 94.3kHz */
 	.freq_n		= 3,
