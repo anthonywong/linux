@@ -57,12 +57,6 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli);
 
 #define AXI_BASE_CLK	(2000000000ll)	/* 2000MHz */
 
-#define GLOBAL_CONFIG_1_REG	(0xE802C)
-#define GLOBAL_CONFIG_2_REG	(0xE8030)
-
-#define GLOBAL_CFG_REG_ACCESS(offs)		\
-	(*((volatile u32*)(DOVE_NB_REGS_VIRT_BASE + (offs))))
-
 static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 {
 	u32	reg;
@@ -73,14 +67,14 @@ static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 	preempt_disable();
 
 	/* Clear LCD_Clk_Enable (Enable LCD Clock).			*/
-	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG);
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
 	reg &= ~(1 << 17);
-	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
 
 	/* Set LCD_CLK_DIV_SEL in LCD TWSI and CPU Configuration 1	*/
-	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG);
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
 	reg |= (1 << 9);
-	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
 
 
 	/* Configure division factor (N = LCD_EXT_DIV[5:0], N<32) in 	*/
@@ -94,12 +88,12 @@ static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 	else
 		reg &= ~(1 << 16);
 
-	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
 
 	/* Set LCD_Ext_Clk_Div_Load in LCD TWSI and CPU Config 2.	*/
-	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG);
+	reg = readl(DOVE_GLOBAL_CONFIG_2);
 	reg |= (1 << 24);
-	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG) = reg;
+	writel(reg, DOVE_GLOBAL_CONFIG_2);
 
 	preempt_enable();
 
@@ -108,14 +102,14 @@ static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 
 	preempt_disable();
 	/* Clear LCD_Ext_Clk_Div_Load.					*/
-	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG);
+	reg = readl(DOVE_GLOBAL_CONFIG_2);
 	reg &= ~(1 << 24);
-	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_2_REG) = reg;
+	writel(reg, DOVE_GLOBAL_CONFIG_2);
 
 	/* Set LCD_Clk_Enable (Enable LCD Clock).			*/
-	reg = GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG);
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
 	reg |= (1 << 17);
-	GLOBAL_CFG_REG_ACCESS(GLOBAL_CONFIG_1_REG) = reg;
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
 	preempt_enable();
 
 	return;
