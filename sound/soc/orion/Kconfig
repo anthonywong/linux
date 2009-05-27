@@ -11,7 +11,7 @@ config SND_DOVE_AC97
 
 config SND_DOVE_SOC_DB
 	tristate "SoC AC97 Audio support for Marvell Dove DB"
-	depends on SND_DOVE_AC97 && MACH_DOVE_DB
+	depends on SND_DOVE_AC97 && (MACH_DOVE_DB || MACH_DOVE_DB_Z0)
 	select SND_PXA2XX_SOC
 	select SND_PXA2XX_LIB
 	select SND_PXA2XX_SOC_AC97
