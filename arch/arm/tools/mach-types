@@ -1777,6 +1777,7 @@ wdg002			MACH_WDG002		WDG002			1785
 sg560adsl		MACH_SG560ADSL		SG560ADSL		1786
 nextio_n2800_ica	MACH_NEXTIO_N2800_ICA	NEXTIO_N2800_ICA	1787
 dove_db                 MACH_DOVE_DB            DOVE_DB                 1788
+dove_db_z0              MACH_DOVE_DB_Z0         DOVE_DB_Z0              1788
 dove_rd                 MACH_DOVE_RD            DOVE_RD                 1789
 dove_rd_avng		MACH_DOVE_RD_AVNG	DOVE_RD_AVNG		1790
 vandihud		MACH_VANDIHUD		VANDIHUD		1790
