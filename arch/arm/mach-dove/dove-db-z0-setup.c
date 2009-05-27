@@ -1,7 +1,7 @@
 /*
- * arch/arm/mach-dove/dove-db-setup.c
+ * arch/arm/mach-dove/dove-db-z0-setup.c
  *
- * Marvell DB-MV88F6781-BP Development Board Setup
+ * Marvell DB-MV88F6781-BP Z0 Development Board Setup
  *
  * Author: Tzachi Perelstein <tzachi@marvell.com>
  *
@@ -125,7 +125,7 @@ static void dove_db_7seg_event(unsigned long data)
 
 static int __init dove_db_7seg_init(void)
 {
-	if (machine_is_dove_db()) {
+	if (machine_is_dove_db_z0()) {
 		int i;
 		
 		for(i = 0; i < 4; i++){
@@ -148,6 +148,7 @@ static int __init dove_db_7seg_init(void)
 		setup_timer(&dove_db_timer, dove_db_7seg_event, 0);
 		mod_timer(&dove_db_timer, jiffies + 1 * HZ);
 	}
+
 	return 0;
 }
 
@@ -158,7 +159,7 @@ __initcall(dove_db_7seg_init);
  ****************************************************************************/
 static int __init dove_db_pci_init(void)
 {
-	if (machine_is_dove_db())
+	if (machine_is_dove_db_z0())
 			dove_pcie_init(1, 1);
 
 	return 0;
@@ -244,15 +245,15 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 	{ 11, MPP_SATA_ACT },           /* SATA active */
         { 14, MPP_GPIO },               /* 7segDebug Led */
         { 15, MPP_GPIO },               /* 7segDebug Led */
-        { 62, MPP_GPIO },               /* 7segDebug Led */
-        { 63, MPP_GPIO },               /* 7segDebug Led */
-        { 62, MPP_GPIO },               /* UA1 as GPIO for 7segDebug Led */
-        { 52, MPP_GPIO },               /* AU1 Group to GPIO */
+        { 18, MPP_GPIO },               /* 7segDebug Led */
+        { 19, MPP_GPIO },               /* 7segDebug Led */
+	{ 62, MPP_UART1 },               /* 7segDebug Led */
+	{ 52, MPP_AUDIO1 },               /* AU1 Group to GPIO */
         { -1 },
 };
 
 static struct dove_mpp_mode dove_db_mpp_modes_ltact[] __initdata = {
-        { 27, MPP_GPIO },               /* AU1 Group to GPIO */
+        { 52, MPP_GPIO },               /* AU1 Group to GPIO */
         { -1 },
 };
 
@@ -308,8 +309,11 @@ static void __init dove_db_init(void)
 	dove_spi0_init(0);
 	dove_spi1_init(0);
 
-	dove_uart0_init();
+	/* uart1 is the debug port, register it first so it will be */
+	/* represented by device ttyS0, root filesystems usually expect the */
+	/* console to be on that device */
 	dove_uart1_init();
+	dove_uart0_init();
 	dove_i2c_init();
 	dove_sdhci_cam_mbus_init();
 	dove_sdio0_init();
@@ -334,7 +338,7 @@ static void __init dove_db_init(void)
 	spi_register_board_info(dove_fp_spi_devs, dove_fp_spi_devs_num());
 }
 
-MACHINE_START(DOVE_DB, "Marvell DB-MV88F6781-BP Development Board")
+MACHINE_START(DOVE_DB, "Marvell DB-MV88F6781-BP-Z0 Development Board")
 	.phys_io	= DOVE_SB_REGS_PHYS_BASE,
 	.io_pg_offst	= ((DOVE_SB_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
