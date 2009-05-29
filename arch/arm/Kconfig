@@ -450,6 +450,7 @@ config ARCH_DOVE
 	bool "Marvell Dove"
 	select PCI
 	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_HAS_CPUFREQ
