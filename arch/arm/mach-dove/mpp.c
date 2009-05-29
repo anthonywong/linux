@@ -243,6 +243,9 @@ struct mpp_config dove_mpp_table[] =
 
 void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 {
+	/* Initialize gpiolib. */
+	orion_gpio_init();
+
 	while (mode->mpp >= 0) {
 		struct mpp_config *entry;
 		int i;
