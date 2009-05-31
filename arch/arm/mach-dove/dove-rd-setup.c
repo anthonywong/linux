@@ -173,7 +173,14 @@ static struct dove_mpp_mode dove_rd_mpp_modes[] __initdata = {
 	{ 14, MPP_GPIO },
 	{ 15, MPP_GPIO },
 	{ 18, MPP_GPIO },
-	{ 27, MPP_GPIO },	/* AU1 Group to GPIO */
+//	{ 20, MPP_LCD0_SPI},
+//	{ 21, MPP_LCD0_SPI},
+//	{ 22, MPP_LCD0_SPI},
+//	{ 23, MPP_LCD0_SPI},
+	{ 24, MPP_CAM },	/* CAM Group */
+	{ 40, MPP_SDIO0 },	/* SDIO0 Group */
+	{ 46, MPP_SDIO1 },	/* SDIO1 Group */
+	{ 52, MPP_GPIO },	/* AU1 Group to GPIO */
 	{ -1 },
 };
 
@@ -201,11 +208,11 @@ static void __init dove_rd_init(void)
 	dove_mpp_conf(dove_rd_mpp_modes);
 
         /* the (SW1) button is for use as a "wakeup" button */
-	dove_wakeup_button_setup(DOVE_RD_WAKEUP_GPIO);
+//	dove_wakeup_button_setup(DOVE_RD_WAKEUP_GPIO);
 
 	/* card interrupt workaround using GPIOs */
-	dove_sd_card_int_wa_setup(0);
-	dove_sd_card_int_wa_setup(1);
+//	dove_sd_card_int_wa_setup(0);
+//	dove_sd_card_int_wa_setup(1);
 
 	/*
 	 * On-chip device registration
