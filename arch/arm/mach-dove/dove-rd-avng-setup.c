@@ -270,13 +270,13 @@ static struct dove_mpp_mode dove_rd_avng_mpp_modes[] __initdata = {
 
 	{ 18, MPP_GPIO },	/* TSC_RST */
 	{ 19, MPP_GPIO },	/* TSC_INTR */
-	{ 20, MPP_SPI },	/* TSC_MISO */
-	{ 21, MPP_SPI },	/* TSC_CS */
-	{ 22, MPP_SPI },	/* TSC_MOSI */
-	{ 23, MPP_SPI },	/* TSC_SCK */
+	{ 20, MPP_SPI1 },	/* TSC_MISO */
+	{ 21, MPP_SPI1 },	/* TSC_CS */
+	{ 22, MPP_SPI1 },	/* TSC_MOSI */
+	{ 23, MPP_SPI1 },	/* TSC_SCK */
 
-	{ 27, MPP_GPIO },	/* AU1 Group to GPIO */
-	{ 28, MPP_GPIO },	/* UA1 Group to GPIO */
+	{ 52, MPP_GPIO },	/* AU1 Group to GPIO */
+	{ 62, MPP_GPIO },	/* UA1 Group to GPIO */
 	{ -1 },
 };
 
