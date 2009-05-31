@@ -19,129 +19,341 @@
 #include "common.h"
 #include "mpp.h"
 
-/*
- * we have 24 single pin mpps, and 6 groups of mpps, each group controlled
- * by one bit in the GPIO functional select register. we treat each group
- * as one mpp, so we have here 24 + 6 mpps
+#define DOVE_MPP_MAX_OPTIONS	7
+
+struct mpp_type {
+	enum dove_mpp_type	type;
+	int			val;
+};
+
+#define MPP_LAST	{MPP_END, 0}
+#define MPP_LAST2	MPP_LAST, MPP_LAST
+#define MPP_LAST3	MPP_LAST, MPP_LAST2
+#define MPP_LAST4	MPP_LAST, MPP_LAST3
+#define MPP_LAST5	MPP_LAST, MPP_LAST4
+#define MPP_LAST6	MPP_LAST, MPP_LAST5
+
+struct mpp_config {
+	struct  mpp_type types[DOVE_MPP_MAX_OPTIONS];
+	int	(*config)(int mpp, enum dove_mpp_type type, int val);
+};
+
+int __init dove_mpp_legacy_config(int mpp, enum dove_mpp_type type, int val);
+int __init dove_mpp_high_config(int mpp, enum dove_mpp_type type, int val);
+
+/* The index is the mpp number
+ * The table still not complete
  */
-
-static int __init determine_type_encoding(int mpp, enum dove_mpp_type type)
+struct mpp_config dove_mpp_table[] = 
 {
-	switch (type) {
-	case MPP_UNUSED:
-	case MPP_GPIO:
-		return (mpp < 24) ? 0 : 1;
-	case MPP_SATA_LED:
-		return 0x2;
-	case MPP_FUNCTIONAL:
-		return 0x0;
-	case MPP_SPI:
-		return 0x02;
-	}
-	
-	printk(KERN_INFO "unknown MPP type %d\n", type);
-	
-	return -1;
-}
+	/* MPP 0 */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 1 */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, {MPP_LCD, 0xf}, MPP_LAST3},
+	 dove_mpp_legacy_config},
+	/* MPP 2 */
+	{{{MPP_GPIO, 0}, {MPP_SATA_PRESENCE, 1}, {MPP_PMU, 0}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 3 */
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 4 */
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 5 */
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 6 */
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 7 */
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, {MPP_MII, 5}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 8 */
+	{{{MPP_GPIO, 0}, MPP_LAST6},
+	 dove_mpp_legacy_config},
+	/* MPP 9 */
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, {MPP_PCIE, 5}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 10 */
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 11 */
+	{{{MPP_GPIO, 0}, {MPP_SATA_PRESENCE, 1}, {MPP_SATA_ACT, 2}, {MPP_SDIO0, 3},
+	  {MPP_SDIO0, 4}, MPP_LAST2},
+	 dove_mpp_legacy_config},
+	/* MPP 12 */
+	{{{MPP_GPIO, 0}, {MPP_SDIO1, 4}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 13 */
+	{{{MPP_GPIO, 0}, {MPP_SDIO1, 4}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 14 */
+	{{{MPP_GPIO, 0}, {MPP_UART2, 2}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 15 */
+	{{{MPP_GPIO, 0}, {MPP_UART2, 2}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 16 */
+	{{{MPP_GPIO, 0}, MPP_LAST6},
+	 dove_mpp_legacy_config},
+	/* MPP 17 */
+	{{{MPP_GPIO, 0}, {MPP_TWSI, 4}, MPP_LAST5},
+	 dove_mpp_legacy_config},
+	/* MPP 18 */
+	{{{MPP_GPIO, 0}, {MPP_UART3, 2}, {MPP_LCD, 4}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 19 */
+	{{{MPP_GPIO, 0}, {MPP_UART3, 2}, {MPP_TWSI, 4}, {MPP_MII, 6}, MPP_LAST3},
+	 dove_mpp_legacy_config},
+	/* MPP 20 */
+	{{{MPP_GPIO, 0}, {MPP_NB_CLOCK, 4}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST3},
+	 dove_mpp_legacy_config},
+	/* MPP 21 */
+	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 22 */
+	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 23 */
+	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
+	 dove_mpp_legacy_config},
+	/* MPP 24 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 25 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 26 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 27 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 28 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 29 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 30 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 31 */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 32 (HIGH 0) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 33 (HIGH 1) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 34 (HIGH 2) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 35 (HIGH 3) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 36 (HIGH 4) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 37 (HIGH 5) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 38 (HIGH 6) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 39 (HIGH 7) */
+	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 40 (HIGH 8) */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 41 (HIGH 9) */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 42 (HIGH 10) */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 43 (HIGH 11) */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 44 (HIGH 12) */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 45 (HIGH 13) */
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 46 (HIGH 14) */
+	{{{MPP_GPIO, 1}, {MPP_SDIO1, 1}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 47 (HIGH 15) */
+	{{{MPP_GPIO, 1}, {MPP_SDIO1, 1}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 48 (HIGH 16) */
+	{{{MPP_GPIO, 1}, {MPP_SDIO1, 1}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 49 (HIGH 17) */
+	{{{MPP_GPIO, 1}, {MPP_SDIO1, 1}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 50 (HIGH 18) */
+	{{{MPP_GPIO, 1}, {MPP_SDIO1, 1}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 51 (HIGH 19) */
+	{{{MPP_GPIO, 1}, {MPP_SDIO1, 1}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 52 (HIGH 20) */
+	{{{MPP_GPIO, 3}, {MPP_AUDIO1, 3}, {MPP_SSP, 3}, MPP_LAST4},
+	 dove_mpp_high_config},
+	/* MPP 53 (HIGH 21) */
+	{{{MPP_GPIO, 3}, {MPP_AUDIO1, 3}, {MPP_SSP, 3}, MPP_LAST4},
+	 dove_mpp_high_config},
+	/* MPP 54 (HIGH 22) */
+	{{{MPP_GPIO, 3}, {MPP_AUDIO1, 3}, {MPP_SSP, 3}, MPP_LAST4},
+	 dove_mpp_high_config},
+	/* MPP 55 (HIGH 23) */
+	{{{MPP_GPIO, 3}, {MPP_AUDIO1, 3}, {MPP_SSP, 3}, MPP_LAST4},
+	 dove_mpp_high_config},
+	/* MPP 56 (HIGH 24) */
+	{{{MPP_GPIO, 3}, {MPP_AUDIO1, 3}, {MPP_TWSI, 3}, MPP_LAST4},
+	 dove_mpp_high_config},
+	/* MPP 57 (HIGH 25) */
+	{{{MPP_GPIO, 3}, {MPP_GPIO_AUDIO1, 3}, {MPP_AUDIO1, 3}, {MPP_TWSI, 3}, MPP_LAST3},
+	 dove_mpp_high_config},
+	/* MPP 58 (HIGH 26) */
+	{{{MPP_GPIO, 5}, {MPP_SPI0, 5}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 59 (HIGH 27) */
+	{{{MPP_GPIO, 5}, {MPP_SPI0, 5}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 60 (HIGH 28) */
+	{{{MPP_GPIO, 5}, {MPP_SPI0, 5}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 61 (HIGH 29) */
+	{{{MPP_GPIO, 5}, {MPP_SPI0, 5}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 62 (HIGH 30) */
+	{{{MPP_GPIO, 4}, {MPP_UART1, 4}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 63 (HIGH 31) */
+	{{{MPP_GPIO, 4}, {MPP_UART1, 4}, MPP_LAST5},
+	 dove_mpp_high_config},
+};
 
-static int __init dove_get_gpios(int mpp, int *num)
-{
-	switch (mpp) {
-	case 0 ... 23:
-		*num = 1;
-		return mpp;
-	case 24: /* SDO */ 
-		*num = 6;
-		return 40;
-	case 25: /* SD1 */
-		*num = 6;
-		return 46;
-	case 26: /* CAM */
-		*num = 16;
-		return 24;
-	case 27: /* AU1 */
-		*num = 6;
-		return 52;
-	case 28: /* UA1 */
-		*num = 2;
-		return 62;
-	case 29: /* SPI */
-		*num = 4;
-		return 58;
-	}
-	
-	printk(KERN_INFO "unknown MPP num %d\n", mpp);
-	
-	return -1;
-}
-
-void __init dove_config_gpios(struct dove_mpp_mode *mode)
-{
-	int gpio;
-	int num = -1;
-	int i;
-	
-	gpio = dove_get_gpios(mode->mpp, &num);
-	
-	if (num < 0)
-		return;
-	
-	for(i = 0; i < num; i++){
-		if (mode->type == MPP_UNUSED)
-			orion_gpio_set_unused(gpio + i);
-		
-		orion_gpio_set_valid(gpio + i, !!(mode->type == MPP_GPIO));
-	}
-}
 void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 {
-	u32 mpp_ctrl0 = readl(DOVE_MPP_VIRT_BASE);
-	u32 mpp_ctrl1 = readl(DOVE_MPP_VIRT_BASE + 4);
-	u32 mpp_ctrl2 = readl(DOVE_MPP_VIRT_BASE + 8);
-	u32 mpp_ctrl4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
-
 	while (mode->mpp >= 0) {
-		u32 *reg;
-		int num_type;
-		int shift;
+		struct mpp_config *entry;
+		int i;
+		int found = 0;
 
+		if(mode->mpp >= sizeof(dove_mpp_table)) {
+			printk("dove_mpp_conf: invalid MPP number (%d)\n",
+			       mode->mpp);
+			return;
+		}
+		entry = &dove_mpp_table[mode->mpp];
 
-		if (mode->mpp >= 0 && mode->mpp <= 7)
-			reg = &mpp_ctrl0;
-		else if (mode->mpp >= 8 && mode->mpp <= 15)
-			reg = &mpp_ctrl1;
-		else if (mode->mpp >= 16 && mode->mpp <= 23)
-			reg = &mpp_ctrl2;
-		else if (mode->mpp >= 24 && mode->mpp <= 30)
-			reg = &mpp_ctrl4;
-		else {
-			printk(KERN_ERR "%s: invalid MPP "
-			       "(%d)\n", __func__, mode->mpp);
-			continue;
+		for (i = 0; i < DOVE_MPP_MAX_OPTIONS; i++) {
+			if (entry->types[i].type == mode->type) {
+				found = 1;
+				break;
+			}
+			if (entry->types[i].type == MPP_END)
+				break;
 		}
 
-		num_type = determine_type_encoding(mode->mpp, mode->type);
-		if (num_type < 0) {
-			printk(KERN_ERR "%s: invalid MPP "
-			       "combination (%d, %d)\n", __func__, mode->mpp,
-			       mode->type);
-			continue;
+		if (found) {
+			if (entry->config)
+				entry->config(mode->mpp,
+					      entry->types[i].type,
+					      entry->types[i].val);
+
+			if (mode->type == MPP_UNUSED)
+				orion_gpio_set_unused(mode->mpp);
+
+			orion_gpio_set_valid(mode->mpp, !!(mode->type == MPP_GPIO));
+		} else {
+			printk("dove_mpp_conf: MPP[%d] type %d not supported\n",
+			       mode->mpp ,mode->type);
+			return;
 		}
-		if(mode->mpp < 24) {
-			shift = (mode->mpp & 7) << 2;
-			*reg &= ~(0xf << shift);
-			*reg |= (num_type & 0xf) << shift;
-		}else{
-			shift = (mode->mpp - 24);
-			*reg &= ~(0x1 << shift);
-			*reg |= (num_type & 0x1) << shift;
-		}
-		dove_config_gpios(mode);
 		mode++;
 	}
+}
 
-	writel(mpp_ctrl0, DOVE_MPP_VIRT_BASE);
-	writel(mpp_ctrl1, DOVE_MPP_VIRT_BASE + 4);
-	writel(mpp_ctrl2, DOVE_MPP_VIRT_BASE + 8);
-	writel(mpp_ctrl4, DOVE_MPP_CTRL4_VIRT_BASE);
+/* This function configures mpp mode for mpps 0-23 */
+int __init dove_mpp_legacy_config(int mpp, enum dove_mpp_type type, int val)
+{
+	u32 mpp_ctrl_reg;
+	u32 mpp_ctrl;
+	int shift;
+	
+	switch (mpp) {
+	case 0 ... 7:
+		mpp_ctrl_reg = DOVE_MPP_VIRT_BASE;
+		break;
+	case 8 ... 15:
+		mpp_ctrl_reg = DOVE_MPP_VIRT_BASE + 4;
+		break;
+	case 16 ... 23:
+		mpp_ctrl_reg = DOVE_MPP_VIRT_BASE + 8;
+		break;
+	default:
+		printk(KERN_ERR "%s: invalid MPP (%d)\n", __func__, mpp);
+		return -1;
+	}
+	
+	mpp_ctrl = readl(mpp_ctrl_reg);
+
+	shift = (mpp & 7) << 2;
+	mpp_ctrl &= ~(0xf << shift);
+	mpp_ctrl |= (val & 0xf) << shift;
+		
+	writel(mpp_ctrl, mpp_ctrl_reg);
+	return 0;
+}
+
+/* This function configures mpp mode for mpps >= 24 */
+int __init dove_mpp_high_config(int mpp, enum dove_mpp_type type, int mask)
+{
+	u32 mpp_ctrl = readl(DOVE_MPP_CTRL4_VIRT_BASE);
+
+	if (type == MPP_GPIO)
+	mpp_ctrl |= 0x1 << mask;
+	else
+	mpp_ctrl &= ~(0x1 << mask);
+
+	writel(mpp_ctrl, DOVE_MPP_CTRL4_VIRT_BASE);
+
+#ifndef CONFIG_DOVE_REV_Z0
+	if (mpp >= 52 && mpp <= 55) {
+		u32 ssp_ctrl = readl(DOVE_SSP_CTRL_STATUS_1);
+
+		if (type == MPP_AUDIO1)
+			ssp_ctrl &= ~DOVE_SSP_ON_AU1;
+		else
+			ssp_ctrl |= DOVE_SSP_ON_AU1;
+		writel(ssp_ctrl, DOVE_SSP_CTRL_STATUS_1);
+	}
+	if (mpp >= 56 && mpp <= 57) {
+		u32 global_config_2 = readl(DOVE_GLOBAL_CONFIG_2);
+
+		if (type == MPP_TWSI)
+			global_config_2 |= DOVE_TWSI_OPTION3_GPIO;
+		else
+			global_config_2 &= ~DOVE_TWSI_OPTION3_GPIO;
+		writel(global_config_2, DOVE_GLOBAL_CONFIG_2);
+	}
+	if (mpp == 57) {
+		u32 mpp_general_config = readl(DOVE_MPP_GENERAL_VIRT_BASE);
+		if (type == MPP_GPIO_AUDIO1)
+			mpp_general_config |= DOVE_AU1_SPDIFO_GPIO_EN;
+		else
+			mpp_general_config &= ~DOVE_AU1_SPDIFO_GPIO_EN;
+		writel(mpp_general_config, DOVE_MPP_GENERAL_VIRT_BASE);
+	}
+#endif
+	return 0;
 }
