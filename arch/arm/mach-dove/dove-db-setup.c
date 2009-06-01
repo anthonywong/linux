@@ -108,7 +108,7 @@ static struct spi_board_info __initdata dove_db_spi_flash_info[] = {
  ****************************************************************************/
 
 static struct timer_list dove_db_timer;
-static int dove_db_7seg_gpios[] = {14,15,18,19};
+static int dove_db_7seg_gpios[] = {14,15, 62, 63};
 
 static void dove_db_7seg_event(unsigned long data)
 {
@@ -241,18 +241,64 @@ static void __init dove_db_nfc_init(void)
 }
 
 static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
+	{ 0, MPP_SDIO0 },           /* SDIO0 */
+	{ 1, MPP_SDIO0 },           /* SDIO0 */
+
+	{ 2, MPP_PMU },
+	{ 3, MPP_PMU },
+	{ 4, MPP_PMU },
+	{ 5, MPP_PMU },
+	{ 6, MPP_PMU },
+	{ 7, MPP_PMU },
+
+	{ 8, MPP_GPIO },
+
+	{ 9, MPP_PMU },
+	{ 10, MPP_PMU },
+
 	{ 11, MPP_SATA_ACT },           /* SATA active */
+	{ 12, MPP_SDIO1 },           /* SDIO1 */
+	{ 13, MPP_SDIO1 },           /* SDIO1 */
+
         { 14, MPP_GPIO },               /* 7segDebug Led */
         { 15, MPP_GPIO },               /* 7segDebug Led */
-        { 62, MPP_GPIO },               /* 7segDebug Led */
-        { 63, MPP_GPIO },               /* 7segDebug Led */
-        { 62, MPP_GPIO },               /* UA1 as GPIO for 7segDebug Led */
-        { 52, MPP_GPIO },               /* AU1 Group to GPIO */
+	{ 16, MPP_GPIO },
+	{ 17, MPP_TWSI },
+	{ 18, MPP_GPIO },
+	{ 19, MPP_TWSI },
+
+	{ 20, MPP_SPI1 },
+	{ 21, MPP_SPI1 },
+	{ 22, MPP_SPI1 },
+	{ 23, MPP_SPI1 },
+
+	{ 24, MPP_CAM }, /* will configure MPPs 24-39*/
+
+	{ 40, MPP_SDIO0 }, /* will configure MPPs 40-45 */
+
+	{ 46, MPP_SDIO1 }, /* SD0 Group */
+	{ 47, MPP_SDIO1 }, /* SD0 Group */
+	{ 48, MPP_SDIO1 }, /* SD0 Group */
+	{ 49, MPP_SDIO1 }, /* SD0 Group */
+	{ 50, MPP_SDIO1 }, /* SD0 Group */
+	{ 51, MPP_SDIO1 }, /* SD0 Group */
+
+        { 52, MPP_AUDIO1 }, /* AU1 Group */
+        { 53, MPP_AUDIO1 }, /* AU1 Group */
+        { 54, MPP_AUDIO1 }, /* AU1 Group */
+        { 55, MPP_AUDIO1 }, /* AU1 Group */
+        { 56, MPP_AUDIO1 }, /* AU1 Group */
+        { 57, MPP_AUDIO1 }, /* AU1 Group */
+
+	{ 58, MPP_SPI0 }, /* will configure MPPs 58-61 */
+
+        { 62, MPP_GPIO }, /* 7segDebug Led */
+        { 63, MPP_GPIO }, /* 7segDebug Led */
         { -1 },
 };
 
 static struct dove_mpp_mode dove_db_mpp_modes_ltact[] __initdata = {
-        { 27, MPP_GPIO },               /* AU1 Group to GPIO */
+        { 52, MPP_GPIO },               /* AU1 Group to GPIO */
         { -1 },
 };
 
@@ -272,7 +318,6 @@ static void __init dove_db_init(void)
 	/* card interrupt workaround using GPIOs */
 	dove_sd_card_int_wa_setup(0);
 	dove_sd_card_int_wa_setup(1);
-
 
 	if(front_panel) {
 		if(left_tact)
