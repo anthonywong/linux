@@ -31,7 +31,7 @@
 #define ORION_SPI_INT_CAUSE_REG		0x10
 #define ORION_SPI_INT_CAUSE_MASK_REG	0x14
 
-
+#define ORION_SPI_CLK_OPTIONAL_DIV_MASK	(0x3 << 11)
 #define ORION_SPI_IF_8_16_BIT_MODE	(1 << 5)
 #define ORION_SPI_CLK_PRESCALE_MASK	0x1F
 
@@ -105,12 +105,11 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	u32 reg;
 	struct orion_spi *orion_spi;
 
-
-
 	orion_spi = spi_master_get_devdata(spi->master);
 
 	tclk_hz = orion_spi->spi_info->tclk;
 
+	reg = readl(spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
 	/*
 	 * the supported rates are: 4,6,8...30
 	 * round up as we look for equal or less speed
@@ -119,6 +118,24 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	rate = roundup(rate, 2);
 
 	/* check if requested speed is too small */
+#ifndef CONFIG_DOVE_REV_Z0
+	{
+		u32 optional_div;
+		optional_div = (rate + 29)/30;
+		
+		if (optional_div > 16)
+			return -EINVAL;
+		
+		if (optional_div > 0)
+			optional_div--;
+		
+		optional_div = fls(optional_div);
+		reg = reg & ~ORION_SPI_CLK_OPTIONAL_DIV_MASK;
+		reg |= optional_div << 11;
+		rate = rate / (1 << optional_div);
+	}
+#endif
+
 	if (rate > 30)
 		return -EINVAL;
 
@@ -128,7 +145,6 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	/* Convert the rate to SPI clock divisor value.	*/
 	prescale = 0x10 + rate/2;
 
-	reg = readl(spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
 	reg = ((reg & ~ORION_SPI_CLK_PRESCALE_MASK) | prescale);
 	writel(reg, spi_reg(orion_spi, ORION_SPI_IF_CONFIG_REG));
 
