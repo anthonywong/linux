@@ -76,7 +76,10 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	
 	asm volatile("mrc p15, 0, %0, c1, c0, 0": "=r"(value));
 	p += sprintf(p, "Control : 0x%08x\n", value);
-	
+#ifndef CONFIG_DOVE_REV_Z0	
+	p += sprintf(p, "    L2\t\t: %s\n", (value & (1 << 26)) ?
+		     "Enabled" : "Disabled");
+#endif
 	asm volatile("mrc p15, 0, %0, c1, c0, 1": "=r"(value));
 	p += sprintf(p, "Auxiliary Control : 0x%08x\n", value);
 
@@ -118,10 +121,10 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 
 	asm volatile("mrc p15, 1, %0, c15, c1, 0": "=r"(value));
 	p += sprintf(p, "Control Configuration: 0x%08x\n", value);
-
+#ifdef CONFIG_DOVE_REV_Z0
 	p += sprintf(p, "    L2\t\t: %s\n", (value & (1 << 22)) ?
 		     "Enabled" : "Disabled");
-
+#endif
 	p += sprintf(p, "    L2 ECC\t: %s\n", (value & (1 << 23)) ?
 		     "Enabled" : "Disabled");
 
