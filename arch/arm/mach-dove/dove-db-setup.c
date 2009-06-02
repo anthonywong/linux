@@ -315,10 +315,6 @@ static void __init dove_db_init(void)
         /* the (SW1) button is for use as a "wakeup" button */
 	dove_wakeup_button_setup(DOVE_DB_WAKEUP_GPIO);
 
-	/* card interrupt workaround using GPIOs */
-	dove_sd_card_int_wa_setup(0);
-	dove_sd_card_int_wa_setup(1);
-
 	if(front_panel) {
 		if(left_tact)
 			dove_mpp_conf(dove_db_mpp_modes_ltact);
