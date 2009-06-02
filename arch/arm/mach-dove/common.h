@@ -61,6 +61,7 @@ void dove_xor0_init(void);
 void dove_xor1_init(void);
 void dove_ac97_setup(void);
 void dove_cesa_init(void);
+void dove_hwmon_init(void);
 
 /*
  * Basic Dove PM functions
