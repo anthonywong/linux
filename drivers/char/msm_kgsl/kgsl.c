@@ -595,6 +595,8 @@ static long kgsl_ioctl_cmdstream_freememontimestamp(struct kgsl_file_private
 							param.timestamp,
 							param.type);
 
+	kgsl_yamato_runpending(&kgsl_driver.yamato_device);
+
 done:
 	return result;
 }
