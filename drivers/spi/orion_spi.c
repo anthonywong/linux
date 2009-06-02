@@ -35,6 +35,8 @@
 #define ORION_SPI_IF_8_16_BIT_MODE	(1 << 5)
 #define ORION_SPI_CLK_PRESCALE_MASK	0x1F
 
+#define ORION_SPI_CLK_MAX_PRESCALE	30
+
 struct orion_spi {
 	struct work_struct	work;
 	struct completion	 done;
@@ -120,9 +122,10 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 
 	if (orion_spi->spi_info->optional_div)
 	{
-		u32 optional_div;
-		optional_div = (rate + 29)/30;
-		
+		u32 optional_div = (rate + (ORION_SPI_CLK_MAX_PRESCALE - 1))\
+			/ORION_SPI_CLK_MAX_PRESCALE;
+
+		/* check if requested speed is too small */
 		if (optional_div > 16)
 			return -EINVAL;
 		
@@ -132,11 +135,14 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 		optional_div = fls(optional_div);
 		reg = reg & ~ORION_SPI_CLK_OPTIONAL_DIV_MASK;
 		reg |= optional_div << 11;
-		rate = rate / (1 << optional_div);
-	}
-#endif
 
-	if (rate > 30)
+		/* recalculate rate with optional div*/ 
+		tclk_hz =  DIV_ROUND_UP(tclk_hz, (1 << optional_div));
+		rate = DIV_ROUND_UP(tclk_hz, speed);
+		rate = roundup(rate, 2);
+	}
+	/* check if requested speed is too small */
+	if (rate > ORION_SPI_CLK_MAX_PRESCALE)
 		return -EINVAL;
 
 	if (rate < 4)
