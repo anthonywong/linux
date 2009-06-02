@@ -1008,6 +1008,17 @@ config SENSORS_APPLESMC
 	  Say Y here if you have an applicable laptop and want to experience
 	  the awesome power of applesmc.
 
+config SENSORS_DOVE
+	tristate "Dove SoC Thermal Sensor"
+	depends on ARCH_DOVE
+	default y
+	help
+	  This driver provides support for the Marvell's Dove SoC thermal
+	  Controller, which provides onchip temperature sensors.
+
+config HWMON_DEBUG_CHIP
+	bool "Hardware Monitoring Chip debugging messages"
+
 if ACPI
 
 comment "ACPI drivers"
