@@ -906,18 +906,27 @@ static struct platform_device dove_i2c_exp_port2 = {
 void __init dove_i2c_init(void)
 {
 	platform_device_register(&dove_i2c);
+}
+
+void __init dove_i2c_exp_init(int nr)
+{
 #ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
-	dove_i2c_exp_port0_data.hw_adapter = &dove_i2c;
-	platform_device_register(&dove_i2c_exp_port0);
+	if (nr == 0) {
+		dove_i2c_exp_port0_data.hw_adapter = &dove_i2c;
+		platform_device_register(&dove_i2c_exp_port0);
+	}
 #ifndef CONFIG_DOVE_REV_Z0
-	dove_i2c_exp_port1_data.hw_adapter = &dove_i2c;
-	platform_device_register(&dove_i2c_exp_port1);
-	dove_i2c_exp_port2_data.hw_adapter = &dove_i2c;
-	platform_device_register(&dove_i2c_exp_port2);
+	if (nr == 1) {
+		dove_i2c_exp_port1_data.hw_adapter = &dove_i2c;
+		platform_device_register(&dove_i2c_exp_port1);
+	}
+	if (nr == 2) {
+		dove_i2c_exp_port2_data.hw_adapter = &dove_i2c;
+		platform_device_register(&dove_i2c_exp_port2);
+	}
 #endif
 #endif
 }
-
 /*****************************************************************************
  * Camera
  ****************************************************************************/
