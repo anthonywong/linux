@@ -356,6 +356,8 @@ static void __init dove_db_init(void)
 	dove_uart0_init();
 	dove_uart1_init();
 	dove_i2c_init();
+	dove_i2c_exp_init(0);
+	dove_i2c_exp_init(1);
 	dove_sdhci_cam_mbus_init();
 	dove_sdio0_init();
 	dove_sdio1_init();
