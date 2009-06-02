@@ -7,6 +7,7 @@ obj-$(CONFIG_MACH_DOVE_DB_Z0)	+= dove-db-z0-setup.o dove-front-panel-common.o
 obj-$(CONFIG_I2C_MV64XXX_PORT_EXPANDER)	+= twsi.o
 obj-$(CONFIG_DOVE_PM_SUPPORT)	+= pm.o
 obj-$(CONFIG_CPU_FREQ_DOVE)	+= cpufreq.o
+obj-$(CONFIG_SENSORS_DOVE)	+= hwmon.o
 obj-$(CONFIG_FB_DOVE_CLCD)	+= clcd.o
 obj-$(CONFIG_FB_DOVE_CLCD1)	+= clcd.o
 obj-$(CONFIG_MV_INCLUDE_MPP_SYSFS)	+= avng_mpp.o
