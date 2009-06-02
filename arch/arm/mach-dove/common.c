@@ -747,6 +747,9 @@ void __init dove_uart3_init(void)
  ****************************************************************************/
 static struct orion_spi_info dove_spi0_data = {
 	.tclk		= 0,
+#ifndef CONFIG_DOVE_REV_Z0
+	.optional_div	= 1,
+#endif
 };
 
 static struct resource dove_spi0_resources[] = {
@@ -782,6 +785,10 @@ void __init dove_spi0_init(int use_interrupt)
  ****************************************************************************/
 static struct orion_spi_info dove_spi1_data = {
 	.tclk		= 0,
+#ifndef CONFIG_DOVE_REV_Z0
+	.optional_div	= 1,
+#endif
+
 };
 
 static struct resource dove_spi1_resources[] = {
