@@ -621,7 +621,7 @@ mv64xxx_i2c_exp_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	down(&drv_data->exp_sem);
 	drv_data->adapter = adap;
-	drv_data->select_exp_port(adap->id);
+	drv_data->select_exp_port(adap->nr);
 	for (i=0; i<num; i++)
 		if ((rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[i])) < 0) {
 			up(&drv_data->exp_sem);
@@ -644,7 +644,7 @@ mv64xxx_i2c_exp_probe(struct platform_device *pd)
 	struct mv64xxx_i2c_exp_pdata	*pdata = pd->dev.platform_data;
 	int	rc = 0;
 
-	if ((pd->id != 0) || !pdata)
+	if (!pdata)
 		return -ENODEV;
 
 	exp_drv_data = devm_kzalloc(&pd->dev, sizeof(struct mv64xxx_i2c_exp_data),
@@ -668,7 +668,6 @@ mv64xxx_i2c_exp_probe(struct platform_device *pd)
 		dev_err(&pd->dev,
 			"mv64xxx expander: Can't add i2c adapter, rc: %d\n", -rc);
 	}
-
 	return rc;
 }
 
