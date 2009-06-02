@@ -246,6 +246,7 @@ static void __init dove_rd_init(void)
 	/* dove_uart2_init(); not in use (?) */
 	/* dove_uart3_init(); not in use (?) */
 	dove_i2c_init();
+	dove_i2c_exp_init(0);
 	dove_sdhci_cam_mbus_init();
 	dove_sdio0_init();
 	dove_sdio1_init();
