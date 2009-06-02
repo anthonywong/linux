@@ -117,8 +117,8 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	rate = DIV_ROUND_UP(tclk_hz, speed);
 	rate = roundup(rate, 2);
 
-	/* check if requested speed is too small */
-#ifndef CONFIG_DOVE_REV_Z0
+
+	if (orion_spi->spi_info->optional_div)
 	{
 		u32 optional_div;
 		optional_div = (rate + 29)/30;
@@ -532,7 +532,13 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 
 
 	spi->max_speed = DIV_ROUND_UP(spi_info->tclk, 4);
-	spi->min_speed = DIV_ROUND_UP(spi_info->tclk, 30);
+	if (spi_info->optional_div)
+		/* if the controller have optional division up to 16 after 
+		 * the pre-scaler 
+		 */
+		spi->min_speed = DIV_ROUND_UP(spi_info->tclk, ORION_SPI_CLK_MAX_PRESCALE * 16);
+	else
+		spi->min_speed = DIV_ROUND_UP(spi_info->tclk, ORION_SPI_CLK_MAX_PRESCALE);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (r == NULL) {
