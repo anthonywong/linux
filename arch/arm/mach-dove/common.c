@@ -224,7 +224,9 @@ static struct platform_device dove_sdio0 = {
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+#ifdef CONFIG_DOVE_REV_Z0
 		.platform_data		= &sdio0_data,
+#endif
 	},
 	.resource	= dove_sdio0_resources,
 	.num_resources	= ARRAY_SIZE(dove_sdio0_resources),
@@ -261,7 +263,9 @@ static struct platform_device dove_sdio1 = {
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
+#ifdef CONFIG_DOVE_REV_Z0
 		.platform_data		= &sdio1_data,
+#endif
 	},
 	.resource	= dove_sdio1_resources,
 	.num_resources	= ARRAY_SIZE(dove_sdio1_resources),
