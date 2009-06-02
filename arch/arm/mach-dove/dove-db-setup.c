@@ -366,6 +366,7 @@ static void __init dove_db_init(void)
 	dove_vpro_init();
 	dove_gpu_init();
 	dove_cesa_init();
+	dove_hwmon_init();
 
 	if(front_panel) {
 		dove_lcd_spi_init();
