@@ -220,7 +220,7 @@ printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
 	}
 
 	id = VPRO_DMA_BUFFER_MAP;
-	size = CONFIG_UIO_DOVE_VPRO_MEM_SIZE;
+	size = CONFIG_UIO_DOVE_VPRO_MEM_SIZE << 20;
 	start = res->start;
 	vd->uio_info.mem[id].internal_addr =
 		(void __iomem *)ioremap_nocache(start, size);
