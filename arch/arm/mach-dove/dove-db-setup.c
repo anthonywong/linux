@@ -25,7 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/orion_spi.h>
 #include <linux/spi/flash.h>
-#include <linux/spi/ads7846.h>
+#include <linux/spi/tsc200x.h>
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
 #include <mach/dove_bl.h>
@@ -36,10 +36,10 @@
 #include <mach/dove.h>
 #include <asm/hardware/pxa-dma.h>
 #include <mach/dove_nand.h>
+#include <plat/cafe-orion.h>
 #include "common.h"
 #include "clock.h"
 #include "mpp.h"
-#include "dove-front-panel-common.h"
 
 #define DOVE_DB_WAKEUP_GPIO	(3)
 static unsigned int front_panel = 0;
@@ -168,6 +168,54 @@ void __init dove_db_clcd_init(void) {
 			   &dove_db_backlight_data);
 #endif /* CONFIG_FB_DOVE */
 }
+
+#define DOVE_DB_TS_PEN_GPIO	(63)
+#define DOVE_DB_TS_PEN_IRQ	(64 + DOVE_DB_TS_PEN_GPIO)
+
+static struct tsc2005_platform_data ts_info = {
+	.model			= 2005,
+	.x_plate_ohms		= 450,
+	.y_plate_ohms		= 250,
+};
+
+struct spi_board_info __initdata dove_db_spi_devs[] = {
+	{
+		.modalias  		= "tsc2005",
+		.irq			= DOVE_DB_TS_PEN_IRQ,
+		.max_speed_hz		= 10000000, //10MHz
+		.bus_num		= 1,
+		.chip_select		= 0,
+		.mode		        = SPI_MODE_0,      
+		.platform_data          = &ts_info,
+	},
+};
+
+int __init dove_db_ts_gpio_setup(void)
+{
+	//IRQ
+	set_irq_chip(DOVE_DB_TS_PEN_IRQ, &orion_gpio_irq_chip);
+	set_irq_handler(DOVE_DB_TS_PEN_IRQ, handle_level_irq);
+	set_irq_type(DOVE_DB_TS_PEN_IRQ, IRQ_TYPE_LEVEL_LOW);
+
+	orion_gpio_set_valid(DOVE_DB_TS_PEN_GPIO, 1);
+	if (gpio_request(DOVE_DB_TS_PEN_GPIO, "DOVE_TS_PEN_IRQ") != 0)
+		pr_err("Dove: failed to setup TS IRQ GPIO\n");
+	if (gpio_direction_input(DOVE_DB_TS_PEN_GPIO) != 0) {
+		printk(KERN_ERR "%s failed "
+		       "to set output pin %d\n", __func__,
+		       DOVE_DB_TS_PEN_GPIO);
+		gpio_free(DOVE_DB_TS_PEN_GPIO);
+		return -1;
+	}
+	return 0;
+}
+
+static struct cafe_cam_platform_data dove_cafe_cam_data = {
+	.power_down 	= 1, //CTL0 connected to the sensor power down
+	.reset		= 2, //CTL1 connected to the sensor reset
+	.numbered_i2c_bus = 1,
+	.i2c_bus_id	= 3,
+};
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram);
 
@@ -439,7 +487,7 @@ static void __init dove_db_init(void)
 			dove_mpp_conf(dove_db_mpp_modes_ltact);
 		/* JPR6 shoud be on 1-2 for touchscreen irq line */
 
-		if (dove_fp_ts_gpio_setup() != 0)
+		if (dove_db_ts_gpio_setup() != 0)
 			return;
 	}
 
@@ -494,7 +542,7 @@ static void __init dove_db_init(void)
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	spi_register_board_info(dove_db_spi_flash_info,
 				ARRAY_SIZE(dove_db_spi_flash_info));
-	spi_register_board_info(dove_fp_spi_devs, dove_fp_spi_devs_num());
+	spi_register_board_info(dove_db_spi_devs, ARRAY_SIZE(dove_db_spi_devs));
 }
 
 MACHINE_START(DOVE_DB, "Marvell DB-MV88F6781-BP Development Board")
