@@ -73,7 +73,7 @@ static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 
 	/* Set LCD_CLK_DIV_SEL in LCD TWSI and CPU Configuration 1	*/
 	reg = readl(DOVE_GLOBAL_CONFIG_1);
-	reg |= (1 << 9);
+	reg &= ~(1 << 9);
 	writel(reg, DOVE_GLOBAL_CONFIG_1);
 
 
@@ -115,19 +115,26 @@ static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 	return;
 }
 
+static inline u64 calc_diff(u64 a, u64 b)
+{
+	if (a > b)
+		return a - b;
+	else
+		return b - a;
+}
 
-static void calc_best_clock_div(u64 tar_freq, u32 *axi_div,
+static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 		u32 *lcd_div, u32 *is_ext_rem)
 {
-	unsigned long long req_div;
-	unsigned int best_rem = 0xFFFFFFFF;
+	u64 req_div;
+	u64 best_rem = 0xFFFFFFFFFFFFFFFFll;
 	unsigned int best_axi_div = 0;
 	unsigned int best_lcd_div = 0;
-	unsigned long long tmp_lcd_div;
+	u64 tmp_lcd_div;
 	int ext_rem = 0;
-	unsigned int i, borders;
-	unsigned int rem;
-	unsigned long long temp;
+	u32 i, borders;
+	u64 rem;
+	u64 temp;
 
 	/* Calculate required dividor */
 	req_div = AXI_BASE_CLK;
@@ -135,13 +142,17 @@ static void calc_best_clock_div(u64 tar_freq, u32 *axi_div,
 
 	/* Look for the whole division with the smallest remainder */
 	for (i = 5; i < 64; i++) {
-		temp = tar_freq * (unsigned long long)i;
+		temp = (u64)tar_freq * (u64)i;
 		borders = req_div;
 		do_div(borders, i);
+		/* The LCD divsion must be smaller than 64K */
 		if (borders < SZ_64K) {
 			tmp_lcd_div = AXI_BASE_CLK;
-			do_div(tmp_lcd_div, temp);
-			rem = AXI_BASE_CLK - (temp * tmp_lcd_div);
+			/* We cannot do 64-bit / 64-bit operations,
+			** thus... */
+			do_div(tmp_lcd_div, i);
+			do_div(tmp_lcd_div, tar_freq);
+			rem = calc_diff(AXI_BASE_CLK, (temp * tmp_lcd_div));
 			if (rem < best_rem) {
 				best_rem = rem;
 				best_axi_div = i;
@@ -151,7 +162,7 @@ static void calc_best_clock_div(u64 tar_freq, u32 *axi_div,
 				break;
 			/* Check the next LCD divider */
 			tmp_lcd_div++;
-			rem = (temp * tmp_lcd_div) - AXI_BASE_CLK;
+			rem = calc_diff((temp * tmp_lcd_div), AXI_BASE_CLK);
 			if (rem < best_rem) {
 				best_rem = rem;
 				best_axi_div = i;
@@ -163,36 +174,41 @@ static void calc_best_clock_div(u64 tar_freq, u32 *axi_div,
 	}
 
 	/* Look for the extended division with the smallest remainder */
-	req_div = AXI_BASE_CLK * 10;
-	do_div(req_div, tar_freq);
 	if (best_rem != 0) {
-		for (i = 125; i <= 315; i += 10) {
-			temp = tar_freq * i;
+		req_div = AXI_BASE_CLK * 10;
+		do_div(req_div, tar_freq);
+		/* Half div can be between 12.5 & 31.5 */
+		for (i = 55; i <= 315; i += 10) {
+			temp = (u64)tar_freq * (u64)i;
 			borders = req_div;
 			do_div(borders, i);
 			if (borders < SZ_64K) {
 				tmp_lcd_div = AXI_BASE_CLK * 10;
-				do_div(tmp_lcd_div, temp);
-				rem = (AXI_BASE_CLK * 10 -
+				/* We cannot do 64-bit / 64-bit operations,
+				** thus... */
+				do_div(tmp_lcd_div, i);
+				do_div(tmp_lcd_div, tar_freq);
+
+				rem = calc_diff(AXI_BASE_CLK * 10,
 						(tmp_lcd_div * temp));
 				do_div(rem, 10);
 				if (rem < best_rem) {
 					ext_rem = 1;
 					best_rem = rem;
-					best_axi_div = i;
+					best_axi_div = i / 10;
 					best_lcd_div = tmp_lcd_div;
 				}
 				if (best_rem == 0)
 					break;
 				/* Check next LCD divider */
 				tmp_lcd_div++;
-				rem = ((tmp_lcd_div * temp) -
+				rem = calc_diff((tmp_lcd_div * temp),
 						AXI_BASE_CLK * 10);
 				do_div(rem, 10);
 				if (rem < best_rem) {
 					ext_rem = 1;
 					best_rem = rem;
-					best_axi_div = i;
+					best_axi_div = i / 10;
 					best_lcd_div = tmp_lcd_div;
 				}
 				if (best_rem == 0)
@@ -272,6 +288,9 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 #else
 	calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
 	divider_int = lcd_div;
+
+	printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
+			needed_pixclk, axi_div, lcd_div, is_ext);
 
 	set_external_lcd_clock(axi_div, is_ext);
 #endif /* CONFIG_DOVE_REV_Z0 */
