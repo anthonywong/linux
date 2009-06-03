@@ -207,38 +207,3 @@ void __init dove_fp_clcd_init(void) {
 			   &fp_backlight_data);
 #endif /* CONFIG_FB_DOVE */
 }
-
-#ifdef  CONFIG_PM
-static irqreturn_t
-dove_wake_interrupt(int irq, void *ignored)
-{
-     return IRQ_HANDLED;
-}
-#endif
-
-void __init dove_wakeup_button_setup(int gpio)
-{
-	orion_gpio_set_valid(gpio, 1);
-	if (gpio_request(gpio, "wakeup") == 0) {
-		int ret = 0;
-		
-		gpio_direction_input(gpio);
-		set_irq_type(gpio_to_irq(gpio), IRQ_TYPE_EDGE_RISING);
-#ifdef  CONFIG_PM
-		/* share the IRQ in case someone wants to use the
-		 * button for more than wakeup from system sleep.
-		 */
-		ret = request_irq(gpio_to_irq(gpio),
-				  &dove_wake_interrupt,
-				  IRQF_SHARED, "standby_wakeup",
-				  &dove_wake_interrupt);
-		if (ret != 0) {
-			gpio_free(gpio);
-			printk(KERN_ERR "dove: no wakeup irq, %d?\n",
-			       ret);
-		} else
-		     enable_irq_wake(gpio_to_irq(gpio));
-#endif
-        } else
-		printk(KERN_ERR "dove: failed to config wakeup button\n");
-}
