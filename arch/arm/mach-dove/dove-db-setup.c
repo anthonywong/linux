@@ -460,7 +460,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 	{ 58, MPP_SPI0 }, /* will configure MPPs 58-61 */
 
         { 62, MPP_GPIO }, /* 7segDebug Led */
-        { 63, MPP_GPIO }, /* 7segDebug Led */
+        { 63, MPP_GPIO }, /* Touch screen irq */
         { -1 },
 };
 
@@ -532,7 +532,6 @@ static void __init dove_db_init(void)
 	dove_hwmon_init();
 
 	if(front_panel) {
-		dove_lcd_spi_init();
 		dove_cam_init(&dove_cafe_cam_data);
 	}
 	if(front_panel && left_tact)
