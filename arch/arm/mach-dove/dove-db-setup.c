@@ -27,6 +27,8 @@
 #include <linux/spi/flash.h>
 #include <linux/spi/ads7846.h>
 #include <video/dovefb.h>
+#include <video/dovefbreg.h>
+#include <mach/dove_bl.h>
 #include <plat/i2s-orion.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
@@ -48,6 +50,124 @@ static unsigned int left_tact = 0;
 module_param(left_tact, uint, 0);
 MODULE_PARM_DESC(left_tact, "Use left tact as mouse. this will disable I2S"
 		 "JPR 3 should be removed, JPR 6 on 2-3");
+
+/*
+ * LCD input clock.
+ */
+#define LCD_SCLK	(CONFIG_FB_DOVE_CLCD_SCLK_VALUE*1000*1000)
+
+static struct dovefb_mach_info dove_db_lcd0_dmi = {
+	.id_gfx			= "GFX Layer 0",
+	.id_ovly		= "Video Layer 0",
+	.sclk_clock		= LCD_SCLK,
+//	.num_modes		= ARRAY_SIZE(video_modes),
+//	.modes			= video_modes,
+	.pix_fmt		= PIX_FMT_RGB888PACK,
+#if defined(CONFIG_FB_DOVE_CLCD_DCONB_BYPASS0)
+	.io_pin_allocation	= IOPAD_DUMB24,
+	.panel_rgb_type		= DUMB24_RGB888_0,
+#else
+	.io_pin_allocation	= IOPAD_DUMB18GPIO,
+	.panel_rgb_type		= DUMB18_RGB666_0,
+#endif
+	.panel_rgb_reverse_lanes= 0,
+	.gpio_output_data	= 3,
+	.gpio_output_mask	= 3,
+	.ddc_i2c_adapter	= "i2c-0",
+	.invert_composite_blank	= 0,
+	.invert_pix_val_ena	= 0,
+	.invert_pixclock	= 0,
+	.invert_vsync		= 0,
+	.invert_hsync		= 0,
+	.panel_rbswap		= 1,
+	.active			= 1,
+};
+
+static struct dovefb_mach_info dove_db_lcd0_vid_dmi = {
+	.id_ovly		= "Video Layer 0",
+	.sclk_clock		= LCD_SCLK,
+//	.num_modes		= ARRAY_SIZE(video_modes),
+//	.modes			= video_modes,
+	.pix_fmt		= PIX_FMT_RGB888PACK,
+	.io_pin_allocation	= IOPAD_DUMB18GPIO,
+	.panel_rgb_type		= DUMB18_RGB666_0,
+	.panel_rgb_reverse_lanes= 0,
+	.gpio_output_data	= 3,
+	.gpio_output_mask	= 3,
+	.invert_composite_blank	= 0,
+	.invert_pix_val_ena	= 0,
+	.invert_pixclock	= 0,
+	.invert_vsync		= 0,
+	.invert_hsync		= 0,
+	.panel_rbswap		= 1,
+	.active			= 0,
+	.enable_lcd0		= 0,
+};
+
+static struct dovefb_mach_info dove_db_lcd1_dmi = {
+	.id_gfx			= "GFX Layer 1",
+	.id_ovly		= "Video Layer 1",
+	.sclk_clock		= LCD_SCLK,
+//	.num_modes		= ARRAY_SIZE(video_modes),
+//	.modes			= video_modes,
+	.pix_fmt		= PIX_FMT_RGB565,
+	.io_pin_allocation	= IOPAD_DUMB24,
+	.panel_rgb_type		= DUMB24_RGB888_0,
+	.panel_rgb_reverse_lanes= 0,
+	.gpio_output_data	= 0,
+	.gpio_output_mask	= 0,
+	.ddc_i2c_adapter	= "i2c-0",
+	.invert_composite_blank	= 0,
+	.invert_pix_val_ena	= 0,
+	.invert_pixclock	= 0,
+	.invert_vsync		= 0,
+	.invert_hsync		= 0,
+	.panel_rbswap		= 1,
+	.active			= 1,
+#ifndef CONFIG_FB_DOVE_CLCD
+	.enable_lcd0		= 1,
+#else
+	.enable_lcd0		= 0,
+#endif
+};
+
+static struct dovefb_mach_info dove_db_lcd1_vid_dmi = {
+	.id_ovly		= "Video Layer 1",
+	.sclk_clock		= LCD_SCLK,
+//	.num_modes		= ARRAY_SIZE(video_modes),
+//	.modes			= video_modes,
+	.pix_fmt		= PIX_FMT_RGB888PACK,
+	.io_pin_allocation	= IOPAD_DUMB24,
+	.panel_rgb_type		= DUMB24_RGB888_0,
+	.panel_rgb_reverse_lanes= 0,
+	.gpio_output_data	= 0,
+	.gpio_output_mask	= 0,
+	.ddc_i2c_adapter	= "i2c-0",
+	.invert_composite_blank	= 0,
+	.invert_pix_val_ena	= 0,
+	.invert_pixclock	= 0,
+	.invert_vsync		= 0,
+	.invert_hsync		= 0,
+	.panel_rbswap		= 1,
+	.active			= 0,
+};
+
+/*****************************************************************************
+ * BACKLIGHT
+ ****************************************************************************/
+static struct dovebl_platform_data dove_db_backlight_data = {
+	.default_intensity = 0xa,
+	.max_brightness = 0xe,
+	.gpio_pm_control = 1,
+};
+
+void __init dove_db_clcd_init(void) {
+#ifdef CONFIG_FB_DOVE
+	clcd_platform_init(&dove_db_lcd0_dmi, &dove_db_lcd0_vid_dmi,
+			   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
+			   &dove_db_backlight_data);
+#endif /* CONFIG_FB_DOVE */
+}
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram);
 
@@ -358,7 +478,7 @@ static void __init dove_db_init(void)
 	dove_sdio0_init();
 	dove_sdio1_init();
 	dove_db_nfc_init();
-	dove_fp_clcd_init();
+	dove_db_clcd_init();
 	dove_vpro_init();
 	dove_gpu_init();
 	dove_cesa_init();
