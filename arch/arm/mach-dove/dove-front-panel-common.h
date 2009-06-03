@@ -21,5 +21,4 @@ int __init dove_fp_ts_gpio_setup(void);
 
 void __init dove_fp_clcd_init(void);
 
-void __init dove_wakeup_button_setup(int gpio);
 #endif

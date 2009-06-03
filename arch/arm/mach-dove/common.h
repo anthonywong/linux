@@ -54,6 +54,7 @@ void dove_tact_init(struct gpio_mouse_platform_data *tact_data);
 void dove_lcd_spi_init(void);
 void dove_vpro_init(void);
 void dove_gpu_init(void);
+void dove_wakeup_button_setup(int gpio);
 void dove_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 			  char **from, struct meminfo *meminfo);
 void dove_sd_card_int_wa_setup(int port);
