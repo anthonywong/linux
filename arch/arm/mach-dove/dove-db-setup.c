@@ -228,7 +228,7 @@ static struct spi_board_info __initdata dove_db_spi_flash_info[] = {
  ****************************************************************************/
 
 static struct timer_list dove_db_timer;
-static int dove_db_7seg_gpios[] = {14,15, 62, 63};
+static int dove_db_7seg_gpios[] = {14, 15, 62};
 
 static void dove_db_7seg_event(unsigned long data)
 {
@@ -237,7 +237,6 @@ static void dove_db_7seg_event(unsigned long data)
      gpio_set_value(dove_db_7seg_gpios[0], count & 1);
      gpio_set_value(dove_db_7seg_gpios[1], count & (1 << 1));
      gpio_set_value(dove_db_7seg_gpios[2], count & (1 << 2));
-     gpio_set_value(dove_db_7seg_gpios[3], count & (1 << 3));
 
      count = (count + 1) & 7;
      mod_timer(&dove_db_timer, jiffies + 1 * HZ);
@@ -248,7 +247,7 @@ static int __init dove_db_7seg_init(void)
 	if (machine_is_dove_db()) {
 		int i;
 		
-		for(i = 0; i < 4; i++){
+		for(i = 0; i < 3; i++){
 			int pin = dove_db_7seg_gpios[i];
 
 			if (gpio_request(pin, "7seg LED") == 0) {
