@@ -20,6 +20,7 @@
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/i2c.h>
+#include <linux/i2c/pca953x.h>
 #include <linux/pci.h>
 #include <linux/gpio_mouse.h>
 #include <linux/spi/spi.h>
@@ -333,6 +334,18 @@ static int __init dove_db_pci_init(void)
 
 subsys_initcall(dove_db_pci_init);
 
+/* PCA9555 */
+static struct pca953x_platform_data dove_db_gpio_ext_pdata = {
+	.gpio_base = 64,
+};
+
+static struct i2c_board_info dove_db_gpio_ext_info[] = {
+	[0] = {
+		I2C_BOARD_INFO("pca9555", 0x27),
+		.platform_data = &dove_db_gpio_ext_pdata,
+	},
+};
+
 /*****************************************************************************
  * A2D on I2C bus
  ****************************************************************************/
@@ -539,6 +552,7 @@ static void __init dove_db_init(void)
 	else
 		dove_i2s_init(1, &i2s1_data);
 	i2c_register_board_info(0, &i2c_a2d, 1);
+	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
 	spi_register_board_info(dove_db_spi_flash_info,
 				ARRAY_SIZE(dove_db_spi_flash_info));
 	spi_register_board_info(dove_db_spi_devs, ARRAY_SIZE(dove_db_spi_devs));
