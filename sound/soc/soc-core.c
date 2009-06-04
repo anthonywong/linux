@@ -1107,19 +1107,21 @@ static int soc_new_pcm(struct snd_soc_device *socdev,
 
 	dai_link->pcm = pcm;
 	pcm->private_data = rtd;
-	soc_pcm_ops.mmap = platform->pcm_ops->mmap;
-	soc_pcm_ops.pointer = platform->pcm_ops->pointer;
-	soc_pcm_ops.ioctl = platform->pcm_ops->ioctl;
-	soc_pcm_ops.copy = platform->pcm_ops->copy;
-	soc_pcm_ops.silence = platform->pcm_ops->silence;
-	soc_pcm_ops.ack = platform->pcm_ops->ack;
-	soc_pcm_ops.page = platform->pcm_ops->page;
+
+	memcpy(&rtd->pcm_ops, &soc_pcm_ops, sizeof(struct snd_pcm_ops));
+	rtd->pcm_ops.mmap = platform->pcm_ops->mmap;
+	rtd->pcm_ops.pointer = platform->pcm_ops->pointer;
+	rtd->pcm_ops.ioctl = platform->pcm_ops->ioctl;
+	rtd->pcm_ops.copy = platform->pcm_ops->copy;
+	rtd->pcm_ops.silence = platform->pcm_ops->silence;
+	rtd->pcm_ops.ack = platform->pcm_ops->ack;
+	rtd->pcm_ops.page = platform->pcm_ops->page;
 
 	if (playback)
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &soc_pcm_ops);
+		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &rtd->pcm_ops);
 
 	if (capture)
-		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &soc_pcm_ops);
+		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &rtd->pcm_ops);
 
 	ret = platform->pcm_new(codec->card, codec_dai, pcm);
 	if (ret < 0) {
