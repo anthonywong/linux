@@ -339,7 +339,7 @@ struct dovefb_mach_info {
 	/*
 	 * I2C bus to read DDC data through.
 	 */
-	u8		*ddc_i2c_adapter;
+	int		ddc_i2c_adapter;
 
 	/*
 	 * Dumb panel -- assignment of R/G/B component info to the 24
