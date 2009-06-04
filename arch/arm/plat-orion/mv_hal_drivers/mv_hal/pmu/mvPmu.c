@@ -73,7 +73,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
 
-#ifdef CONFIG_DOVE_REV_Z0
 /* PMU uController code fixes <add,val> couples */
 MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
 		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {252,0x44}, {253,0x00}, {254,0xF3}, \
@@ -84,7 +83,6 @@ MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {
             	{414, 0x80}, {415, 0xff}, {416, 0x04}, {417, 0x20}, {418, 0x59}, {419, 0x08}, {420, 0x94}, \
             	{421 ,0x41}, {422 ,0x70}, {423, 0x7D}, {424, 0x94}, {425, 0x40}, {426, 0x94}, {427, 0x42}, \
 		{428, 0xFF}};
-#endif
 
 /* Save L2 ratio at system power up */
 static MV_U32 l2TurboRatio;
@@ -115,11 +113,14 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x2}, 	/* DDR:PLL 1:2 */
 #endif
 
 /* Timing delays for CPU and Core powers */
-#define PMU_STBY_CPU_PWR_DLY	0x170000		/* TCLK clock cycles - ~9.04ms */
-//#define PMU_STBY_CPU_PWR_DLY	0x180000		/* TCLK clock cycles - ~9.4ms */
-//#define PMU_STBY_CPU_PWR_DLY	0x1C0000		/* TCLK clock cycles - ~11.01ms */
+#ifdef CONFIG_DOVE_REV_Z0
+ #define PMU_STBY_CPU_PWR_DLY	0x1C0000		/* TCLK clock cycles - ~11.01ms */
+#else
+ #define PMU_STBY_CPU_PWR_DLY	0x208D			/* TCLK clock cycles - ~50 us */
+#endif
 #define PMU_SLP_CPU_PWR_DLY	0x400			/* RTC 32KHz clock cycles */
 #define PMU_SLP_CORE_PWR_DLY	0x10			/* RTC 32KHz clock cycles */
+#define PMU_DVS_POLL_DLY	10000			/* Poll DVS done count */
 
 
 #define DOVE_PSET_HI		0x0
@@ -219,7 +220,6 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	/* Configure the DVS delay */
 	MV_REG_WRITE(PMU_DVS_DELAY_REG, pmu->dvsDelay);
 
-#ifdef CONFIG_DOVE_REV_Z0
 	/* Initialize the uCode PCs of the different PMU operations */
 	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_PRE_PC_MASK) | PMU_DFS_PRE_PC_VAL));
 	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_CPU_PC_MASK) | PMU_DFS_CPU_PC_VAL));
@@ -242,7 +242,6 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 		reg |= (uCfix[i][1] << PMU_PROGRAM_OFFS(uCfix[i][0]));
 		MV_REG_WRITE(PMU_PROGRAM_REG(uCfix[i][0]), reg);
 	}
-#endif
 
 	/* Save L2 ratio at reset - Needed in DFS scale up */
 	reg = MV_REG_READ(PMU_CLK_DIVIDER_0_REG);
@@ -799,9 +798,7 @@ MV_STATUS mvPmuSysFreqScale (MV_U32 ddrFreq, MV_U32 l2Freq, MV_U32 cpuFreq)
 MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 {
 	MV_U32 reg;
-#ifdef CONFIG_DOVE_REV_Z0
 	MV_U32 i;
-#endif
 
 	/* Clean the PMU cause register */
 	MV_REG_WRITE(PMU_INT_CAUSE_REG, 0x0);
@@ -815,7 +812,7 @@ MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 	reg |= PMU_DVS_CTRL_DVS_EN_MASK;
 	MV_REG_WRITE(PMU_CPU_DVS_CTRL_REG, reg);
 
-#ifdef CONFIG_DOVE_REV_Z0	
+#ifdef CONFIG_DOVE_REV_Z0
 	/* Workarround for the PMU race with CPU */
 	udelay(2);
 
@@ -823,7 +820,6 @@ MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 	MV_REG_WRITE(PMU_PC_FORCE_CTRL_REG, ((0x0 << PMU_PC_FORCE_VAL_OFFS) | PMU_PC_FORCE_CMD_MASK));
 	MV_REG_WRITE(PMU_PC_FORCE_CTRL_REG, 0x0);
 
-	//MV_REG_WRITE(0xD8028, 0x2);	
 	reg = MV_REG_READ(PMU_INT_MASK_REG);
 	MV_REG_WRITE(PMU_INT_MASK_REG, PMU_INT_DVS_DONE_MASK);
 	for (i=0; i<1000000; i++)
@@ -838,10 +834,20 @@ MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 
 	return MV_TIMEOUT;
 #else
-	/* Block waiting for DVS to be completed */
-	while (MV_REG_READ(PMU_CPU_DVS_CTRL_REG) & PMU_DVS_CTRL_DVS_EN_MASK);
+	/* Disable all PMU interrupts and enable DVS done */
+	reg = MV_REG_READ(PMU_INT_MASK_REG);
+	MV_REG_WRITE(PMU_INT_MASK_REG, PMU_INT_DVS_DONE_MASK);
+	for (i=0; i<PMU_DVS_POLL_DLY; i++)
+		if ((MV_REG_READ(0x20210) & 0x2) == 0x0)
+			break;
+	
+	/* return the original PMU MASK */
+	MV_REG_WRITE(PMU_INT_MASK_REG, reg);
 
-	return MV_OK;	
+	if (i == PMU_DVS_POLL_DLY)	
+		return MV_TIMEOUT;
+
+	return MV_OK;
 #endif
 }
 

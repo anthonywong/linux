@@ -76,8 +76,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static MV_VOID * _mvPmuSramDdrParamPtr;
 
 /* Sram Markers */
-static unsigned long mvPmuSramBase;
-static unsigned long mvPmuSramSize;
+static unsigned long mvPmuSramOffs = 0;
+static unsigned long mvPmuSramSize = PMU_SCRATCHPAD_SIZE;
 
 /* SRAM functions pointer */
 static MV_VOID (*_mvPmuSramDdrReconfigPtr)(MV_U32 cplPtr, MV_U32 cplCnt);
@@ -88,6 +88,7 @@ static MV_VOID (*_mvPmuSramStandbyExitPtr)(MV_VOID);
 
 /* Macros */
 #define PmuSpVirt2Phys(addr)	(((MV_U32)addr - DOVE_SCRATCHPAD_VIRT_BASE) + DOVE_SCRATCHPAD_PHYS_BASE)
+#define dbg_print(...)		
 
 /*******************************************************************************
 * mvPmuSramRelocate - Relocate a function into the PMU SRAM
@@ -111,19 +112,19 @@ static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
 	MV_U32 i;
 
 	if (size & 0x3) {
-		printk(KERN_ERR "Function relocated with non-alligned size\n");
+		dbg_print("Function relocated with non-alligned size\n");
 		return NULL;
 	}
 
-	if (size > mvPmuSramSize/* - mvPmuSramBase)*/) {
-		printk(KERN_ERR "No more space in SRAM for function relocation\n");
+	if (size > mvPmuSramSize) {
+		dbg_print("No more space in SRAM for function relocation\n");
 		return NULL;
 	}
 
 	mvPmuSramSize -= size;
 
 	src = (MV_U32*)start;
-	dst = (MV_U32*)mvPmuSramBase;
+	dst = (MV_U32*)(PMU_SCRATCHPAD_INT_BASE + mvPmuSramOffs);
 
 	if (start)
 	{
@@ -133,12 +134,12 @@ static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
 			dst++;
 			src++;
 		}
-	}
-	
-	//printk("mvPmuSramRelocate: From %08x to %08x, Size = %x\n", (MV_U32)start, (MV_U32)mvPmuSramBase, size);
+	}	
 
-	fncptr = (MV_VOID *)mvPmuSramBase;
-	mvPmuSramBase += size;	
+	fncptr = (MV_VOID *)(PMU_SCRATCHPAD_EXT_BASE + mvPmuSramOffs);
+	mvPmuSramOffs += size;	
+	
+	dbg_print("mvPmuSramRelocate: From %08x to %08x (exec %08x), Size = %x\n", (MV_U32)start, (MV_U32)dst, fncptr, size);
 	return fncptr;
 }
 
@@ -228,10 +229,6 @@ MV_VOID mvPmuSramStandby(MV_VOID)
 *******************************************************************************/
 MV_STATUS mvPmuSramLoad (MV_VOID)
 {
-	/* Initialize SRAM base and size markers */
-	mvPmuSramBase = (PMU_SCRATCH_BASE + PMU_SCRATCHPAD_OFFS);
-	mvPmuSramSize = PMU_SCRATCHPAD_SIZE;
-
 	/* Allocate enough space for the DDR paramters */
 	if ((_mvPmuSramDdrParamPtr = mvPmuSramRelocate(NULL,
 		(mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS)))) == NULL)
@@ -354,8 +351,8 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 	MV_U32 clear_size = (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS));
 	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtr;
 #ifdef CONFIG_DOVE_REV_Z0
-	MV_U32 * srcptr = (MV_U32*) (DOVE_SCRATCHPAD_VIRT_BASE + PMU_SCRATCHPAD_OFFS);
-	MV_U32 * dstptr = (MV_U32*) (DOVE_PMUSP_VIRT_BASE + PMU_PMUSP_OFFS);
+	MV_U32 * srcptr = (MV_U32*) (PMU_SCRATCHPAD_EXT_BASE);
+	MV_U32 * dstptr = (MV_U32*) (PMU_CESA_SP_BASE);
 #endif
 
 	/* set the resume address */
