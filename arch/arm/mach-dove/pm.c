@@ -272,12 +272,11 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		str = "hi";
 		if(!strncmp(buffer+len, str,strlen(str))) {
 			len += strlen(str);
-			printk("Going to hi gear (cpu=800, V=1.1).\n");
-			/* Upscale Voltage */
+			printk("Going to hi gear (CPU=TURBO, V=1.10) ");
+			/* Upscale Voltage +10% */
 			if (mvPmuDvs(15, 0x8, 0x2, 0x5) != MV_OK)
 				printk("Volatge up-scaling failed\n");
-			if (mvPmuDvs(15, 0x8, 0x2, 0x5) != MV_OK) /* Make sure */
-				printk("Volatge up-scaling failed\n");
+
 			/* Upscale frequency */
 			local_irq_save(ints);
 			mc = MV_REG_READ(0x20210);
@@ -293,7 +292,7 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		str = "lo";
 		if(!strncmp(buffer+len, str,strlen(str))) {
 			len += strlen(str);
-			printk("Going to low gear (cpu=400, V=1.025).\n");
+			printk("Going to low gear (CPU=DDR, V=0.975) ");
 			/* Downscale frequency */
 			local_irq_save(ints);
 			mc = MV_REG_READ(0x20210);
@@ -305,10 +304,8 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			MV_REG_WRITE(0x20214, mc);
 			local_irq_restore(ints);
 
-			/* Downscale Voltage */
-			if (mvPmuDvs(12, 0x8, 0x2, 0x5) != MV_OK)
-				printk("Volatge down-scaling failed\n");
-			if (mvPmuDvs(12, 0x8, 0x2, 0x5) != MV_OK) /* Make sure */
+			/* Downscale Voltage -2.5% */
+			if (mvPmuDvs(11, 0x8, 0x2, 0x5) != MV_OK)
 				printk("Volatge down-scaling failed\n");
 			goto done;
 		}
@@ -756,11 +753,20 @@ static int __init dove_pm_init(void)
 	pmuInitInfo.batFltMngDis = MV_FALSE;	/* Keep battery fault enabled */
 	pmuInitInfo.exitOnBatFltDis = MV_FALSE;	/* Keep exit from STANDBY on battery fail enabled */
 	pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_CPU_PWRDWN;	/* 0: CPU off, 1: CPU on */
-	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_NC/*SLP_PWRDWN*/;	/* 0: I/O off, 1: I/O on */
+#ifdef CONFIG_DOVE_REV_Z0
+	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
+	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_NC;		/* STANDBY => Not used in Z0 */
+#else
+	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;		/* NON PMU in Y0+ */
+	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;	/* STANDBY => 0: I/O off, 1: I/O on */
+#endif
 	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;	/* power on push button */
 	pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_NC;
+#ifdef CONFIG_DOVE_REV_Z0
+	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_NC;		/* NON PMU in Z0 Board */
+#else
+	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
+#endif
 	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
 	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;		/* Generic debug led5 */
@@ -784,7 +790,11 @@ static int __init dove_pm_init(void)
 	/* Configure PMU pins to PMU instead of MPP */
 	reg = MV_REG_READ(0xD0210);
 	reg &= 0xFFFF0000;
+#ifdef CONFIG_DOVE_REV_Z0
 	reg |= 0x078E;
+#else
+	reg |= 0x07AC;
+#endif
 	MV_REG_WRITE(0xD0210, reg);
 
 	pm_idle = cpu_do_idle_enabled;
