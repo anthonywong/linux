@@ -855,40 +855,24 @@ static u8 *dove_read_edid(struct fb_info *fi, struct dovefb_mach_info *dmi)
 	struct i2c_adapter *dove_i2c;
 	struct dovefb_layer_info *dfli = fi->par;
 	struct dovefb_info *info = dfli->info;
-	int loop = 0;
 #endif
 	char *edid_data = NULL;
 
-	if (NULL == dmi->ddc_i2c_adapter)
+	if (0 == dmi->ddc_i2c_adapter)
 		return edid_data;
 
 #ifdef CONFIG_FB_DOVE_CLCD_EDID
 	if (info->edid_en) {
+		printk("looking for %d \n", dmi->ddc_i2c_adapter);
+		dove_i2c = i2c_get_adapter(dmi->ddc_i2c_adapter);
 		/*
-		 * Loop through all I2C adapters and find the matching one
-		 * for Dove.
+		 * Check match or not.
 		 */
-		while ((dove_i2c = i2c_get_adapter(loop))) {
-			/*
-			 * check null ptr.
-			 */
-			if (NULL == dev_name(&dove_i2c->dev))
-				return edid_data;
-
-			/*
-			 * Check match or not.
-			 */
-			if (!strcmp(dmi->ddc_i2c_adapter,
-						dev_name(&dove_i2c->dev))) {
-				printk(KERN_INFO "  o Found i2c bus number %d"
-				" for EDID detection\n", loop);
-				break;
-			}
-			loop++;
-		}
-		if (!dove_i2c) {
+		if (dove_i2c)
+			printk(KERN_INFO "  o Found i2c adapter for EDID detection\n");
+		else {
 			printk(KERN_WARNING "Couldn't find any I2C bus for EDID"
-				" provider\n");
+			       " provider\n");
 			return NULL;
 		}
 		/* Look for EDID data on the selected bus */
