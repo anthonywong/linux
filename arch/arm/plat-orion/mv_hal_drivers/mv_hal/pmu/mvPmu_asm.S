@@ -228,6 +228,17 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 sb_pc_v2p_res:
 	adr	r1, stby_saved_sp
 	sub	r1, r1, #4
+
+#ifndef CONFIG_DOVE_REV_Z0
+	/*
+	 * Write SP to scratch NVRAM
+	 * First Convert external to internal addrress space
+	 */
+	ldr	r2, pmu_sbe_nvram_sp_mask
+	and	r1, r1, r2
+	ldr	r2, pmu_sbe_nvram_int_base
+	orr	r1, r1, r2
+#endif
 	str	r0, [r1]
 
 	/*
@@ -282,7 +293,19 @@ pmu_sbe_vtp:
 pmu_sbe_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 pmu_sbe_irb_reg:
-	.word (DOVE_SB_REGS_VIRT_BASE + 0x20080) 
+	.word (DOVE_SB_REGS_VIRT_BASE + 0x20080)
+/*
+#ifdef CONFIG_DOVE_REV_Z0
+pmu_sbe_nvram_int_base:
+	.word (PMU_CESA_SP_BASE)
+#else
+*/
+#ifndef CONFIG_DOVE_REV_Z0
+pmu_sbe_nvram_int_base:
+	.word (PMU_SCRATCHPAD_INT_BASE)
+pmu_sbe_nvram_sp_mask:
+	.word (0x7FF)
+#endif
 
 ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
 	.word	. - mvPmuSramDeepIdleEnterFunc
@@ -395,17 +418,15 @@ ENTRY(mvPmuSramStandbyEnterFunc)
 slp_pc_v2p_res:
 	adr	r1, standby_saved_sp
 	sub	r1, r1, #4
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-#ifdef CONFIG_DOVE_REV_Z0
+
 	/*
-	 * ScratchPad Workarround - Write SP to scratch pad and not SRAM
+	 * Write SP to scratch NVRAM
+	 * Convert to internal addrress space
 	 */
-	ldr	r2, pmu_slpe_sram2sp_mask
+	ldr	r2, pmu_slpe_nvram_sp_mask
 	and	r1, r1, r2
-	ldr	r2, pmu_slpe_sram_base
+	ldr	r2, pmu_slpe_nvram_int_base
 	orr	r1, r1, r2
-#endif
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	str	r0, [r1]
 
 	/*
@@ -439,11 +460,14 @@ slp_pc_v2p_res:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4	
 #ifdef CONFIG_DOVE_REV_Z0
-pmu_slpe_sram_base:
-	.word (DOVE_PMUSP_VIRT_BASE + PMU_PMUSP_OFFS)
-pmu_slpe_sram2sp_mask:
-	.word (0x7FF)
+pmu_slpe_nvram_int_base:
+	.word (PMU_CESA_SP_BASE)
+#else
+pmu_slpe_nvram_int_base:
+	.word (PMU_SCRATCHPAD_INT_BASE)
 #endif
+pmu_slpe_nvram_sp_mask:
+	.word (0x7FF)
 pmu_slpe_vtp:
 	.word mvPmuSramVirt2Phys
 pmu_slpe_ctrl_reg:
