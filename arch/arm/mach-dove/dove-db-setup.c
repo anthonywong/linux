@@ -193,11 +193,6 @@ struct spi_board_info __initdata dove_db_spi_devs[] = {
 
 int __init dove_db_ts_gpio_setup(void)
 {
-	//IRQ
-	set_irq_chip(DOVE_DB_TS_PEN_IRQ, &orion_gpio_irq_chip);
-	set_irq_handler(DOVE_DB_TS_PEN_IRQ, handle_level_irq);
-	set_irq_type(DOVE_DB_TS_PEN_IRQ, IRQ_TYPE_LEVEL_LOW);
-
 	orion_gpio_set_valid(DOVE_DB_TS_PEN_GPIO, 1);
 	if (gpio_request(DOVE_DB_TS_PEN_GPIO, "DOVE_TS_PEN_IRQ") != 0)
 		pr_err("Dove: failed to setup TS IRQ GPIO\n");
@@ -208,6 +203,11 @@ int __init dove_db_ts_gpio_setup(void)
 		gpio_free(DOVE_DB_TS_PEN_GPIO);
 		return -1;
 	}
+	//IRQ
+	set_irq_chip(DOVE_DB_TS_PEN_IRQ, &orion_gpio_irq_chip);
+	set_irq_handler(DOVE_DB_TS_PEN_IRQ, handle_level_irq);
+	set_irq_type(DOVE_DB_TS_PEN_IRQ, IRQ_TYPE_LEVEL_LOW);
+
 	return 0;
 }
 
