@@ -400,29 +400,34 @@ static int dovefb_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
-static void set_dumb_panel_control(struct fb_info *fi)
+static void set_dumb_panel_control(struct fb_info *fi, int gpio_only)
 {
 	struct dovefb_layer_info *dfli = fi->par;
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
+	u32	mask = 0x1;
 	u32 x;
 
 	/*
 	 * Preserve enable flag.
 	 */
-	x = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL) & 0x00000001;
+	if (gpio_only)
+		mask |= ~(0xffff << 12);
+	x = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL) & mask;
 
-	x |= (dfli->is_blanked ? 0x7 : dmi->panel_rgb_type) << 28;
 	x |= dmi->gpio_output_data << 20;
 	x |= dmi->gpio_output_mask << 12;
-	x |= dmi->panel_rgb_reverse_lanes ? 0x00000080 : 0;
-	x |= dmi->invert_composite_blank ? 0x00000040 : 0;
-	x |= (fi->var.sync & FB_SYNC_COMP_HIGH_ACT) ? 0x00000020 : 0;
-	x |= dmi->invert_pix_val_ena ? 0x00000010 : 0;
-	x |= (fi->var.sync & FB_SYNC_VERT_HIGH_ACT) ? 0 : 0x00000008;
-	x |= (fi->var.sync & FB_SYNC_HOR_HIGH_ACT) ? 0 : 0x00000004;
-	x |= dmi->invert_pixclock ? 0x00000002 : 0;
-
+	if (!gpio_only) {
+		x |= (dfli->is_blanked ? 0x7 : dmi->panel_rgb_type) << 28;
+		x |= dmi->panel_rgb_reverse_lanes ? 0x00000080 : 0;
+		x |= dmi->invert_composite_blank ? 0x00000040 : 0;
+		x |= (fi->var.sync & FB_SYNC_COMP_HIGH_ACT) ? 0x00000020 : 0;
+		x |= dmi->invert_pix_val_ena ? 0x00000010 : 0;
+		x |= (fi->var.sync & FB_SYNC_VERT_HIGH_ACT) ? 0 : 0x00000008;
+		x |= (fi->var.sync & FB_SYNC_HOR_HIGH_ACT) ? 0 : 0x00000004;
+		x |= dmi->invert_pixclock ? 0x00000002 : 0;
+	}
 	writel(x, dfli->reg_base + LCD_SPU_DUMB_CTRL);
+	printk("%s DUMB 0x%x\n", __func__ ,readl(dfli->reg_base + LCD_SPU_DUMB_CTRL));
 }
 
 static void set_dumb_screen_dimensions(struct fb_info *fi)
@@ -528,7 +533,7 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	/*
 	 * Configure dumb panel ctrl regs & timings.
 	 */
-	set_dumb_panel_control(fi);
+	set_dumb_panel_control(fi, 0);
 	set_dumb_screen_dimensions(fi);
 
 	if (info->fixed_output) {
@@ -559,7 +564,7 @@ static int dovefb_blank(int blank, struct fb_info *fi)
 	struct dovefb_layer_info *dfli = fi->par;
 
 	dfli->is_blanked = (blank == FB_BLANK_UNBLANK) ? 0 : 1;
-	set_dumb_panel_control(fi);
+	set_dumb_panel_control(fi, 0);
 
 	return 0;
 }
@@ -930,6 +935,7 @@ static int dovefb_fill_edid(struct fb_info *fi,
 
 static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 {
+	writel(0x80000001, dfli->reg_base + LCD_CFG_SCLK_DIV);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_BLANKCOLOR);
 	writel(dfli->info->io_pin_allocation,
 			dfli->reg_base + SPU_IOPAD_CONTROL);
@@ -1063,9 +1069,19 @@ int dovefb_gfx_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 	init_waitqueue_head(&dfli->w_intr_wq);
 
 	/*
+	 * Configure default register values.
+	 */
+	dovefb_set_defaults(dfli);
+
+	/*
 	 * init video mode data.
 	 */
 	dovefb_set_mode(dfli, &fi->var, dmi->modes, dmi->pix_fmt, 0);
+	/* 
+	 * configure GPIO's in order to enable the LCD panel to be ready for
+	 * reading the edid data
+	 */
+	set_dumb_panel_control(fi, 1);
 	ret = dovefb_init_mode(fi, dmi);
 	if (ret)
 		goto failed;
@@ -1076,11 +1092,6 @@ int dovefb_gfx_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 	ret = dovefb_gfx_set_par(fi);
 	if (ret)
 		goto failed;
-
-	/*
-	 * Configure default register values.
-	 */
-	dovefb_set_defaults(dfli);
 
 	return 0;
 failed:
