@@ -337,7 +337,7 @@ struct dovefb_mach_info {
 	unsigned	io_pin_allocation:4;
 
 	/*
-	 * I2C bus to read DDC data through.
+	 * I2C bus to read DDC data through. -1 not available
 	 */
 	int		ddc_i2c_adapter;
 
