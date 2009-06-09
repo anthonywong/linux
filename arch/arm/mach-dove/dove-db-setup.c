@@ -49,8 +49,7 @@ MODULE_PARM_DESC(front_panel, "set to 1 if the dove DB front panel connected");
 
 static unsigned int left_tact = 0;
 module_param(left_tact, uint, 0);
-MODULE_PARM_DESC(left_tact, "Use left tact as mouse. this will disable I2S"
-		 "JPR 3 should be removed, JPR 6 on 2-3");
+MODULE_PARM_DESC(left_tact, "Use left tact as mouse");
 
 /*
  * LCD input clock.
@@ -238,16 +237,16 @@ static struct mv_sata_platform_data dove_db_sata_data = {
         .n_ports        = 1,
 };
 
-static struct gpio_mouse_platform_data tact_dove_db_data = {
+static struct gpio_mouse_platform_data ltact_dove_data = {
         .scan_ms = 10,
         .polarity = 1,
         {
                 {
-                        .up = 54,
-                        .down = 52,
-                        .left = 55,
-                        .right = 56,
-                        .bleft = 57,
+			.up = 67,
+			.down = 64,
+			.left = 65,
+			.right = 66,
+			.bleft = 68,
                         .bright = -1,
                         .bmiddle = -1
                 } 
@@ -478,11 +477,6 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
         { -1 },
 };
 
-static struct dove_mpp_mode dove_db_mpp_modes_ltact[] __initdata = {
-        { 52, MPP_GPIO },               /* AU1 Group to GPIO */
-        { -1 },
-};
-
 //extern struct mbus_dram_target_info dove_mbus_dram_info;
 //extern int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram);
 static void __init dove_db_init(void)
@@ -497,8 +491,6 @@ static void __init dove_db_init(void)
 	dove_wakeup_button_setup(DOVE_DB_WAKEUP_GPIO);
 
 	if(front_panel) {
-		if(left_tact)
-			dove_mpp_conf(dove_db_mpp_modes_ltact);
 		/* JPR6 shoud be on 1-2 for touchscreen irq line */
 
 		if (dove_db_ts_gpio_setup() != 0)
@@ -547,11 +539,11 @@ static void __init dove_db_init(void)
 
 	if(front_panel) {
 		dove_cam_init(&dove_cafe_cam_data);
+		if(left_tact)
+			dove_tact_init(&ltact_dove_data);
 	}
-	if(front_panel && left_tact)
-		dove_tact_init(&tact_dove_db_data);
-	else
-		dove_i2s_init(1, &i2s1_data);
+	
+	dove_i2s_init(1, &i2s1_data);
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
 	spi_register_board_info(dove_db_spi_flash_info,
