@@ -344,10 +344,8 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	/*
 	 * Marvell sez set clkdiv to all 1's for now.
 	 */
-	if(cam->pdev)
-                rval |= TWSIC0_CLKDIV;
-        else
-		rval |= 0x00040000; //this with yield ~50KHz clock
+	
+	rval |= TWSIC0_CLKDIV;
 
 	cafe_reg_write(cam, REG_TWSIC0, rval);
 	(void) cafe_reg_read(cam, REG_TWSIC1); /* force write */
@@ -434,10 +432,7 @@ static int cafe_smbus_read_data(struct cafe_camera *cam,
 	/*
 	 * Marvel sez set clkdiv to all 1's for now.
 	 */
-	if(cam->pdev)
-                rval |= TWSIC0_CLKDIV;
-        else
-		rval |= 0x00040000; //this with yield ~50KHz clock
+	rval |= TWSIC0_CLKDIV;
 
 	cafe_reg_write(cam, REG_TWSIC0, rval);
 	(void) cafe_reg_read(cam, REG_TWSIC1); /* force write */
