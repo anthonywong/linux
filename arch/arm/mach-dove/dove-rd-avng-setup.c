@@ -102,6 +102,7 @@ static struct dovefb_mach_info dove_anvg_lcd0_vid_dmi = {
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 3,
 	.gpio_output_mask	= 3,
+	.ddc_i2c_adapter	= -1,
 	.invert_composite_blank	= 0,
 	.invert_pix_val_ena	= 0,
 	.invert_pixclock	= 0,
