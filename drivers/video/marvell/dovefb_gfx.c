@@ -857,13 +857,11 @@ static u8 *dove_read_edid(struct fb_info *fi, struct dovefb_mach_info *dmi)
 	struct dovefb_info *info = dfli->info;
 #endif
 	char *edid_data = NULL;
-
-	if (0 == dmi->ddc_i2c_adapter)
+	if (-1 == dmi->ddc_i2c_adapter)
 		return edid_data;
 
 #ifdef CONFIG_FB_DOVE_CLCD_EDID
 	if (info->edid_en) {
-		printk("looking for %d \n", dmi->ddc_i2c_adapter);
 		dove_i2c = i2c_get_adapter(dmi->ddc_i2c_adapter);
 		/*
 		 * Check match or not.
