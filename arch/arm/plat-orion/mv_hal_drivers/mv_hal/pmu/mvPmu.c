@@ -74,6 +74,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
 
 /* PMU uController code fixes <add,val> couples */
+#ifdef CONFIG_DOVE_REV_Z0
 MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
 		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {252,0x44}, {253,0x00}, {254,0xF3}, \
 		{255,0xF0}, {297, 0x7C}, {388, 0x71}, {389, 0x30}, {390, 0x49}, {391, 0xa8}, {392, 0x18}, \
@@ -83,6 +84,16 @@ MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {
             	{414, 0x80}, {415, 0xff}, {416, 0x04}, {417, 0x20}, {418, 0x59}, {419, 0x08}, {420, 0x94}, \
             	{421 ,0x41}, {422 ,0x70}, {423, 0x7D}, {424, 0x94}, {425, 0x40}, {426, 0x94}, {427, 0x42}, \
 		{428, 0xFF}};
+#else
+MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
+		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {252,0x44}, {253,0x00}, {254,0xF3}, \
+		{255,0xF0}, {297, 0x7C}, {388, 0x71}, \
+		{389, 0x30}, {390, 0x80}, {391, 0x28}, {392, 0x80}, \
+		{393, 0xFF}, {394, 0x08}, {395, 0x49}, {396, 0x39}, {397, 0x20}, {398, 0xA8}, {399, 0x18}, \
+            	{400, 0x80}, {401, 0x69}, {402, 0x80}, {403, 0x28}, {404, 0x80}, {405, 0xFF}, {406, 0x04}, \
+            	{407, 0x20}, {408, 0x59}, {409, 0x08}, {410, 0x94}, {411 ,0x41}, {412 ,0x70}, {413, 0x7D}, \
+		{414, 0x94}, {415, 0x40}, {416, 0x94}, {417, 0x42}, {418, 0xFF}};
+#endif
 
 /* Save L2 ratio at system power up */
 static MV_U32 l2TurboRatio;
@@ -114,21 +125,25 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x2}, 	/* DDR:PLL 1:2 */
 
 /* Timing delays for CPU and Core powers */
 #ifdef CONFIG_DOVE_REV_Z0
- #define PMU_STBY_CPU_PWR_DLY	0x1C0000		/* TCLK clock cycles - ~11.01ms */
+ #define PMU_DEEPIDLE_CPU_PWR_DLY	0x1C0000		/* TCLK clock cycles - ~11.01ms */
 #else
- #define PMU_STBY_CPU_PWR_DLY	0x208D			/* TCLK clock cycles - ~50 us */
+ #define PMU_DEEPIDLE_CPU_PWR_DLY	0x208D			/* TCLK clock cycles - ~50 us */
 #endif
-#define PMU_SLP_CPU_PWR_DLY	0x400			/* RTC 32KHz clock cycles */
-#define PMU_SLP_CORE_PWR_DLY	0x10			/* RTC 32KHz clock cycles */
-#define PMU_DVS_POLL_DLY	10000			/* Poll DVS done count */
+#define PMU_STBY_CPU_PWR_DLY		0x1000			/* RTC 32KHz clock cycles ~32ms */
+#define PMU_STBY_CORE_PWR_DLY		0x1000			/* RTC 32KHz clock cycles ~0.5ms */
+#define PMU_DVS_POLL_DLY		10000			/* Poll DVS done count */
 
+/* DVS defaults */
+#define DOVE_PSET_HI			0x0
+#define DOVE_VSET_HI			0x0
+#define DOVE_PSET_LO			0xB
+#define DOVE_VSET_LO			0x8
+#define DOVE_RADDR			0x2
+#define DOVE_SADDR			0x5
 
-#define DOVE_PSET_HI		0x0
-#define DOVE_VSET_HI		0x0
-#define DOVE_PSET_LO		0xB
-#define DOVE_VSET_LO		0x8
-#define DOVE_RADDR		0x2
-#define DOVE_SADDR		0x5
+/* Standby blinking led timing */
+#define PMU_STBY_LED_PERIOD		0x10000			/* RTC 32KHz cc ~2.0s */
+#define PMU_STBY_LED_DUTY		0xE000			/* RTC 32KHz cc ~1.75s - 12.5%*/
 
 /* Static functions */
 static MV_U32 mvPmuGetPllFreq(void);
@@ -172,7 +187,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
 
 	/* Set the DeepIdle and Standby power delays */
-      	MV_REG_WRITE(PMU_STANDBY_PWR_DELAY_REG, PMU_SLP_CORE_PWR_DLY);
+      	MV_REG_WRITE(PMU_STANDBY_PWR_DELAY_REG, PMU_STBY_CORE_PWR_DLY);
 
 	/* Configure the Battery Management Control register */
 	reg = 0;
@@ -216,6 +231,10 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	for (i=7; i>=0; i--)
 		reg |= ((pmu->sigSelctor[i+8] & 0xF) << (i*4));
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_1_REG, reg);
+
+	/* Configure the blinking led timings */
+	MV_REG_WRITE(PMU_BLINK_PERIOD_CTRL_REG, PMU_STBY_LED_PERIOD);
+	MV_REG_WRITE(PMU_BLINK_DUTY_CYCLE_CTRL_REG, PMU_STBY_LED_DUTY);
 
 	/* Configure the DVS delay */
 	MV_REG_WRITE(PMU_DVS_DELAY_REG, pmu->dvsDelay);
@@ -346,7 +365,7 @@ MV_STATUS mvPmuDeepIdle (MV_BOOL lcdRefresh)
 	MV_REG_WRITE(PMU_CTRL_REG, reg);
 
 	/* Set CPU power delay in TCLK cycles */
-	MV_REG_WRITE(PMU_CPU_PWR_DELAY_REG, PMU_STBY_CPU_PWR_DLY);
+	MV_REG_WRITE(PMU_CPU_PWR_DELAY_REG, PMU_DEEPIDLE_CPU_PWR_DLY);
 
 	/* Assume that DDR and L2 clock ratios wil not be changed */
 	reg = (MV_REG_READ(PMU_CPU_DFS_CTRL_REG) & ~(PMU_DFS_CTRL_DDR_RATIO_MASK | PMU_DFS_CTRL_L2_RATIO_MASK));
@@ -474,7 +493,7 @@ MV_STATUS mvPmuStandby (void)
 	MV_REG_WRITE(PMU_CTRL_REG, reg);
 
 	/* Set CPU Power delay in RTC clock cyclec */
-	MV_REG_WRITE(PMU_CPU_PWR_DELAY_REG, PMU_SLP_CPU_PWR_DLY);	
+	MV_REG_WRITE(PMU_CPU_PWR_DELAY_REG, PMU_STBY_CPU_PWR_DLY);	
 
 	/* Jump to thsd SRAM and execute the Standby routine */
 	mvPmuSramStandby();
