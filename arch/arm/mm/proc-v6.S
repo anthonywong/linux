@@ -142,7 +142,7 @@ ENTRY(cpu_v6_set_pte_ext)
 
 
 cpu_v6_name:
-	.asciz	"ARMv6-compatible processor"
+	.ascii	"ARMv6-compatible processor"
 	.align
 
 	__INIT
@@ -189,10 +189,18 @@ __v6_setup:
 	orr	r4, r4, #TTB_FLAGS
 #else
 						@ OC bits in TTB1 register
-	bic     r4, r4, #0x18                   @ DONOT Cache the page table in L2
+	bic	r4, r4, #0x18                   @ DONOT Cache the page table in L2
 #endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #endif /* CONFIG_MMU */
+#ifdef CONFIG_CPU_ENABLE_WRITECO
+						@ Refer 88SV581x-v6.Rev1.5.pdf
+	mrc	p15, 1, r0, c15, c1, 0		@ Marvell Extra Features Reg
+	orr	r0, r0, #0x100
+						@ Write coalesce cycles
+	orr	r0, r0, #CONFIG_CPU_WRITECO_CYCLE << 9
+	mcr	p15, 1, r0, c15, c1, 0		@ Marvell Extra Features Reg
+#endif
 	adr	r5, v6_crval
 	ldmia	r5, {r5, r6}
 #ifdef CONFIG_CPU_ENDIAN_BE8
@@ -230,7 +238,10 @@ ENTRY(v6_processor_functions)
 cpu_arch_name:
 	.ascii	"armv6"
 #ifdef CONFIG_IWMMXT
-        .ascii  "-wmmx"
+	.ascii  "-wmmx"
+#endif
+#ifdef CONFIG_CPU_ENABLE_WRITECO
+	.ascii  "-wco"
 #endif
 	.ascii  "\0"
 	.size	cpu_arch_name, . - cpu_arch_name
