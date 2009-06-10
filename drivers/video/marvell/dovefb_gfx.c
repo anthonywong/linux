@@ -427,7 +427,6 @@ static void set_dumb_panel_control(struct fb_info *fi, int gpio_only)
 		x |= dmi->invert_pixclock ? 0x00000002 : 0;
 	}
 	writel(x, dfli->reg_base + LCD_SPU_DUMB_CTRL);
-	printk("%s DUMB 0x%x\n", __func__ ,readl(dfli->reg_base + LCD_SPU_DUMB_CTRL));
 }
 
 static void set_dumb_screen_dimensions(struct fb_info *fi)
