@@ -131,6 +131,13 @@ typedef struct
 	MV_U32		val;
 } MV_DDR_MC_PARAMS;
 
+typedef struct
+{
+	MV_U32 	addr;
+	MV_U32	mask;
+	MV_U32	val;
+} MV_DDR_INIT_POLL_AMV;	/* address/mask/value */
+
 #include "spd/mvSpd.h"
 
 /* mvDramIf.h API list */
@@ -145,8 +152,9 @@ MV_32 mvDramIfBankSizeGet(MV_U32 bankNum);
 MV_32 mvDramIfBankBaseGet(MV_U32 bankNum);
 MV_32 mvDramIfSizeGet(MV_VOID);
 MV_U32 mvDramIfParamCountGet(MV_VOID);
-MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params);
+MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params, MV_U32 * paramcnt);
 MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARAMS * params, MV_U32 * cnt);
+MV_STATUS mvDramInitPollAmvFill(MV_DDR_INIT_POLL_AMV * amv);
 
 MV_VOID mvIntrfaceParamPrint(MV_VOID);
 MV_VOID mvIntrfaceWidthPrint(MV_VOID);

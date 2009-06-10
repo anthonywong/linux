@@ -12,5 +12,6 @@
 #define __ARCH_DOVE_PM_H
 
 void dove_pm_cpuidle_deepidle (void);
+void dove_pm_register (void);
 
 #endif

@@ -98,6 +98,7 @@ MV_DDR_MC_PARAMS ddr2_400mhz[] ={{0xd00d0048, 0x00000101},	/* Select NB PLL and 
              			{0xf1800770, 0x02000002},
              			{0xf1800120, 0x00000001}};
 
+#ifdef CONFIG_DOVE_REV_Z0
 MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd00d0048, 0x00000102},	/* Select NB PLL and Ratio */
 				{0xd0800010, 0xf1800000},	/* Set DDR register space */
                                 {0xd00d025c, 0x000f1890},	/* Set NB register space */
@@ -123,6 +124,35 @@ MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd00d0048, 0x00000102},	/* Select NB PLL and 
                                 {0xf1800760, 0x00000003},
                                 {0xf1800770, 0x0200000A},
                                 {0xf1800120, 0x00000001}};
+#else
+MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd0800010, 0xf1800000},	/* Set DDR register space */
+                                {0xd00d025c, 0x000f1890},	/* Set NB register space */
+				{0xd0020080, 0xf1000000},	/* Set SB register space */
+//                                {0xf10d0260, 0x0000F180},
+                                {0xf1800140, 0x20004433},
+                                {0xf1800020, 0x00042430},
+                                {0xf1800030, 0x00042430},
+                                {0xf1800050, 0x488B00C3},
+                                {0xf1800060, 0x323301A2},
+                                {0xf1800190, 0x30C81c42},
+                                {0xf18001C0, 0x32820050},
+                                {0xf1800650, 0x00090071},
+                                {0xf18001A0, 0x20810005},
+                                {0xf1800080, 0x20000000},
+                                {0xf1800760, 0x00001221},
+                                {0xf1800770, 0x0200000A},
+                                {0xf18001D0, 0x177c2779},
+                                {0xf18001E0, 0x07700779},
+                                {0xf18001F0, 0x3f200077},
+                                {0xf1800210, 0x00300002},
+                                {0xf1800230, 0x20007D08},
+                                {0xf1800E10, 0x20007D08},
+                                {0xf1800E20, 0x20007D08},
+                                {0xf1800E30, 0x20007D08},
+                                {0xf1800100, 0x000D0001},
+                                {0xf1800110, 0x000D0000},
+				{0xf1800120, 0x00000001}};
+#endif
 
 MV_DDR_MC_PARAMS ddr2_400mhz_reconfig[] ={
                                {0x00140, 0x20004433},
@@ -226,29 +256,32 @@ MV_U32 mvDramIfParamCountGet(MV_VOID)
 *       controller based on the requesed frequency
 *
 * INPUT:
-*       ddrRatio - ratio of the NBPLL frequency to the DDR frequency
-*	params - pointer to the first addr/value element.
+*       ddrFreq - Target frequency
 *
 * OUTPUT:
-*       None.
+*	params - pointer to the first addr/value element.
+*	paramcnt - Number of paramters filled in the addr/value array.
 *
 * RETURN:
 *	STATUS
 *
 *******************************************************************************/
-MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params)
+MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params, MV_U32 * paramcnt)
 {
 	switch (ddrFreq)
 	{
 		case 400: /* DDR2 400Mhz */
 			mvOsMemcpy((void*)params, (void*)ddr2_400mhz, sizeof(ddr2_400mhz));
+			*paramcnt = (sizeof(ddr2_400mhz)/sizeof(ddr2_400mhz[0]));
 			break;
 
 		case 200: /* DDR2 200Mhz */
 			mvOsMemcpy((void*)params, (void*)ddr2_200mhz, sizeof(ddr2_200mhz));
+			*paramcnt = (sizeof(ddr2_200mhz)/sizeof(ddr2_200mhz[0]));
 			break;
 	
 		default:
+			*paramcnt = 0;
 			return MV_FAIL;
 	}
 	
@@ -257,19 +290,19 @@ MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params)
 
 
 /*******************************************************************************
-* mvDramIfParamFill - Fill in the Address/Value couples
+* mvDramReconfigParamFill - Fill in the Address/Value couples
 *
 * DESCRIPTION:
 *       This function fills in the addr/val couples needed to init the DDR
 *       controller based on the requesed frequency
 *
 * INPUT:
-*       ddrFreq - New DDR frequency to calculate Timing for
+*       ddrFreq - Target frequency
 *	cpuFreq - cpu frequency to calculate Timing against
-*	params - pointer to the first addr/value element.
 *
 * OUTPUT:
-*       parmcnt - Number of addr/value couples filled
+*	params - pointer to the first addr/value element.
+*	paramcnt - Number of paramters filled in the addr/value array.
 *
 * RETURN:
 *	STATUS
@@ -332,4 +365,33 @@ MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARA
 	return MV_OK;
 }
 
+
+/*******************************************************************************
+* mvDramInitPollAmvFill - Fill in the Address/Value couples
+*
+* DESCRIPTION:
+*       This function fills in the addr/val couples needed to init the DDR
+*       controller based on the requesed frequency
+*
+* INPUT:
+*       None.
+*
+* OUTPUT:
+*	amv - address/mask/value for the DDR init done register.
+*		amv->addr: Physical adddress of the init done register
+*		amv->mask: Bit mask to poll for init done
+*		amv->val: Value expected after the mask.
+*
+* RETURN:
+*	STATUS
+*
+*******************************************************************************/
+MV_STATUS mvDramInitPollAmvFill(MV_DDR_INIT_POLL_AMV * amv)
+{
+	amv->addr = (DOVE_SB_REGS_PHYS_BASE|SDRAM_STATUS_REG)/*mvOsIoVirtToPhy(NULL, (void*)(INTER_REGS_BASE|SDRAM_STATUS_REG))*/;
+	amv->mask = SDRAM_STATUS_INIT_DONE_MASK;
+	amv->val = SDRAM_STATUS_INIT_DONE;
+
+	return MV_OK;
+}
 
