@@ -42,7 +42,7 @@ static void cpu_do_idle_disabled(void);
 extern MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr);
 extern MV_STATUS mvPmuCpuFreqScale (MV_PMU_CPU_SPEED cpuSpeed);
 void dove_pm_cpuidle_deepidle (void);
-static deepIdleCtr = 0;
+static MV_U32 deepIdleCtr = 0;
 int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		     void *data)
 {
@@ -578,7 +578,15 @@ void dove_deepidle(void)
  */
 void dove_standby(void)
 {
+	MV_U32 reg;
+
 	pr_debug("dove_standby: Entering Dove STANDBY mode.\n");
+
+	/* Put on the Led on MPP7 */
+	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
+	reg &= ~PMU_SIG_7_SLCT_CTRL_MASK;
+	reg |= (PMU_SIGNAL_BLINK/*PMU_SIGNAL_0*/ << PMU_SIG_7_SLCT_CTRL_OFFS);
+	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
 	/* Save CPU Peripherals state */
 	dove_save_cpu_wins();
@@ -613,6 +621,12 @@ void dove_standby(void)
 	dove_restore_cpu_conf_regs();
 	dove_restore_cpu_wins();
 	//dove_restore_pcie_regs(); /* Should be done after restoring cpu configuration registers */
+
+	/* Put off the Led on MPP7 */
+	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
+	reg &= ~PMU_SIG_7_SLCT_CTRL_MASK;
+	reg |= (PMU_SIGNAL_1 << PMU_SIG_7_SLCT_CTRL_OFFS);
+	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
 	pr_debug("dove_standby: Exiting Dove STANDBY mode.\n");
 }
@@ -723,86 +737,25 @@ void dove_pm_cpuidle_deepidle (void)
 #endif
 	dove_pm_prepare();
 	local_irq_save(ints);
-	//ier = MV_REG_READ(0x12104);
-	//lcr = MV_REG_READ(0x1210C);
 	sysdev_suspend(PMSG_SUSPEND);
 	dove_pm_enter(PM_SUSPEND_STANDBY);
 	sysdev_resume();	
-	//MV_REG_WRITE(0x1210C, lcr);
-	//MV_REG_WRITE(0x12104, ier);	
-	//MV_REG_WRITE(0x2031C, 0x1000000);
 	local_irq_restore(ints);
 	dove_pm_finish();
 }
 
-static int __init dove_pm_init(void)
+void dove_pm_register (void)
 {
-	MV_U32 reg;
-	MV_PMU_INFO pmuInitInfo;
 	MV_PMU_FREQ_INFO freqs;
-#if 0
-	unsigned char * testbuff;
-	dma_addr_t	physbuff;
-	MV_U32 i;
-#endif
 
-	printk(KERN_NOTICE "Power Management for Marvell Dove.");
-
-	pmuInitInfo.deepIdleStatus = MV_FALSE; 	/* Disable L2 retention */
-	pmuInitInfo.cpuPwrGoodEn = MV_FALSE;	/* Don't wait for external power good signal */
-	pmuInitInfo.batFltMngDis = MV_FALSE;	/* Keep battery fault enabled */
-	pmuInitInfo.exitOnBatFltDis = MV_FALSE;	/* Keep exit from STANDBY on battery fail enabled */
-	pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
-#ifdef CONFIG_DOVE_REV_Z0
-	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
-	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_NC;		/* STANDBY => Not used in Z0 */
-#else
-	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;		/* NON PMU in Y0+ */
-	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;	/* STANDBY => 0: I/O off, 1: I/O on */
-#endif
-	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;	/* power on push button */
-	pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
-#ifdef CONFIG_DOVE_REV_Z0
-	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_NC;		/* NON PMU in Z0 Board */
-#else
-	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
-#endif
-	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
-	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;		/* Generic debug led5 */
-	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC/*PMU_SIGNAL_CPU_PWRGOOD*/;	/* CPU power good */
-	pmuInitInfo.sigSelctor[10] = PMU_SIGNAL_SDI;		/* Voltage regulator control */
-	pmuInitInfo.sigSelctor[11] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[12] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[13] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[14] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
-	pmuInitInfo.dvsDelay = 0;		/* PMU cc delay waiting for voltage change to take effect */
-
-	/* Initialize the PMU HAL */
-	if (mvPmuInit(&pmuInitInfo) != MV_OK)
-		printk(KERN_NOTICE "(PMU Init FAILED) !!!!");
-	printk(KERN_NOTICE "\n");
-
-	/* Configure wakeup events */
-	mvPmuWakeupEventSet(PMU_STBY_WKUP_CTRL_EXT0_FALL | PMU_STBY_WKUP_CTRL_RTC_MASK);
-
-	/* Configure PMU pins to PMU instead of MPP */
-	reg = MV_REG_READ(0xD0210);
-	reg &= 0xFFFF0000;
-#ifdef CONFIG_DOVE_REV_Z0
-	reg |= 0x078E;
-#else
-	reg |= 0x07AC;
-#endif
-	MV_REG_WRITE(0xD0210, reg);
+	printk(KERN_NOTICE "Power Management for Marvell Dove.\n");
 
 	pm_idle = cpu_do_idle_enabled;
 	suspend_set_ops(&dove_pm_ops);
 
 	/* Create EBook control file in sysfs */
 	if (sysfs_create_file(power_kobj, &ebook_attr.attr))
-		printk(KERN_ERR "dove_pm_init: ebook sysfs_create_file failed!");
+		printk(KERN_ERR "dove_pm_register: ebook sysfs_create_file failed!");
 
 #ifdef CONFIG_PMU_PROC
 	pm_proc_init();
@@ -813,16 +766,4 @@ static int __init dove_pm_init(void)
 				freqs.cpuFreq, freqs.axiFreq, freqs.l2Freq, freqs.ddrFreq);
 	else
 		printk(KERN_ERR "PMU Failed to detect current system frequencies!\n");
-
-#if 0 /* buffer used to test DDR in frequency scaling */
-	testbuff = dma_alloc_coherent(NULL, 0x100000, &physbuff, GFP_KERNEL);
-	printk(KERN_NOTICE " Allocated 1MB for testing V=%08x P=%08x\n", testbuff, physbuff);
-	for (i=0; i<0x100000; i+=4)
-		*((MV_U32*)((MV_U32)testbuff + i)) = ((MV_U32)testbuff + i);
-#endif
-
-	return 0;
 }
-
-__initcall(dove_pm_init);
-

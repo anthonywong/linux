@@ -18,8 +18,10 @@
 #include <asm/mach/arch.h>
 #include "common.h"
 #include "mpp.h"
+#include "ctrlEnv/mvCtrlEnvRegs.h"
 
 #define DOVE_MPP_MAX_OPTIONS	7
+#define DOVE_PMU_MAX_PINS	16
 
 struct mpp_type {
 	enum dove_mpp_type	type;
@@ -40,6 +42,7 @@ struct mpp_config {
 
 int __init dove_mpp_legacy_config(int mpp, enum dove_mpp_type type, int val);
 int __init dove_mpp_high_config(int mpp, enum dove_mpp_type type, int val);
+void __init dove_mpp_pmu_config(int mpp, enum dove_mpp_type type);
 
 /* The index is the mpp number
  * The table still not complete
@@ -256,6 +259,13 @@ void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 			       mode->mpp);
 			return;
 		}
+		/* 
+		 * First configure PMU/MPP pin selection 
+		 * Valid for first 16 pins only
+		 */
+		if(mode->mpp < DOVE_PMU_MAX_PINS)
+			dove_mpp_pmu_config(mode->mpp, mode->type);	
+
 		entry = &dove_mpp_table[mode->mpp];
 
 		for (i = 0; i < DOVE_MPP_MAX_OPTIONS; i++) {
@@ -361,4 +371,17 @@ int __init dove_mpp_high_config(int mpp, enum dove_mpp_type type, int mask)
 	}
 #endif
 	return 0;
+}
+
+/* This function routes MPP to PMU directly */
+void __init dove_mpp_pmu_config(int mpp, enum dove_mpp_type type)
+{
+	u32 pmu_mpp_ctrl;
+	
+	pmu_mpp_ctrl = readl(DOVE_SB_REGS_VIRT_BASE | MPP_GENERAL_CONTROL_REG);
+	if (type == MPP_PMU)
+		pmu_mpp_ctrl |= (1 << mpp);
+	else
+		pmu_mpp_ctrl &= ~(1 << mpp);
+	writel(pmu_mpp_ctrl, (DOVE_SB_REGS_VIRT_BASE | MPP_GENERAL_CONTROL_REG));
 }
