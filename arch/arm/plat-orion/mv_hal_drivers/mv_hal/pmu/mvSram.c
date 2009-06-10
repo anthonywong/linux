@@ -69,11 +69,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Constants */
 #define PMU_MAX_DESCR_CNT		7		
-#define PMU_STANDBY_DESCR_CNT		1
+#define PMU_STANDBY_DESCR_CNT		2
 #define PMU_DEEPIDLE_DESCR_CNT		0
+#ifndef CONFIG_DOVE_REV_Z0
+ #define PMU_SP_TARGET_ID		0xD
+ #define PMU_SP_ATTRIBUTE		0x0
+#endif
 
 /* DDR parameters pointer */
-static MV_VOID * _mvPmuSramDdrParamPtr;
+static MV_VOID * _mvPmuSramDdrParamPtr;		/* External Read-only access */
+static MV_VOID * _mvPmuSramDdrParamPtrInt;	/* Internale Read-write access */
+static MV_VOID * _mvPmuSramDdrInitPollPtr;	/* External Read-only access */
+static MV_VOID * _mvPmuSramDdrInitPollPtrInt;	/* Internale Read-write access */
 
 /* Sram Markers */
 static unsigned long mvPmuSramOffs = 0;
@@ -162,7 +169,7 @@ MV_VOID mvPmuSramDdrReconfig(MV_U32 paramcnt)
 	if (!_mvPmuSramDdrReconfigPtr)
 		panic("Function not yet relocated in SRAM\n");
 
-	return _mvPmuSramDdrReconfigPtr((MV_U32)_mvPmuSramDdrParamPtr, paramcnt);
+	return _mvPmuSramDdrReconfigPtr((MV_U32)_mvPmuSramDdrParamPtrInt, paramcnt);
 }	
 
 /*******************************************************************************
@@ -234,6 +241,23 @@ MV_STATUS mvPmuSramLoad (MV_VOID)
 		(mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS)))) == NULL)
 		return MV_FAIL;
 
+#ifndef CONFIG_DOVE_REV_Z0	
+	/* Convert DDR base address from External to Internal Space */
+	_mvPmuSramDdrParamPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdrParamPtr &
+					     (PMU_SCRATCHPAD_SIZE-1)) |
+					    (PMU_SCRATCHPAD_INT_BASE));
+#endif
+
+	/* Allocate enough space for the DDR paramters */
+	if ((_mvPmuSramDdrInitPollPtr = mvPmuSramRelocate(NULL, 
+					sizeof(MV_DDR_INIT_POLL_AMV))) == NULL)
+		return MV_FAIL;
+
+	/* Convert DDR base address from External to Internal Space */
+	_mvPmuSramDdrInitPollPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdrInitPollPtr &
+					     (PMU_SCRATCHPAD_SIZE-1)) |
+					    (PMU_SCRATCHPAD_INT_BASE));
+
 	/* Relocate the DDR reconfiguration function */
 	if ((_mvPmuSramDdrReconfigPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDdrReconfigFunc,
 		mvPmuSramDdrReconfigFuncSZ)) == NULL)
@@ -278,14 +302,14 @@ MV_STATUS mvPmuSramDdrTimingPrep(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_U32 * cnt)
 {
 	MV_U32 clear_size = (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS));
 	MV_U32 i;
-	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtr;
+	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtrInt;
 
 	/* Clear the whole region to zeros first */
 	for (i=0; i<(clear_size/4); i++)
 		ptr[i] = 0x0;
 		
 	/* Get the new timing parameters from the DDR HAL */
-	return mvDramReconfigParamFill(ddrFreq, cpuFreq, (MV_DDR_MC_PARAMS*)_mvPmuSramDdrParamPtr, cnt);
+	return mvDramReconfigParamFill(ddrFreq, cpuFreq, (MV_DDR_MC_PARAMS*)_mvPmuSramDdrParamPtrInt, cnt);
 }
 
 /*******************************************************************************
@@ -347,39 +371,48 @@ MV_STATUS mvPmuSramDeepIdleResumePrep(MV_VOID)
 *******************************************************************************/
 MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 {
-	MV_U32 reg, i;
+	MV_U32 reg, i, cnt;
 	MV_U32 clear_size = (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS));
-	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtr;
+	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtrInt;
 #ifdef CONFIG_DOVE_REV_Z0
 	MV_U32 * srcptr = (MV_U32*) (PMU_SCRATCHPAD_EXT_BASE);
 	MV_U32 * dstptr = (MV_U32*) (PMU_CESA_SP_BASE);
 #endif
 
-	/* set the resume address */
+	/* Set the resume address */
 	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramStandbyExitPtr));
 
-	/* Prepare the resume descriptors */
-	reg = ((PMU_STANDBY_DESCR_CNT << PMU_RC_DISC_CNT_OFFS) & PMU_RC_DISC_CNT_MASK);
-	MV_REG_WRITE(PMU_RESUME_CTRL_REG, reg); 
+	/* Prepare the resume control parameters */
+	reg = ((PMU_STANDBY_DESCR_CNT << PMU_RC_DISC_CNT_OFFS) & PMU_RC_DISC_CNT_MASK);	 
+#ifndef CONFIG_DOVE_REV_Z0
+	reg |= ((PMU_SP_TARGET_ID << PMU_RC_WIN6_TARGET_OFFS) & PMU_RC_WIN6_TARGET_MASK);
+	reg |= ((PMU_SP_ATTRIBUTE << PMU_RC_WIN6_ATTR_OFFS) & PMU_RC_WIN6_ATTR_MASK);
+	reg |= (DOVE_SCRATCHPAD_PHYS_BASE & PMU_RC_WIN6_BASE_MASK);
+#endif
+	MV_REG_WRITE(PMU_RESUME_CTRL_REG, reg);
 
 	/* Prepare DDR paramters in the scratch pad for BootROM */
 	for (i=0; i<(clear_size/4); i++)	
 		ptr[i] = 0x0;
-	if (mvDramIfParamFill(ddrFreq, (MV_DDR_MC_PARAMS*)_mvPmuSramDdrParamPtr) != MV_OK)
+	if (mvDramIfParamFill(ddrFreq, (MV_DDR_MC_PARAMS*)_mvPmuSramDdrParamPtrInt, &cnt) != MV_OK)
 		return MV_FAIL;
 
 	/* Discriptor 0: DDR timing parametrs */
 	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
-	reg |= ((mvDramIfParamCountGet() << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	reg |= ((cnt << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
 	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(0), reg);
 	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
 
-	/* Descriptor 1: TBD */
-	for (i=1; i<PMU_STANDBY_DESCR_CNT; i++)
-	{
-		// TBD
-	}
+	/* Prepare the DDR init done polling descriptor */
+	if (mvDramInitPollAmvFill((MV_DDR_INIT_POLL_AMV*)_mvPmuSramDdrInitPollPtrInt) != MV_OK)
+		return MV_FAIL;
 
+	/* Descriptor 1: DDR Initiaization delay */
+	reg = PMU_RD_CTRL_DISC_TYPE_POLL;
+	reg |= ((1 << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(1), reg);
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(1), PmuSpVirt2Phys(_mvPmuSramDdrInitPollPtr));
+	
 	/* Clear out all non used descriptors */
 	for (i=PMU_STANDBY_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
 	{
