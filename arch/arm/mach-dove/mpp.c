@@ -275,8 +275,10 @@ void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 
 			if (mode->type == MPP_UNUSED)
 				orion_gpio_set_unused(mode->mpp);
-
-			orion_gpio_set_valid(mode->mpp, !!(mode->type == MPP_GPIO));
+			if ((mode->type == MPP_GPIO) || (mode->type == MPP_GPIO_AUDIO1))
+				orion_gpio_set_valid(mode->mpp, 1);
+			else
+				orion_gpio_set_valid(mode->mpp, 0);
 		} else {
 			printk("dove_mpp_conf: MPP[%d] type %d not supported\n",
 			       mode->mpp ,mode->type);
