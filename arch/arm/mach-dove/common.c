@@ -1520,20 +1520,47 @@ void __init dove_config_arbitration(void)
 
 	sc_dec = readl(DOVE_MC_VIRT_BASE + 0x280);
 	printk("PLiao: DOVE_MC @ 0x280 is %08X\n", sc_dec);
+	#ifdef CONFIG_DOVE_REV_Z0
 	sc_dec &= 0xfffff0ff;
 	sc_dec |= 0x00000e00;
+	#endif
+	#ifdef CONFIG_DOVE_REV_Y0
+	sc_dec &= 0xfff0ffff;
+	sc_dec |= 0x000e0000;
+	#endif
 	writel(sc_dec, DOVE_MC_VIRT_BASE + 0x280);
-        /*
+	
+        /* Dove Z0 and Z1
         * Master 0 - VPro
         * Master 1 - GC500
         * Master 2 - LCD
         * Master 3 - Upstream (SB)
         */
+
+	/* Dove Y0
+	/*
+ 	 * MC Master 0 - CPU
+ 	 * MC Master 1 - vPro-GC-UP
+ 	 * MC Master 2 - LCD
+ 	 */
+        /*
+  	 * MC Master 1
+         * Master 0 - VPro
+	 * Master 1 - GC500
+	 * Master 2 - LCD
+	 * Master 3 - Upstream (SB)
+	 */
+
         sc_dec = readl(DOVE_MC_VIRT_BASE + 0x510);
         printk("PLiao: DOVE_MC @ 0x510 is %08X\n", sc_dec);
 	
 	sc_dec &= 0xf0f0f0f0;
-        sc_dec |= 0x010e0101;
+#ifdef CONFIG_DOVE_REV_Z0
+	sc_dec |= 0x010e0101;
+#endif
+#ifdef CONFIG_DOVE_REV_Y0
+	sc_dec |= 0x01010101;
+#endif
         writel(sc_dec, DOVE_MC_VIRT_BASE + 0x510);
         /* End of supersection testing */
 
