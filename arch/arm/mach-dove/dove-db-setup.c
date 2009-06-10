@@ -23,6 +23,7 @@
 #include <linux/i2c/pca953x.h>
 #include <linux/pci.h>
 #include <linux/gpio_mouse.h>
+#include <linux/gpio_keys.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/orion_spi.h>
 #include <linux/spi/flash.h>
@@ -255,6 +256,60 @@ static struct gpio_mouse_platform_data ltact_dove_data = {
                 } 
         }
 };
+
+static struct gpio_keys_button gpio_buttons[] = {
+	{
+		.code			= KEY_KP2,
+		.gpio			= 72,
+		.active_low		= 1,
+		.debounce_interval	= 10,
+		.desc			= "down",
+	},
+	{
+		.code			= KEY_KP4,
+		.gpio			= 73,
+		.active_low		= 1,
+		.debounce_interval	= 10,
+		.desc			= "left",
+	},
+	{
+		.code			= KEY_KP6,
+		.gpio			= 74,
+		.active_low		= 1,
+		.debounce_interval	= 10,
+		.desc			= "right",
+	},
+	{
+		.code			= KEY_KP8,
+		.gpio			= 75,
+		.active_low		= 1,
+		.debounce_interval	= 10,
+		.desc			= "up",
+	},
+	{
+		.code			= KEY_ENTER,
+		.gpio			= 76,
+		.active_low		= 1,
+		.debounce_interval	= 10,
+		.desc			= "enter",
+	},
+};
+
+static struct gpio_keys_platform_data gpio_key_info = {
+	.buttons	= gpio_buttons,
+	.nbuttons	= ARRAY_SIZE(gpio_buttons),
+	.use_shared_irq = 1,
+	.shared_irq = 57 + 64,
+};
+
+static struct platform_device keys_gpio = {
+	.name	= "gpio-keys",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &gpio_key_info,
+	},
+};
+
 /*****************************************************************************
  * SPI Devices:
  * 	SPI0: 4M Flash ST-M25P32-VMF6P
@@ -337,9 +392,22 @@ static int __init dove_db_pci_init(void)
 
 subsys_initcall(dove_db_pci_init);
 
+static int pca9555_setup(struct i2c_client *client,
+			 unsigned gpio, unsigned ngpio,
+			 void *context)
+{
+	if(front_panel) {
+		if(left_tact)
+			dove_tact_init(&ltact_dove_data);
+		platform_device_register(&keys_gpio);
+	}
+	return 0;
+}
+
 /* PCA9555 */
 static struct pca953x_platform_data dove_db_gpio_ext_pdata = {
 	.gpio_base = 64,
+	.setup = pca9555_setup,
 };
 
 static struct i2c_board_info dove_db_gpio_ext_info[] = {
@@ -471,7 +539,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
         { 54, MPP_AUDIO1 }, /* AU1 Group */
         { 55, MPP_AUDIO1 }, /* AU1 Group */
         { 56, MPP_AUDIO1 }, /* AU1 Group */
-        { 57, MPP_AUDIO1 }, /* AU1 Group */
+        { 57, MPP_GPIO_AUDIO1 }, /* AU1 Group */
 
 	{ 58, MPP_SPI0 }, /* will configure MPPs 58-61 */
 
@@ -587,11 +655,8 @@ static void __init dove_db_init(void)
 	dove_cesa_init();
 	dove_hwmon_init();
 
-	if(front_panel) {
+	if(front_panel)
 		dove_cam_init(&dove_cafe_cam_data);
-		if(left_tact)
-			dove_tact_init(&ltact_dove_data);
-	}
 	
 	dove_i2s_init(1, &i2s1_data);
 	i2c_register_board_info(0, &i2c_a2d, 1);
