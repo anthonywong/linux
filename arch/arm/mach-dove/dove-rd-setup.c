@@ -38,6 +38,9 @@
 #include "mpp.h"
 #include "clock.h"
 #include "dove-front-panel-common.h"
+#include "pm.h"
+#include "pmu/mvPmu.h"
+#include "pmu/mvPmuRegs.h"
 
 #define DOVE_RD_WAKEUP_GPIO	(3)
 
@@ -168,6 +171,11 @@ static void __init dove_rd_nfc_init(void)
  * MPP
  ****************************************************************************/
 static struct dove_mpp_mode dove_rd_mpp_modes[] __initdata = {
+	{  1, MPP_PMU },		/* CPU power control */
+	{  3, MPP_PMU },		/* Wakeup - power button */
+	{  4, MPP_PMU },		/* CPU power good inication */
+	{  7, MPP_PMU }, 		/* Standby Led */
+	{ 10, MPP_PMU }, 		/* DVS SDI control */
 	{ 12, MPP_GPIO },
 	{ 13, MPP_GPIO },
 	{ 14, MPP_GPIO },
@@ -177,10 +185,10 @@ static struct dove_mpp_mode dove_rd_mpp_modes[] __initdata = {
 //	{ 21, MPP_LCD0_SPI},
 //	{ 22, MPP_LCD0_SPI},
 //	{ 23, MPP_LCD0_SPI},
-	{ 24, MPP_CAM },	/* CAM Group */
-	{ 40, MPP_SDIO0 },	/* SDIO0 Group */
-	{ 46, MPP_SDIO1 },	/* SDIO1 Group */
-	{ 52, MPP_GPIO },	/* AU1 Group to GPIO */
+	{ 24, MPP_CAM },		/* CAM Group */
+	{ 40, MPP_SDIO0 },		/* SDIO0 Group */
+	{ 46, MPP_SDIO1 },		/* SDIO1 Group */
+	{ 52, MPP_GPIO },		/* AU1 Group to GPIO */
 	{ -1 },
 };
 
@@ -190,7 +198,51 @@ void __init dove_battery_init(void)
 }
 
 /*****************************************************************************
- * General
+ * POWER MANAGEMENT
+ ****************************************************************************/
+static int __init dove_rd_pm_init(void)
+{
+	MV_PMU_INFO pmuInitInfo;	
+
+	pmuInitInfo.deepIdleStatus = MV_FALSE; 			/* Disable L2 retention */
+	pmuInitInfo.cpuPwrGoodEn = MV_FALSE;			/* Don't wait for external power good signal */
+	pmuInitInfo.batFltMngDis = MV_FALSE;			/* Keep battery fault enabled */
+	pmuInitInfo.exitOnBatFltDis = MV_FALSE;			/* Keep exit from STANDBY on battery fail enabled */
+	pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
+	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_NC;		/* STANDBY => Not used in Z0 */
+	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;	/* power on push button */
+	pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
+	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_NC;		/* NON PMU in Z0 Board */
+	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;		/* Charger interrupt - not used */
+	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
+	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;		/* PM OFF Control - used as GPIO */
+	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC;		/* CPU power good  - not used */
+	pmuInitInfo.sigSelctor[10] = PMU_SIGNAL_SDI;		/* Voltage regulator control */
+	pmuInitInfo.sigSelctor[11] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[12] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[13] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[14] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
+	pmuInitInfo.dvsDelay = 0;				/* PMU cc delay for DVS change */
+
+	/* Initialize the PMU HAL */
+	if (mvPmuInit(&pmuInitInfo) != MV_OK)
+		printk(KERN_NOTICE "Failed to initialive the PMU!\n");
+
+	/* Configure wakeup events */
+	mvPmuWakeupEventSet(PMU_STBY_WKUP_CTRL_EXT0_FALL | PMU_STBY_WKUP_CTRL_RTC_MASK);
+
+	/* Register the PM operation in the Linux stack */
+	dove_pm_register();
+
+	return 0;
+}
+
+__initcall(dove_rd_pm_init);
+
+/*****************************************************************************
+ * Board Init
  ****************************************************************************/
 static void __init dove_rd_init(void)
 {
