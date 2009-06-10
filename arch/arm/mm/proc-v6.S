@@ -218,7 +218,11 @@ ENTRY(v6_processor_functions)
 
 	.type	cpu_arch_name, #object
 cpu_arch_name:
-	.asciz	"armv6"
+	.ascii	"armv6"
+#ifdef CONFIG_IWMMXT
+        .ascii  "-wmmx"
+#endif
+	.ascii  "\0"
 	.size	cpu_arch_name, . - cpu_arch_name
 
 	.type	cpu_elf_name, #object
