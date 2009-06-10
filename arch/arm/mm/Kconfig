@@ -798,3 +798,11 @@ config MRV_PTE_IN_L2
 	help
 	  Say Y if you wan to enable table work in L2 (MMU get pte
 	  from L2 memory) to improve performance
+
+config CPU_PJ5_PMC_ACCESS_IN_USERMODE
+	bool "Enabled User mode access for PMC"
+	depends on CPU_PJ5
+	default n
+	help
+	  Say Y if you allow user mode application to access Performance 
+	  Monitor Counter of PJ5 in user mode
