@@ -806,3 +806,24 @@ config CPU_PJ5_PMC_ACCESS_IN_USERMODE
 	help
 	  Say Y if you allow user mode application to access Performance 
 	  Monitor Counter of PJ5 in user mode
+
+config CPU_ENABLE_WRITECO
+	bool "Enable Write Buffer Coalescing"
+	depends on CPU_PJ5
+	default y
+	help
+	  Say Y if you to enable write buffer coalescing feature
+
+config CPU_WRITECO_CYCLE
+	int "Write Buffer Coalescing cycles"
+	depends on CPU_ENABLE_WRITECO
+	default 3
+	range 0 7
+	help
+	Defines the number of cycles a store might stay in the write 
+	buffer waiting for coalescing.	
+	0 -> no wait cycles
+	1 -> 1 wait cycle
+	2 -> 3 wait cycles
+	3 -> 7 wait cycles
+	4 - 7 -> 15 wait cycles
