@@ -814,6 +814,15 @@ config MV_L2_WA_ON
 	   of L2 cache H/W
 	   depends on CACHE_TAUROS2 && CPU_WA_ENABLE
 
+config MV_L2_PREFETCH_OFF
+	bool "Disable prefetch mode for L2 chache"
+	depends on CACHE_TAUROS2
+	default y
+	help
+	  Say Y if you want to disable prefetch feature
+	  of L2 cache H/W
+
+
 config CPU_PJ4_PMC_ACCESS_IN_USERMODE
 	bool "Enabled User mode access for PMC"
 	depends on CPU_PJ4
