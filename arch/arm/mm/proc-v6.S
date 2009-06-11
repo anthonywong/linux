@@ -143,6 +143,13 @@ ENTRY(cpu_v6_set_pte_ext)
 
 cpu_v6_name:
 	.ascii	"ARMv6-compatible processor"
+#ifdef CONFIG_IWMMXT
+	.ascii	"-wmmx"
+#endif
+#ifdef CONFIG_CPU_ENABLE_WRITECO
+	.ascii	"-wco"
+#endif
+	.ascii	"\0"
 	.align
 
 	__INIT
@@ -237,13 +244,6 @@ ENTRY(v6_processor_functions)
 	.type	cpu_arch_name, #object
 cpu_arch_name:
 	.ascii	"armv6"
-#ifdef CONFIG_IWMMXT
-	.ascii  "-wmmx"
-#endif
-#ifdef CONFIG_CPU_ENABLE_WRITECO
-	.ascii  "-wco"
-#endif
-	.ascii  "\0"
 	.size	cpu_arch_name, . - cpu_arch_name
 
 	.type	cpu_elf_name, #object
