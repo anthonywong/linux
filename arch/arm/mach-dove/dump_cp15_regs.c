@@ -121,6 +121,20 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 
 	asm volatile("mrc p15, 1, %0, c15, c1, 0": "=r"(value));
 	p += sprintf(p, "Control Configuration: 0x%08x\n", value);
+	p += sprintf(p, "    Write Buffer Coalescing\t: %s\n", (value & (1 << 8)) ?
+		     "Enabled" : "Disabled");
+	if (value & (1 << 8))
+		p += sprintf(p, "    WB WAIT CYC\t: 0x%x\n", (value >> 9) & 0x7);
+
+	p += sprintf(p, "    Coprocessor dual issue \t: %s\n", (value & (1 << 15)) ?
+		     "Disabled" : "Enabled");
+
+	p += sprintf(p, "    L2 Cache Burst 8 \t: %s\n", (value & (1 << 20)) ?
+		     "Enabled" : "Disabled");
+
+	p += sprintf(p, "    L2 Cache Way 7-4 \t: %s\n", (value & (1 << 21)) ?
+		     "Enabled" : "Disabled");
+		
 #ifdef CONFIG_DOVE_REV_Z0
 	p += sprintf(p, "    L2\t\t: %s\n", (value & (1 << 22)) ?
 		     "Enabled" : "Disabled");
