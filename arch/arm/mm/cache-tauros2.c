@@ -210,6 +210,20 @@ static void enable_l2_burst8(void)
 	}
 }
 
+static void enable_l2_prefetch(void)
+{
+	u32 u;
+
+	/*
+	 * Read the CPU Extra Features register and verify that the
+	 * Disable L2 Prefetch bit is set.
+	 */
+	u = read_extra_features();
+	if ((u & 0x01000000)) {
+		write_extra_features(u & 0xfeffffff);
+	}
+}
+
 static inline int __init cpuid_scheme(void)
 {
 	extern int processor_id;
@@ -244,8 +258,11 @@ void __init tauros2_init(void)
 {
 	extern int processor_id;
 	char *mode;
-
+#ifdef CONFIG_MV_L2_PREFETCH_OFF
 	disable_l2_prefetch();
+#else
+	enable_l2_prefetch();
+#endif
 
 #ifdef CONFIG_MV_L2_WA_ON
 	enable_l2_wa();
