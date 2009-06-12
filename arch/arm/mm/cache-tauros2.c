@@ -152,6 +152,35 @@ static void disable_l2_prefetch(void)
 	}
 }
 
+static void disable_l2_wa(void)
+{
+	u32 u;
+
+	/*
+	 * Read the CPU Extra Features register and verify that the
+	 * Enable L2 write allocate bit is set.
+	 */
+	u = read_extra_features();
+	if (u & 0x10000000) {
+		printk(KERN_INFO "Tauros2: Disabling L2 write allocate.\n");
+		write_extra_features(u & 0xefffffff);
+	}
+}
+
+static void enable_l2_wa(void)
+{
+	u32 u;
+
+	/*
+	 * Read the CPU Extra Features register and verify that the
+	 * Enable L2 write allocate bit is clear.
+	 */
+	u = read_extra_features();
+	if (!(u & 0x10000000)) {
+		write_extra_features(u | 0x10000000);
+	}
+}
+
 static inline int __init cpuid_scheme(void)
 {
 	extern int processor_id;
@@ -188,6 +217,12 @@ void __init tauros2_init(void)
 	char *mode;
 
 	disable_l2_prefetch();
+
+#ifdef CONFIG_MV_L2_WA_ON
+	enable_l2_wa();
+#else
+	disable_l2_wa();
+#endif
 
 #ifdef CONFIG_CPU_32v5
 	if ((processor_id & 0xff0f0000) == 0x56050000) {
