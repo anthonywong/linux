@@ -105,7 +105,13 @@
 	.long	0x00						@ L_PTE_MT_UNCACHED
 	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_BUFFERABLE
 	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
-	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
+#if defined(CONFIG_MV_L2_WA_ON) && defined(CPU_WA_ENABLE)
+	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEBACK (L1 and L2 WA)
+#elif defined(CONFIG_CPU_L1WAONLY_ENABLE)
+	.long	PTE_EXT_TEX(7) | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK (L2 WA only)
+#else
+	.long   PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
+#endif
 	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_SHARED
 	.long	0x00						@ unused
 	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
@@ -149,7 +155,6 @@
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
-
 	str	r3, [r0]
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
 #ifndef CONFIG_MRV_PTE_IN_L2
