@@ -1,5 +1,5 @@
 /*
- *  Copyright 2004-2008 Freescale Semiconductor, Inc. All Rights Reserved.
+ *  Copyright 2004-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
 /*
@@ -82,9 +82,14 @@ static inline int type## _rev (int rev)		\
 #ifdef CONFIG_ARCH_MX51
 # include <mach/mx51.h>
 # define cpu_is_mx51()   (1)
+#define board_is_mx51(rev)   ((system_rev & rev) ? 1 : 0)
+/* BB25:Bit8 is set to 1, BB20: Bit8 is set to 0 */
+#define board_is_babbage_2_5()   ((system_rev & 0x1FF) >> 8)
 #else
 # define cpu_is_mx51()   (0)
-#endif /* CONFIG_ARCh_MX51 */
+#define board_is_mx51(rev)	(0)
+#define board_is_babbage_2_5()	(0)
+#endif /* CONFIG_ARCH_MX51 */
 
 #ifdef CONFIG_ARCH_MX21
 #include <mach/mx21.h>
