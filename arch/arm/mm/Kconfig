@@ -799,6 +799,14 @@ config MRV_PTE_IN_L2
 	  Say Y if you wan to enable table work in L2 (MMU get pte
 	  from L2 memory) to improve performance
 
+config MV_L2_WA_ON
+       bool "Enable Write allocate for L2 cache"
+        default y if CPU_WA_ENABLE && CACHE_TAUROS2
+	 help
+	   Say Y if you want to enable write allocate feature
+	   of L2 cache H/W
+	   depends on CACHE_TAUROS2 && CPU_WA_ENABLE
+
 config CPU_PJ5_PMC_ACCESS_IN_USERMODE
 	bool "Enabled User mode access for PMC"
 	depends on CPU_PJ5
@@ -827,3 +835,29 @@ config CPU_WRITECO_CYCLE
 	2 -> 3 wait cycles
 	3 -> 7 wait cycles
 	4 - 7 -> 15 wait cycles
+
+choice
+	prompt "Cache Write Allocate Setting"
+	depends on CPU_V6 || CPU_V7 || CPU_PJ5
+
+config CPU_WA_DISABLE
+	bool "Disable Inner & Outer Write Allocate"
+	depends on CPU_V6 || CPU_V7 || CPU_PJ5
+	default y
+	help
+	  Say Y to disable Write allocate support
+
+config CPU_WA_ENABLE
+	bool "Support Inner & Outer Write Allocate"
+	depends on CPU_V6 || CPU_V7
+	default n
+	help
+	  Say Y to set TEX=001 when C=1 and B=1 to enable WA
+
+config CPU_L1WAONLY_ENABLE
+	bool "Support Inner Write Allocate only"
+	depends on CPU_V6 || CPU_V7
+	default n
+	help
+	  Say Y to set Inner cache write allocate only
+endchoice
