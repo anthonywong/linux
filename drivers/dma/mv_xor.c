@@ -1285,9 +1285,38 @@ mv_xor_conf_mbus_windows(struct mv_xor_shared_private *msp,
 	writel(win_enable, base + WINDOW_BAR_ENABLE(1));
 }
 
+#ifdef CONFIG_PM
+static int mv_xor_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	return 0;
+}
+
+static int mv_xor_resume(struct platform_device *pdev)
+{
+	struct mv_xor_device *device = platform_get_drvdata(pdev);
+	struct dma_chan *chan, *_chan;
+	struct mv_xor_chan *mv_chan;
+
+	list_for_each_entry_safe(chan, _chan, &device->common.channels,
+				device_node) {
+		mv_chan = to_mv_xor_chan(chan);
+		mv_chan_unmask_interrupts(mv_chan);
+
+		mv_set_mode(mv_chan, mv_chan->current_type);
+	}
+	return 0;
+}
+
+#else
+#define mv_xor_suspend NULL
+#define mv_xor_resume NULL
+#endif
+
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
 	.remove		= __devexit_p(mv_xor_remove),
+	.suspend	= mv_xor_suspend,
+	.resume		= mv_xor_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= MV_XOR_NAME,
@@ -1356,9 +1385,36 @@ static int mv_xor_shared_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int mv_xor_shared_suspend(struct platform_device *pdev,
+				 pm_message_t state)
+{
+	return 0;
+}
+
+static int mv_xor_shared_resume(struct platform_device *pdev)
+{
+	struct mv_xor_platform_shared_data *msd = pdev->dev.platform_data;
+	struct mv_xor_shared_private *msp = platform_get_drvdata(pdev);
+	/*
+	 * (Re-)program MBUS remapping windows if we are asked to.
+	 */
+	if (msd != NULL && msd->dram != NULL)
+		mv_xor_conf_mbus_windows(msp, msd->dram);
+
+	return 0;
+}
+
+#else
+#define mv_xor_shared_suspend NULL
+#define mv_xor_shared_resume NULL
+#endif
+
 static struct platform_driver mv_xor_shared_driver = {
 	.probe		= mv_xor_shared_probe,
 	.remove		= mv_xor_shared_remove,
+	.suspend	= mv_xor_shared_suspend,
+	.resume		= mv_xor_shared_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= MV_XOR_SHARED_NAME,
