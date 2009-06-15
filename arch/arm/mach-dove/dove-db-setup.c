@@ -513,7 +513,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 
         { 14, MPP_GPIO },               /* 7segDebug Led */
         { 15, MPP_GPIO },               /* 7segDebug Led */
-	{ 16, MPP_GPIO },
+	{ 16, MPP_GPIO },		/* PMU - DDR termination control */
 	{ 17, MPP_TWSI },
 	{ 18, MPP_GPIO },
 	{ 19, MPP_TWSI },
@@ -576,6 +576,7 @@ static int __init dove_db_pm_init(void)
 	pmuInitInfo.sigSelctor[14] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
 	pmuInitInfo.dvsDelay = 0;				/* PMU cc delay for DVS change */
+	pmuInitInfo.ddrTermGpioNum = 16;			/* GPIO 16 used to disable terminations */
 
 	/* Initialize the PMU HAL */
 	if (mvPmuInit(&pmuInitInfo) != MV_OK)
