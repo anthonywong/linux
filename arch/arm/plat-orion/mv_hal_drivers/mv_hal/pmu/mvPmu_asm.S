@@ -155,7 +155,7 @@ skip_ddrfs_sr_exit:
 /*************************************************************/
 /*   FOR DEBUG ONLY - BLINK LED ON MPP7 AS A LIFE INDICATION */
 /*************************************************************/
-	mov	r4, #2
+	mov	r4, #100
 	ldr	r0, led_addr
 	ldr	r1, led_val_on
 	ldr	r2, led_val_off
@@ -190,9 +190,9 @@ pmu_ddrfs_ctrl_reg:
 led_addr:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_SIG_SLCT_CTRL_0_REG)
 led_val_on:
-	.word (0x1000B040)
+	.word (0x1048B500)
 led_val_off:
-	.word (0x2000B040)
+	.word (0x2048B500)
 /*********************************************************************/
 ENTRY(mvPmuSramDdrReconfigFuncSZ)
 	.word	. - mvPmuSramDdrReconfigFunc
@@ -262,10 +262,23 @@ sb_pc_v2p_res:
 ddr_sr_loop:
 	ldr	r2, [r0]
 	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
-	beq	ddr_sr_loop	
+	beq	ddr_sr_loop
 
+	/*
+	 * Disable DDR Terminations
+	 */
+	ldr	r0, pmu_sbe_term_ctrl_addr
+	ldr	r0, [r0]
+	cmp	r0, #1
+	bne	skip_ddr_sr
+	ldr	r2, pmu_sbe_term_mask_addr
+	ldr	r2, [r2]
+	ldr	r0, pmu_sbe_gpio_out_val_reg
+	ldr	r1, [r0]
+	bic	r1, r1, r2
+	str	r1, [r0]
+	
 skip_ddr_sr:
-
 	/*
 	 * Initiate Deep Idle flow
 	 */
@@ -294,12 +307,12 @@ pmu_sbe_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 pmu_sbe_irb_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + 0x20080)
-/*
-#ifdef CONFIG_DOVE_REV_Z0
-pmu_sbe_nvram_int_base:
-	.word (PMU_CESA_SP_BASE)
-#else
-*/
+pmu_sbe_gpio_out_val_reg:
+	.word (DOVE_SB_REGS_VIRT_BASE + 0xD0400)
+pmu_sbe_term_ctrl_addr:
+	.word (PMU_SP_TERM_EN_CTRL_ADDR)
+pmu_sbe_term_mask_addr:
+	.word (PMU_SP_TERM_GPIO_MASK_ADDR)
 #ifndef CONFIG_DOVE_REV_Z0
 pmu_sbe_nvram_int_base:
 	.word (PMU_SCRATCHPAD_INT_BASE)
@@ -333,7 +346,7 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 	mcr	p15, 0, r1, c7, c7, 0		@ invalidate I & D caches, BTB
 	mcr	p15, 0, r1, c7, c10, 4		@ drain write (&fill) buffer
 	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
-	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs
+	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs		
 
 	/*
 	 * Exit DDR self refresh mode if active
@@ -348,12 +361,31 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 ddr_sr_exit_loop:
 	ldr	r2, [r0]
 	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
-	bne	ddr_sr_exit_loop
+	bne	ddr_sr_exit_loop		
 
-skip_ddr_sr_exit:
+	/*
+	 * Re-enable DDR terminations
+	 */
+	ldr	r0, pmu_sbx_term_ctrl_addr
+	ldr	r0, [r0]
+	cmp	r0, #1
+	bne	skip_ddr_sr_exit
+	ldr	r2, pmu_sbx_term_mask_addr
+	ldr	r2, [r2]
+	ldr	r0, pmu_sbx_gpio_out_val_reg
+	ldr	r1, [r0]
+	orr	r1, r1, r2
+	str	r1, [r0]
+
+	mov	r1, #0x40
+term_enable_delay:
+	sub	r1, r1, #1
+	cmp	r1, #0
+	bne	term_enable_delay	
+
+skip_ddr_sr_exit:	
 	ldr	r0, stby_saved_sp		@ stack phys addr
 	ldmfd	r0, {r2-r8}
-
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
@@ -383,6 +415,12 @@ pmu_sbx_virt_mask:
 	.word (0xFFFFF)
 pmu_sbx_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
+pmu_sbx_gpio_out_val_reg:
+	.word (DOVE_SB_REGS_PHYS_BASE + 0xD0400)
+pmu_sbx_term_ctrl_addr:
+	.word (PMU_SP_TERM_EN_CTRL_ADDR_PHYS)
+pmu_sbx_term_mask_addr:
+	.word (PMU_SP_TERM_GPIO_MASK_ADDR_PHYS)
 
 ENTRY(mvPmuSramDeepIdleExitFuncSZ)
 	.word	. - mvPmuSramDeepIdleExitFunc
