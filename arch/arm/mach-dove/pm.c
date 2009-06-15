@@ -211,22 +211,26 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		goto done;
 	}
 
-	str = "deepidle";
-	if(!strncmp(buffer+len, str,strlen(str))) {
-		dove_pm_cpuidle_deepidle();
-		goto done;
-	}
-
 	str = "deepidle_block";
 	if(!strncmp(buffer+len, str,strlen(str))) {
 		printk("Enter DeepIdle mode ");
 		mc = MV_REG_READ(0x20204);
 		mc2 = MV_REG_READ(0x20214);
-		MV_REG_WRITE(0x20204, 0x100); /* disable all interrupts except for the serial port */
+#ifdef CONFIG_DOVE_REV_Z0
+		MV_REG_WRITE(0x20204, 0x100); /* disable all interrupts except UART1 */
+#else
+		MV_REG_WRITE(0x20204, 0x80); /* disable all interrupts except UART0 */
+#endif
 		MV_REG_WRITE(0x20214, 0x0);
 		dove_pm_cpuidle_deepidle();
 		MV_REG_WRITE(0x20204, mc);
 		MV_REG_WRITE(0x20214, mc2);
+		goto done;
+	}
+
+	str = "deepidle";
+	if(!strncmp(buffer+len, str,strlen(str))) {
+		dove_pm_cpuidle_deepidle();
 		goto done;
 	}
 
@@ -246,7 +250,11 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		printk("Enter WFI mode ");
 		mc = MV_REG_READ(0x20204);
 		mc2 = MV_REG_READ(0x20214);
-		MV_REG_WRITE(0x20204, 0x100); /* disable all interrupts except for the serial port */
+#ifdef CONFIG_DOVE_REV_Z0
+		MV_REG_WRITE(0x20204, 0x100); /* disable all interrupts except UART1 */
+#else
+		MV_REG_WRITE(0x20204, 0x80); /* disable all interrupts except UART0 */
+#endif
 		MV_REG_WRITE(0x20214, 0x0);		
 
 		__asm__ __volatile__("mcr p15, 0, %0, c7, c0, 4\n" : "=r" (dummy));
