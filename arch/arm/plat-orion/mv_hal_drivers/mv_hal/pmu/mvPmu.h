@@ -116,6 +116,7 @@ typedef struct
 	MV_BOOL     	exitOnBatFltDis;/* Disable resume in battery fault situation in Standby */
 	MV_PMU_SIG_SRC	sigSelctor[16]; /* PMU signal selector of signal 0-15 */
 	MV_U32		dvsDelay;	/* Delay for waiting the voltage change to complete */
+	MV_32		ddrTermGpioNum; /* GPIO number used for DDR termination 0-31 or -1 */
 } MV_PMU_INFO;
 
 /* System Frequencies */

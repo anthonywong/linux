@@ -266,7 +266,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	reg = MV_REG_READ(PMU_CLK_DIVIDER_0_REG);
 	l2TurboRatio = (((reg & PMU_CLK_DIV_XPRATIO_MASK) >> PMU_CLK_DIV_XPRATIO_OFFS) << PMU_DFS_CTRL_L2_RATIO_OFFS);
 
-	return mvPmuSramLoad();
+	return mvPmuSramInit(pmu->ddrTermGpioNum);
 }
 
 /*******************************************************************************

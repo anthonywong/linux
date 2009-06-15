@@ -83,8 +83,8 @@ static MV_VOID * _mvPmuSramDdrInitPollPtr;	/* External Read-only access */
 static MV_VOID * _mvPmuSramDdrInitPollPtrInt;	/* Internale Read-write access */
 
 /* Sram Markers */
-static unsigned long mvPmuSramOffs = 0;
-static unsigned long mvPmuSramSize = PMU_SCRATCHPAD_SIZE;
+static unsigned long mvPmuSramOffs = PMU_SCRATCHPAD_RSRV;
+static unsigned long mvPmuSramSize = (PMU_SCRATCHPAD_SIZE - PMU_SCRATCHPAD_RSRV);
 
 /* SRAM functions pointer */
 static MV_VOID (*_mvPmuSramDdrReconfigPtr)(MV_U32 cplPtr, MV_U32 cplCnt);
@@ -219,7 +219,7 @@ MV_VOID mvPmuSramStandby(MV_VOID)
 }
 
 /*******************************************************************************
-* mvPmuSramLoad - Load the PMU Sram with all calls functions needed for PMU
+* mvPmuSramInit - Load the PMU Sram with all calls functions needed for PMU
 *
 * DESCRIPTION:
 *   	Initialize the scratch pad SRAM region in the PMU so that all routines
@@ -234,7 +234,7 @@ MV_VOID mvPmuSramStandby(MV_VOID)
 *    	MV_OK	: All Functions relocated to PMU SRAM successfully
 *	MV_FAIL	: At least on function failed relocation
 *******************************************************************************/
-MV_STATUS mvPmuSramLoad (MV_VOID)
+MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 {
 	/* Allocate enough space for the DDR paramters */
 	if ((_mvPmuSramDdrParamPtr = mvPmuSramRelocate(NULL,
@@ -278,6 +278,18 @@ MV_STATUS mvPmuSramLoad (MV_VOID)
 	if ((_mvPmuSramStandbyExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyExitFunc,
 		mvPmuSramStandbyExitFuncSZ)) == NULL)
 		return MV_FAIL;
+
+	/* Save the DDR termination GPIO information */
+	if ((ddrTermGpioCtrl >= 0) | (ddrTermGpioCtrl <= 31))
+	{	
+		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_EN_CTRL_ADDR, 0x1);
+		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_GPIO_MASK_ADDR, (0x1 << ddrTermGpioCtrl));
+	}
+	else
+	{
+		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_EN_CTRL_ADDR, 0x0);
+		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_GPIO_MASK_ADDR, 0x0);
+	}
 
 	return MV_OK;
 }

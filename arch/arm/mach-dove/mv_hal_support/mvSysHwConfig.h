@@ -355,7 +355,6 @@ otherwise the following defines will be ignored */
 /* Internal registers: size is defined in Controllerenvironment */
 //#define INTER_REGS_BASE	0xF1000000
 #define INTER_REGS_BASE 	DOVE_SB_REGS_VIRT_BASE
-#define PMU_SCRATCH_BASE	DOVE_SCRATCHPAD_VIRT_BASE
 /* DRAM detection stuff */
 #define MV_DRAM_AUTO_SIZE
 
@@ -368,7 +367,17 @@ otherwise the following defines will be ignored */
 /* PEX-PCI\PCI-PCI Bridge*/
 #define PCI0_IF_PTP		0		/* Bridge exist on pciIf0*/
 
- 
+/* PMU Address definitions */
+#ifdef CONFIG_DOVE_REV_Z0
+ #define PMU_CESA_SP_BASE		(DOVE_SB_REGS_VIRT_BASE + PMU_REG_BASE + 0xC000)
+ #define PMU_SCRATCHPAD_EXT_BASE	(DOVE_SCRATCHPAD_VIRT_BASE + 0x10000)
+ #define PMU_SCRATCHPAD_INT_BASE	(DOVE_SCRATCHPAD_VIRT_BASE + 0x10000)
+ #define PMU_SCRATCHPAD_INT_BASE_PHYS 	(DOVE_SCRATCHPAD_PHYS_BASE + 0x10000)
+#else
+ #define PMU_SCRATCHPAD_EXT_BASE	(DOVE_SCRATCHPAD_VIRT_BASE + 0xC000)
+ #define PMU_SCRATCHPAD_INT_BASE	(DOVE_SB_REGS_VIRT_BASE + PMU_REG_BASE + 0xC000)					 
+ #define PMU_SCRATCHPAD_INT_BASE_PHYS	(DOVE_SB_REGS_PHYS_BASE + PMU_REG_BASE + 0xC000)
+#endif 
 
 #endif /* __INCmvSysHwConfigh */
 
