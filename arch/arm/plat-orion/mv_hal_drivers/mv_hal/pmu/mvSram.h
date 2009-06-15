@@ -86,7 +86,7 @@ extern MV_U32 mvPmuSramStandbyExitFuncSZ;
 
 
 /* Function APIs */
-MV_STATUS 	mvPmuSramLoad (MV_VOID);
+MV_STATUS 	mvPmuSramInit (MV_32 ddrTermGpioCtrl);
 MV_VOID 	mvPmuSramDdrReconfig(MV_U32 paramcnt);
 MV_STATUS 	mvPmuSramDdrTimingPrep(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_U32 * cnt);
 MV_VOID 	mvPmuSramDeepIdle(MV_U32 ddrSelfRefresh);
