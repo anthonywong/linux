@@ -225,6 +225,7 @@ static int __init dove_rd_pm_init(void)
 	pmuInitInfo.sigSelctor[14] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
 	pmuInitInfo.dvsDelay = 0;				/* PMU cc delay for DVS change */
+	pmuInitInfo.ddrTermGpioNum = -1;			/* No GPIO is used to disable terminations */
 
 	/* Initialize the PMU HAL */
 	if (mvPmuInit(&pmuInitInfo) != MV_OK)
