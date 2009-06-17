@@ -85,14 +85,20 @@ MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {
             	{421 ,0x41}, {422 ,0x70}, {423, 0x7D}, {424, 0x94}, {425, 0x40}, {426, 0x94}, {427, 0x42}, \
 		{428, 0xFF}};
 #else
-MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
+/*MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
 		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {252,0x44}, {253,0x00}, {254,0xF3}, \
 		{255,0xF0}, {297, 0x7C}, {388, 0x71}, \
 		{389, 0x30}, {390, 0x80}, {391, 0x28}, {392, 0x80}, \
 		{393, 0xFF}, {394, 0x08}, {395, 0x49}, {396, 0x39}, {397, 0x20}, {398, 0xA8}, {399, 0x18}, \
             	{400, 0x80}, {401, 0x69}, {402, 0x80}, {403, 0x28}, {404, 0x80}, {405, 0xFF}, {406, 0x04}, \
             	{407, 0x20}, {408, 0x59}, {409, 0x08}, {410, 0x94}, {411 ,0x41}, {412 ,0x70}, {413, 0x7D}, \
-		{414, 0x94}, {415, 0x40}, {416, 0x94}, {417, 0x42}, {418, 0xFF}};
+		{414, 0x94}, {415, 0x40}, {416, 0x94}, {417, 0x42}, {418, 0xFF}};*/
+MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
+		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {252,0x44}, {253,0x00}, {254,0xF3}, \
+		{255,0xF0}, {297, 0x7C}, {388, 0x71}, {389, 0x30}, {390, 0x80}, {391, 0x28}, {392, 0x80}, \
+		{393, 0xFF}, {394, 0x08}, {395, 0x49}, {396, 0x39}, {397, 0x20}, {398, 0xA8}, {399, 0x18}, \
+            	{400, 0x80}, {401, 0x69}, {402, 0x59}, {403, 0x08}, {404, 0x94}, {405 ,0x41}, {406 ,0x70}, \
+		{407, 0x7D}, {408, 0x94}, {409, 0x40}, {410, 0x94}, {411, 0x42}, {412, 0xFF}};
 #endif
 
 /* Save L2 ratio at system power up */
@@ -129,8 +135,8 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x2}, 	/* DDR:PLL 1:2 */
 #else
  #define PMU_DEEPIDLE_CPU_PWR_DLY	0x208D			/* TCLK clock cycles - ~50 us */
 #endif
-#define PMU_STBY_CPU_PWR_DLY		0x1000			/* RTC 32KHz clock cycles ~32ms */
-#define PMU_STBY_CORE_PWR_DLY		0x1000			/* RTC 32KHz clock cycles ~0.5ms */
+#define PMU_STBY_CPU_PWR_DLY		0x1			/* RTC 32KHz clock cycles ~31.25us */
+#define PMU_STBY_CORE_PWR_DLY		0x140			/* RTC 32KHz clock cycles ~10ms */
 #define PMU_DVS_POLL_DLY		10000			/* Poll DVS done count */
 
 /* DVS defaults */
@@ -231,6 +237,18 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	for (i=7; i>=0; i--)
 		reg |= ((pmu->sigSelctor[i+8] & 0xF) << (i*4));
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_1_REG, reg);
+
+	/* Configure the CPU Power Good if used */
+	for (i=0; i<16; i++)
+	{
+		if (pmu->sigSelctor[i] == PMU_SIGNAL_CPU_PWRGOOD)
+		{
+			reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
+			reg |= PMU_PWR_GOOD_PIN_EN_MASK;
+			MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
+			break;
+		}
+	}
 
 	/* Configure the blinking led timings */
 	MV_REG_WRITE(PMU_BLINK_PERIOD_CTRL_REG, PMU_STBY_LED_PERIOD);
