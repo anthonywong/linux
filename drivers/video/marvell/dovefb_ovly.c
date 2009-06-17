@@ -1105,7 +1105,9 @@ struct fb_ops dovefb_ovly_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= dovefb_ovly_open,
 	.fb_release	= dovefb_release,
+#if defined (CONFIG_DOVE_REV_Z0)
 	.fb_mmap	= dovefb_ovly_mmap,
+#endif
 	.fb_check_var	= dovefb_check_var,
 	.fb_set_par	= dovefb_ovly_set_par,
 /*	.fb_setcolreg	= dovefb_setcolreg,*/
