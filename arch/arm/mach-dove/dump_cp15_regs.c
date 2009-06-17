@@ -145,6 +145,9 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	p += sprintf(p, "    L2 Prefetch\t: %s\n", (value & (1 << 24)) ?
 		     "Disabled" : "Enabled");
 
+	p += sprintf(p, "    L2 write allocate\t: %s\n", (value & (1 << 28)) ?
+		     "Enabled" : "Disabled");
+
 	p += sprintf(p, "    Streaming\t: %s\n", (value & (1 << 29)) ?
 		     "Enabled" : "Disabled");
 	
