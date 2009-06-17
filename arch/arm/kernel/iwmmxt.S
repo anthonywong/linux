@@ -58,7 +58,7 @@
 
 ENTRY(iwmmxt_task_enable)
 
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ5)
+#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)
     mrc     p15, 0, r2, c1, c0, 2
     tst     r2, #0xf                        @ CP0 and CP1 accessible?
     movne   pc, lr                          @ if so no business here
@@ -187,7 +187,7 @@ ENTRY(iwmmxt_task_disable)
 	teqne	r1, r2				@ or specified one?
 	bne	1f				@ no: quit
 
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ5)
+#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)
 	mrc	p15, 0, r4, c1, c0, 2
 	orr	r4, r4, #0xf			@ enable access to CP0 and CP1
 	mcr	p15, 0, r4, c1, c0, 2
@@ -202,7 +202,7 @@ ENTRY(iwmmxt_task_disable)
 	mov	r2, r2				@ cpwait
 	bl	concan_save
 
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ5)
+#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)
 	bic	r4, r4, #0xf			@ disable access to CP0 and CP1
 	mcr	p15, 0, r4, c1, c0, 2
 #else
@@ -296,7 +296,7 @@ ENTRY(iwmmxt_task_restore)
  */
 ENTRY(iwmmxt_task_switch)
 
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ5)
+#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)
 	mrc	p15, 0, r1, c1, c0, 2
 	tst	r1, #0xf			@ CP0 and CP1 accessible?
 #else
@@ -311,7 +311,7 @@ ENTRY(iwmmxt_task_switch)
 	teq	r2, r3				@ next task owns it?
 	movne	pc, lr				@ no: leave Concan disabled
 
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ5)
+#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)
 1:	eor	r1, r1, #0xf			@ flip Concan access
 	mcr	p15, 0, r1, c1, c0, 2
 #else
