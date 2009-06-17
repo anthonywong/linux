@@ -799,6 +799,13 @@ config MRV_PTE_IN_L2
 	  Say Y if you wan to enable table work in L2 (MMU get pte
 	  from L2 memory) to improve performance
 
+config CACHE_L2LINEFILL_BURST8_ENABLE
+	bool "Enable L2 Line Fill Burst Length 8"
+	depends on CACHE_TAUROS2
+	default n
+	help
+	  Say Y to enable L2 line fill burst length to 8
+
 config MV_L2_WA_ON
        bool "Enable Write allocate for L2 cache"
         default y if CPU_WA_ENABLE && CACHE_TAUROS2
