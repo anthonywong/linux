@@ -176,12 +176,12 @@ __v6_setup:
 	mcr	p15, 0, r0, c1, c0, 1
 #endif
 
-#ifdef CONFIG_CPU_PJ5_PMC_ACCESS_IN_USERMODE
+#ifdef CONFIG_CPU_PJ4_PMC_ACCESS_IN_USERMODE
 	@ Enable performance counters user access
         mrc     p15, 0, r0, c9, c14, 0
         orr     r0, r0, #0x1
         mcr     p15, 0, r0, c9, c14, 0
-#endif /* CONFIG_CPU_PJ5_PMC_ACCESS_IN_USERMODE */
+#endif /* CONFIG_CPU_PJ4_PMC_ACCESS_IN_USERMODE */
 
 
 	mov	r0, #0
