@@ -398,7 +398,7 @@ config CPU_V6
 	select CPU_HAS_ASID if MMU
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V6 if MMU
-	select CPU_PJ5 if DOVE_REV_Y0
+	select CPU_PJ4 if DOVE_REV_Y0
 
 # ARMv6k
 config CPU_32v6K
@@ -425,7 +425,7 @@ config CPU_V7
 	select CPU_HAS_ASID if MMU
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V7 if MMU
-	select CPU_PJ5 if DOVE_REV_Y0
+	select CPU_PJ4 if DOVE_REV_Y0
 
 # Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.
@@ -456,7 +456,7 @@ config CPU_32v6
 config CPU_32v7
 	bool
 
-config CPU_PJ5
+config CPU_PJ4
         bool
 
 # The abort model
@@ -814,17 +814,17 @@ config MV_L2_WA_ON
 	   of L2 cache H/W
 	   depends on CACHE_TAUROS2 && CPU_WA_ENABLE
 
-config CPU_PJ5_PMC_ACCESS_IN_USERMODE
+config CPU_PJ4_PMC_ACCESS_IN_USERMODE
 	bool "Enabled User mode access for PMC"
-	depends on CPU_PJ5
+	depends on CPU_PJ4
 	default n
 	help
 	  Say Y if you allow user mode application to access Performance 
-	  Monitor Counter of PJ5 in user mode
+	  Monitor Counter of PJ4 in user mode
 
 config CPU_ENABLE_WRITECO
 	bool "Enable Write Buffer Coalescing"
-	depends on CPU_PJ5
+	depends on CPU_PJ4
 	default y
 	help
 	  Say Y if you to enable write buffer coalescing feature
@@ -845,11 +845,11 @@ config CPU_WRITECO_CYCLE
 
 choice
 	prompt "Cache Write Allocate Setting"
-	depends on CPU_V6 || CPU_V7 || CPU_PJ5
+	depends on CPU_V6 || CPU_V7 || CPU_PJ4
 
 config CPU_WA_DISABLE
 	bool "Disable Inner & Outer Write Allocate"
-	depends on CPU_V6 || CPU_V7 || CPU_PJ5
+	depends on CPU_V6 || CPU_V7 || CPU_PJ4
 	default y
 	help
 	  Say Y to disable Write allocate support
