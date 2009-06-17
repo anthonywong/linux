@@ -68,6 +68,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ctrlEnv/sys/mvCpuIf.h"
 #include "pmu/mvPmuRegs.h"
 
+#ifdef CONFIG_DOVE_REV_Z0
 MV_DDR_MC_PARAMS ddr2_400mhz[] ={{0xd00d0048, 0x00000101},	/* Select NB PLL and Ratio */
 				{0xd0800010, 0xf1800000},	/* Set DDR register space */
                                 {0xd00d025c, 0x000f1890},	/* Set NB register space */
@@ -98,7 +99,6 @@ MV_DDR_MC_PARAMS ddr2_400mhz[] ={{0xd00d0048, 0x00000101},	/* Select NB PLL and 
              			{0xf1800770, 0x02000002},
              			{0xf1800120, 0x00000001}};
 
-#ifdef CONFIG_DOVE_REV_Z0
 MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd00d0048, 0x00000102},	/* Select NB PLL and Ratio */
 				{0xd0800010, 0xf1800000},	/* Set DDR register space */
                                 {0xd00d025c, 0x000f1890},	/* Set NB register space */
@@ -125,10 +125,52 @@ MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd00d0048, 0x00000102},	/* Select NB PLL and 
                                 {0xf1800770, 0x0200000A},
                                 {0xf1800120, 0x00000001}};
 #else
+MV_DDR_MC_PARAMS ddr2_400mhz[]={{0xd00d0048, 0x00000101},	/* Select NB PLL and Ratio */
+				{0xd0800010, 0xf1800000},	/* Set DDR register space */
+                                {0xd00d025c, 0x000f1890},	/* Set NB register space */
+                                {0xd0020080, 0xf1000000},	/* Set SB register space */
+                                {0xF1800020, 0x00042430},
+                                {0xF1800020, 0x00042430},
+                                {0xF1800030, 0x00042430},
+                                {0xF1800050, 0x4D1600C8},
+                                {0xF1800060, 0x64660342},
+                                {0xF1800190, 0x20C938E2},
+                                {0xF18001C0, 0x350628A1},
+                                {0xF1800650, 0x00150141},
+                                {0xF1800080, 0x00000000},
+                                {0xF1800090, 0x00080040},
+                                {0xF18000F0, 0xC0000000},
+                                {0xF18001A0, 0x00814005},
+                                {0xF1800280, 0x010E0202},
+                                {0xF1800760, 0x00000001},
+                                {0xF1800770, 0x0000000A},
+                                {0xF1800770, 0x02000002},
+                                {0xF1800140, 0x20004444},
+                                {0xF18001D0, 0x17784339},
+                                {0xF18001E0, 0x07700330},
+                                {0xF18001F0, 0x00000033},
+                                {0xF1800E40, 0x00000000},
+                                {0xF1800E50, 0x00070007},
+                                {0xF1800E40, 0x00000001},
+                                {0xF1800E50, 0x00070007},
+                                {0xF1800E40, 0x00000002},
+                                {0xF1800E50, 0x00070007},
+                                {0xF1800E40, 0x00000003},
+                                {0xF1800E50, 0x00070007},
+                                {0xF1800210, 0x00300000},
+                                {0xF1800240, 0x80000000},
+                                {0xF1800510, 0x010E0101},
+                                {0xF1800230, 0x200000A8},
+                                {0xF1800E10, 0x000000A0},
+                                {0xF1800E20, 0x000000A0},
+                                {0xF1800E30, 0x000000A0},
+                                {0xF1800100, 0x000D0001},
+                                {0xF1800110, 0x000D0000},
+                                {0xF1800120, 0x00000001}};
+
 MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd0800010, 0xf1800000},	/* Set DDR register space */
                                 {0xd00d025c, 0x000f1890},	/* Set NB register space */
-				{0xd0020080, 0xf1000000},	/* Set SB register space */
-//                                {0xf10d0260, 0x0000F180},
+                                {0xd0020080, 0xf1000000},	/* Set SB register space */
                                 {0xf1800140, 0x20004433},
                                 {0xf1800020, 0x00042430},
                                 {0xf1800030, 0x00042430},
@@ -151,7 +193,7 @@ MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd0800010, 0xf1800000},	/* Set DDR register s
                                 {0xf1800E30, 0x20007D08},
                                 {0xf1800100, 0x000D0001},
                                 {0xf1800110, 0x000D0000},
-				{0xf1800120, 0x00000001}};
+                                {0xf1800120, 0x00000001}};
 #endif
 
 MV_DDR_MC_PARAMS ddr2_400mhz_reconfig[] ={
