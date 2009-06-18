@@ -92,7 +92,7 @@ typedef struct _mvTwsiAddr
 typedef struct _mvTwsiSlave
 {
     MV_TWSI_ADDR	slaveAddr;
-    MV_BOOL 		validOffset;		/* whether the slave has offset (i.e. Eeprom  etc.) 	*/
+    MV_BOOL 		validOffset;	/* whether the slave has offset (i.e. Eeprom  etc.) 	*/
     MV_U32		offset;		/* offset in the slave.					*/
     MV_BOOL 		moreThen256;	/* whether the ofset is bigger then 256 		*/
 }MV_TWSI_SLAVE;
@@ -100,9 +100,17 @@ typedef struct _mvTwsiSlave
 /* This enumerator describes TWSI protocol commands.                        */
 typedef enum _mvTwsiCmd
 {
-    MV_TWSI_WRITE,   /* TWSI write command - 0 according to spec   */
-    MV_TWSI_READ   /* TWSI read command  - 1 according to spec */
+    MV_TWSI_WRITE,	/* TWSI write command - 0 according to spec   */
+    MV_TWSI_READ	/* TWSI read command  - 1 according to spec */
 }MV_TWSI_CMD;
+
+/* Relevant for Dove-Y0, which has a TWSI port expander (mux) connected to the actual TWSI port */
+typedef enum _mvTwsiExpanderOpt
+{
+    MV_TWSI_OPTION_1 = 0,	/* TWSI option 1 (primary option) on dedicated TWSI interface */
+    MV_TWSI_OPTION_2 = 1,	/* TWSI option 2 (secondary option) on MPP[19] and MPP[17] */
+    MV_TWSI_OPTION_3 = 2	/* TWSI option 3 (third option) on MPP[57:56] */
+}MV_TWSI_EXPANDER_OPT;
 
 MV_STATUS mvTwsiStartBitSet(MV_U8 chanNum);
 MV_STATUS mvTwsiStopBitSet(MV_U8 chanNum);
