@@ -31,10 +31,13 @@
 #include <asm/io.h>
 #include "pmu/mvPmuRegs.h"
 
-#define DOVE_OVERHEAT_TEMP	80		/* degrees */
+#define DOVE_OVERHEAT_TEMP	90		/* degrees */
 #define DOVE_OVERHEAT_DELAY	0x700
 #define DOVE_OVERCOOL_TEMP	10		/* degrees */
 #define	DOVE_OVERCOOL_DELAY	0x700
+
+#define DOVE_TSEN_TEMP2RAW(x)	((3043800 - (17294 * x)) / 10000)
+#define DOVE_TSEN_RAW2TEMP(x)	((3043800 - (10000 * x)) / 17294)
 
 static struct device *hwmon_dev;
 
@@ -76,16 +79,14 @@ static int dovetemp_initSensor(void) {
 	for (i=0; i< 1000000; i++) {
 		reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
 		if (reg & PMU_TM_CURR_TEMP_MASK)
-			return 0;
+			break;;
 	}
 
-	/*
-	 * temperature to 9bit register conversion
-	 * reg = 357.32 - 1.5781 * temp
-	 */
+	if (i== 1000000)
+		return -EIO;
 
 	/* Set the overheat threashold & delay */
-	temp = ((3573200 - (15781 * DOVE_OVERHEAT_TEMP)) / 10000);
+	temp = DOVE_TSEN_TEMP2RAW(DOVE_OVERHEAT_TEMP);
 	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
 	reg &= ~PMU_TM_OVRHEAT_THRSH_MASK;
 	reg |= (temp << PMU_TM_OVRHEAT_THRSH_OFFS);
@@ -93,14 +94,14 @@ static int dovetemp_initSensor(void) {
 	writel(DOVE_OVERHEAT_DELAY, (INTER_REGS_BASE | PMU_TM_OVRHEAT_DLY_REG));
 
 	/* Set the overcool threshole & delay */
-	temp = ((3573200 - (15781 * DOVE_OVERCOOL_TEMP)) / 10000);
+	temp = DOVE_TSEN_TEMP2RAW(DOVE_OVERCOOL_TEMP);
 	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
 	reg &= ~PMU_TM_COOL_THRSH_MASK;
 	reg |= (temp << PMU_TM_COOL_THRSH_OFFS);
 	writel(reg, (INTER_REGS_BASE | PMU_THERMAL_MNGR_REG));
 	writel(DOVE_OVERCOOL_DELAY, (INTER_REGS_BASE | PMU_TM_COOLING_DLY_REG));
 
-	return -EIO;
+	return 0;
 }
 
 static int dovetemp_readTemp(void) {
@@ -113,13 +114,11 @@ static int dovetemp_readTemp(void) {
 
 	/* Read the raw temperature */
 	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
-	reg &= ~PMU_TM_CURR_TEMP_MASK;
+	reg &= PMU_TM_CURR_TEMP_MASK;
 	reg >>= PMU_TM_CURR_TEMP_OFFS;
-
+	
 	/* Convert the temperature to Celsuis */
-	reg = ((3573200 - (10000 * reg)) / 15781);
-		
-	return reg;
+	return DOVE_TSEN_RAW2TEMP(reg);
 }
 
 
@@ -140,9 +139,15 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute
 
 	reg = readl(INTER_REGS_BASE | PMU_INT_CAUSE_REG);
 	if (reg & PMU_INT_OVRHEAT_MASK)
+	{
 		alarm = 1;
+		writel ((reg & ~PMU_INT_OVRHEAT_MASK), (INTER_REGS_BASE | PMU_INT_CAUSE_REG));
+	}
 	else if (reg & PMU_INT_COOLING_MASK)
+	{
 		alarm = 2;
+		writel ((reg & ~PMU_INT_COOLING_MASK), (INTER_REGS_BASE | PMU_INT_CAUSE_REG));
+	}
 
 	return sprintf(buf, "%d\n", alarm);
 }
