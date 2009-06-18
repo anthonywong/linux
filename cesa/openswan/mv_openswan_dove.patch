@@ -1,0 +1,70 @@
+diff -Nru openswan-2.6.18/linux/net/ipsec/ipsec_ocf.c openswan-2.6.18_dove/linux/net/ipsec/ipsec_ocf.c
+--- openswan-2.6.18/linux/net/ipsec/ipsec_ocf.c	2008-10-06 18:52:49.000000000 +0200
++++ openswan-2.6.18_dove/linux/net/ipsec/ipsec_ocf.c	2008-11-10 18:57:27.000000000 +0200
+@@ -64,6 +64,7 @@
+  * Tuning parameters,  the settings below appear best for
+  * the IXP
+  */
++
+ #define USE_BATCH 1	/* enable batch mode */
+ #define USE_CBIMM 1	/* enable immediate callbacks */
+ #define FORCE_QS  0	/* force use of queues for continuation of state machine */
+@@ -367,7 +368,7 @@
+ 
+ 		/* OCF needs cri_mlen initialized in order to properly migrate the
+ 		 * session to another driver */
+-		crda->crd_mlen = 12;
++		//crda->crd_mlen = 12;
+ 
+ 		/* Copy the authenticator to check aganinst later */
+ 		memcpy(irs->hash, irs->authenticator, 12);
+@@ -599,7 +600,7 @@
+ 
+ 		/* OCF needs cri_mlen initialized in order to properly migrate
+ 		 * the session to another driver */
+-		crda->crd_mlen = 12;
++		//crda->crd_mlen = 12;
+ 
+ 		crda->crd_key    = ipsp->ips_key_a;
+ 		crda->crd_klen   = ipsp->ips_key_bits_a;
+diff -Nru openswan-2.6.18/packaging/linus/config-all.h openswan-2.6.18_dove/packaging/linus/config-all.h
+--- openswan-2.6.18/packaging/linus/config-all.h	2008-10-06 18:52:49.000000000 +0200
++++ openswan-2.6.18_dove/packaging/linus/config-all.h	2008-11-20 15:50:06.000000000 +0200
+@@ -22,9 +22,11 @@
+ #define CONFIG_KLIPS_AH 1
+ #endif
+ 
++#if 0
+ #ifndef CONFIG_KLIPS_DEBUG 
+ #define CONFIG_KLIPS_DEBUG 1
+ #endif
++#endif
+ 
+ #ifndef CONFIG_KLIPS_ESP
+ #define CONFIG_KLIPS_ESP 1
+@@ -72,11 +74,9 @@
+ #define CONFIG_KLIPS_ALG_CRYPTOAPI #error
+ #define CONFIG_KLIPS_ALG_AES #error
+ 
+-#if 0
+-/* off by default requiers kernel patch */
++
+ #ifndef CONFIG_KLIPS_OCF
+-#define CONFIG_KLIPS_OCF 0
+-#endif
++#define CONFIG_KLIPS_OCF 1
+ #endif
+ 
+ #ifndef CONFIG_KLIPS_ALG_AES_MAC
+diff -Nru openswan-2.6.18/packaging/makefiles/module.defs openswan-2.6.18_dove/packaging/makefiles/module.defs
+--- openswan-2.6.18/packaging/makefiles/module.defs	2008-10-06 18:52:49.000000000 +0200
++++ openswan-2.6.18_dove/packaging/makefiles/module.defs	2008-11-04 18:59:08.000000000 +0200
+@@ -1,5 +1,7 @@
+ # To config as static (preferred), 'y'.  To config as module, 'm'.
+-CONFIG_KLIPS=m
++CONFIG_KLIPS=y
++
++CONFIG_KLIPS_OCF=y
+ 
+ # To enable authentication without encryption, say 'y'.   (Not so recommended)
+ CONFIG_KLIPS_AH=y

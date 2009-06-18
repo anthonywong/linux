@@ -29,9 +29,13 @@
 #include <plat/ehci-orion.h>
 #include <plat/mvsdio.h>
 #include <plat/mv_xor.h>
+#include <plat/i2s-orion.h>
 #include <plat/orion_nand.h>
 #include <plat/orion_wdt.h>
 #include <plat/time.h>
+#include <plat/mv_eth.h>
+#include <plat/mvsdmmc-orion.h>
+#include <asm/mach-types.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -63,6 +67,41 @@ void __init kirkwood_map_io(void)
  */
 unsigned int kirkwood_clk_ctrl = CGC_DUNIT | CGC_RESERVED;
 	
+/*****************************************************************************
+ * SD/SDIO/MMC
+ ****************************************************************************/
+static struct resource sdmmc_resources[] = {
+        [0] = {
+                .start  = SDIO_PHYS_BASE,
+                .end    = SDIO_PHYS_BASE + SZ_1K - 1,
+                .flags  = IORESOURCE_MEM,
+        },
+        [1] = {
+                .start  = IRQ_KIRKWOOD_SDIO,
+                .end    = IRQ_KIRKWOOD_SDIO,
+                .flags  = IORESOURCE_IRQ,
+        },
+};
+
+static u64 sdmmc_dmamask = 0xffffffffUL;
+
+static struct platform_device kirkwood_sdmmc = {
+        .name           = "mvsdmmc",
+        .id             = -1,
+        .dev            = {
+                .dma_mask = &sdmmc_dmamask,
+                .coherent_dma_mask = 0xffffffff,
+        },
+        .num_resources  = ARRAY_SIZE(sdmmc_resources),
+        .resource       = sdmmc_resources,
+};
+
+void __init kirkwood_sdmmc_init(struct orion_mvsdmmc_data *sdmmc_data)
+{
+        sdmmc_data->dram = &kirkwood_mbus_dram_info;
+        kirkwood_sdmmc.dev.platform_data = sdmmc_data;
+        platform_device_register(&kirkwood_sdmmc);
+}
 
 /*****************************************************************************
  * EHCI
@@ -108,6 +147,35 @@ void __init kirkwood_ehci_init(void)
 	platform_device_register(&kirkwood_ehci);
 }
 
+#include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
+/*****************************************************************************
+ * Ethernet
+ ****************************************************************************/
+static struct mv_netdev_platform_data kirkwood_eth0_data = {
+	.port_number = 0
+};
+
+static struct resource kirkwood_eth0_resources[] = {
+	{
+		.name	= "eth irq",
+		.start	= IRQ_KIRKWOOD_GE00_SUM,
+		.end	= IRQ_KIRKWOOD_GE00_SUM,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device kirkwood_eth0 = {
+	.name		= MV_NETDEV_ETH_NAME,
+	.id		= 0,
+	.num_resources	= 1,
+	.resource	= kirkwood_eth0_resources,
+};
+
+void __init kirkwood_eth0_init(void)
+{
+	kirkwood_eth0.dev.platform_data = &kirkwood_eth0_data;
+	platform_device_register(&kirkwood_eth0);
+}
 
 /*****************************************************************************
  * GE00
@@ -159,6 +227,20 @@ static struct platform_device kirkwood_ge00 = {
 	},
 };
 
+struct mv_eth_addr_dec_platform_data kirkwood_eth_addr_dec_data = {
+	.dram		= &kirkwood_mbus_dram_info,
+};
+
+static struct platform_device kirkwood_eth_addr_dec = {
+	.name		= MV_ETH_ADDR_DEC_NAME,
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &kirkwood_eth_addr_dec_data,
+	},
+	.num_resources	= 0,
+};
+
+
 void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
 	kirkwood_clk_ctrl |= CGC_GE0;
@@ -167,6 +249,7 @@ void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 
 	platform_device_register(&kirkwood_ge00_shared);
 	platform_device_register(&kirkwood_ge00);
+	platform_device_register(&kirkwood_eth_addr_dec);
 }
 
 
@@ -804,6 +887,81 @@ static void __init kirkwood_xor1_init(void)
 	platform_device_register(&kirkwood_xor11_channel);
 }
 
+/*****************************************************************************
+ * I2C
+ ****************************************************************************/
+static struct mv64xxx_i2c_pdata kirkwood_i2c_pdata = {
+	.freq_m		= 9, /* assumes 166 MHz TCLK */
+	.freq_n		= 3,
+	.timeout	= 1000, /* Default timeout of 1 second */
+};
+
+static struct resource kirkwood_i2c_resources[] = {
+	{
+		.name	= "i2c base",
+		.start	= I2C_PHYS_BASE,
+		.end	= I2C_PHYS_BASE + 0x1f,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "i2c irq",
+		.start	= IRQ_KIRKWOOD_I2C,
+		.end	= IRQ_KIRKWOOD_I2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device kirkwood_i2c = {
+	.name		= MV64XXX_I2C_CTLR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(kirkwood_i2c_resources),
+	.resource	= kirkwood_i2c_resources,
+	.dev		= {
+		.platform_data	= &kirkwood_i2c_pdata,
+	},
+};
+
+void __init kirkwood_i2c_init(void)
+{
+	platform_device_register(&kirkwood_i2c);
+}
+
+/*****************************************************************************
+ * I2S
+ ****************************************************************************/
+static struct resource kirkwood_i2s_resources[] = {
+	[0] = {
+		.start  = I2S_PHYS_BASE,
+		.end    = I2S_PHYS_BASE + SZ_16K -1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_KIRKWOOD_I2S,
+		.end    = IRQ_KIRKWOOD_I2S,
+		.flags  = IORESOURCE_IRQ,
+	}
+};
+
+static u64 kirkwood_i2s_dmamask = 0xFFFFFFFFUL;
+
+struct orion_i2s_platform_data i2s_data;
+ 
+static struct platform_device kirkwood_i2s = {
+	.name           = "mv88fx_snd",
+	.id             = -1,
+	.dev            = {
+		.dma_mask = &kirkwood_i2s_dmamask,
+		.coherent_dma_mask = 0xFFFFFFFF,
+	},
+	.num_resources  = ARRAY_SIZE(kirkwood_i2s_resources),
+	.resource       = kirkwood_i2s_resources,
+};
+
+void __init kirkwood_i2s_init(void)
+{
+	i2s_data.dram = &kirkwood_mbus_dram_info;
+	kirkwood_i2s.dev.platform_data = &i2s_data;
+	platform_device_register(&kirkwood_i2s);
+}
 
 /*****************************************************************************
  * Watchdog

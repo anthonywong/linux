@@ -20,7 +20,7 @@
  * This file may be distributed under the terms of the GNU General
  * Public License, version 2.
  */
-
+#define DEBUG
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -35,6 +35,8 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-chip-ident.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
+#include <linux/io.h>
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
@@ -42,19 +44,21 @@
 #include <linux/jiffies.h>
 #include <linux/vmalloc.h>
 
+#include <plat/cafe-orion.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
 #include "cafe_ccic-regs.h"
 
-#define CAFE_VERSION 0x000002
+#define DRV_NAME "cafe1000-ccic"
+#define CAFE_VERSION 0x000004
 
 
 /*
  * Parameters.
  */
 MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
-MODULE_DESCRIPTION("Marvell 88ALP01 CMOS Camera Controller driver");
+MODULE_DESCRIPTION("Marvell Cafe CMOS Camera Controller driver");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("Video");
 
@@ -151,6 +155,7 @@ struct cafe_camera
 	 * Subsystem structures.
 	 */
 	struct pci_dev *pdev;
+	struct device *dev;
 	struct video_device vdev;
 	struct i2c_adapter i2c_adapter;
 	struct v4l2_subdev *sensor;
@@ -187,6 +192,10 @@ struct cafe_camera
 	/* Misc */
 	wait_queue_head_t smbus_wait;	/* Waiting on i2c events */
 	wait_queue_head_t iowait;	/* Waiting on frame data */
+
+	/* Board info */
+	u32 power_down; /* value to set into GPR to power down the sensor*/
+	u32 reset;	/* value to set into GPR to reset the senser */
 };
 
 /*
@@ -240,11 +249,13 @@ static void cafe_set_config_needed(struct cafe_camera *cam, int needed)
  * Debugging and related.
  */
 #define cam_err(cam, fmt, arg...) \
-	dev_err(&(cam)->pdev->dev, fmt, ##arg);
+	dev_err((cam)->dev, fmt, ##arg);
 #define cam_warn(cam, fmt, arg...) \
-	dev_warn(&(cam)->pdev->dev, fmt, ##arg);
+	dev_warn((cam)->dev, fmt, ##arg);
+#define cam_notice(cam, fmt, arg...) \
+	dev_notice((cam)->dev, fmt, ##arg);
 #define cam_dbg(cam, fmt, arg...) \
-	dev_dbg(&(cam)->pdev->dev, fmt, ##arg);
+	dev_dbg((cam)->dev, fmt, ##arg);
 
 
 /* ---------------------------------------------------------------------*/
@@ -318,6 +329,7 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 {
 	unsigned int rval;
 	unsigned long flags;
+	int max_count = HZ;
 	DEFINE_WAIT(the_wait);
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
@@ -326,7 +338,11 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 	/*
 	 * Marvell sez set clkdiv to all 1's for now.
 	 */
-	rval |= TWSIC0_CLKDIV;
+	if(cam->pdev)
+		rval |= TWSIC0_CLKDIV;
+	else
+		rval |= TWSIC0_CLKDIV;
+		//rval |= 0x67800;
 	cafe_reg_write(cam, REG_TWSIC0, rval);
 	(void) cafe_reg_read(cam, REG_TWSIC1); /* force write */
 	rval = value | ((command << TWSIC1_ADDR_SHIFT) & TWSIC1_ADDR);
@@ -349,6 +365,13 @@ static int cafe_smbus_write_data(struct cafe_camera *cam,
 				TASK_UNINTERRUPTIBLE);
 		schedule_timeout(1); /* even 1 jiffy is too long */
 		finish_wait(&cam->smbus_wait, &the_wait);
+#if 1
+		if(max_count-- <= 0) {
+			cam_err(cam, "SMBUS write (%02x/%02x/%02x) timed out\n", addr,
+				command, value);
+			return -EIO;
+		}
+#endif
 	} while (!cafe_smbus_write_done(cam));
 
 #ifdef IF_THE_CAFE_HARDWARE_WORKED_RIGHT
@@ -532,7 +555,9 @@ static void cafe_ctlr_dma(struct cafe_camera *cam)
 	}
 	else
 		cafe_reg_set_bit(cam, REG_CTRL1, C1_TWOBUFS);
-	cafe_reg_write(cam, REG_UBAR, 0); /* 32 bits only for now */
+
+	if(cam->pdev)
+		cafe_reg_write(cam, REG_UBAR, 0); /* 32 bits only for now */
 }
 
 static void cafe_ctlr_image(struct cafe_camera *cam)
@@ -637,26 +662,31 @@ static void cafe_ctlr_init(struct cafe_camera *cam)
 	/*
 	 * Added magic to bring up the hardware on the B-Test board
 	 */
-	cafe_reg_write(cam, 0x3038, 0x8);
-	cafe_reg_write(cam, 0x315c, 0x80008);
-	/*
-	 * Go through the dance needed to wake the device up.
-	 * Note that these registers are global and shared
-	 * with the NAND and SD devices.  Interaction between the
-	 * three still needs to be examined.
-	 */
-	cafe_reg_write(cam, REG_GL_CSR, GCSR_SRS|GCSR_MRS); /* Needed? */
-	cafe_reg_write(cam, REG_GL_CSR, GCSR_SRC|GCSR_MRC);
-	cafe_reg_write(cam, REG_GL_CSR, GCSR_SRC|GCSR_MRS);
-	/*
-	 * Here we must wait a bit for the controller to come around.
-	 */
-	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	msleep(5);
-	spin_lock_irqsave(&cam->dev_lock, flags);
 
-	cafe_reg_write(cam, REG_GL_CSR, GCSR_CCIC_EN|GCSR_SRC|GCSR_MRC);
-	cafe_reg_set_bit(cam, REG_GL_IMASK, GIMSK_CCIC_EN);
+	if(cam->pdev){
+		cafe_reg_write(cam, 0x3038, 0x8);
+		cafe_reg_write(cam, 0x315c, 0x80008);
+
+		/*
+		 * Go through the dance needed to wake the device up.
+		 * Note that these registers are global and shared
+		 * with the NAND and SD devices.  Interaction between the
+		 * three still needs to be examined.
+		 */
+		cafe_reg_write(cam, REG_GL_CSR, GCSR_SRS|GCSR_MRS); /* Needed?*/
+		cafe_reg_write(cam, REG_GL_CSR, GCSR_SRC|GCSR_MRC);
+		cafe_reg_write(cam, REG_GL_CSR, GCSR_SRC|GCSR_MRS);
+		/*
+		 * Here we must wait a bit for the controller to come around.
+		 */
+		spin_unlock_irqrestore(&cam->dev_lock, flags);
+		msleep(5);
+		spin_lock_irqsave(&cam->dev_lock, flags);
+		
+		cafe_reg_write(cam, REG_GL_CSR, GCSR_CCIC_EN|GCSR_SRC|GCSR_MRC);
+		cafe_reg_set_bit(cam, REG_GL_IMASK, GIMSK_CCIC_EN);
+	}
+
 	/*
 	 * Make sure it's not powered down.
 	 */
@@ -674,7 +704,14 @@ static void cafe_ctlr_init(struct cafe_camera *cam)
 	 * Clock the sensor appropriately.  Controller clock should
 	 * be 48MHz, sensor "typical" value is half that.
 	 */
-	cafe_reg_write_mask(cam, REG_CLKCTRL, 2, CLK_DIV_MASK);
+	if(cam->pdev)
+		cafe_reg_write_mask(cam, REG_CLKCTRL, 2, CLK_DIV_MASK);
+	else
+		/* core clock is 50, set div to 2 to have 25 MHz and 
+		 * the sensor will use its own PLL to get 12.5MHz 
+		 */
+		cafe_reg_write_mask(cam, REG_CLKCTRL, 2, CLK_DIV_MASK);
+	
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 }
 
@@ -720,8 +757,10 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 	 * Part one of the sensor dance: turn the global
 	 * GPIO signal on.
 	 */
-	cafe_reg_write(cam, REG_GL_FCR, GFCR_GPIO_ON);
-	cafe_reg_write(cam, REG_GL_GPIOR, GGPIO_OUT|GGPIO_VAL);
+	if(cam->pdev){
+		cafe_reg_write(cam, REG_GL_FCR, GFCR_GPIO_ON);
+		cafe_reg_write(cam, REG_GL_GPIOR, GGPIO_OUT|GGPIO_VAL);
+	}
 	/*
 	 * Put the sensor into operational mode (assumes OLPC-style
 	 * wiring).  Control 0 is reset - set to 1 to operate.
@@ -729,7 +768,7 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 	 */
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN); /* pwr up, reset */
 /*	mdelay(1); */ /* Marvell says 1ms will do it */
-	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C0);
+	cafe_reg_write(cam, REG_GPR, GPR_C1EN | GPR_C0EN | cam->reset);
 /*	mdelay(1); */ /* Enough? */
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 	msleep(5); /* Just to be sure */
@@ -740,9 +779,12 @@ static void cafe_ctlr_power_down(struct cafe_camera *cam)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
-	cafe_reg_write(cam, REG_GPR, GPR_C1EN|GPR_C0EN|GPR_C1);
-	cafe_reg_write(cam, REG_GL_FCR, GFCR_GPIO_ON);
-	cafe_reg_write(cam, REG_GL_GPIOR, GGPIO_OUT);
+
+	cafe_reg_write(cam, REG_GPR, GPR_C1EN | GPR_C0EN | cam->power_down);
+	if(cam->pdev){
+		cafe_reg_write(cam, REG_GL_FCR, GFCR_GPIO_ON);
+		cafe_reg_write(cam, REG_GL_GPIOR, GGPIO_OUT);
+	}
 	cafe_reg_set_bit(cam, REG_CTRL1, C1_PWRDWN);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 }
@@ -780,7 +822,8 @@ static int cafe_cam_init(struct cafe_camera *cam)
 	if (ret)
 		goto out;
 	cam->sensor_type = chip.ident;
-	if (cam->sensor_type != V4L2_IDENT_OV7670) {
+	if ((cam->sensor_type != V4L2_IDENT_OV7670) && 
+	    (cam->sensor_type != V4L2_IDENT_OV7680)) {
 		cam_err(cam, "Unsupported sensor type 0x%x", cam->sensor_type);
 		ret = -EINVAL;
 		goto out;
@@ -850,7 +893,7 @@ static int cafe_alloc_dma_bufs(struct cafe_camera *cam, int loadtime)
 
 	cam->nbufs = 0;
 	for (i = 0; i < n_dma_bufs; i++) {
-		cam->dma_bufs[i] = dma_alloc_coherent(&cam->pdev->dev,
+		cam->dma_bufs[i] = dma_alloc_coherent(cam->dev,
 				cam->dma_buf_size, cam->dma_handles + i,
 				GFP_KERNEL);
 		if (cam->dma_bufs[i] == NULL) {
@@ -864,7 +907,7 @@ static int cafe_alloc_dma_bufs(struct cafe_camera *cam, int loadtime)
 
 	switch (cam->nbufs) {
 	case 1:
-	    dma_free_coherent(&cam->pdev->dev, cam->dma_buf_size,
+	    dma_free_coherent(cam->dev, cam->dma_buf_size,
 			    cam->dma_bufs[0], cam->dma_handles[0]);
 	    cam->nbufs = 0;
 	case 0:
@@ -884,7 +927,7 @@ static void cafe_free_dma_bufs(struct cafe_camera *cam)
 	int i;
 
 	for (i = 0; i < cam->nbufs; i++) {
-		dma_free_coherent(&cam->pdev->dev, cam->dma_buf_size,
+		dma_free_coherent(cam->dev, cam->dma_buf_size,
 				cam->dma_bufs[i], cam->dma_handles[i]);
 		cam->dma_bufs[i] = NULL;
 	}
@@ -1375,7 +1418,7 @@ static int cafe_v4l_open(struct file *filp)
 
 	filp->private_data = cam;
 
-	mutex_lock(&cam->s_mutex);
+//	mutex_lock(&cam->s_mutex);
 	if (cam->users == 0) {
 		cafe_ctlr_power_up(cam);
 		__cafe_cam_reset(cam);
@@ -1383,7 +1426,7 @@ static int cafe_v4l_open(struct file *filp)
 	/* FIXME make sure this is complete */
 	}
 	(cam->users)++;
-	mutex_unlock(&cam->s_mutex);
+//	mutex_unlock(&cam->s_mutex);
 	return 0;
 }
 
@@ -1886,12 +1929,8 @@ static irqreturn_t cafe_irq(int irq, void *data)
 
 
 /* -------------------------------------------------------------------------- */
-/*
- * PCI interface stuff.
- */
 
-static int cafe_pci_probe(struct pci_dev *pdev,
-		const struct pci_device_id *id)
+static struct cafe_camera *alloc_init_cam_struct(struct device *dev)
 {
 	int ret;
 	struct cafe_camera *cam;
@@ -1903,7 +1942,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cam = kzalloc(sizeof(struct cafe_camera), GFP_KERNEL);
 	if (cam == NULL)
 		goto out;
-	ret = v4l2_device_register(&pdev->dev, &cam->v4l2_dev);
+	ret = v4l2_device_register(dev, &cam->v4l2_dev);
 	if (ret)
 		goto out_free;
 
@@ -1914,29 +1953,24 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cafe_set_config_needed(cam, 1);
 	init_waitqueue_head(&cam->smbus_wait);
 	init_waitqueue_head(&cam->iowait);
-	cam->pdev = pdev;
+	cam->dev = dev;
 	cam->pix_format = cafe_def_pix_format;
 	INIT_LIST_HEAD(&cam->dev_list);
 	INIT_LIST_HEAD(&cam->sb_avail);
 	INIT_LIST_HEAD(&cam->sb_full);
 	tasklet_init(&cam->s_tasklet, cafe_frame_tasklet, (unsigned long) cam);
-	/*
-	 * Get set up on the PCI bus.
-	 */
-	ret = pci_enable_device(pdev);
-	if (ret)
-		goto out_unreg;
-	pci_set_master(pdev);
 
-	ret = -EIO;
-	cam->regs = pci_iomap(pdev, 0, 0);
-	if (! cam->regs) {
-		printk(KERN_ERR "Unable to ioremap cafe-ccic regs\n");
-		goto out_unreg;
-	}
-	ret = request_irq(pdev->irq, cafe_irq, IRQF_SHARED, "cafe-ccic", cam);
-	if (ret)
-		goto out_iounmap;
+	return cam;
+out_free:
+        kfree(cam);
+out:
+        return ret;
+}
+
+static int cafe_init_cam(struct cafe_camera *cam)
+{
+	int ret;
+
 	/*
 	 * Initialize the controller and leave it powered up.  It will
 	 * stay that way until the sensor driver shows up.
@@ -1991,19 +2025,10 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 
 out_smbus:
 	cafe_smbus_shutdown(cam);
-out_freeirq:
-	cafe_ctlr_power_down(cam);
-	free_irq(pdev->irq, cam);
-out_iounmap:
-	pci_iounmap(pdev, cam->regs);
-out_free:
-	v4l2_device_unregister(&cam->v4l2_dev);
-out_unreg:
-	kfree(cam);
 out:
+	cafe_ctlr_power_down(cam);
 	return ret;
 }
-
 
 /*
  * Shut down an initialized device
@@ -2018,21 +2043,20 @@ static void cafe_shutdown(struct cafe_camera *cam)
 	cafe_ctlr_power_down(cam);
 	cafe_smbus_shutdown(cam);
 	cafe_free_dma_bufs(cam);
-	free_irq(cam->pdev->irq, cam);
-	pci_iounmap(cam->pdev, cam->regs);
 	video_unregister_device(&cam->vdev);
 }
 
 
-static void cafe_pci_remove(struct pci_dev *pdev)
+static void cam_remove(struct cafe_camera *cam)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
 	struct cafe_camera *cam = to_cam(v4l2_dev);
 
 	if (cam == NULL) {
-		printk(KERN_WARNING "pci_remove on unknown pdev %p\n", pdev);
+		printk(KERN_WARNING "cam_remove on unknown pdev %p\n", pdev);
 		return;
 	}
+
 	mutex_lock(&cam->s_mutex);
 	if (cam->users > 0)
 		cam_warn(cam, "Removing a device with users!\n");
@@ -2042,11 +2066,175 @@ static void cafe_pci_remove(struct pci_dev *pdev)
 /* No unlock - it no longer exists */
 }
 
+static int cafe_platform_probe(struct platform_device *pdev)
+{
+	struct resource *res;
+	int irq;
+	int ret;
+	struct cafe_camera *cam;
+	/*
+	 * Start putting together one of our big camera structures.
+	 */
+	ret = -ENOMEM;
+	cam = alloc_init_cam_struct(&pdev->dev);
+	if (cam == NULL)
+		return ret;
+
+	platform_set_drvdata(pdev, cam);	
+	/* we are not pci device */
+	cam->pdev = NULL;
+	/*
+	 * Get set up on the PCI bus.
+	 */
+	ret = -EIO;
+	/*
+	 * Get the register base first
+	 */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res == NULL)
+		return -EINVAL;
+
+	cam->regs = devm_ioremap(&pdev->dev, res->start,
+				 res->end - res->start + 1);
+	if (! cam->regs) {
+		dev_err(&pdev->dev, "Unable to ioremap cafe-ccic regs\n");
+		return ret;
+	}
+	
+	irq = platform_get_irq(pdev, 0);
+	if (res < 0) {
+                dev_err(&pdev->dev, "no IRQ resource defined\n");
+                return -ENODEV;
+        }
+
+	ret = devm_request_irq(&pdev->dev, irq, cafe_irq, IRQF_SHARED,
+			       "cafe-ccic", cam);
+	if (ret)
+		return ret;
+
+	if (pdev->dev.platform_data) {
+		const struct cafe_cam_platform_data *platform_data =
+		(struct cafe_cam_platform_data *)pdev->dev.platform_data;
+		cam->power_down = platform_data->power_down;
+		cam->reset = platform_data->reset;
+	} else {
+		cam->power_down = GPR_C1;
+		cam->reset = GPR_C0;
+	}
+	return cafe_init_cam(cam);
+}
+
+static int cafe_platform_remove(struct platform_device *pdev)
+{
+	struct cafe_camera *cam = platform_get_drvdata(pdev);
+
+	cam_remove(cam);
+	return 0;
+}
+
+/* ------------------------------------------------------------------------*/
+/*
+ * PCI interface stuff.
+ */
+
+static int cafe_pci_probe(struct pci_dev *pdev,
+		const struct pci_device_id *id)
+{
+	int ret;
+	struct cafe_camera *cam;
+
+	/*
+	 * Start putting together one of our big camera structures.
+	 */
+	ret = -ENOMEM;
+	cam = alloc_init_cam_struct(&pdev->dev);
+	if (cam == NULL)
+		return ret;
+
+	pci_set_drvdata(pdev, cam);
+	cam->pdev = pdev;
+	/*
+	 * Get set up on the PCI bus.
+	 */
+	ret = pci_enable_device(pdev);
+	if (ret)
+		return ret;
+
+	pci_set_master(pdev);
+
+	ret = -EIO;
+	cam->regs = pcim_iomap(pdev, 0, 0);
+	if (! cam->regs) {
+		printk(KERN_ERR "Unable to ioremap cafe-ccic regs\n");
+		return ret;
+	}
+	ret = devm_request_irq(&pdev->dev, pdev->irq, cafe_irq, IRQF_SHARED,
+			       "cafe-ccic", cam);
+	if (ret)
+		return ret;
+	
+/*
+ * OLPC-style wiring.  Control 0 is reset.
+ * Control 1 is power down.
+ */
+	cam->power_down = GPR_C1;
+	cam->reset = GPR_C0;
+	return cafe_init_cam(cam);
+}
+
+static void cafe_pci_remove(struct pci_dev *pdev)
+{
+	struct cafe_camera *cam = pci_get_drvdata(pdev);
+
+	cam_remove(cam);
+}
+
 
 #ifdef CONFIG_PM
 /*
  * Basic power management.
  */
+static int cafe_resume(struct cafe_camera *cam)
+{
+	int ret = 0;
+
+	cafe_ctlr_init(cam);
+	cafe_ctlr_power_down(cam);
+
+	mutex_lock(&cam->s_mutex);
+	if (cam->users > 0) {
+		cafe_ctlr_power_up(cam);
+		__cafe_cam_reset(cam);
+	}
+	mutex_unlock(&cam->s_mutex);
+
+	set_bit(CF_CONFIG_NEEDED, &cam->flags);
+	if (cam->state == S_SPECREAD)
+		cam->state = S_IDLE;  /* Don't bother restarting */
+	else if (cam->state == S_SINGLEREAD || cam->state == S_STREAMING)
+		ret = cafe_read_setup(cam, cam->state);
+	return ret;
+}
+
+static int cafe_platform_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct cafe_camera *cam = platform_get_drvdata(pdev);
+	enum cafe_state cstate;
+
+	cstate = cam->state; /* HACK - stop_dma sets to idle */
+	cafe_ctlr_stop_dma(cam);
+	cafe_ctlr_power_down(cam);
+	cam->state = cstate;
+	return 0;
+}
+
+static int cafe_platform_resume(struct platform_device *pdev)
+{
+	struct cafe_camera *cam = platform_get_drvdata(pdev);
+
+	return cafe_resume(cam);
+}
+
 static int cafe_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
@@ -2081,21 +2269,8 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 		cam_warn(cam, "Unable to re-enable device on resume!\n");
 		return ret;
 	}
-	cafe_ctlr_init(cam);
-	cafe_ctlr_power_down(cam);
 
-	mutex_lock(&cam->s_mutex);
-	if (cam->users > 0) {
-		cafe_ctlr_power_up(cam);
-		__cafe_cam_reset(cam);
-	}
-	mutex_unlock(&cam->s_mutex);
-
-	set_bit(CF_CONFIG_NEEDED, &cam->flags);
-	if (cam->state == S_SPECREAD)
-		cam->state = S_IDLE;  /* Don't bother restarting */
-	else if (cam->state == S_SINGLEREAD || cam->state == S_STREAMING)
-		ret = cafe_read_setup(cam, cam->state);
+	ret = cafe_resume(cam);
 	return ret;
 }
 
@@ -2111,7 +2286,7 @@ static struct pci_device_id cafe_ids[] = {
 MODULE_DEVICE_TABLE(pci, cafe_ids);
 
 static struct pci_driver cafe_pci_driver = {
-	.name = "cafe1000-ccic",
+	.name = DRV_NAME,
 	.id_table = cafe_ids,
 	.probe = cafe_pci_probe,
 	.remove = cafe_pci_remove,
@@ -2121,6 +2296,18 @@ static struct pci_driver cafe_pci_driver = {
 #endif
 };
 
+static struct platform_driver cafe_platform_driver = {
+	.probe = cafe_platform_probe,
+	.remove = cafe_platform_remove,
+	.driver			= {
+				   .name = DRV_NAME,
+				   .owner = THIS_MODULE,
+				   },
+#ifdef CONFIG_PM
+	.suspend = cafe_platform_suspend,
+	.resume = cafe_platform_resume,
+#endif
+};
 
 
 
@@ -2131,13 +2318,19 @@ static int __init cafe_init(void)
 	printk(KERN_NOTICE "Marvell M88ALP01 'CAFE' Camera Controller version %d\n",
 			CAFE_VERSION);
 	ret = pci_register_driver(&cafe_pci_driver);
-	if (ret) {
-		printk(KERN_ERR "Unable to register cafe_ccic driver\n");
-		goto out;
+	if (ret < 0) {
+		printk(KERN_ERR "Unable to register pci cafe_ccic driver\n");
+		return ret;
 	}
-	ret = 0;
+	ret = platform_driver_register(&cafe_platform_driver);
+	if (ret < 0) {
+		printk(KERN_ERR "Unable to register platform cafe_ccic driver\n");
+		pci_unregister_driver(&cafe_pci_driver);
+		return ret;
+	}
 
-  out:
+	request_module("ov7670");  /* FIXME want something more general */
+	request_module("ov7680");  /* FIXME want something more general */
 	return ret;
 }
 
@@ -2145,6 +2338,7 @@ static int __init cafe_init(void)
 static void __exit cafe_exit(void)
 {
 	pci_unregister_driver(&cafe_pci_driver);
+	platform_driver_unregister(&cafe_platform_driver);
 }
 
 module_init(cafe_init);
