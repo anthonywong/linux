@@ -255,7 +255,7 @@ void    mvUsbPhy65nmNewInit(int dev)
     /* Nothing to change */
 }
 
-/* USB Phy init (change from defaults) specific for 65nm (6781 device) */
+/* USB Phy init (change from defaults) specific for 65nm (6781-Z0/Z1 device) */
 static void    mvUsbPhy6781Init(int dev)
 {
     MV_U32          regVal;
@@ -335,6 +335,92 @@ static void    mvUsbPhy6781Init(int dev)
     /*-------------------------------------------------*/
 
 }
+
+
+/* USB Phy init (change from defaults) specific for 65nm (6781-Y0 device) */
+static void    mvUsbPhy6781Y0Init(int dev)
+{
+    /* TODO - nearly identical to 6781Init, the only difference is */
+    /* SQ_THRESH = 0x8 instead of 0x7. Consider merging both functions. */
+
+    MV_U32          regVal;
+    /******* USB PHY PLL Control Register 0x410 *******/
+    regVal = MV_REG_READ(MV_USB_PHY_PLL_CTRL_REG(dev)); 
+	
+    /* VCO recalibrate */
+    regVal |= (0x1 << 21);
+    MV_REG_WRITE(MV_USB_PHY_PLL_CTRL_REG(dev), regVal); 
+    regVal &= ~(0x1 << 21);
+
+    MV_REG_WRITE(MV_USB_PHY_PLL_CTRL_REG(dev), regVal); 
+    /*-------------------------------------------------*/
+
+    /******* USB PHY Tx Control Register Register 0x420 *******/
+    regVal = MV_REG_READ(MV_USB_PHY_TX_CTRL_REG(dev)); 
+	
+    /* bit[11]	(LOWVDD_EN)	= 1 */ 
+    regVal |= (0x1 << 11);
+
+    /* bit[12]	(REG_RCAL_START) = 1 */ 
+    regVal |= (0x1 << 12);
+
+    /* bit[21]	(TX_BLOCK_EN)	= 0 */ 
+    regVal &= ~(0x1 << 21);
+
+    /* bit[31]  (HS_STRESS_CTRL) = 0 */
+    regVal &= ~(0x1 << 31);
+	
+    MV_REG_WRITE(MV_USB_PHY_TX_CTRL_REG(dev), regVal); 
+    /* Force impedance auto calibrate */
+    /* bit[12]	(REG_RCAL_START) = 0 */ 
+    regVal &= ~(0x1 << 12);
+    MV_REG_WRITE(MV_USB_PHY_TX_CTRL_REG(dev), regVal); 
+    /*-------------------------------------------------*/
+
+    /******* USB PHY Rx Control Register 0x430 *******/
+    regVal = MV_REG_READ(MV_USB_PHY_RX_CTRL_REG(dev)); 
+    
+    /* bits[3:2]	LPL_COEF	= 0x0 (1/8) */
+    regVal &= ~(0x3 << 2);
+
+    /* bits[7:4]	SQ_THRESH	= 0x8 */
+    regVal &= ~(0xf << 4);
+    regVal |= (0x8 << 4);
+
+    /* bits[16:15]	REG_SQ_LENGTH	= 0x1 */
+    regVal &= ~(0x3 << 15);
+    regVal |= (0x1 << 15);
+
+    /* bit[21]	CDR_FASTLOCK_EN	= 0x0 */
+    regVal &= ~(0x1 << 21);
+
+    /* bits[27:26]	EDGE_DET	= 0x0 (1 Tran)*/
+    regVal &= ~(0x3 << 26);
+
+    MV_REG_WRITE(MV_USB_PHY_RX_CTRL_REG(dev), regVal);
+    /*-------------------------------------------------*/
+
+    /******* USB PHY IVREF Control Register 0x440 *******/
+    regVal = MV_REG_READ(MV_USB_PHY_IVREF_CTRL_REG(dev)); 
+
+ 	/* bits[9:8]	TXVDD12 = 0x3 */
+    	regVal &= ~(0x3 << 8);
+	regVal |= (0x3 << 8);
+    
+    MV_REG_WRITE(MV_USB_PHY_IVREF_CTRL_REG(dev), regVal);
+    /*-------------------------------------------------*/
+
+    /***** USB PHY TEST GROUP CONTROL Register: 0x450 *****/
+    regVal = MV_REG_READ(MV_USB_PHY_TEST_GROUP_CTRL_REG_0(dev)); 
+
+    /* bit[15]	REG_FIFO_SQ_RST	= 0x0 */
+    regVal &= ~(0x1 << 15);
+
+    MV_REG_WRITE(MV_USB_PHY_TEST_GROUP_CTRL_REG_0(dev), regVal);
+    /*-------------------------------------------------*/
+
+}
+
 
 /* USB Phy init (change from defaults) specific for 65nm (78XX0 and 6281) */
 static void    mvUsbPhy65nmInit(int dev)
@@ -768,7 +854,10 @@ MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost)
     }
     else if (mvCtrlModelGet() == MV_6781_DEV_ID)
     {
-	mvUsbPhy6781Init(dev);
+	if ( (mvCtrlRevGet() == MV_6781_Z0_REV) || (mvCtrlRevGet() == MV_6781_Z1_REV) )
+		mvUsbPhy6781Init(dev);
+	else
+		mvUsbPhy6781Y0Init(dev);
     }
     else
     {
