@@ -135,6 +135,7 @@ obj-$(CONFIG_BE2ISCSI)		+= libiscsi.o be2iscsi/
 obj-$(CONFIG_SCSI_PMCRAID)	+= pmcraid.o
 obj-$(CONFIG_VMWARE_PVSCSI)	+= vmw_pvscsi.o
 
+obj-$(CONFIG_SCSI_MVSATA)       += ../../arch/arm/plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_sata/
 obj-$(CONFIG_ARM)		+= arm/
 
 obj-$(CONFIG_CHR_DEV_ST)	+= st.o

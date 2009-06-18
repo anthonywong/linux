@@ -237,3 +237,8 @@ config PM_RUNTIME
 	  and the bus type drivers of the buses the devices are on are
 	  responsible for the actual handling of the autosuspend requests and
 	  wake-up events.
+
+config APM_EMU_DS2782
+	bool "MAXIM DS2782 Fuel Gauge IC Support"
+	depends on APM_EMULATION
+	default n
