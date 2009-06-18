@@ -483,6 +483,7 @@ static struct clk_lookup dove_clocks[] = {
 	INIT_CK("orion-ehci.0", NULL, &clk_usb0),
 	INIT_CK("orion-ehci.1", NULL, &clk_usb1),
 	INIT_CK("mv_netdev.0", NULL, &clk_gbe),
+	INIT_CK("mv643xx_eth.0", NULL, &clk_gbe),
 	INIT_CK("sata_mv.0", NULL, &clk_sata),
 	INIT_CK(NULL, "PCI0", &clk_pcie0),
 	INIT_CK(NULL, "PCI1", &clk_pcie1),
