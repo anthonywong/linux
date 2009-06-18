@@ -1,0 +1,17 @@
+obj-y				+= clock.o common.o addr-map.o irq.o pcie.o mpp.o \
+				sdhci_cam_mbus.o
+obj-$(CONFIG_MACH_DOVE_RD_AVNG)	+= dove-rd-avng-setup.o
+obj-$(CONFIG_MACH_DOVE_RD)	+= dove-rd-setup.o dove-front-panel-common.o
+obj-$(CONFIG_MACH_DOVE_DB)	+= dove-db-setup.o dove-front-panel-common.o
+obj-$(CONFIG_DOVE_PM_SUPPORT)	+= pm.o
+obj-$(CONFIG_FB_DOVE_CLCD)	+= clcd.o
+obj-$(CONFIG_FB_DOVE_CLCD1)	+= clcd.o
+obj-$(CONFIG_MV_INCLUDE_MPP_SYSFS)	+= avng_mpp.o
+
+obj-$(CONFIG_PROC_FS)		+= dump_cp15_regs.o
+
+include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+
+obj-y           += mv_hal_support/
+obj-y           += ../plat-orion/mv_hal_drivers/
+

@@ -709,8 +709,8 @@ proc_types:
 		b	__armv4_mmu_cache_off
 		b	__armv5tej_mmu_cache_flush
 
-		.word	0x0007b000		@ ARMv6
-		.word	0x000ff000
+		.word	0x000f0000		@ ARMv6
+		.word	0x000f0000
 		b	__armv4_mmu_cache_on
 		b	__armv4_mmu_cache_off
 		b	__armv6_mmu_cache_flush

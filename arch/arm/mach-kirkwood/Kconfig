@@ -1,5 +1,15 @@
 if ARCH_KIRKWOOD
 
+config  MV88F6281
+	bool
+	default y
+
+config  MV_HAL_RULES_PATH
+        string "path of the mvRules.mk file for HAL drivers"
+        default "arch/arm/mach-kirkwood/mv_hal_support/mvRules.mk"
+        ---help---
+	
+
 menu "Marvell Kirkwood Implementations"
 
 config MACH_DB88F6281_BP

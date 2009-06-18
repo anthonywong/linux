@@ -474,10 +474,8 @@ static int ov7670_detect(struct v4l2_subdev *sd)
 	unsigned char v;
 	int ret;
 
-	ret = ov7670_init(sd, 0);
-	if (ret < 0)
-		return ret;
 	ret = ov7670_read(sd, REG_MIDH, &v);
+
 	if (ret < 0)
 		return ret;
 	if (v != 0x7f) /* OV manuf. id. */
@@ -500,7 +498,9 @@ static int ov7670_detect(struct v4l2_subdev *sd)
 		return ret;
 	if (v != 0x73)  /* PID + VER = 0x76 / 0x73 */
 		return -ENODEV;
-	return 0;
+
+	ret = ov7670_init(sd);
+	return ret;
 }
 
 

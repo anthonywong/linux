@@ -131,6 +131,7 @@ obj-$(CONFIG_PS3_ROM)		+= ps3rom.o
 obj-$(CONFIG_SCSI_CXGB3_ISCSI)	+= libiscsi.o libiscsi_tcp.o cxgb3i/
 obj-$(CONFIG_SCSI_BNX2_ISCSI)	+= libiscsi.o bnx2i/
 
+obj-$(CONFIG_SCSI_MVSATA)       += ../../arch/arm/plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_sata/
 obj-$(CONFIG_ARM)		+= arm/
 
 obj-$(CONFIG_CHR_DEV_ST)	+= st.o

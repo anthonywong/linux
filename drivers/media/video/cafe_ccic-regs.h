@@ -134,8 +134,9 @@
 #define   TWSIC1_RVALID	  0x04000000	/* Read data valid */
 #define   TWSIC1_ERROR	  0x08000000	/* Something screwed up */
 
-
+/* The following register exist in pci devices only */
 #define REG_UBAR	0xc4	/* Upper base address register */
+
 
 /*
  * Here's the weird global control registers which are said to live
