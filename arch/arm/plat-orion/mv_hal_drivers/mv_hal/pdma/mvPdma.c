@@ -123,7 +123,7 @@ MV_U8 mvPdmaNumChannels;
 /* to be used when writing PDMA_REQUEST_CHAN_MAP_REG */ 
 MV_U32 chanMapRequestOffsetTable[MV_PDMA_MAX_CHANNELS_NUM] = 
 	{0x0120, 0x0124, 0x0128, 0x012C, 0x0130, 0x117C, 
-	0x1180, 0x1184, 0x118C, 0, 0, 0, 0, 0, 0, 0};
+	0x1180, 0x1184, 0x118C, 0x0134, 0x0138, 0, 0, 0, 0, 0};
 
 
 /*******************************************************************************
@@ -227,6 +227,7 @@ MV_STATUS mvPdmaChanAlloc(MV_PDMA_PERIPH_TYPE chanType,
 	case MV_PDMA_AC97_MIC:
 	case MV_PDMA_AC97_MODEM_RX:
 	case MV_PDMA_AC97_AUDIO_RX: 
+	case MV_PDMA_SSP_RX:
 		chanHndl->srcFlowControl = 1;
 		chanHndl->dstFlowCtrl = 0;
 		break;
@@ -236,6 +237,7 @@ MV_STATUS mvPdmaChanAlloc(MV_PDMA_PERIPH_TYPE chanType,
 	case MV_PDMA_AC97_SURROUND_TX:
 	case MV_PDMA_AC97_CENTER_TX:
 	case MV_PDMA_NAND_COMMAND:
+	case MV_PDMA_SSP_TX:
 		chanHndl->srcFlowControl = 0; 
 		chanHndl->dstFlowCtrl = 1;
 		break;
@@ -262,16 +264,18 @@ MV_STATUS mvPdmaChanAlloc(MV_PDMA_PERIPH_TYPE chanType,
 	case MV_PDMA_AC97_AUDIO_TX: 
 	case MV_PDMA_AC97_SURROUND_TX:
 	case MV_PDMA_AC97_CENTER_TX:
+	case MV_PDMA_SSP_RX:
+	case MV_PDMA_SSP_TX:
 		chanHndl->burstSize = DCMD_BURST_32_BYTES;
 		chanHndl->width = DCMD_WIDTH_4_BYTE;
 		break;
 	case MV_PDMA_NAND_DATA:
 		chanHndl->burstSize = DCMD_BURST_32_BYTES;
-		chanHndl->width = DCMD_WIDTH_4_BYTE;
+		chanHndl->width = DCMD_WIDTH_8_BYTE;
 		break;
 	case MV_PDMA_NAND_COMMAND:
-		chanHndl->burstSize = DCMD_BURST_8_BYTES;
-		chanHndl->width = DCMD_WIDTH_4_BYTE;
+		chanHndl->burstSize = DCMD_BURST_16_BYTES;
+		chanHndl->width = DCMD_WIDTH_8_BYTE;
 		break;
 	case MV_PDMA_MEMORY:
 		chanHndl->burstSize = DCMD_BURST_32_BYTES;
