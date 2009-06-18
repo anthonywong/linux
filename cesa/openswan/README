@@ -1,0 +1,57 @@
+OpenSWAN
+=========
+ In order to explore the Dove CESA through the OpenSWAN, 1 patch should be applied to the OpenSWAN.
+
+ download openswan-2.6.18 (http://www.openswan.org/), then untar+unzip it.
+ apply the patch:
+
+ - mv_openswan_dove.patch - a patch from OCF to include the OCF support into the IPsec DP.
+	add OCF support by default. (packaging/linus/config-all.h packaging/makefiles/module.defs)
+	use OCF in user space.
+	remove DEBUG info. 
+ and compile:
+
+ + ipsec module (cross compilation) :
+  'make KERNELSRC=<path to this release, after config> module ARCH=arm CC=<path_to_cross_compile> LD=<path_to_cross_loader>'
+  then copy the module to the host FS: /lib/modules/<kernel_name>/kernel/net/ipsec/
+
+ + ipsec user (native) :
+  make sure that you have the kernel source on the FS.
+  'make KERNELSRC=<path to this release, after config> programs'
+ (	- Need to copy cryptodev.h from the kernel crypto/ocf/ to include/crypto/
+	- Need to copy autoconf from the kernel include to include, in order to overcome missing include path of pluto compilation. )
+  'make install'
+
+
+IPSec routing using encryption/authentication only
+
+  basic vpn connection:
+  +++++++++++++++++++++
+ - platform: Dove to Dove conncted with egiga.
+ - make sure you have 'ip' (part of the iproute package) installed.
+ - edit /etc/ipsec.conf (on both DOve FS) ,check the "man ipsec.conf" :
+
+config setup
+        interfaces="ipsec0=egiga0"    # Virtual/physical interfaces
+        klipsdebug="none"             # Debug KLIPS
+        plutodebug="none"             # Debug PLUTO
+
+conn dove_psk_vpn
+    type=tunnel                    # type of the connection: tunnel(default),passthrough,transport,reject,drop
+    authby=secret
+    left=192.168.1.1
+    leftsubnet=192.168.1.0/16
+    right=192.168.0.1              # Remote information
+    rightsubnet=192.168.0.0/16
+    auto=start                     # start this connection at startup
+
+
+ - edit /etc/ipsec.secrets (on both Dove FS) to have shared secret.
+192.168.1.1 192.168.0.1 : PSK "123456"
+
+ - Dove1: 'ifconfig eth0 192.168.0.1 netmask 255.255.0.0'
+ - Dove2: 'ifconfig eth0 192.168.1.1 netmask 255.255.0.0'
+ - check connectivity: ping from Dove1 to 192.168.1.1
+ - '/etc/init.d/ipsec start' (on both Dove), create new interface ipsec0.
+ - check connectivity: ping from Dove1 to 192.168.1.1 --> VPN is working (make sure by sniffing)
+

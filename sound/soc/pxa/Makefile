@@ -1,6 +1,6 @@
 # PXA Platform Support
 snd-soc-pxa2xx-objs := pxa2xx-pcm.o
-snd-soc-pxa2xx-ac97-objs := pxa2xx-ac97.o
+snd-soc-pxa2xx-ac97-objs := pxa2xx-ac97.o pxa3xx-ac97-surround.o
 snd-soc-pxa2xx-i2s-objs := pxa2xx-i2s.o
 snd-soc-pxa-ssp-objs := pxa-ssp.o
 
