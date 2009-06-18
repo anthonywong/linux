@@ -1,0 +1,417 @@
+/*******************************************************************************
+Copyright (C) Marvell International Ltd. and its affiliates
+
+This software file (the "File") is owned and distributed by Marvell 
+International Ltd. and/or its affiliates ("Marvell") under the following
+alternative licensing terms.  Once you have made an election to distribute the
+File under one of the following license alternatives, please (i) delete this
+introductory statement regarding license alternatives, (ii) delete the two
+license alternatives that you have not elected to use and (iii) preserve the
+Marvell copyright notice above.
+
+********************************************************************************
+Marvell Commercial License Option
+
+If you received this File from Marvell and you have entered into a commercial
+license agreement (a "Commercial License") with Marvell, the File is licensed
+to you under the terms of the applicable Commercial License.
+
+********************************************************************************
+Marvell GPL License Option
+
+If you received this File from Marvell, you may opt to use, redistribute and/or 
+modify this File in accordance with the terms and conditions of the General 
+Public License Version 2, June 1991 (the "GPL License"), a copy of which is 
+available along with the File in the license.txt file or by writing to the Free 
+Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 or 
+on the worldwide web at http://www.gnu.org/licenses/gpl.txt. 
+
+THE FILE IS DISTRIBUTED AS-IS, WITHOUT WARRANTY OF ANY KIND, AND THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE ARE EXPRESSLY 
+DISCLAIMED.  The GPL License provides additional details about this warranty 
+disclaimer.
+********************************************************************************
+Marvell BSD License Option
+
+If you received this File from Marvell, you may opt to use, redistribute and/or 
+modify this File under the following licensing terms. 
+Redistribution and use in source and binary forms, with or without modification, 
+are permitted provided that the following conditions are met:
+
+    *   Redistributions of source code must retain the above copyright notice,
+	    this list of conditions and the following disclaimer. 
+
+    *   Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in the
+        documentation and/or other materials provided with the distribution. 
+
+    *   Neither the name of Marvell nor the names of its contributors may be 
+        used to endorse or promote products derived from this software without 
+        specific prior written permission. 
+    
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE 
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR 
+ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; 
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON 
+ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+*******************************************************************************/
+
+#include "pmu/mvSram.h"
+#include "pmu/mvPmuRegs.h"
+#include "ddrmc/mvDramIf.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+
+/* Constants */
+#define PMU_MAX_DESCR_CNT		7		
+#define PMU_SLP_DESCR_CNT		1
+#define PMU_STBY_DESCR_CNT		0
+
+/* DDR parameters pointer */
+static MV_VOID * _mvPmuSramDdrParamPtr;
+
+/* Sram Markers */
+static unsigned long mvPmuSramBase;
+static unsigned long mvPmuSramSize;
+
+/* SRAM functions pointer */
+static MV_VOID (*_mvPmuSramDdrReconfigPtr)(MV_U32 cplPtr, MV_U32 cplCnt);
+static MV_VOID (*_mvPmuSramStandbyEnterPtr)(MV_U32 ddrSelfRefresh);
+static MV_VOID (*_mvPmuSramStandbyExitPtr)(MV_VOID);
+static MV_VOID (*_mvPmuSramSleepEnterPtr)(MV_VOID);
+static MV_VOID (*_mvPmuSramSleepExitPtr)(MV_VOID);
+
+/* Macros */
+#define PmuSpVirt2Phys(addr)	(((MV_U32)addr - DOVE_SCRATCHPAD_VIRT_BASE) + DOVE_SCRATCHPAD_PHYS_BASE)
+
+/*******************************************************************************
+* mvPmuSramRelocate - Relocate a function into the PMU SRAM
+*
+* DESCRIPTION:
+*   	Relocate a function into the SRAM to be executed from there.
+*
+* INPUT:
+*       start: starting address of the function to relocated
+*	size: size of the function to be relocated
+* OUTPUT:
+*	None
+* RETURN:
+*	None
+*******************************************************************************/
+static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
+{
+	MV_VOID * fncptr;
+	MV_U32 * src;
+	MV_U32 * dst;
+	MV_U32 i;
+
+	if (size & 0x3) {
+		printk(KERN_ERR "Function relocated with non-alligned size\n");
+		return NULL;
+	}
+
+	if (size > mvPmuSramSize/* - mvPmuSramBase)*/) {
+		printk(KERN_ERR "No more space in SRAM for function relocation\n");
+		return NULL;
+	}
+
+	mvPmuSramSize -= size;
+
+	src = (MV_U32*)start;
+	dst = (MV_U32*)mvPmuSramBase;
+
+	if (start)
+	{
+		for (i=0; i<size; i+=4)
+		{
+			*dst = *src;
+			dst++;
+			src++;
+		}
+	}
+	
+	//printk("mvPmuSramRelocate: From %08x to %08x, Size = %x\n", (MV_U32)start, (MV_U32)mvPmuSramBase, size);
+
+	fncptr = (MV_VOID *)mvPmuSramBase;
+	mvPmuSramBase += size;	
+	return fncptr;
+}
+
+/*******************************************************************************
+* mvPmuSramDdrReconfig - Reconfigure the DDR parameters to new frequency
+*
+* DESCRIPTION:
+*   	This call executes from the SRAM and performs all configurations needed
+*	while having the DDR in self refresh
+*
+* INPUT:
+*	None
+* OUTPUT:
+*	None
+* RETURN:
+*	None
+*******************************************************************************/
+MV_VOID mvPmuSramDdrReconfig(MV_U32 paramcnt)
+{
+	if (!_mvPmuSramDdrReconfigPtr)
+		panic("Function not yet relocated in SRAM\n");
+
+	return _mvPmuSramDdrReconfigPtr((MV_U32)_mvPmuSramDdrParamPtr, paramcnt);
+}	
+
+/*******************************************************************************
+* mvPmuSramStandby - Enter Standby mode
+*
+* DESCRIPTION:
+*   	This call executes from the SRAM and performs all configurations needed
+*	to enter standby mode (power down the CPU and caches)
+*
+* INPUT:
+*	ddrSelfRefresh: Enable/Disable (0x1/0x0) DDR selfrefresh in Standby
+* OUTPUT:
+*	None
+* RETURN:
+*	None
+*******************************************************************************/
+MV_VOID mvPmuSramStandby(MV_U32 ddrSelfRefresh)
+{
+	if (!_mvPmuSramStandbyEnterPtr)
+		panic("Function not yet relocated in SRAM\n");
+
+	return _mvPmuSramStandbyEnterPtr(ddrSelfRefresh);
+}
+
+/*******************************************************************************
+* mvPmuSramSleep - Enter Sleep mode
+*
+* DESCRIPTION:
+*   	This call executes from the SRAM and performs all configurations needed
+*	to enter sleep mode (power down the whole SoC). On exiting the Sleep
+*	mode the CPU returns from this call normally
+*
+* INPUT:
+*	lcdRefresh: LCD refresh mode, enabled/disabled
+* OUTPUT:
+*	None
+* RETURN:
+*	None
+*******************************************************************************/
+MV_VOID mvPmuSramSleep(MV_VOID)
+{
+	if (!_mvPmuSramSleepEnterPtr)
+		panic("Function not yet relocated in SRAM\n");
+
+	return _mvPmuSramSleepEnterPtr();
+}
+
+/*******************************************************************************
+* mvPmuSramLoad - Load the PMU Sram with all calls functions needed for PMU
+*
+* DESCRIPTION:
+*   	Initialize the scratch pad SRAM region in the PMU so that all routines
+*	needed for standby, sleep and DVFS are relocated from the DDR into the
+*	SRAM
+*
+* INPUT:
+*       None
+* OUTPUT:
+*	None
+* RETURN:
+*    	MV_OK	: All Functions relocated to PMU SRAM successfully
+*	MV_FAIL	: At least on function failed relocation
+*******************************************************************************/
+MV_STATUS mvPmuSramLoad (MV_VOID)
+{
+	/* Initialize SRAM base and size markers */
+	mvPmuSramBase = (PMU_SCRATCH_BASE + PMU_SCRATCHPAD_OFFS);
+	mvPmuSramSize = PMU_SCRATCHPAD_SIZE;
+
+	/* Allocate enough space for the DDR paramters */
+	if ((_mvPmuSramDdrParamPtr = mvPmuSramRelocate(NULL,
+		(mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS)))) == NULL)
+		return MV_FAIL;
+
+	/* Relocate the DDR reconfiguration function */
+	if ((_mvPmuSramDdrReconfigPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDdrReconfigFunc,
+		mvPmuSramDdrReconfigFuncSZ)) == NULL)
+		return MV_FAIL;
+
+	/* Relocate the Standby functions */
+	if ((_mvPmuSramStandbyEnterPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyEnterFunc,
+		mvPmuSramStandbyEnterFuncSZ)) == NULL)
+		return MV_FAIL;
+	if ((_mvPmuSramStandbyExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyExitFunc,
+		mvPmuSramStandbyExitFuncSZ)) == NULL)
+		return MV_FAIL;
+
+	/* Relocate the Sleep functions */
+	if ((_mvPmuSramSleepEnterPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramSleepEnterFunc,
+		mvPmuSramSleepEnterFuncSZ)) == NULL)
+		return MV_FAIL;
+	if ((_mvPmuSramSleepExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramSleepExitFunc,
+		mvPmuSramSleepExitFuncSZ)) == NULL)
+		return MV_FAIL;
+
+	return MV_OK;
+}
+
+/*******************************************************************************
+* mvPmuSramDdrTimingPrep - Prepare new DDR timing params
+*
+* DESCRIPTION:
+*   	Request the new timing parameters for the DDR MC according to the new
+*	CPU:DDR ratio requested. These parameters are saved on the SRAM to be
+*	set later in the DDR DFS sequence.
+*
+* INPUT:
+*       ddrFreq: new target DDR frequency
+*	cpuFreq: CPU frequency to calculate the values againt
+* OUTPUT:
+*	None
+* RETURN:
+*	status
+*******************************************************************************/
+MV_STATUS mvPmuSramDdrTimingPrep(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_U32 * cnt)
+{
+	MV_U32 clear_size = (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS));
+	MV_U32 i;
+	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtr;
+
+	/* Clear the whole region to zeros first */
+	for (i=0; i<(clear_size/4); i++)
+		ptr[i] = 0x0;
+		
+	/* Get the new timing parameters from the DDR HAL */
+	return mvDramReconfigParamFill(ddrFreq, cpuFreq, (MV_DDR_MC_PARAMS*)_mvPmuSramDdrParamPtr, cnt);
+}
+
+/*******************************************************************************
+* mvPmuSramStbyResumePrep - Prepare information needed by the BootROM to resume
+*       from STANDBY.
+*
+* DESCRIPTION:
+*	Prepare the necessary register configuration to be executed by the 
+*	BootROM before jumping back to the resume code in the SRAM.
+*
+* INPUT:
+*       None
+* OUTPUT:
+*	None
+* RETURN:
+*	status
+*******************************************************************************/
+MV_STATUS mvPmuSramStandbyResumePrep(MV_VOID)
+{
+	MV_U32 reg, i;
+
+	/* set the resume address */
+	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramStandbyExitPtr)); 
+	/*(((MV_U32)_mvPmuSramStandbyExitPtr - DOVE_SCRATCHPAD_VIRT_BASE) + DOVE_SCRATCHPAD_PHYS_BASE)*/
+
+	/* Prepare the resume descriptors */
+	reg = ((PMU_STBY_DESCR_CNT << PMU_RD_CFG_DISC_CNT_OFFS) & PMU_RD_CFG_DISC_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CFG_REG, reg); 
+
+	/* Fill in the used descriptors */
+	for (i=0; i<PMU_STBY_DESCR_CNT; i++)
+	{
+		// TBD
+	}
+
+	/* Clear out all non used descriptors */
+	for (i=PMU_STBY_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
+	{
+		MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(i), 0x0);
+		MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(i), 0x0);
+	}
+
+	return MV_OK;
+}
+
+/*******************************************************************************
+* mvPmuSramSleepResumePrep - Prepare information needed by the BootROM to resume
+*       from SLEEP.
+*
+* DESCRIPTION:
+*	Prepare the necessary register configuration to be executed by the 
+*	BootROM before jumping back to the resume code in the SRAM.
+*
+* INPUT:
+*       ddrFreq: DDR frequency to be configured upon Sleep resume
+* OUTPUT:
+*	None
+* RETURN:
+*	status
+*******************************************************************************/
+MV_STATUS mvPmuSramSleepResumePrep(MV_U32 ddrFreq)
+{
+	MV_U32 reg, i;
+	MV_U32 * srcptr = (MV_U32*) (DOVE_SCRATCHPAD_VIRT_BASE + PMU_SCRATCHPAD_OFFS);
+	MV_U32 * dstptr = (MV_U32*) (DOVE_PMUSP_VIRT_BASE + PMU_PMUSP_OFFS);
+	MV_U32 clear_size = (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS));
+	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtr;
+
+	/* set the resume address */
+	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramSleepExitPtr));
+
+	/* Prepare the resume descriptors */
+	reg = ((PMU_SLP_DESCR_CNT << PMU_RD_CFG_DISC_CNT_OFFS) & PMU_RD_CFG_DISC_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CFG_REG, reg); 
+
+	/* Prepare DDR paramters in the scratch pad for BootROM */
+	for (i=0; i<(clear_size/4); i++)	
+		ptr[i] = 0x0;
+	if (mvDramIfParamFill(ddrFreq, (MV_DDR_MC_PARAMS*)_mvPmuSramDdrParamPtr) != MV_OK)
+		return MV_FAIL;
+
+	/* Discriptor 0: DDR timing parametrs */
+	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
+	reg |= ((mvDramIfParamCountGet() << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(0), reg);
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
+
+	/* Descriptor 1: TBD */
+	for (i=1; i<PMU_SLP_DESCR_CNT; i++)
+	{
+		// TBD
+	}
+
+	/* Clear out all non used descriptors */
+	for (i=PMU_SLP_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
+	{
+		MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(i), 0x0);
+		MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(i), 0x0);
+	}
+
+	/*
+	 * PMU ScratchPad BUG workaround
+	 * Copy all SRAM to PMUSP in 32bit access
+	 */	
+	for (i=0; i<512; i++)
+		dstptr[i] = srcptr[i];
+
+	return MV_OK;
+}
+
+/*******************************************************************************
+* mvPmuSramVirt2Phys - Convert virtual address to physical
+*
+* DESCRIPTION:
+*	Convert virtual address to physical
+*
+* INPUT:
+*       addr: virtual address
+* OUTPUT:
+*	None
+* RETURN:
+*	physical address
+*******************************************************************************/
+unsigned long mvPmuSramVirt2Phys(void *addr)
+{
+	return mvOsIoVirtToPhy(NULL, addr);
+}
