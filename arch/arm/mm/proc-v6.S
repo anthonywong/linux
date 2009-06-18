@@ -45,6 +45,9 @@ ENTRY(cpu_v6_proc_fin)
 	stmfd	sp!, {lr}
 	cpsid	if				@ disable interrupts
 	bl	v6_flush_kern_cache_all
+#if defined(CONFIG_CACHE_TAUROS2)
+	mcr	p15, 1, r0, c7, c11, 0		@ L2C clean all
+#endif
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x0006			@ .............ca.
@@ -82,6 +85,9 @@ ENTRY(cpu_v6_do_idle)
 ENTRY(cpu_v6_dcache_clean_area)
 #ifndef TLB_CAN_READ_FROM_L1_CACHE
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
+#ifndef CONFIG_MRV_PTE_IN_L2
+	mcr     p15, 1, r0, c7, c11, 1		@ clean L2C D entry
+#endif
 	add	r0, r0, #D_CACHE_LINE_SIZE
 	subs	r1, r1, #D_CACHE_LINE_SIZE
 	bhi	1b
@@ -102,7 +108,11 @@ ENTRY(cpu_v6_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
+#ifdef CONFIG_MRV_PTE_IN_L2
 	orr	r0, r0, #TTB_FLAGS
+#else
+	bic     r0, r0, #0x18                   @ DONOT Cache the page table in L2
+#endif
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
@@ -167,7 +177,12 @@ __v6_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r0, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r0, c2, c0, 2		@ TTB control register
+#ifdef CONFIG_MRV_PTE_IN_L2
 	orr	r4, r4, #TTB_FLAGS
+#else
+						@ OC bits in TTB1 register
+	bic     r4, r4, #0x18                   @ DONOT Cache the page table in L2
+#endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #endif /* CONFIG_MMU */
 	adr	r5, v6_crval
@@ -221,8 +236,8 @@ cpu_elf_name:
 	 */
 	.type	__v6_proc_info, #object
 __v6_proc_info:
-	.long	0x0007b000
-	.long	0x0007f000
+	.long	0x000f0000
+	.long	0x000f0000
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | \

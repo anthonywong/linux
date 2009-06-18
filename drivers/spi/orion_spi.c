@@ -29,12 +29,15 @@
 #define ORION_SPI_DATA_OUT_REG		0x08
 #define ORION_SPI_DATA_IN_REG		0x0c
 #define ORION_SPI_INT_CAUSE_REG		0x10
+#define ORION_SPI_INT_CAUSE_MASK_REG	0x14
+
 
 #define ORION_SPI_IF_8_16_BIT_MODE	(1 << 5)
 #define ORION_SPI_CLK_PRESCALE_MASK	0x1F
 
 struct orion_spi {
 	struct work_struct	work;
+	struct completion	 done;
 
 	/* Lock access to transfer list.	*/
 	spinlock_t		lock;
@@ -45,6 +48,7 @@ struct orion_spi {
 	unsigned int		max_speed;
 	unsigned int		min_speed;
 	struct orion_spi_info	*spi_info;
+	int irq;
 };
 
 static struct workqueue_struct *orion_spi_wq;
@@ -100,6 +104,8 @@ static int orion_spi_baudrate_set(struct spi_device *spi, unsigned int speed)
 	u32 prescale;
 	u32 reg;
 	struct orion_spi *orion_spi;
+
+
 
 	orion_spi = spi_master_get_devdata(spi->master);
 
@@ -165,16 +171,19 @@ static void orion_spi_set_cs(struct orion_spi *orion_spi, int enable)
 
 static inline int orion_spi_wait_till_ready(struct orion_spi *orion_spi)
 {
-	int i;
+	if (orion_spi->irq < 0) { /* polling mode*/
+		int i;
 
-	for (i = 0; i < ORION_SPI_WAIT_RDY_MAX_LOOP; i++) {
-		if (readl(spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG)))
-			return 1;
-		else
-			udelay(1);
-	}
-
-	return -1;
+		for (i = 0; i < ORION_SPI_WAIT_RDY_MAX_LOOP; i++) {
+			if (readl(spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG)))
+				return 1;
+			else
+				udelay(1);
+		}
+		return -1;
+	} else
+		wait_for_completion(&orion_spi->done);
+	return 1;
 }
 
 static inline int
@@ -189,8 +198,10 @@ orion_spi_write_read_8bit(struct spi_device *spi,
 	rx_reg = spi_reg(orion_spi, ORION_SPI_DATA_IN_REG);
 	int_reg = spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG);
 
-	/* clear the interrupt cause register */
-	writel(0x0, int_reg);
+	if (orion_spi->irq < 0) { /* polling mode*/
+		/* clear the interrupt cause register */
+		writel(0x0, int_reg);
+	}
 
 	if (tx_buf && *tx_buf)
 		writel(*(*tx_buf)++, tx_reg);
@@ -220,8 +231,10 @@ orion_spi_write_read_16bit(struct spi_device *spi,
 	rx_reg = spi_reg(orion_spi, ORION_SPI_DATA_IN_REG);
 	int_reg = spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG);
 
-	/* clear the interrupt cause register */
-	writel(0x0, int_reg);
+	if (orion_spi->irq < 0) { /* polling mode*/
+		/* clear the interrupt cause register */
+		writel(0x0, int_reg);
+	}
 
 	if (tx_buf && *tx_buf)
 		writel(__cpu_to_le16(get_unaligned((*tx_buf)++)), tx_reg);
@@ -248,6 +261,10 @@ orion_spi_write_read(struct spi_device *spi, struct spi_transfer *xfer)
 
 	orion_spi = spi_master_get_devdata(spi->master);
 	word_len = spi->bits_per_word;
+
+	if(xfer->bits_per_word)
+		word_len = xfer->bits_per_word;
+
 	count = xfer->len;
 
 	if (word_len == 8) {
@@ -274,6 +291,22 @@ out:
 	return xfer->len - count;
 }
 
+static irqreturn_t orion_spi_irq(int irq, void *dev)
+{
+	struct orion_spi *orion_spi = dev;
+
+	if (!(readl(spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG)) & 0x01))
+	{
+		printk("spi not ready for tx?\n");
+		complete(&orion_spi->done);
+		goto irq_done;
+	}
+
+	writel(0x00, spi_reg(orion_spi, ORION_SPI_INT_CAUSE_REG));
+	complete(&orion_spi->done);
+ irq_done:
+	return IRQ_HANDLED;
+}
 
 static void orion_spi_work(struct work_struct *work)
 {
@@ -377,6 +410,7 @@ static int orion_spi_setup(struct spi_device *spi)
 	 * baudrate & width will be set orion_spi_setup_transfer
 	 */
 	return 0;
+
 }
 
 static int orion_spi_transfer(struct spi_device *spi, struct spi_message *m)
@@ -480,6 +514,7 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	spi->master = master;
 	spi->spi_info = spi_info;
 
+
 	spi->max_speed = DIV_ROUND_UP(spi_info->tclk, 4);
 	spi->min_speed = DIV_ROUND_UP(spi_info->tclk, 30);
 
@@ -504,20 +539,38 @@ static int __init orion_spi_probe(struct platform_device *pdev)
 	if (orion_spi_reset(spi) < 0)
 		goto out_rel_mem;
 
+	init_completion(&spi->done);
+
+	if (spi_info->use_interrupt) {
+		dev_info(&pdev->dev, "use interrupt mode\n");
+		spi->irq = platform_get_irq(pdev, 0);
+		/* clean and unmask the interrupt */
+		writel(0, spi_reg(spi, ORION_SPI_INT_CAUSE_REG));
+		writel(1, spi_reg(spi, ORION_SPI_INT_CAUSE_MASK_REG));
+
+		status = devm_request_irq(&pdev->dev, spi->irq, orion_spi_irq,
+					  0, pdev->name, spi);
+		if (status < 0) {
+			dev_err(&pdev->dev, "Cannot claim IRQ\n");
+			writel(0, spi_reg(spi, ORION_SPI_INT_CAUSE_MASK_REG));
+			goto out_rel_mem;
+		}
+	} else {
+		spi->irq = -1;
+		dev_info(&pdev->dev, "use polling mode\n");
+	}
 	status = spi_register_master(master);
 	if (status < 0)
-		goto out_rel_mem;
+		goto  out_rel_mem;
 
 	return status;
 
 out_rel_mem:
 	release_mem_region(r->start, (r->end - r->start) + 1);
-
 out:
 	spi_master_put(master);
 	return status;
 }
-
 
 static int __exit orion_spi_remove(struct platform_device *pdev)
 {
@@ -532,6 +585,8 @@ static int __exit orion_spi_remove(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, (r->end - r->start) + 1);
+
+	writel(0, spi_reg(spi, ORION_SPI_INT_CAUSE_MASK_REG));
 
 	spi_unregister_master(master);
 
