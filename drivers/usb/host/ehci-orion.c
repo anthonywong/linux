@@ -42,6 +42,7 @@ static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 	wrl(USB_CAUSE, 0);
 	wrl(USB_MASK, 0);
 
+#if 0
 	/*
 	 * Reset controller
 	 */
@@ -98,6 +99,7 @@ static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 	 * GL# USB-4 Setup USB Host mode
 	 */
 	wrl(USB_MODE, 0x13);
+#endif
 }
 
 static int ehci_orion_setup(struct usb_hcd *hcd)

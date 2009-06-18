@@ -24,6 +24,10 @@
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
 
+#ifdef CONFIG_ARCH_DOVE
+#define L1D_WORKAROUND
+#endif
+
 /* Sanity check size */
 #if (CONSISTENT_DMA_SIZE % SZ_2M)
 #error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
@@ -209,8 +213,10 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		gfp |= GFP_DMA;
 
 	page = alloc_pages(gfp, order);
-	if (!page)
+	if (!page){
+	     printk("%s %d: failed to alloc pages order %d\n",__func__, __LINE__, order);
 		goto no_page;
+	}
 
 	/*
 	 * Invalidate any data that might be lurking in the
@@ -548,7 +554,11 @@ void dma_cache_maint(const void *start, size_t size, int direction)
 
 	switch (direction) {
 	case DMA_FROM_DEVICE:		/* invalidate only */
+#ifdef L1D_WORKAROUND
+		inner_op = dmac_flush_range;
+#else
 		inner_op = dmac_inv_range;
+#endif
 		outer_op = outer_inv_range;
 		break;
 	case DMA_TO_DEVICE:		/* writeback only */

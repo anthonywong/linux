@@ -152,6 +152,10 @@
 
 	str	r3, [r0]
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
+#ifndef CONFIG_MRV_PTE_IN_L2
+	mcr     p15, 1, r0, c7, c11, 1 @ clean L2C D entry
+#endif
+	
 	.endm
 
 
