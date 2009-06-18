@@ -437,11 +437,11 @@ config MTD_NAND_FSL_UPM
 	  processor localbus with User-Programmable Machine support.
 
 config MTD_NAND_MXC
-	tristate "MXC NAND support"
-	depends on ARCH_MX2 || ARCH_MX3
-	help
-	  This enables the driver for the NAND flash controller on the
-	  MXC processors.
+        tristate "MXC NAND support"
+        depends on ARCH_MX2 || ARCH_MX3
+        help
+          This enables the driver for the NAND flash controller on the
+          MXC processors.
 
 config MTD_NAND_NOMADIK
 	tristate "ST Nomadik 8815 NAND support"
@@ -450,11 +450,18 @@ config MTD_NAND_NOMADIK
 	  Driver for the NAND flash controller on the Nomadik, with ECC.
 
 config MTD_NAND_SH_FLCTL
-	tristate "Support for NAND on Renesas SuperH FLCTL"
-	depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
+        tristate "Support for NAND on Renesas SuperH FLCTL"
+        depends on MTD_NAND && SUPERH && CPU_SUBTYPE_SH7723
+        help
+          Several Renesas SuperH CPU has FLCTL. This option enables support
+          for NAND Flash using FLCTL. This driver support SH7723.
+
+config MTD_NAND_DOVE
+	bool "Support for NAND flash devices on Dove"
+	depends on MTD_NAND
 	help
-	  Several Renesas SuperH CPU has FLCTL. This option enables support
-	  for NAND Flash using FLCTL. This driver support SH7723.
+	  This enables the driver for the NAND flash device found on
+	  the Marvell Dove SoC
 
 config MTD_NAND_DAVINCI
         tristate "Support NAND on DaVinci SoC"

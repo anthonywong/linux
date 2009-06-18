@@ -13,6 +13,7 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
 #include <linux/io.h>
+#include <linux/dove_sdhci.h>
 
 /*
  * Controller registers
@@ -234,10 +235,12 @@ struct sdhci_host {
 #define SDHCI_QUIRK_DELAY_AFTER_POWER			(1<<23)
 /* Controller uses SDCLK instead of TMCLK for data timeouts */
 #define SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1<<24)
+/* Dove SDHCI has some issues in detecting IRQ */
+#define SDHCI_QUIRK_DISABLE_IRQ				(1<<25)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
-
+	struct resource		*res;
 	const struct sdhci_ops	*ops;		/* Low level hw interface */
 
 	/* Internal data */
@@ -286,9 +289,14 @@ struct sdhci_host {
 
 	struct timer_list	timer;		/* Timer for timeouts */
 
+	int			high_speed_wa;	/* high speed WA */
+	/* for dove card interrupt workaround */
+	int			dove_card_int_wa;
+	struct sdhci_dove_int_wa dove_int_wa_info;
+
+	struct platform_device	*plat_dev;
 	unsigned long		private[0] ____cacheline_aligned;
 };
-
 
 struct sdhci_ops {
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS

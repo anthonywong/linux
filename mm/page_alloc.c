@@ -3222,6 +3222,7 @@ int zone_wait_table_init(struct zone *zone, unsigned long zone_size_pages)
 	if (!slab_is_available()) {
 		zone->wait_table = (wait_queue_head_t *)
 			alloc_bootmem_node(pgdat, alloc_size);
+		printk("\n\n\n\n wait table %p\n", zone->wait_table);
 	} else {
 		/*
 		 * This case means that a zone whose size was 0 gets new memory
@@ -3719,7 +3720,10 @@ static void __init setup_usemap(struct pglist_data *pgdat,
 {
 	unsigned long usemapsize = usemap_size(zonesize);
 	zone->pageblock_flags = NULL;
-	if (usemapsize)
+	/* saeed: reserve first page */
+	alloc_bootmem_node(pgdat, PAGE_SIZE);
+
+	if (usemapsize) 
 		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
 }
 #else

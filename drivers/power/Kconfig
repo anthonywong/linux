@@ -70,10 +70,17 @@ config BATTERY_OLPC
 	help
 	  Say Y to enable support for the battery on the OLPC laptop.
 
-config BATTERY_TOSA
-	tristate "Sharp SL-6000 (tosa) battery"
-	depends on MACH_TOSA && MFD_TC6393XB && TOUCHSCREEN_WM97XX
+config BATTERY_BQ2084
+	tristate "BQ2084 Gauge battery driver (used in Marvell Dove RD)"
+	default y if MACH_DOVE_RD
 	help
+ 	  Say Y to enable support for the batteries with the TI BQ2084
+          SBS v1.1 compliant gas gauge
+
+config BATTERY_TOSA
+        tristate "Sharp SL-6000 (tosa) battery"
+        depends on MACH_TOSA && MFD_TC6393XB && TOUCHSCREEN_WM97XX
+        help
 	  Say Y to enable support for the battery on the Sharp Zaurus
 	  SL-6000 (tosa) models.
 

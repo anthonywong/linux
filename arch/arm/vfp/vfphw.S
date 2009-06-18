@@ -283,3 +283,29 @@ ENTRY(vfp_put_double)
 	.endr
 #endif
 ENDPROC(vfp_put_double)
+
+
+
+@ VFP save user registers state.
+@
+@  r0  = location to store to
+	.globl	vfp_save_user_state
+vfp_save_user_state:
+	VFPFMRX	r1, FPEXC		@ Is the VFP enabled?
+	orr	r1, r1, #FPEXC_EN	@ user FPEXC has the enable bit set
+	bic	r1, r1, #FPEXC_EX	@ make sure exceptions are disabled
+	VFPFMXR	FPEXC, r1
+	VFPFSTMIA r0, r1		@ save the working registers
+	mov	pc, lr
+
+@ VFP load state.
+@
+@  r0  = location to load from
+	.globl	vfp_load_user_state
+vfp_load_user_state:
+	VFPFMRX	r1, FPEXC		@ Is the VFP enabled?
+	orr	r1, r1, #FPEXC_EN	@ user FPEXC has the enable bit set
+	bic	r1, r1, #FPEXC_EX	@ make sure exceptions are disabled
+	VFPFMXR	FPEXC, r1
+	VFPFLDMIA r0, r11		@ save the working registers
+	mov	pc, lr
