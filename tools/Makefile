@@ -19,6 +19,7 @@ LD := $(CROSS_COMPILE)ld
 SUBDIRS += network
 SUBDIRS += devmem2
 SUBDIRS += cesa
+SUBDIRS += usb
 
 TARGETS=
 
