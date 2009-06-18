@@ -108,7 +108,7 @@ extern "C" {
 #define MV_PDMA_END_OF_RX_INTR_EN	DCSR_EORIRQEN
 
 /* Note: do not change the values for these enumerations, */
-/* they are used in mvPdmaChanAlloc(). */
+/* they are used in mvPdmaChanAlloc() as indices to chanMapRequestOffsetTable. */
 typedef enum {
 
 	MV_PDMA_AC97_MIC =		0, 
@@ -117,10 +117,12 @@ typedef enum {
 	MV_PDMA_AC97_AUDIO_RX =		3, 
 	MV_PDMA_AC97_AUDIO_TX =		4, 
 	MV_PDMA_AC97_SURROUND_TX =	5, 
-	MV_PDMA_AC97_CENTER_TX =	6,
+	MV_PDMA_AC97_CENTER_TX =	6, 
 	MV_PDMA_NAND_DATA =		7, 
 	MV_PDMA_NAND_COMMAND =		8, 
-	MV_PDMA_MEMORY =		9
+	MV_PDMA_SSP_RX =		9, 
+	MV_PDMA_SSP_TX =		10, 
+	MV_PDMA_MEMORY =		11	/* Note: MUST be last enum */
 	
 } MV_PDMA_PERIPH_TYPE;
 
