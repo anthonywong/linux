@@ -24,6 +24,9 @@
 
 #include "ad1980.h"
 
+#define CODEC_TYPE_AD1888	1
+#define CODEC_TYPE_AD1980	2
+
 static unsigned int ac97_read(struct snd_soc_codec *codec,
 	unsigned int reg);
 static int ac97_write(struct snd_soc_codec *codec,
@@ -81,6 +84,8 @@ SOC_SINGLE("Mic Switch", AC97_MIC, 15, 1, 1),
 
 SOC_SINGLE("Stereo Mic Switch", AC97_AD_MISC, 6, 1, 0),
 SOC_DOUBLE("Line HP Swap Switch", AC97_AD_MISC, 10, 5, 1, 0),
+
+SOC_SINGLE("Stereo Spread Switch", AC97_AD_MISC, 7, 1, 0),
 
 SOC_DOUBLE("Surround Playback Volume", AC97_SURROUND_MASTER, 8, 0, 31, 1),
 SOC_DOUBLE("Surround Playback Switch", AC97_SURROUND_MASTER, 15, 7, 1, 1),
@@ -147,7 +152,7 @@ struct snd_soc_dai ad1980_dai = {
 };
 EXPORT_SYMBOL_GPL(ad1980_dai);
 
-static int ad1980_reset(struct snd_soc_codec *codec, int try_warm)
+static int ad1980_reset(struct snd_soc_codec *codec, int try_warm, int type)
 {
 	u16 retry_cnt = 0;
 
@@ -162,7 +167,10 @@ retry:
 	/* Set bit 16slot in register 74h, then every slot will has only 16
 	 * bits. This command is sent out in 20bit mode, in which case the
 	 * first nibble of data is eaten by the addr. (Tag is always 16 bit)*/
-	ac97_write(codec, AC97_AD_SERIAL_CFG, 0x9900);
+	if (type == CODEC_TYPE_AD1888)
+		ac97_write(codec, AC97_AD_SERIAL_CFG, 0x1000);
+	else
+		ac97_write(codec, AC97_AD_SERIAL_CFG, 0x9900);
 
 	if (ac97_read(codec, AC97_RESET)  != 0x0090)
 		goto err;
@@ -176,7 +184,18 @@ err:
 	return -EIO;
 }
 
-static int ad1980_soc_probe(struct platform_device *pdev)
+static int ad1980_soc_suspend(struct platform_device *pdev,
+	pm_message_t state)
+{
+	return 0;
+}
+
+static int ad1980_soc_resume(struct platform_device *pdev)
+{
+	return 0;
+}
+
+static int internal_soc_probe(struct platform_device *pdev, int type)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec;
@@ -223,7 +242,7 @@ static int ad1980_soc_probe(struct platform_device *pdev)
 		goto pcm_err;
 
 
-	ret = ad1980_reset(codec, 0);
+	ret = ad1980_reset(codec, 0, type);
 	if (ret < 0) {
 		printk(KERN_ERR "Failed to reset AD1980: AC97 link error\n");
 		goto reset_err;
@@ -280,6 +299,16 @@ cache_err:
 	return ret;
 }
 
+static int ad1980_soc_probe(struct platform_device *pdev)
+{
+	return internal_soc_probe(pdev, CODEC_TYPE_AD1980);
+}
+
+static int ad1888_soc_probe(struct platform_device *pdev)
+{
+	return internal_soc_probe(pdev, CODEC_TYPE_AD1888);
+}
+
 static int ad1980_soc_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -301,6 +330,15 @@ struct snd_soc_codec_device soc_codec_dev_ad1980 = {
 	.remove = 	ad1980_soc_remove,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ad1980);
+
+struct snd_soc_codec_device soc_codec_dev_ad1888 = {
+	.probe = 	ad1888_soc_probe,
+	.remove = 	ad1980_soc_remove,
+	.suspend =	ad1980_soc_suspend,
+	.resume =	ad1980_soc_resume,
+};
+EXPORT_SYMBOL_GPL(soc_codec_dev_ad1888);
+
 
 MODULE_DESCRIPTION("ASoC ad1980 driver");
 MODULE_AUTHOR("Roy Huang, Cliff Cai");

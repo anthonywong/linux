@@ -1089,6 +1089,10 @@ void mmc_rescan(struct work_struct *work)
 	mmc_claim_host(host);
 
 	mmc_power_up(host);
+#if 0
+       /* reset sdio hardware */  /* Maen */
+        mmc_force_reset(host);
+#endif
 	mmc_go_idle(host);
 
 	mmc_send_if_cond(host, host->ocr_avail);

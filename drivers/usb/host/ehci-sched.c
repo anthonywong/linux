@@ -464,7 +464,7 @@ static int enable_periodic (struct ehci_hcd *ehci)
 	 */
 	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
 					     STS_PSS, 0, 9 * 125);
-	if (status)
+	if (status) 
 		return status;
 
 	cmd = ehci_readl(ehci, &ehci->regs->command) | CMD_PSE;
@@ -503,7 +503,7 @@ static int disable_periodic (struct ehci_hcd *ehci)
 	 */
 	status = handshake_on_error_set_halt(ehci, &ehci->regs->status,
 					     STS_PSS, STS_PSS, 9 * 125);
-	if (status)
+	if (status) 
 		return status;
 
 	cmd = ehci_readl(ehci, &ehci->regs->command) & ~CMD_PSE;
@@ -799,7 +799,7 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	int		status;
 	unsigned	uframe;
-	__hc32		c_mask;
+	__hc32		c_mask, s_mask = 0;
 	unsigned	frame;		/* 0..(qh->period - 1), or NO_FRAME */
 	struct ehci_qh_hw	*hw = qh->hw;
 
@@ -837,21 +837,28 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 				}
 			}
 
+			s_mask = (1 << uframe);
+
 		/* qh->period == 0 means every uframe */
 		} else {
+			uframe = 0;
 			frame = 0;
 			status = check_intr_schedule (ehci, 0, 0, qh, &c_mask);
+
+			/* set s_mask */
+			while(uframe < 8) {
+				s_mask |= (1 << uframe);
+				uframe += qh->u_period;
+			}	
 		}
 		if (status)
 			goto done;
 		qh->start = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
-		hw->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
-		hw->hw_info2 |= qh->period
-			? cpu_to_hc32(ehci, 1 << uframe)
-			: cpu_to_hc32(ehci, QH_SMASK);
-		hw->hw_info2 |= c_mask;
+		qh->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
+		qh->hw_info2 |= cpu_to_hc32(ehci, s_mask);
+		qh->hw_info2 |= c_mask;
 	} else
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
 
@@ -1238,7 +1245,7 @@ itd_urb_transaction (
 	/* allocate/init ITDs */
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (i = 0; i < num_itds; i++) {
-
+		unsigned now = readl (&ehci->regs->frame_index) % (ehci->periodic_size << 3);
 		/* free_list.next might be cache-hot ... but maybe
 		 * the HC caches it too. avoid that issue for now.
 		 */
@@ -1247,9 +1254,20 @@ itd_urb_transaction (
 		if (likely (!list_empty(&stream->free_list))) {
 			itd = list_entry (stream->free_list.prev,
 					struct ehci_itd, itd_list);
-			list_del (&itd->itd_list);
-			itd_dma = itd->itd_dma;
-		} else {
+			if( (now >> 3) == itd->frame)
+			{
+				itd = NULL;
+			}
+			else
+			{
+				list_del (&itd->itd_list);
+				itd_dma = itd->itd_dma;
+			}
+		} else
+			itd = NULL;
+		
+		if (!itd)
+		{
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			itd = dma_pool_alloc (ehci->itd_pool, mem_flags,
 					&itd_dma);
@@ -1334,14 +1352,14 @@ sitd_slot_ok (
 		 */
 		if (!tt_available (ehci, period_uframes << 3,
 				stream->udev, frame, uf, stream->tt_usecs))
-			return 0;
+			goto next;
 #else
 		/* tt must be idle for start(s), any gap, and csplit.
 		 * assume scheduling slop leaves 10+% for control/bulk.
 		 */
 		if (!tt_no_collision (ehci, period_uframes << 3,
 				stream->udev, frame, mask))
-			return 0;
+			goto next;
 #endif
 
 		/* check starts (OUT uses more than one) */
@@ -1367,7 +1385,7 @@ sitd_slot_ok (
 		}
 
 		/* we know urb->interval is 2^N uframes */
-		uframe += period_uframes;
+next:	uframe += period_uframes;
 	} while (uframe < mod);
 
 	stream->splits = cpu_to_hc32(ehci, stream->raw_mask << (uframe & 7));
@@ -1726,7 +1744,9 @@ itd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	(void) disable_periodic(ehci);
+	if (!ehci->periodic_sched)
+		(void) disable_periodic (ehci);
+
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (unlikely(list_is_singular(&stream->td_list))) {
@@ -2115,8 +2135,10 @@ sitd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	(void) disable_periodic(ehci);
-	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
+	if (!ehci->periodic_sched)
+		(void) disable_periodic (ehci);
+	
+    	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
 	if (list_is_singular(&stream->td_list)) {
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
@@ -2380,9 +2402,12 @@ restart:
 
 			/* assume completion callbacks modify the queue */
 			if (unlikely (modified)) {
-				if (likely(ehci->periodic_sched > 0))
+				if (likely(ehci->periodic_sched > 0)) {
+//					restarted = 1;
 					goto restart;
-				/* short-circuit this scan */
+				}
+				/* maybe we can short-circuit this scan! */
+				/*disable_periodic(ehci);*/
 				now_uframe = clock;
 				break;
 			}
