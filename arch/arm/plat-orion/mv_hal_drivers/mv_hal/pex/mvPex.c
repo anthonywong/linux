@@ -75,24 +75,25 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 MV_STATUS mvPexHalInit(MV_U32 pexIf, MV_PEX_TYPE pexType)
 {
-	MV_PEX_MODE pexMode;
-	MV_U32 regVal;
+	MV_PEX_MODE	pexMode;
+	MV_U32		regVal;
 	MV_U32		status;
+	MV_16		ctrlModel = mvCtrlModelGet();
  
     /* First implement Guideline (GL# PCI Express-2) Wrong Default Value    */
     /* to Transmitter Output Current (TXAMP) Relevant for: 88F5181-A1/B0/B1 */
     /* and 88F5281-B0 and above, 88F5182, 88F5082, 88F5181L, 88F6082/L      */
  
-    if ((mvCtrlModelGet() != MV_1281_DEV_ID) &&
-	(mvCtrlModelGet() != MV_6281_DEV_ID) &&
-	(mvCtrlModelGet() != MV_6192_DEV_ID) &&
-	(mvCtrlModelGet() != MV_6180_DEV_ID) &&
-       	(mvCtrlModelGet() != MV_6183_DEV_ID) &&
-	(mvCtrlModelGet() != MV_6183L_DEV_ID) &&
-       	(mvCtrlModelGet() != MV_78100_DEV_ID) &&
-       	(mvCtrlModelGet() != MV_78200_DEV_ID) &&
-	(mvCtrlModelGet() != MV_78XX0_DEV_ID) && 
-	(mvCtrlModelGet() != MV_6781_DEV_ID))
+    if ((ctrlModel != MV_1281_DEV_ID) &&
+	(ctrlModel != MV_6281_DEV_ID) &&
+	(ctrlModel != MV_6192_DEV_ID) &&
+	(ctrlModel != MV_6180_DEV_ID) &&
+       	(ctrlModel != MV_6183_DEV_ID) &&
+	(ctrlModel != MV_6183L_DEV_ID) &&
+       	(ctrlModel != MV_78100_DEV_ID) &&
+       	(ctrlModel != MV_78200_DEV_ID) &&
+	(ctrlModel != MV_78XX0_DEV_ID) && 
+	(ctrlModel != MV_6781_DEV_ID))
     {
 
         /* Read current value of TXAMP */
@@ -112,7 +113,7 @@ MV_STATUS mvPexHalInit(MV_U32 pexIf, MV_PEX_TYPE pexType)
         /* Implement 1.0V termination GL for 88F1281 device only */
         /* BIT0 - Common mode feedback */
         /* BIT3 - TxBuf, extra drive for 1.0V termination */
-        if (mvCtrlModelGet() == MV_1281_DEV_ID)
+        if (ctrlModel == MV_1281_DEV_ID)
         {
                 MV_REG_WRITE(0x41b00, 0x80860000);   /* Write the read command   */
                 regVal = MV_REG_READ(0x41b00);      /* Extract the data         */
