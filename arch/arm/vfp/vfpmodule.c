@@ -38,6 +38,9 @@ union vfp_state *last_VFP_context[NR_CPUS];
  */
 unsigned int VFP_arch;
 
+extern unsigned int pmDebug;
+extern unsigned int pmDebug1;
+
 static int vfp_notifier(struct notifier_block *self, unsigned long cmd, void *v)
 {
 	struct thread_info *thread = v;
@@ -506,3 +509,28 @@ static int __init vfp_init(void)
 }
 
 late_initcall(vfp_init);
+
+
+void vfp_save_user_state(u32 *);
+void vfp_load_user_state(u32 *);
+
+static u32 fpexc, fpscr;
+static u32 vfp_regs[32];
+
+void vfp_save(void)
+{
+	fpexc = fmrx(FPEXC);
+	fpscr = fmrx(FPSCR);
+	vfp_save_user_state(vfp_regs);
+}
+
+void vfp_restore(void)
+{
+	u32 access;
+	
+	access = get_copro_access();	
+	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
+	vfp_load_user_state(vfp_regs);
+	fmxr(FPSCR, fpscr);
+	fmxr(FPEXC, fpexc);
+}
