@@ -446,6 +446,16 @@ config ARCH_KIRKWOOD
 	  Support for the following Marvell Kirkwood series SoCs:
 	  88F6180, 88F6192 and 88F6281.
 
+config ARCH_DOVE
+	bool "Marvell Dove"
+	select PCI
+	select GENERIC_GPIO
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select PLAT_ORION
+	help
+	  Support for the Marvell Dove SoC MV88F6781
+
 config ARCH_LOKI
 	bool "Marvell Loki (88RC8480)"
 	select CPU_FEROCEON
@@ -746,6 +756,10 @@ source "arch/arm/mach-omap2/Kconfig"
 source "arch/arm/mach-orion5x/Kconfig"
 
 source "arch/arm/mach-kirkwood/Kconfig"
+
+source "arch/arm/mach-dove/Kconfig"
+
+source "arch/arm/plat-orion/mv_hal_drivers/Kconfig"
 
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s3c64xx/Kconfig"
