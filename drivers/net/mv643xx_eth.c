@@ -47,6 +47,7 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/phy.h>
@@ -258,6 +259,10 @@ struct mv643xx_eth_shared_private {
 	 * Ethernet controller base address.
 	 */
 	void __iomem *base;
+
+#if defined(CONFIG_HAVE_CLK)
+	struct clk	*clk;
+#endif
 
 	/*
 	 * Points at the right SMI instance to use.
@@ -2615,6 +2620,14 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (msp->base == NULL)
 		goto out_free;
 
+#if defined(CONFIG_HAVE_CLK)
+	msp->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(msp->clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(msp->clk);
+#endif
+
 	/*
 	 * Set up and register SMI bus.
 	 */
@@ -2674,6 +2687,12 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 out_free_mii_bus:
 	mdiobus_free(msp->smi_bus);
 out_unmap:
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(msp->clk)) {
+		clk_disable(msp->clk);
+		clk_put(msp->clk);
+	}
+#endif
 	iounmap(msp->base);
 out_free:
 	kfree(msp);
@@ -2685,6 +2704,13 @@ static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
 	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
 	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
+
+#if defined(CONFIG_HAVE_CLK)
+	if (!IS_ERR(msp->clk)) {
+		clk_disable(msp->clk);
+		clk_put(msp->clk);
+	}
+#endif
 
 	if (pd == NULL || pd->shared_smi == NULL) {
 		mdiobus_unregister(msp->smi_bus);
