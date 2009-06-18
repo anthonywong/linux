@@ -86,6 +86,80 @@ static MV_STATUS twsiDataTransmit(MV_U8 chanNum, MV_U8 *pBlock, MV_U32 blockSize
 static MV_STATUS twsiDataReceive(MV_U8 chanNum, MV_U8 *pBlock, MV_U32 blockSize);
 static MV_STATUS twsiTargetOffsSet(MV_U8 chanNum, MV_U32 offset,MV_BOOL moreThen256);
 
+#ifdef CONFIG_DOVE_REV_Y0
+	/* In Dove-Y0 chanNum is not used to select the TWSI unit (which is
+	 * always 0), but to select the TWSI option in the TWSI port expander
+	 * connected to unit 0 */
+
+	static int prevChanNum = 0;
+
+/*******************************************************************************
+* twsiPortExpanderSet - Set the configuration of the TWSI port exander.
+*
+* DESCRIPTION:
+*       This routine sets the configuration of the TWSI port expander which 
+*	is connected to the TWSI port. 
+*
+*	Note this implementation is for Dove-Y0:
+*
+*	I/O: User can select any port combination (all of them or some of them).
+*	1) TWSI option 1 (primary option) is the dedicated TWSI interface on TW_SDA and TW_SCK.
+*	2) TWSI option 2 (secondary option) is on MPP[19] and MPP[17]
+*	3) TWSI option 3 (third option) is on MPP[57:56].
+*
+*	Dynamic port selection:
+*	1) 0xE802C.7 = TWSI_MUX_En_Option1 = option 1 enable
+*	2) 0xE8030.20 = TWSI_MUX_En_Option2 = option 2 enable
+*	3) 0xE8030.21 = TWSI_MUX_En_Option3 = option 3 enable
+*
+*	Before using the TWSI on any port: Disable all options and enable the required option.
+*	By default the first (primary) option is enabled.
+*
+* INPUT:
+*       expanderOpt - TWSI expander option (dedicated TWSI interface or MPPs).
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*       None.
+*
+*******************************************************************************/
+static void twsiPortExpanderSet(MV_TWSI_EXPANDER_OPT expanderOpt)
+{
+	MV_U32 cfg_1_reg, cfg_2_reg;
+
+	cfg_1_reg = MV_REG_READ(CPU_LCD_TWSI_CONFIG_1_REG);
+	cfg_2_reg = MV_REG_READ(CPU_LCD_TWSI_CONFIG_2_REG);
+
+	switch (expanderOpt)
+	{
+		case MV_TWSI_OPTION_1:	/* dedicated TWSI interface */
+			cfg_1_reg |= BIT7;
+			cfg_2_reg &= ~(BIT20 | BIT21);
+			break;
+		case MV_TWSI_OPTION_2:	/* MPP[19], MPP[17] */
+			cfg_1_reg &= ~(BIT7);
+			cfg_2_reg &= ~(BIT21);
+			cfg_2_reg |= BIT20;
+			break;
+		case MV_TWSI_OPTION_3:	/* MPP[57:56] */
+			cfg_1_reg &= ~(BIT7);
+			cfg_2_reg &= ~(BIT20);
+			cfg_2_reg |= BIT21;
+			break;
+		default:
+			mvOsPrintf("TWSI: mvTwsiPortExpanderSet - invalid option\n");
+			break;
+	}
+	
+	MV_REG_WRITE(CPU_LCD_TWSI_CONFIG_1_REG, cfg_1_reg);
+	MV_REG_WRITE(CPU_LCD_TWSI_CONFIG_2_REG, cfg_2_reg);
+}
+
+#endif /* CONFIG_DOVE_REV_Y0 */
+/******************************************************************************/
+
 
 MV_BOOL twsiTimeoutChk(MV_U32 timeout, MV_U8 *pString)
 {
@@ -127,6 +201,18 @@ MV_STATUS mvTwsiStartBitSet(MV_U8 chanNum)
 	MV_U32 timeout, temp;
 
 	DB(mvOsPrintf("TWSI: mvTwsiStartBitSet \n"));
+
+#ifdef CONFIG_DOVE_REV_Y0
+	/* In Dove-Y0 chanNum is not used to select the TWSI unit (which is
+	 * always 0), but to select the TWSI option in the TWSI port expander
+	 * connected to unit 0 */
+
+	if (prevChanNum != chanNum) {
+		twsiPortExpanderSet(chanNum);
+		prevChanNum = chanNum;
+	}
+#endif /* CONFIG_DOVE_REV_Y0 */
+
 	/* check Int flag */
     	if(twsiMainIntGet(chanNum))
 		isIntFlag = MV_TRUE;
@@ -159,7 +245,7 @@ MV_STATUS mvTwsiStartBitSet(MV_U8 chanNum)
 	/* check the status */
 	temp = twsiStsGet(chanNum);
 	if(( temp != TWSI_START_CON_TRA ) && ( temp != TWSI_REPEATED_START_CON_TRA ))
-	  {
+	{
 		mvOsPrintf("TWSI: mvTwsiStartBitSet ERROR - status %x after Set Start Bit. \n",temp);
 		return MV_FAIL;
 	}
@@ -189,6 +275,17 @@ MV_STATUS mvTwsiStartBitSet(MV_U8 chanNum)
 MV_STATUS mvTwsiStopBitSet(MV_U8 chanNum)
 {
     	MV_U32	timeout, temp;
+
+#ifdef CONFIG_DOVE_REV_Y0
+	/* In Dove-Y0 chanNum is not used to select the TWSI unit (which is
+	 * always 0), but to select the TWSI option in the TWSI port expander
+	 * connected to unit 0 */
+
+	if (prevChanNum != chanNum) {
+		twsiPortExpanderSet(chanNum);
+		prevChanNum = chanNum;
+	}
+#endif /* CONFIG_DOVE_REV_Y0 */
 
     	/* Generate stop bit */
 	temp = MV_REG_READ(TWSI_CONTROL_REG(chanNum));
@@ -242,6 +339,12 @@ static MV_BOOL twsiMainIntGet(MV_U8 chanNum)
 	MV_U32 temp;
 	
 	/* get the int flag bit */
+#ifdef CONFIG_DOVE_REV_Y0
+	/* In Dove-Y0 chanNum is not used to select the TWSI unit (which is
+	 * always 0), but to select the TWSI option in the TWSI port expander
+	 * connected to unit 0 */
+	chanNum = 0;
+#endif /* CONFIG_DOVE_REV_Y0 */
 
 	temp = MV_REG_READ(TWSI_CPU_MAIN_INT_CAUSE_REG);
 	if (temp & (TWSI0_CPU_MAIN_INT_BIT << chanNum))
@@ -341,7 +444,18 @@ MV_U32 mvTwsiInit(MV_U8 chanNum, MV_HZ frequancy, MV_U32 Tclk, MV_TWSI_ADDR *pTw
 {
     	MV_U32	n,m,freq,margin,minMargin = 0xffffffff;
 	MV_U32	power;
-    	MV_U32	actualFreq = 0,actualN = 0,actualM = 0,val;
+    	MV_U32	actualFreq = 0, actualN = 0,actualM = 0,val;
+
+#ifdef CONFIG_DOVE_REV_Y0
+	/* In Dove-Y0 chanNum is not used to select the TWSI unit (which is
+	 * always 0), but to select the TWSI option in the TWSI port expander
+	 * connected to unit 0 */
+
+	if (prevChanNum != chanNum) {
+		twsiPortExpanderSet(chanNum);
+		prevChanNum = chanNum;
+	}
+#endif /* CONFIG_DOVE_REV_Y0 */
 
 	if(frequancy > 100000)
 	{
@@ -404,12 +518,12 @@ MV_U32 mvTwsiInit(MV_U8 chanNum, MV_HZ frequancy, MV_U32 Tclk, MV_TWSI_ADDR *pTw
     	}
 
 	/* unmask twsi int */
-    val = MV_REG_READ(TWSI_CONTROL_REG(chanNum));
+	val = MV_REG_READ(TWSI_CONTROL_REG(chanNum));
 	MV_REG_WRITE(TWSI_CONTROL_REG(chanNum), val | TWSI_CONTROL_INT_ENA);
 	/* Add delay of 1ms */
 	mvOsDelay(1);
 	
-   return actualFreq;
+	return actualFreq;
 } 
 
 
@@ -492,6 +606,18 @@ MV_STATUS mvTwsiAddrSet(MV_U8 chanNum, MV_TWSI_ADDR *pTwsiAddr, MV_TWSI_CMD comm
 {
 	DB(mvOsPrintf("TWSI: mvTwsiAddr7BitSet addr %x , type %d, cmd is %s\n",pTwsiAddr->address,\
 		 			pTwsiAddr->type, ((command==MV_TWSI_WRITE)?"Write":"Read") ));
+
+#ifdef CONFIG_DOVE_REV_Y0
+	/* In Dove-Y0 chanNum is not used to select the TWSI unit (which is
+	 * always 0), but to select the TWSI option in the TWSI port expander
+	 * connected to unit 0 */
+
+	if (prevChanNum != chanNum) {
+		twsiPortExpanderSet(chanNum);
+		prevChanNum = chanNum;
+	}
+#endif /* CONFIG_DOVE_REV_Y0 */
+
 	/* 10 Bit address */
 	if(pTwsiAddr->type == ADDR10_BIT)
 	{
@@ -899,7 +1025,7 @@ MV_STATUS mvTwsiRead(MV_U8 chanNum, MV_TWSI_SLAVE *pTwsiSlave, MV_U8 *pBlock, MV
 	if(MV_OK != mvTwsiStartBitSet(chanNum))
 	{
 		mvTwsiStopBitSet(chanNum);
-		 return MV_FAIL;
+		return MV_FAIL;
 	}
 	
 	DB(mvOsPrintf("TWSI: mvTwsiEepromRead after mvTwsiStartBitSet\n"));
