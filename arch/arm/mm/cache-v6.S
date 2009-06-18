@@ -45,6 +45,9 @@ ENTRY(v6_icache_inval_all)
 	mov	pc, lr
 #endif
 
+#ifdef CONFIG_ARCH_DOVE
+#define L1D_WORKAROUND
+#endif
 /*
  *	v6_flush_cache_all()
  *
@@ -55,8 +58,13 @@ ENTRY(v6_icache_inval_all)
 ENTRY(v6_flush_kern_cache_all)
 	mov	r0, #0
 #ifdef HARVARD_CACHE
-	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
 #ifndef CONFIG_ARM_ERRATA_411920
+#ifdef L1D_WORKAROUND
+	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
+#else
+	mcr     p15, 0, r0, c7, c10, 0          @ D cache clean
+	mcr     p15, 0, r0, c7, c6, 0           @ D cache invalidate
+#endif
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
 #else
 	b	v6_icache_inval_all
@@ -121,7 +129,10 @@ ENTRY(v6_coherent_kern_range)
  *	- the Icache does not read data from the write buffer
  */
 ENTRY(v6_coherent_user_range)
-
+#ifdef L1D_WORKAROUND
+	mov	ip, #0
+	mcr     p15, 0, ip, c7, c10, 0          @ clean entire D cache
+#else
 #ifdef HARVARD_CACHE
 	bic	r0, r0, #CACHE_LINE_SIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D line
@@ -129,6 +140,7 @@ ENTRY(v6_coherent_user_range)
 	cmp	r0, r1
 	blo	1b
 #endif
+#endif /* L1D_WORKAROUND */
 	mov	r0, #0
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer

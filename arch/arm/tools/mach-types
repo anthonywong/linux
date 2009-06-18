@@ -1776,7 +1776,9 @@ cybook3			MACH_CYBOOK3		CYBOOK3			1784
 wdg002			MACH_WDG002		WDG002			1785
 sg560adsl		MACH_SG560ADSL		SG560ADSL		1786
 nextio_n2800_ica	MACH_NEXTIO_N2800_ICA	NEXTIO_N2800_ICA	1787
-marvell_newdb		MACH_MARVELL_NEWDB	MARVELL_NEWDB		1789
+dove_db                 MACH_DOVE_DB            DOVE_DB                 1788
+dove_rd                 MACH_DOVE_RD            DOVE_RD                 1789
+dove_rd_avng		MACH_DOVE_RD_AVNG	DOVE_RD_AVNG		1790
 vandihud		MACH_VANDIHUD		VANDIHUD		1790
 magx_e8			MACH_MAGX_E8		MAGX_E8			1791
 magx_z6			MACH_MAGX_Z6		MAGX_Z6			1792
