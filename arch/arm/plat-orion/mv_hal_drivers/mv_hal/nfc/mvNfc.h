@@ -142,10 +142,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvCommon.h"
 #include "pdma/mvPdma.h"
 
+#ifdef __cplusplus
+extern "C" { 
+#endif
 
 /********************************/
 /* Enums and structures 	*/
 /********************************/
+
+/* Maximum Chain length */
+#define MV_NFC_MAX_DESC_CHAIN		0x100
 
 /* Supported page sizes */
 #define MV_NFC_512B_PAGE		512
@@ -233,8 +239,13 @@ typedef enum {
 	MV_NFC_CMD_READ_ID,
 	MV_NFC_CMD_READ_STATUS,
 	MV_NFC_CMD_ERASE,
+    MV_NFC_CMD_MULTIPLANE_ERASE,
 	MV_NFC_CMD_RESET,
 
+    MV_NFC_CMD_CACHE_READ_SEQ,
+    MV_NFC_CMD_CACHE_READ_RAND,
+    MV_NFC_CMD_EXIT_CACHE_READ,
+    MV_NFC_CMD_CACHE_READ_START,
 	MV_NFC_CMD_READ_MONOLITHIC,
 	MV_NFC_CMD_READ_MULTIPLE,
 	MV_NFC_CMD_READ_NAKED,
@@ -245,7 +256,10 @@ typedef enum {
 	MV_NFC_CMD_WRITE_MULTIPLE,
 	MV_NFC_CMD_WRITE_NAKED,
 	MV_NFC_CMD_WRITE_LAST_NAKED,
-	MV_NFC_CMD_WRITE_DISPATCH
+	MV_NFC_CMD_WRITE_DISPATCH,
+	MV_NFC_CMD_WRITE_DISPATCH_START,
+	MV_NFC_CMD_WRITE_DISPATCH_END
+
 }MV_NFC_CMD_TYPE;
 
 
@@ -284,7 +298,24 @@ typedef struct {
 	MV_PDMA_CHANNEL dataChanHndl;
 	MV_PDMA_CHANNEL cmdChanHndl;
 	MV_BUF_INFO	cmdBuff;
+	MV_BUF_INFO	cmdDescBuff;
+	MV_BUF_INFO	dataDescBuff;
 }MV_NFC_CTRL;
+
+typedef struct {
+	MV_NFC_CMD_TYPE cmd;
+	MV_U32		pageAddr;
+	MV_U32		pageCount;
+	MV_U32 * 	virtAddr;
+	MV_U32		physAddr;
+}MV_NFC_MULTI_CMD;
+
+typedef struct {
+	MV_U32		cmdb0;
+	MV_U32		cmdb1;
+	MV_U32		cmdb2;
+	MV_U32		cmdb3;
+}MV_NFC_CMD;
 
 
 /********************************/
@@ -294,6 +325,7 @@ typedef struct {
 MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl);
 MV_STATUS mvNfcSelectChip(MV_NFC_CTRL *nfcCtrl, MV_NFC_CHIP_SEL chip);
 MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pageAddr, MV_U32 columnOffs);
+MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo, MV_U32 descCnt);
 MV_U32 	  mvNfcStatusGet(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *value);
 MV_STATUS mvNfcIntrEnable(MV_NFC_CTRL *nfcCtrl, MV_U32 intMask, MV_BOOL enable);
 MV_STATUS mvNfcReadWrite(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *virtBufAddr, MV_U32 physBuffAddr);
@@ -302,5 +334,13 @@ MV_VOID   mvNfcAddress2BlockConvert(MV_NFC_CTRL *nfcCtrl, MV_U32 address, MV_U32
 MV_8 * 	  mvNfcFlashModelGet(MV_NFC_CTRL *nfcCtrl);
 MV_STATUS mvNfcFlashPageSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
 MV_STATUS mvNfcFlashBlockSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
+MV_STATUS mvNfcDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *data_len);
+MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 * data_len);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCMVNFCH */
