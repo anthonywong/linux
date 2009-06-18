@@ -106,6 +106,7 @@ extern "C" {
 #define DCMD_W_1_BYTE				1
 #define DCMD_W_2_BYTE				2
 #define DCMD_W_4_BYTE				3
+#define DCMD_W_8_BYTE				0
 
 #define DCMD_LEN_OFFS				0	/* Length of the transfer in bytes */
 #define DCMD_LEN_MASK				(0x1FFF << DCMD_LEN_OFFS)
@@ -115,6 +116,7 @@ extern "C" {
 #define DCMD_WIDTH_1_BYTE			(DCMD_W_1_BYTE << DCMD_WIDTH_OFFS)
 #define DCMD_WIDTH_2_BYTE			(DCMD_W_2_BYTE << DCMD_WIDTH_OFFS)
 #define DCMD_WIDTH_4_BYTE			(DCMD_W_4_BYTE << DCMD_WIDTH_OFFS)
+#define DCMD_WIDTH_8_BYTE			(DCMD_W_8_BYTE << DCMD_WIDTH_OFFS)
 #define DCMD_BURST_OFFS				16	/* Maximum burst size of each data transfer */
 #define DCMD_BURST_MASK				(0x3 << DCMD_BURST_OFFS)
 #define DCMD_BURST_8_BYTES			(DCMD_SIZE_8_BYTES << DCMD_BURST_OFFS)
