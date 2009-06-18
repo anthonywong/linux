@@ -785,15 +785,7 @@ qh_make (
 			qh->gap_uf = 0;
 
 			qh->period = urb->interval >> 3;
-			if (qh->period == 0 && urb->interval != 1) {
-				/* NOTE interval 2 or 4 uframes could work.
-				 * But interval 1 scheduling is simpler, and
-				 * includes high bandwidth.
-				 */
-				dbg ("intr period %d uframes, NYET!",
-						urb->interval);
-				goto done;
-			}
+			qh->u_period = urb->interval;
 		} else {
 			int		think_time;
 
@@ -815,6 +807,7 @@ qh_make (
 					usb_calc_bus_time (urb->dev->speed,
 					is_input, 0, max_packet (maxp)));
 			qh->period = urb->interval;
+			qh->u_period = (unsigned short)~0;
 		}
 	}
 

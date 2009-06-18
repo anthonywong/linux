@@ -223,3 +223,8 @@ config APM_EMULATION
 	  random kernel OOPSes or reboots that don't seem to be related to
 	  anything, try disabling/enabling this option (or disabling/enabling
 	  APM in your BIOS).
+
+config APM_EMU_DS2782
+	bool "MAXIM DS2782 Fuel Gauge IC Support"
+	depends on APM_EMULATION
+	default n
