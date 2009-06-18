@@ -388,7 +388,7 @@ config CPU_FEROCEON_OLD_ID
 
 # ARMv6
 config CPU_V6
-	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX
+	bool "Support ARM V6 processor" if ARCH_INTEGRATOR || MACH_REALVIEW_EB || MACH_REALVIEW_PBX || ARCH_DOVE
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_PABRT_V6
@@ -767,12 +767,29 @@ config CACHE_L2X0
 config CACHE_XSC3L2
 	bool "Enable the L2 cache on XScale3"
 	depends on CPU_XSC3
-	default y
-	select OUTER_CACHE
-	help
+        default y
+        select OUTER_CACHE
+        help
 	  This option enables the L2 cache on XScale3.
 
 config ARM_L1_CACHE_SHIFT
 	int
 	default 6 if ARCH_OMAP3
 	default 5
+
+config CACHE_TAUROS2
+	bool "Enable the Tauros2 L2 cache controller"
+	depends on MACH_REALVIEW_EB || ARCH_DOVE || ARCH_INTEGRATOR
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the Tauros2 L2 cache controller (as
+	  found on PJ1/PJ4).
+
+config MRV_PTE_IN_L2
+	bool "Enable Table work in L2 to improve performance"
+	depends on CACHE_TAUROS2
+	default y
+	help
+	  Say Y if you wan to enable table work in L2 (MMU get pte
+	  from L2 memory) to improve performance

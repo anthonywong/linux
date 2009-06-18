@@ -1,0 +1,427 @@
+/*
+ *  linux/arch/arm/mach-dove/clcd.c
+ *
+ *  Copyright (C) 2000-2003 Deep Blue Solutions Ltd
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+#include <linux/types.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/list.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/sysdev.h>
+#include <linux/amba/bus.h>
+#include <linux/amba/kmi.h>
+
+//#include <asm/hardware.h>
+#include <linux/io.h>
+#include <asm/irq.h>
+#include <asm/setup.h>
+#include <linux/param.h>		/* HZ */
+#include <asm/mach-types.h>
+
+#include <asm/mach/arch.h>
+#include <asm/mach/flash.h>
+#include <asm/mach/irq.h>
+#include <asm/mach/map.h>
+#include <asm/mach/time.h>
+#include <video/dovefb.h>
+#include <video/dovefbreg.h>
+#include <video/dovedcon.h>
+#include <mach/dove_bl.h>
+
+static unsigned int lcd0_enable;
+module_param(lcd0_enable, uint, 0);
+MODULE_PARM_DESC(lcd0_enable, "set to 1 to enable LCD0 output.");
+static unsigned int lcd1_enable = 1;
+module_param(lcd1_enable, uint, 0);
+MODULE_PARM_DESC(lcd1_enable, "set to 1 to enable LCD1 output.");
+
+#if defined(CONFIG_FB_DOVE_CLCD_FLAREON_GV) || \
+    defined(CONFIG_FB_DOVE_CLCD_FLAREON_GV_MODULE)
+	#ifndef CONFIG_ARCH_DOVENB_ON_TAHOE_AXI
+	#define	LCD_BASE_PHY_ADDR		0x80400000
+	#define	LCD1_BASE_PHY_ADDR		0x80410000
+	#else
+	#define	LCD_BASE_PHY_ADDR		0xB0020000
+	#define	LCD1_BASE_PHY_ADDR		0xB0010000
+	#define	DCON_BASE_PHY_ADDR		0xB0030000
+	#endif
+#elif defined(CONFIG_ARCH_DOVE)
+	#define	LCD_BASE_PHY_ADDR		(DOVE_LCD1_PHYS_BASE)
+	#define	LCD1_BASE_PHY_ADDR		(DOVE_LCD2_PHYS_BASE)
+	#define	DCON_BASE_PHY_ADDR		(DOVE_LCD_DCON_PHYS_BASE)
+#else
+	#ifdef CONFIG_ARCH_TAHOE_AXI
+	#define LCD_BASE_PHY_ADDR		0x1C010000
+	#define LCD1_BASE_PHY_ADDR		0x1C020000
+	#else
+	#define	LCD_BASE_PHY_ADDR		0x70000000
+	#define	LCD1_BASE_PHY_ADDR		0x70010000
+	#define	DCON_BASE_PHY_ADDR		0x70020000
+	#define	IRE_BASE_PHY_ADDR		0x70021000
+
+	#endif /* CONFIG_ARCH_TAHOE */
+#endif
+
+/*
+ * LCD IRQ Line
+ */
+#ifndef IRQ_DOVE_LCD0
+#define IRQ_DOVE_LCD1		10
+#define IRQ_DOVE_LCD0		10
+#define IRQ_DOVE_LCD_DCON	10
+#endif
+
+/*
+ * DCON base addr. (PA)
+ */
+#ifndef DCON_BASE_PHY_ADDR
+#define	DCON_BASE_PHY_ADDR			0x0
+#endif
+
+/*
+ * Default mode database.
+ */
+static struct fb_videomode video_modes[] = {
+	[0] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 640,  /* 1000 */
+	.yres		= 480,  /* 550 */
+
+	.hsync_len	= 96,
+	.left_margin	= 16,
+	.right_margin	= 48,
+
+	.vsync_len	= 2,
+	.upper_margin	= 10,
+	.lower_margin	= 33,
+	.sync		= 0,
+	},
+	[1] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 800,	/* 960 */
+	.yres		= 600,  /* 620 */
+
+	.hsync_len	= 60,
+	.left_margin	= 50,
+	.right_margin	= 50,
+
+	.vsync_len	= 4,
+	.upper_margin	= 8,
+	.lower_margin	= 8,
+	.sync		= 0,
+	},
+	[2] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1024, /* 1328 */
+	.yres		= 768,  /* 816 */
+
+	.hsync_len	= 136,
+	.left_margin	= 144,
+	.right_margin	= 24,
+
+	.vsync_len	= 6,
+	.upper_margin	= 39,
+	.lower_margin	= 3,
+	.sync		= 0,
+	},
+	[3] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1024, /* 1200 */
+	.yres		= 600,  /* 620 */
+
+	.hsync_len	= 100,
+	.left_margin	= 38,
+	.right_margin	= 38,
+
+	.vsync_len	= 4,
+	.upper_margin	= 8,
+	.lower_margin	= 8,
+	.sync		= 0,
+	},
+	[4] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1280, /* 1440 */
+	.yres		= 1024,  /* 1050 */
+
+	.hsync_len	= 100,
+	.left_margin	= 30,
+	.right_margin	= 30,
+
+	.vsync_len	= 6,
+	.upper_margin	= 10,
+	.lower_margin	= 10,
+	.sync		= 0,
+	},
+	[5] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres 		= 1280, /* 1440 */
+	.yres		= 768,  /* 812 */
+
+	.hsync_len	= 96,
+	.left_margin	= 16,
+	.right_margin	= 48,
+
+	.vsync_len	= 2,
+	.upper_margin	= 11,
+	.lower_margin	= 31,
+	.sync		= 0,
+	},
+
+};
+
+#ifdef CONFIG_FB_DOVE_CLCD1
+
+static struct resource lcd1_vid_res[] = {
+	[0] = {
+		.start	= LCD1_BASE_PHY_ADDR,
+		.end	= LCD1_BASE_PHY_ADDR+0x001C8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= LCD_BASE_PHY_ADDR,
+		.end	= LCD_BASE_PHY_ADDR+0x001C8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= IRQ_DOVE_LCD1,
+		.end	= IRQ_DOVE_LCD1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct resource lcd1_res[] = {
+	[0] = {
+		.start	= LCD1_BASE_PHY_ADDR,
+		.end	= LCD1_BASE_PHY_ADDR+0x001C8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= LCD_BASE_PHY_ADDR,
+		.end	= LCD_BASE_PHY_ADDR+0x001C8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= IRQ_DOVE_LCD1,
+		.end	= IRQ_DOVE_LCD1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct platform_device lcd1_platform_device = {
+	.name = "dovefb",
+	.id = 1,			/* lcd1 */
+	.dev = {
+		.coherent_dma_mask = ~0,
+//		.platform_data = &lcd1_dmi,
+	},
+	.num_resources	= ARRAY_SIZE(lcd1_res),
+	.resource	= lcd1_res,
+};
+
+static struct platform_device lcd1_vid_platform_device = {
+	.name = "dovefb_ovly",
+	.id = 1,			/* lcd1 */
+	.dev = {
+		.coherent_dma_mask = ~0,
+//		.platform_data = &lcd1_vid_dmi,
+	},
+	.num_resources	= ARRAY_SIZE(lcd1_vid_res),
+	.resource	= lcd1_vid_res,
+};
+#endif /* CONFIG_FB_DOVE_CLCD1 */
+
+#if defined(CONFIG_FB_DOVE_CLCD)
+
+static struct resource lcd0_vid_res[] = {
+	[0] = {
+		.start	= LCD_BASE_PHY_ADDR,
+		.end	= LCD_BASE_PHY_ADDR+0x1C8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DOVE_LCD0,
+		.end	= IRQ_DOVE_LCD0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct resource lcd0_res[] = {
+	[0] = {
+		.start	= LCD_BASE_PHY_ADDR,
+		.end	= LCD_BASE_PHY_ADDR+0x1C8,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DOVE_LCD0,
+		.end	= IRQ_DOVE_LCD0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+
+static struct platform_device lcd0_platform_device = {
+	.name = "dovefb",
+	.id = 0,			/* lcd0 */
+	.dev = {
+		.coherent_dma_mask = ~0,
+//		.platform_data = &lcd0_dmi,
+	},
+	.num_resources	= ARRAY_SIZE(lcd0_res),
+	.resource	= lcd0_res,
+};
+
+static struct platform_device lcd0_vid_platform_device = {
+	.name = "dovefb_ovly",
+	.id = 0,			/* lcd0 */
+	.dev = {
+		.coherent_dma_mask = ~0,
+//		.platform_data = &lcd0_vid_dmi,
+	},
+	.num_resources	= ARRAY_SIZE(lcd0_vid_res),
+	.resource	= lcd0_vid_res,
+};
+#endif /* CONFIG_FB_DOVE_CLCD */
+
+#ifdef CONFIG_FB_DOVE_DCON
+static struct resource dcon_res[] = {
+	[0] = {
+		.start	= DCON_BASE_PHY_ADDR,
+		.end	= DCON_BASE_PHY_ADDR+0x100,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_DOVE_LCD_DCON,
+		.end	= IRQ_DOVE_LCD_DCON,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct dovedcon_mach_info dcon_data = {
+	.port_a = 0,
+	.port_b = 0,
+};
+
+static struct platform_device dcon_platform_device = {
+	.name = "dovedcon",
+	.id = -1,
+	.dev = {
+		.platform_data = &dcon_data,
+	},
+	.num_resources	= ARRAY_SIZE(dcon_res),
+	.resource	= dcon_res,
+};
+#endif /* CONFIG_FB_DOVE_DCON */
+
+#ifdef CONFIG_BACKLIGHT_DOVE
+static struct resource backlight_res[] = {
+	[0] = {
+		.start	= LCD_BASE_PHY_ADDR,
+		.end	= LCD_BASE_PHY_ADDR+0x1C8,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device backlight_platform_device = {
+	.name = "dove-bl",
+	.id = 0,
+	.num_resources	= ARRAY_SIZE(backlight_res),
+	.resource	= backlight_res,
+};
+#endif /* CONFIG_FB_DOVE_DCON */
+
+int clcd_platform_init(struct dovefb_mach_info *lcd0_dmi_data,
+		       struct dovefb_mach_info *lcd0_vid_dmi_data,
+		       struct dovefb_mach_info *lcd1_dmi_data,
+		       struct dovefb_mach_info *lcd1_vid_dmi_data,
+		       struct dovebl_platform_data *backlight_data)
+{
+	u32 total_x, total_y, i;
+	u64 div_result;
+
+	for (i = 0; i < ARRAY_SIZE(video_modes); i++) {
+		total_x = video_modes[i].xres + video_modes[i].hsync_len +
+			video_modes[i].left_margin +
+			video_modes[i].right_margin;
+		total_y = video_modes[i].yres + video_modes[i].vsync_len +
+			video_modes[i].upper_margin +
+			video_modes[i].lower_margin;
+		div_result = 1000000000000ll;
+		do_div(div_result,
+			(total_x * total_y * video_modes[i].refresh));
+		video_modes[i].pixclock	= div_result;
+	}
+
+	/*
+	 * Because DCON depends on lcd0 & lcd1 clk. Here we
+	 * try to reorder the load sequence. Fix me when h/w
+	 * changes.
+	 */
+#ifdef CONFIG_FB_DOVE_CLCD
+	/* lcd0 */
+	if (lcd0_enable && lcd0_dmi_data && lcd0_vid_dmi_data) {
+
+		lcd0_vid_dmi_data->modes = video_modes;
+		lcd0_vid_dmi_data->num_modes = ARRAY_SIZE(video_modes);
+		lcd0_vid_platform_device.dev.platform_data = lcd0_vid_dmi_data;
+
+		lcd0_dmi_data->modes = video_modes;
+		lcd0_dmi_data->num_modes = ARRAY_SIZE(video_modes);
+		lcd0_platform_device.dev.platform_data = lcd0_dmi_data;
+		platform_device_register(&lcd0_vid_platform_device);
+		platform_device_register(&lcd0_platform_device);
+	} else {
+		printk(KERN_INFO "LCD 0 disabled.\n");
+	}
+#endif
+
+#ifdef CONFIG_FB_DOVE_CLCD1
+	/* lcd1 */
+	if (lcd1_enable && lcd1_dmi_data && lcd1_vid_dmi_data) {
+#ifdef CONFIG_FB_DOVE_CLCD
+		lcd1_dmi_data->enable_lcd0 = (lcd0_enable ? 0 : 1);
+#endif
+		lcd1_vid_dmi_data->modes = video_modes;
+		lcd1_vid_dmi_data->num_modes = ARRAY_SIZE(video_modes);
+		lcd1_vid_platform_device.dev.platform_data = lcd1_vid_dmi_data;
+
+		lcd1_dmi_data->modes = video_modes;
+		lcd1_dmi_data->num_modes = ARRAY_SIZE(video_modes);
+		lcd1_platform_device.dev.platform_data = lcd1_dmi_data;
+		platform_device_register(&lcd1_vid_platform_device);
+		platform_device_register(&lcd1_platform_device);
+	} else {
+		printk(KERN_INFO "LCD 1 disabled.\n");
+	}
+#endif
+
+#ifdef CONFIG_FB_DOVE_DCON
+	if (lcd1_enable)
+		platform_device_register(&dcon_platform_device);
+#endif
+
+#ifdef CONFIG_BACKLIGHT_DOVE
+	if (lcd0_enable) {
+		backlight_platform_device.dev.platform_data = backlight_data;
+		platform_device_register(&backlight_platform_device);
+	}
+#endif
+
+	return 0;
+}
+
