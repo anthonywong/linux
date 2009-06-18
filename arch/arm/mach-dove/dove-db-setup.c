@@ -55,6 +55,12 @@ static unsigned int left_tact = 0;
 module_param(left_tact, uint, 0);
 MODULE_PARM_DESC(left_tact, "Use left tact as mouse");
 
+static unsigned int use_hal_giga = 1;
+#ifdef CONFIG_MV643XX_ETH
+module_param(use_hal_giga, uint, 0);
+MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
+#endif
+
 /*
  * LCD input clock.
  */
@@ -625,8 +631,11 @@ static void __init dove_db_init(void)
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
-	dove_mv_eth_init();
+	if(use_hal_giga)
+		dove_mv_eth_init();
+	else
 #endif
+	dove_ge00_init(&dove_db_ge00_data);
 	dove_ehci0_init();
 	dove_ehci1_init();
 
@@ -634,13 +643,9 @@ static void __init dove_db_init(void)
 	 * all clocks
 	 */
 	ds_clks_disable_all(0, 0);
-#if 1
-	dove_ge00_init(&dove_db_ge00_data);
-#endif
 	dove_sata_init(&dove_db_sata_data);
 	dove_spi0_init(0);
 	dove_spi1_init(0);
-
 	dove_uart0_init();
 	dove_uart1_init();
 	dove_i2c_init();
