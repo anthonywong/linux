@@ -9,3 +9,6 @@ obj-$(CONFIG_MACH_TS219)		+= ts219-setup.o
 obj-$(CONFIG_MACH_OPENRD_BASE)		+= openrd_base-setup.o
 
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
+include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+
+obj-y		+= mv_hal_support/
