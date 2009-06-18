@@ -74,6 +74,9 @@ extern "C" {
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 
 /* defines */
+#define CPU_LCD_TWSI_CONFIG_1_REG		0xE802C
+#define CPU_LCD_TWSI_CONFIG_2_REG		0xE8030
+
 #define TWSI_SLAVE_ADDR_REG(chanNum)	(TWSI_SLAVE_BASE(chanNum)+ 0x00)
 
 #define TWSI_SLAVE_ADDR_GCE_ENA		BIT0
