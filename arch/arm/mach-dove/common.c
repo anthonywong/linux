@@ -32,6 +32,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/pci.h>
 #include <mach/dove.h>
+#include <mach/bridge-regs.h>
 #include <asm/mach/arch.h>
 #include <mach/gpio.h>
 #include <linux/irq.h>
@@ -110,8 +111,8 @@ int mv_usb1_cmdline_config(char *s)
 enum orion_cpu_conf_save_state {
 	/* CPU Configuration Registers */
 	DOVE_DWNSTRM_BRDG_CPU_CONFIG = 0,
-	DOVE_DWNSTRM_BRDG_CPU_CTRL_STATUS,
-	DOVE_DWNSTRM_BRDG_CPU_RESET_MASK,
+	DOVE_DWNSTRM_BRDG_CPU_CONTROL,
+	DOVE_DWNSTRM_BRDG_RSTOUTn_MASK,
 	DOVE_DWNSTRM_BRDG_BRIDGE_MASK,
 	DOVE_DWNSTRM_BRDG_POWER_MANAGEMENT,
 	/* CPU Timers Registers */
@@ -120,12 +121,13 @@ enum orion_cpu_conf_save_state {
 	DOVE_DWNSTRM_BRDG_TIMER1_RELOAD,
 	DOVE_DWNSTRM_BRDG_TIMER_WD_RELOAD,
 	/* Main Interrupt Controller Registers */
-	DOVE_DWNSTRM_BRDG_MAIN_IRQ_MASK,
-	DOVE_DWNSTRM_BRDG_MAIN_FIQ_MASK,
-	DOVE_DWNSTRM_BRDG_MAIN2_IRQ_MASK,
-	DOVE_DWNSTRM_BRDG_MAIN2_FIQ_MASK,
-	DOVE_DWNSTRM_BRDG_ENDPOINT2_MASK,
-	DOVE_DWNSTRM_BRDG_PEX_0_1_MASK,	
+	DOVE_DWNSTRM_BRDG_IRQ_MASK_LOW,
+	DOVE_DWNSTRM_BRDG_FIQ_MASK_LOW,
+	DOVE_DWNSTRM_BRDG_ENDPOINT_MASK_LOW,
+	DOVE_DWNSTRM_BRDG_IRQ_MASK_HIGH,
+	DOVE_DWNSTRM_BRDG_FIQ_MASK_HIGH,
+	DOVE_DWNSTRM_BRDG_ENDPOINT_MASK_HIGH,
+	DOVE_DWNSTRM_BRDG_PCIE_INTERRUPT_MASK,	
 
 	DOVE_DWNSTRM_BRDG_SIZE
 };
@@ -489,6 +491,9 @@ static struct platform_device dove_ge00 = {
 	.id		= 0,
 	.num_resources	= 1,
 	.resource	= dove_ge00_resources,
+	.dev		= {
+		.coherent_dma_mask	= 0xffffffff,
+	},
 };
 
 void __init dove_ge00_init(struct mv643xx_eth_platform_data *eth_data)
@@ -1490,20 +1495,49 @@ void __init dove_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 	dove_gpu_memory_start = last_tag->u.mem.start + last_tag->u.mem.size;
 }
 
+static struct resource dove_ac97_resources[] = {
+	[0] = {
+		.start  = DOVE_AC97_PHYS_BASE,
+		.end	= DOVE_AC97_PHYS_BASE + 0xfff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_AC97,
+		.end    = IRQ_AC97,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static u64 dove_ac97_dmamask = DMA_BIT_MASK(32);
+
+struct platform_device dove_device_ac97 = {
+	.name           = "pxa2xx-ac97",
+	.id             = -1,
+	.dev            = {
+		.dma_mask = &dove_ac97_dmamask,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
+	},
+	.num_resources  = ARRAY_SIZE(dove_ac97_resources),
+	.resource       = dove_ac97_resources,
+};
+
 void __init dove_ac97_setup(void)
 {
 	uint32_t reg;
 
 	/* Enable AC97 Control 			*/
 	reg = readl(DOVE_SB_REGS_VIRT_BASE + MPP_GENERAL_CONTROL_REG);
-	if ((reg & 0x10000) == 0)
+	if ((reg & 0x10000) == 0) {
 		printk("\nError: AC97 is disabled according to sample at reset "
 			"option (Reg 0x%x).\n", MPP_GENERAL_CONTROL_REG);
+		return;
+	}
 
 	/* Set DCO clock to 24.576		*/
 	reg = readl(DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
 	reg = (reg & ~0x3) | 0x2;
 	writel(reg, DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
+	platform_device_register(&dove_device_ac97);
 }
 
 void __init dove_config_arbitration(void)
@@ -1530,7 +1564,6 @@ void __init dove_config_arbitration(void)
         */
 
 	/* Dove Y0
-	/*
  	 * MC Master 0 - CPU
  	 * MC Master 1 - vPro-GC-UP
  	 * MC Master 2 - LCD
@@ -1597,8 +1630,8 @@ void __init dove_init(void)
 void dove_save_cpu_conf_regs(void)
 {
 	DOVE_DWNSTRM_BRDG_SAVE(CPU_CONFIG);
-	DOVE_DWNSTRM_BRDG_SAVE(CPU_CTRL_STATUS);
-	DOVE_DWNSTRM_BRDG_SAVE(CPU_RESET_MASK);
+	DOVE_DWNSTRM_BRDG_SAVE(CPU_CONTROL);
+	DOVE_DWNSTRM_BRDG_SAVE(RSTOUTn_MASK);
 	DOVE_DWNSTRM_BRDG_SAVE(BRIDGE_MASK);
 	DOVE_DWNSTRM_BRDG_SAVE(POWER_MANAGEMENT);
 }
@@ -1606,8 +1639,8 @@ void dove_save_cpu_conf_regs(void)
 void dove_restore_cpu_conf_regs(void)
 {
 	DOVE_DWNSTRM_BRDG_RESTORE(CPU_CONFIG);
-	DOVE_DWNSTRM_BRDG_RESTORE(CPU_CTRL_STATUS);
-	DOVE_DWNSTRM_BRDG_RESTORE(CPU_RESET_MASK);
+	DOVE_DWNSTRM_BRDG_RESTORE(CPU_CONTROL);
+	DOVE_DWNSTRM_BRDG_RESTORE(RSTOUTn_MASK);
 	DOVE_DWNSTRM_BRDG_RESTORE(BRIDGE_MASK);
 	DOVE_DWNSTRM_BRDG_RESTORE(POWER_MANAGEMENT);
 }
@@ -1630,21 +1663,23 @@ void dove_restore_timer_regs(void)
 
 void dove_save_int_regs(void)
 {
-	DOVE_DWNSTRM_BRDG_SAVE(MAIN_IRQ_MASK);
-	DOVE_DWNSTRM_BRDG_SAVE(MAIN_FIQ_MASK);
-	DOVE_DWNSTRM_BRDG_SAVE(MAIN2_IRQ_MASK);
-	DOVE_DWNSTRM_BRDG_SAVE(MAIN2_FIQ_MASK);
-	DOVE_DWNSTRM_BRDG_SAVE(ENDPOINT2_MASK);
-	DOVE_DWNSTRM_BRDG_SAVE(PEX_0_1_MASK);
+	DOVE_DWNSTRM_BRDG_SAVE(IRQ_MASK_LOW);
+	DOVE_DWNSTRM_BRDG_SAVE(FIQ_MASK_LOW);
+        DOVE_DWNSTRM_BRDG_SAVE(ENDPOINT_MASK_LOW);
+	DOVE_DWNSTRM_BRDG_SAVE(IRQ_MASK_HIGH);
+	DOVE_DWNSTRM_BRDG_SAVE(FIQ_MASK_HIGH);
+	DOVE_DWNSTRM_BRDG_SAVE(ENDPOINT_MASK_HIGH);
+	DOVE_DWNSTRM_BRDG_SAVE(PCIE_INTERRUPT_MASK);
 }
 
 void dove_restore_int_regs(void)
 {
-	DOVE_DWNSTRM_BRDG_RESTORE(MAIN_IRQ_MASK);
-	DOVE_DWNSTRM_BRDG_RESTORE(MAIN_FIQ_MASK);
-	DOVE_DWNSTRM_BRDG_RESTORE(MAIN2_IRQ_MASK);
-	DOVE_DWNSTRM_BRDG_RESTORE(MAIN2_FIQ_MASK);
-	DOVE_DWNSTRM_BRDG_RESTORE(ENDPOINT2_MASK);
-	DOVE_DWNSTRM_BRDG_RESTORE(PEX_0_1_MASK);
+	DOVE_DWNSTRM_BRDG_RESTORE(IRQ_MASK_LOW);
+	DOVE_DWNSTRM_BRDG_RESTORE(FIQ_MASK_LOW);
+	DOVE_DWNSTRM_BRDG_RESTORE(ENDPOINT_MASK_LOW);
+	DOVE_DWNSTRM_BRDG_RESTORE(IRQ_MASK_HIGH);
+	DOVE_DWNSTRM_BRDG_RESTORE(FIQ_MASK_HIGH);
+	DOVE_DWNSTRM_BRDG_RESTORE(ENDPOINT_MASK_HIGH);
+	DOVE_DWNSTRM_BRDG_RESTORE(PCIE_INTERRUPT_MASK);
 }
 #endif

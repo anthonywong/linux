@@ -346,8 +346,17 @@ static int cs42l51_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-
-
+static struct snd_soc_dai_ops cs42l51_dai_ops = {
+		.startup = cs42l51_startup,
+		.shutdown = cs42l51_shutdown,
+		.hw_params = cs42l51_hw_params,
+		.hw_free = cs42l51_hw_free,
+		.prepare = cs42l51_prepare,
+		.trigger = cs42l51_trigger,
+		.digital_mute = cs42l51_mute,
+		.set_sysclk = cs42l51_set_dai_sysclk,
+		.set_fmt = cs42l51_set_dai_fmt,
+};
 
 
 struct snd_soc_dai cs42l51_dai = {
@@ -377,23 +386,13 @@ struct snd_soc_dai cs42l51_dai = {
 				SNDRV_PCM_FMTBIT_S32_LE),
 		    },
 	/* pcm operations */
-	.ops = {
-		.startup = cs42l51_startup,
-		.shutdown = cs42l51_shutdown,
-		.hw_params = cs42l51_hw_params,
-		.hw_free = cs42l51_hw_free,
-		.prepare = cs42l51_prepare,
-		.trigger = cs42l51_trigger,
-		.digital_mute = cs42l51_mute,
-		.set_sysclk = cs42l51_set_dai_sysclk,
-		.set_fmt = cs42l51_set_dai_fmt,
-	},
+	.ops = &cs42l51_dai_ops,
 };
 EXPORT_SYMBOL_GPL(cs42l51_dai);
 
 static int cs42l51_init(struct snd_soc_device *socdev)
 {
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	u8 reg;
 	int ret;
 
@@ -474,7 +473,7 @@ static int cs42l51_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = cs42l51_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct i2c_adapter *adap = to_i2c_adapter(client->dev.parent);
 	int ret;
 
@@ -542,7 +541,7 @@ static int cs42l51_probe(struct platform_device *pdev)
 
 	cs->codec = codec;
 	codec->private_data = cs;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -565,7 +564,7 @@ out:
 static int cs42l51_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	CS42L51_DEBUG("");
 
@@ -582,7 +581,7 @@ static int cs42l51_remove(struct platform_device *pdev)
 static int cs42l51_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	CS42L51_DEBUG("event=%d", state.event);
 
@@ -594,7 +593,7 @@ static int cs42l51_suspend(struct platform_device *pdev, pm_message_t state)
 static int cs42l51_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	CS42L51_DEBUG("");
 

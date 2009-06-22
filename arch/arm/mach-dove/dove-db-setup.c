@@ -398,6 +398,16 @@ static int __init dove_db_pci_init(void)
 
 subsys_initcall(dove_db_pci_init);
 
+static int __init dove_db_cam_init(void)
+{
+	if (machine_is_dove_db()  &&  front_panel)
+		dove_cam_init(&dove_cafe_cam_data);
+	
+	return 0;
+}
+
+late_initcall(dove_db_cam_init);
+
 static int pca9555_setup(struct i2c_client *client,
 			 unsigned gpio, unsigned ngpio,
 			 void *context)
@@ -645,7 +655,7 @@ static void __init dove_db_init(void)
 	ds_clks_disable_all(0, 0);
 	dove_sata_init(&dove_db_sata_data);
 	dove_spi0_init(0);
-	dove_spi1_init(0);
+	dove_spi1_init(1);
 	dove_uart0_init();
 	dove_uart1_init();
 	dove_i2c_init();
@@ -661,9 +671,6 @@ static void __init dove_db_init(void)
 	dove_cesa_init();
 	dove_hwmon_init();
 
-	if(front_panel)
-		dove_cam_init(&dove_cafe_cam_data);
-	
 	dove_i2s_init(1, &i2s1_data);
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
