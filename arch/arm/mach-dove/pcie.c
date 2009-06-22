@@ -17,6 +17,7 @@
 #include <asm/delay.h>
 #include <plat/pcie.h>
 #include <mach/irqs.h>
+#include <mach/bridge-regs.h>
 #include "common.h"
 
 struct pcie_port {
@@ -255,9 +256,9 @@ void dove_restore_pcie_regs(void)
 	}
 
 	/* Enable Link on both ports */
-	reg = readl(CPU_CTRL_STATUS);
+	reg = readl(CPU_CONTROL);
 	reg &= ~(CPU_CTRL_PCIE0_LINK | CPU_CTRL_PCIE1_LINK);
-	writel(reg, CPU_CTRL_STATUS);
+	writel(reg, CPU_CONTROL);
 
 	/*
 	 * Loop waiting for link up on the phy of both ports.

@@ -97,7 +97,7 @@ static irqreturn_t touch_key_isr(int irq, void *dev_id)
 	if(touch_key->touch_pressed == 0)
 	{
 		mod_timer(&touch_key->polling_timer, jiffies);
-		disable_irq(irq);
+		disable_irq_nosync(irq);
 	}
 
 	
