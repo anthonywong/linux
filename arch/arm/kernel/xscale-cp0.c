@@ -93,7 +93,7 @@ static u32 __init xscale_cp_access_read(void)
 	u32 value;
 
 	__asm__ __volatile__ (
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)	
+#if defined(CONFIG_CPU_PJ4)	
         "mrc	p15, 0, %0, c1, c0, 2\n\t"
 #else
 		"mrc	p15, 0, %0, c15, c1, 0\n\t"
@@ -108,7 +108,7 @@ static void __init xscale_cp_access_write(u32 value)
 	u32 temp;
 
 	__asm__ __volatile__ (
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)	
+#if defined(CONFIG_CPU_PJ4)	
         "mcr	p15, 0, %1, c1, c0, 2\n\t"
 		"mrc	p15, 0, %0, c1, c0, 2\n\t"
 #else	
@@ -131,7 +131,7 @@ static int __init cpu_has_iwmmxt(void)
 	u32 lo;
 	u32 hi;
 
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)
+#if defined(CONFIG_CPU_PJ4)
 #ifdef CONFIG_IWMMXT
     return 1;
 #else
@@ -169,7 +169,7 @@ static int __init xscale_cp0_init(void)
 {
 	u32 cp_access;
 
-#if defined(CONFIG_CPU_V6) && defined(CONFIG_CPU_PJ4)
+#if defined(CONFIG_CPU_PJ4)
 	cp_access = xscale_cp_access_read() & ~0xf;
 	xscale_cp_access_write(cp_access | 0x3);
 #else
