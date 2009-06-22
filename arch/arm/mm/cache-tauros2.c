@@ -365,7 +365,7 @@ void __init tauros2_init(void)
 }
 
 #ifdef CONFIG_PM
-#ifdef CONFIG_CPU_32v6
+#if defined(CONFIG_CPU_32v6) || defined(CONFIG_CPU_V7)
 static int l2_halted = 0;
 void tauros2_halt(void)
 {
