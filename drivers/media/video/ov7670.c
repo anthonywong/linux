@@ -499,7 +499,7 @@ static int ov7670_detect(struct v4l2_subdev *sd)
 	if (v != 0x73)  /* PID + VER = 0x76 / 0x73 */
 		return -ENODEV;
 
-	ret = ov7670_init(sd);
+	ret = ov7670_init(sd, 0);
 	return ret;
 }
 
