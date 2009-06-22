@@ -462,7 +462,7 @@ static int m25p80_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	u8 sr;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __func__, "offset",
+	      dev_name(&flash->spi->dev), __func__, "offset",
 			(u32)ofs, len);
 
 	/* sanity checks */
@@ -503,7 +503,7 @@ static int m25p80_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	u8 sr;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
-			flash->spi->dev.bus_id, __func__, "offset",
+	      dev_name(&flash->spi->dev), __func__, "offset",
 			(u32)ofs, len);
 
 	/* sanity checks */

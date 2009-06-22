@@ -393,7 +393,7 @@ static irqreturn_t tsc2005_irq(int irq, void *handle)
 #endif
 	spin_lock_irqsave(&tsc->lock, flags);	
 
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 
 	spi_async(tsc->spi_dev, &tsc->read_msg);
 
