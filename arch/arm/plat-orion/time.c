@@ -20,7 +20,6 @@
 #include <linux/irq.h>
 #include <asm/mach/time.h>
 #include <mach/bridge-regs.h>
-#include <mach/hardware.h>
 #include <plat/time.h>
 
 /*

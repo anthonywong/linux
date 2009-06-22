@@ -725,6 +725,17 @@ static int mv88fx_i2s_resume(struct snd_soc_dai *cpu_dai)
 	return 0;
 }
 
+static struct snd_soc_dai_ops mv88fx_i2s_dai_ops = {
+	.startup = mv88fx_i2s_startup,
+	.shutdown = mv88fx_i2s_shutdown,
+	.hw_params = mv88fx_i2s_hw_params,
+	.hw_free = mv88fx_i2s_hw_free,
+	.prepare = mv88fx_i2s_prepare,
+	.trigger = mv88fx_i2s_trigger,
+	.hw_params = mv88fx_i2s_hw_params,
+	.set_sysclk = mv88fx_i2s_set_sysclk,
+	.set_fmt = mv88fx_i2s_set_fmt,
+};
 
 struct snd_soc_dai mv88fx_i2s_dai = {
 	.name = "mv88fx-i2s",
@@ -733,17 +744,7 @@ struct snd_soc_dai mv88fx_i2s_dai = {
 	.remove = mv88fx_i2s_dai_remove,
 	.suspend = mv88fx_i2s_suspend,
 	.resume = mv88fx_i2s_resume,
-	.ops = {
-		.startup = mv88fx_i2s_startup,
-		.shutdown = mv88fx_i2s_shutdown,
-		.hw_params = mv88fx_i2s_hw_params,
-		.hw_free = mv88fx_i2s_hw_free,
-		.prepare = mv88fx_i2s_prepare,
-		.trigger = mv88fx_i2s_trigger,
-		.hw_params = mv88fx_i2s_hw_params,
-		.set_sysclk = mv88fx_i2s_set_sysclk,
-		.set_fmt = mv88fx_i2s_set_fmt,
-		},
+	.ops = &mv88fx_i2s_dai_ops,
 	.capture = {
 		    .stream_name = "i2s-capture",
 		    .formats = (SNDRV_PCM_FMTBIT_S16_LE |
