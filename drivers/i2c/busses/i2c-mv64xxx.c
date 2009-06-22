@@ -370,7 +370,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 	char		abort = 0;
 
 	time_left = wait_event_interruptible_timeout(drv_data->waitq,
-		!drv_data->block, get_adapter(drv_data)->timeout));
+		!drv_data->block, get_adapter(drv_data)->timeout);
 
 	spin_lock_irqsave(&drv_data->lock, flags);
 	if (!time_left) { /* Timed out */
@@ -386,7 +386,7 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 		spin_unlock_irqrestore(&drv_data->lock, flags);
 
 		time_left = wait_event_timeout(drv_data->waitq,
-			!drv_data->block, get_adapter(drv_data)->timeout));
+			!drv_data->block, get_adapter(drv_data)->timeout);
 
 		if ((time_left <= 0) && drv_data->block) {
 			drv_data->state = MV64XXX_I2C_STATE_IDLE;
