@@ -133,7 +133,8 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	return 0;
 }
-
+static struct snd_soc_dai_ops ad1980_dai_ops = {
+};
 struct snd_soc_dai ad1980_dai = {
 	.name = "AC97",
 	.ac97_control = 1,
@@ -149,6 +150,7 @@ struct snd_soc_dai ad1980_dai = {
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_48000,
 		.formats = SND_SOC_STD_AC97_FMTS, },
+	.ops = &ad1980_dai_ops,
 };
 EXPORT_SYMBOL_GPL(ad1980_dai);
 
