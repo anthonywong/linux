@@ -76,7 +76,6 @@ static int charger_proc_init(void)
 	charger_proc_entry = create_proc_entry("charger", 0666, &proc_root);
 	charger_proc_entry->read_proc = charger_proc_read;
 	charger_proc_entry->write_proc = charger_proc_write;
-	charger_proc_entry->owner = THIS_MODULE;
 	return 0;
 }
 

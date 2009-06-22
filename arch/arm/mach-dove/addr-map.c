@@ -40,10 +40,10 @@
 /*
  * CPU Address Decode Windows registers
  */
-#define WIN_CTRL(n)	(DOVE_BRIDGE_VIRT_BASE + ((n) << 4) + 0x0)
-#define WIN_BASE(n)	(DOVE_BRIDGE_VIRT_BASE + ((n) << 4) + 0x4)
-#define WIN_REMAP_LO(n)	(DOVE_BRIDGE_VIRT_BASE + ((n) << 4) + 0x8)
-#define WIN_REMAP_HI(n)	(DOVE_BRIDGE_VIRT_BASE + ((n) << 4) + 0xc)
+#define WIN_CTRL(n)	(BRIDGE_VIRT_BASE + ((n) << 4) + 0x0)
+#define WIN_BASE(n)	(BRIDGE_VIRT_BASE + ((n) << 4) + 0x4)
+#define WIN_REMAP_LO(n)	(BRIDGE_VIRT_BASE + ((n) << 4) + 0x8)
+#define WIN_REMAP_HI(n)	(BRIDGE_VIRT_BASE + ((n) << 4) + 0xc)
 
 struct mbus_dram_target_info dove_mbus_dram_info;
 
