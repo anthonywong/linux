@@ -81,7 +81,6 @@ static int battery_proc_init(void)
 	bat_proc_entry = create_proc_entry("battery", 0666, &proc_root);
 	bat_proc_entry->read_proc = bat_proc_read;
 	bat_proc_entry->write_proc = bat_proc_write;
-	bat_proc_entry->owner = THIS_MODULE;
 	return 0;
 }
 
@@ -353,7 +352,7 @@ static int bq2084_battery_probe(struct platform_device *pdev)
 	di->dev			= &pdev->dev;
 	di->w1_dev	     	= pdev->dev.parent;
 	di->update_time 	= jiffies;
-	di->bat.name	   	= pdev->dev.bus_id;
+	di->bat.name	   	= dev_name(&pdev->dev);
 	di->bat.type	   	= POWER_SUPPLY_TYPE_BATTERY;
 	di->bat.properties     	= bq2084_battery_props;
 	di->bat.num_properties 	= ARRAY_SIZE(bq2084_battery_props);
@@ -370,7 +369,7 @@ static int bq2084_battery_probe(struct platform_device *pdev)
 	}
 
 	INIT_DELAYED_WORK(&di->monitor_work, bq2084_battery_work);
-	di->monitor_wqueue = create_singlethread_workqueue(pdev->dev.bus_id);
+	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
 	if (!di->monitor_wqueue) {
 		retval = -ESRCH;
 		goto workqueue_failed;
