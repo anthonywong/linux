@@ -521,7 +521,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
-	adap->dev.parent = &cam->pdev->dev;
+//	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, &cam->v4l2_dev);
 	
 	if(cam->numbered_i2c_bus == 0)
@@ -1975,7 +1975,7 @@ static struct cafe_camera *alloc_init_cam_struct(struct device *dev)
 out_free:
         kfree(cam);
 out:
-        return ret;
+        return NULL;
 }
 
 static int cafe_init_cam(struct cafe_camera *cam)
@@ -1996,7 +1996,7 @@ static int cafe_init_cam(struct cafe_camera *cam)
 	mutex_unlock(&cam->s_mutex);  /* attach can deadlock */
 	ret = cafe_smbus_setup(cam);
 	if (ret)
-		goto out_freeirq;
+		goto out;
 
 	cam->sensor_addr = 0x42;
 	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
@@ -2060,14 +2060,6 @@ static void cafe_shutdown(struct cafe_camera *cam)
 
 static void cam_remove(struct cafe_camera *cam)
 {
-	struct v4l2_device *v4l2_dev = dev_get_drvdata(&pdev->dev);
-	struct cafe_camera *cam = to_cam(v4l2_dev);
-
-	if (cam == NULL) {
-		printk(KERN_WARNING "cam_remove on unknown pdev %p\n", pdev);
-		return;
-	}
-
 	mutex_lock(&cam->s_mutex);
 	if (cam->users > 0)
 		cam_warn(cam, "Removing a device with users!\n");
@@ -2111,14 +2103,14 @@ static int cafe_platform_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unable to ioremap cafe-ccic regs\n");
 		return ret;
 	}
-	
+
 	irq = platform_get_irq(pdev, 0);
 	if (res < 0) {
                 dev_err(&pdev->dev, "no IRQ resource defined\n");
                 return -ENODEV;
         }
 
-	ret = devm_request_irq(&pdev->dev, irq, cafe_irq, IRQF_SHARED,
+	ret = devm_request_irq(&pdev->dev, irq, cafe_irq, 0,
 			       "cafe-ccic", cam);
 	if (ret)
 		return ret;
@@ -2363,8 +2355,6 @@ static int __init cafe_init(void)
 		return ret;
 	}
 
-	request_module("ov7670");  /* FIXME want something more general */
-	request_module("ov7680");  /* FIXME want something more general */
 	return ret;
 }
 

@@ -21,6 +21,7 @@
 #include <sound/pxa2xx-lib.h>
 
 #include <asm/irq.h>
+#include <mach/hardware.h>
 #include <mach/regs-ac97.h>
 #include <mach/pxa2xx-gpio.h>
 #ifndef CONFIG_ARCH_DOVE
@@ -50,6 +51,7 @@ enum {
 	RESETGPIO_NORMAL_ALTFUNC
 };
 
+#ifdef CONFIG_PXA27x
 /**
  * set_resetgpio_mode - computes and sets the AC97_RESET gpio mode on PXA
  * @mode: chosen action
@@ -82,7 +84,7 @@ static void set_resetgpio_mode(int resetgpio_action)
 	if (mode)
 		pxa_gpio_mode(mode);
 }
-
+#endif
 unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	unsigned short val = -1;
