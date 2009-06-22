@@ -106,8 +106,9 @@ static void ping_mdm_register_cb(struct msm_rpc_client *client,
 	buf += sizeof(int32_t);
 	pr_info("%s: received cb_id %d, val = %d\n", __func__, cb_id, num);
 
-	rc = msm_rpc_send_accepted_reply(client, be32_to_cpu(req->xid),
-					 RPC_ACCEPTSTAT_SUCCESS, NULL, 0);
+	msm_rpc_start_accepted_reply(client, be32_to_cpu(req->xid),
+				     RPC_ACCEPTSTAT_SUCCESS);
+	rc = msm_rpc_send_accepted_reply(client, 0);
 	if (rc) {
 		pr_err("%s: sending reply failed: %d\n", __func__, rc);
 		return;
@@ -131,9 +132,9 @@ static void ping_mdm_data_cb(struct msm_rpc_client *client,
 {
 	struct rpc_request_hdr *req;
 	int rc, i;
-	void *buf;
+	void *buf, *reply;
 	uint32_t cb_id = 0;
-	uint32_t size, *data, req_size, sum, my_sum, my_data;
+	uint32_t size, *data, req_size, sum, my_sum;
 	struct ping_mdm_cb_item *cb_item;
 
 	req = (struct rpc_request_hdr *)buffer;
@@ -159,10 +160,10 @@ static void ping_mdm_data_cb(struct msm_rpc_client *client,
 	if (sum != my_sum)
 		pr_err("%s: sum mismatch\n", __func__);
 
-	my_data = cpu_to_be32(1);
-	rc = msm_rpc_send_accepted_reply(client, be32_to_cpu(req->xid),
-					 RPC_ACCEPTSTAT_SUCCESS,
-					 (char *)&my_data, sizeof(my_data));
+	reply = msm_rpc_start_accepted_reply(client, be32_to_cpu(req->xid),
+					     RPC_ACCEPTSTAT_SUCCESS);
+	*(uint32_t *)reply = cpu_to_be32(1);
+	rc = msm_rpc_send_accepted_reply(client, sizeof(uint32_t));
 	if (rc)
 		pr_err("%s: sending reply failed: %d\n", __func__, rc);
 
@@ -251,7 +252,8 @@ static void ping_mdm_destroy_cb_item(struct ping_mdm_cb_item *cb_item)
 	kfree(cb_item);
 }
 
-static int ping_mdm_data_cb_register_arg(void *buf, void *data)
+static int ping_mdm_data_cb_register_arg(struct msm_rpc_client *client,
+					 void *buf, void *data)
 {
 	int size = 0;
 
@@ -278,13 +280,15 @@ static int ping_mdm_data_cb_register_arg(void *buf, void *data)
 	return size;
 }
 
-static int ping_mdm_data_cb_register_arg_unreg(void *buf, void *data)
+static int ping_mdm_data_cb_register_arg_unreg(struct msm_rpc_client *client,
+					       void *buf, void *data)
 {
 	*((uint32_t *)buf) = cpu_to_be32((uint32_t)data);
 	return sizeof(uint32_t);
 }
 
-static int ping_mdm_data_cb_register_result(void *buf, void *data)
+static int ping_mdm_data_cb_register_result(struct msm_rpc_client *client,
+					    void *buf, void *data)
 {
 	uint32_t result;
 
@@ -314,8 +318,9 @@ static int ping_mdm_data_cb_register_test(void)
 	rc = msm_rpc_client_req(client,
 				PING_MDM_REGISTER_DATA_CB_PROC,
 				ping_mdm_data_cb_register_arg,
+				(void *)(cb_item->cb_id),
 				ping_mdm_data_cb_register_result,
-				(void *)(cb_item->cb_id));
+				NULL, -1);
 	if (rc)
 		goto free_and_release_client;
 
@@ -324,8 +329,9 @@ static int ping_mdm_data_cb_register_test(void)
 	rc = msm_rpc_client_req(client,
 				PING_MDM_UNREGISTER_DATA_CB_PROC,
 				ping_mdm_data_cb_register_arg_unreg,
+				(void *)(cb_item->cb_id),
 				ping_mdm_data_cb_register_result,
-				(void *)(cb_item->cb_id));
+				NULL, -1);
 
 
  free_and_release_client:
@@ -337,7 +343,8 @@ static int ping_mdm_data_cb_register_test(void)
 	return rc;
 }
 
-static int ping_mdm_data_register_arg(void *buf, void *data)
+static int ping_mdm_data_register_arg(struct msm_rpc_client *client,
+				      void *buf, void *data)
 {
 	int i, size = 0;
 
@@ -356,7 +363,8 @@ static int ping_mdm_data_register_arg(void *buf, void *data)
 	return size;
 }
 
-static int ping_mdm_data_register_result(void *buf, void *data)
+static int ping_mdm_data_register_result(struct msm_rpc_client *client,
+					 void *buf, void *data)
 {
 	uint32_t result;
 
@@ -382,8 +390,8 @@ static int ping_mdm_data_register_test(void)
 
 	rc = msm_rpc_client_req(client,
 				PING_MDM_REGISTER_DATA_PROC,
-				ping_mdm_data_register_arg,
-				ping_mdm_data_register_result, &my_sum);
+				ping_mdm_data_register_arg, &my_sum,
+				ping_mdm_data_register_result, &my_sum, -1);
 
 	if (client != rpc_client)
 		msm_rpc_unregister_client(client);
@@ -391,7 +399,8 @@ static int ping_mdm_data_register_test(void)
 	return rc;
 }
 
-static int ping_mdm_register_arg(void *buf, void *data)
+static int ping_mdm_register_arg(struct msm_rpc_client *client,
+				 void *buf, void *data)
 {
 	int num, size = 0;
 
@@ -407,13 +416,15 @@ static int ping_mdm_register_arg(void *buf, void *data)
 	return size;
 }
 
-static int ping_mdm_register_arg_unreg(void *buf, void *data)
+static int ping_mdm_register_arg_unreg(struct msm_rpc_client *client,
+				       void *buf, void *data)
 {
 	*((uint32_t *)buf) = cpu_to_be32((uint32_t)data);
 	return sizeof(uint32_t);
 }
 
-static int ping_mdm_register_result(void *buf, void *data)
+static int ping_mdm_register_result(struct msm_rpc_client *client,
+				    void *buf, void *data)
 {
 	uint32_t result;
 
@@ -443,8 +454,9 @@ static int ping_mdm_register_test(void)
 	rc = msm_rpc_client_req(client,
 				PING_MDM_REGISTER_PROC,
 				ping_mdm_register_arg,
+				(void *)(cb_item->cb_id),
 				ping_mdm_register_result,
-				(void *)(cb_item->cb_id));
+				NULL, -1);
 	if (rc)
 		goto free_and_release_client;
 
@@ -453,8 +465,9 @@ static int ping_mdm_register_test(void)
 	rc = msm_rpc_client_req(client,
 				PING_MDM_UNREGISTER_PROC,
 				ping_mdm_register_arg_unreg,
+				(void *)(cb_item->cb_id),
 				ping_mdm_register_result,
-				(void *)(cb_item->cb_id));
+				NULL, -1);
 
  free_and_release_client:
 	ping_mdm_destroy_cb_item(cb_item);
@@ -474,7 +487,8 @@ static int ping_mdm_null_test(void)
 	if (IS_ERR(client))
 		return PTR_ERR(client);
 
-	rc = msm_rpc_client_req(client, PING_MDM_NULL_PROC, NULL, NULL, NULL);
+	rc = msm_rpc_client_req(client, PING_MDM_NULL_PROC, NULL, NULL,
+				NULL, NULL, -1);
 
 	if (client != rpc_client)
 		msm_rpc_unregister_client(client);
