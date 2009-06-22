@@ -490,7 +490,6 @@ static int pm_proc_init(void)
 	pmu_proc_entry = create_proc_entry("pm", 0666, &proc_root);
 	pmu_proc_entry->read_proc = pmu_proc_read;
 	pmu_proc_entry->write_proc = pmu_proc_write;
-	pmu_proc_entry->owner = THIS_MODULE;
 	return 0;
 }
 #endif /* CONFIG_PMU_PROC */

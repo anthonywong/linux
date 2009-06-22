@@ -83,6 +83,7 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 		sdhci_readw(host, SDHCI_SLOT_INT_STATUS));
 #else
 		0/*sdhci_readw(host, SDHCI_SLOT_INT_STATUS)*/);
+#endif
 	printk(KERN_DEBUG DRIVER_NAME ": Caps:     0x%08x | Max curr: 0x%08x\n",
 		sdhci_readl(host, SDHCI_CAPABILITIES),
 		sdhci_readl(host, SDHCI_MAX_CURRENT));
@@ -334,15 +335,15 @@ static void sdhci_write_block_pio(struct sdhci_host *host)
 
 			if ((chunk == 4) || ((len == 0) && (blksize == 0))) {
 				if (!(host->quirks & SDHCI_QUIRK_PIO_USE_WORD_ACCESS))
-					writel(scratch, host->ioaddr + SDHCI_BUFFER);
+					sdhci_writel(host, scratch, SDHCI_BUFFER);
 				else {
 	                                /*
 					 * Marvell soc sdhci needs the cpu to
 					 * write each data register seperatelty
 					 */
-                	                sdhci_writew(scratch, host, SDHCI_BUFFER);
+                	                sdhci_writew(host, scratch, SDHCI_BUFFER);
                                 	scratch = (0xFFFF0000 & scratch) >> 16;
-	                                sdhci_writew(scratch, host, SDHCI_BUFFER + 2);
+	                                sdhci_writew(host, scratch, SDHCI_BUFFER + 2);
 				}
 				chunk = 0;
 				scratch = 0;
@@ -1736,7 +1737,7 @@ int sdhci_add_host(struct sdhci_host *host)
 	host->version = sdhci_readw(host, SDHCI_HOST_VERSION);
 #else
 	host->version = 0;// readw(host->ioaddr + SDHCI_HOST_VERSION);
-#end
+#endif
 	host->version = (host->version & SDHCI_SPEC_VER_MASK)
 				>> SDHCI_SPEC_VER_SHIFT;
 	if (host->version > SDHCI_SPEC_200) {

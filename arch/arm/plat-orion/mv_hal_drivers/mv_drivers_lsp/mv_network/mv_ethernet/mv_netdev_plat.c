@@ -58,6 +58,10 @@ MODULE_DESCRIPTION("Marvell Ethernet Driver - www.marvell.com");
 MODULE_AUTHOR("Dmitri Epshtein <dima@marvell.com>");
 MODULE_LICENSE("GPL");
 */
+#ifdef ETH_INCLUDE_LRO
+static int eth_get_skb_hdr(struct sk_buff *skb, void **iphdr,
+			   void **tcph, u64 *hdr_flags, void *private);
+#endif
 extern u8 mvMacAddr[CONFIG_MV_ETH_PORTS_NUM][6];
 extern u16 mvMtu[CONFIG_MV_ETH_PORTS_NUM];
 
@@ -1107,10 +1111,10 @@ irqreturn_t     mv_eth_interrupt_handler(int irq , void *dev_id)
 #endif /* ETH_DEBUG */
 
     /* Verify that the device not already on the polling list */
-	 if (netif_rx_schedule_prep(&priv->napi)) {
+	 if (napi_schedule_prep(&priv->napi)) {
 	    /* schedule the work (rx+txdone+link) out of interrupt contxet */
         mv_eth_mask_interrupts(priv);
-	__netif_rx_schedule(&priv->napi);
+	__napi_schedule(&priv->napi);
 	 }    
     else {
 	    if(netif_running(dev)) {
@@ -1129,9 +1133,12 @@ irqreturn_t     mv_eth_interrupt_handler(int irq , void *dev_id)
 
 static int eth_poll( struct napi_struct *napi, int budget )
 {
-    int             queue, rx_done=0;
+    int             rx_done=0;
     mv_eth_priv     *priv = container_of(napi, mv_eth_priv, napi);
     struct net_device *dev = priv->dev;
+#ifdef ETH_TX_DONE_ISR
+    int             queue;
+#endif
 
     ETH_STAT_INFO(priv->eth_stat.poll_events++);
     ETH_DBG(ETH_DBG_POLL, ("%s: Start eth_poll\n", dev->name));
@@ -1220,7 +1227,7 @@ static int eth_poll( struct napi_struct *napi, int budget )
     { 
         unsigned long flags;
         local_irq_save(flags);
-	netif_rx_complete(&priv->napi);
+	napi_complete(&priv->napi);
         ETH_STAT_INFO(priv->eth_stat.poll_complete++);
         mv_eth_unmask_interrupts(priv);
 	ETH_DBG( ETH_DBG_RX, ("unmask\n") );
@@ -1714,7 +1721,7 @@ int    mv_eth_priv_init(mv_eth_priv *priv, int port)
     priv->lro_mgr.lro_arr = priv->lro_desc;
     priv->lro_mgr.get_skb_header = eth_get_skb_hdr;
     priv->lro_mgr.features = LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
-    priv->lro_mgr.dev = dev;
+    priv->lro_mgr.dev = priv->dev;
     priv->lro_mgr.ip_summed = CHECKSUM_UNNECESSARY;
     priv->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 #endif
@@ -2240,7 +2247,7 @@ static int eth_ufo_tx(struct sk_buff *skb, struct net_device *dev, int txq)
 
 #ifdef ETH_INCLUDE_LRO
 static int eth_get_skb_hdr(struct sk_buff *skb, void **iphdr,
-		       void **tcph, u32 *hdr_flags, void *private)
+		       void **tcph, u64 *hdr_flags, void *private)
 {
 	unsigned int hlen;
 	struct iphdr *iph;

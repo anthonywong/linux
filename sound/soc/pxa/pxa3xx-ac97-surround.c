@@ -88,6 +88,14 @@ static int pxa2xx_ac97_hw_lfe_params(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | \
 		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
+static struct snd_soc_dai_ops pxa2xx_ac97_surround_ops = {
+	.hw_params	= pxa2xx_ac97_hw_surround_params,
+};
+
+static struct snd_soc_dai_ops pxa2xx_ac97_lfe_ops = {
+	.hw_params	= pxa2xx_ac97_hw_lfe_params,
+};
+
 /*
  * There is only 1 physical AC97 interface for pxa2xx, but it
  * has extra fifo's that can be used for aux DACs and ADCs.
@@ -105,8 +113,7 @@ struct snd_soc_dai pxa_ac97_surround_dai[] = {
 		.channels_max = 2,
 		.rates = PXA2XX_AC97_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.hw_params = pxa2xx_ac97_hw_surround_params,},
+	.ops = &pxa2xx_ac97_surround_ops,
 },
 {
 	.name = "pxa2xx-lfe-ac97",
@@ -118,8 +125,7 @@ struct snd_soc_dai pxa_ac97_surround_dai[] = {
 		.channels_max = 2,
 		.rates = PXA2XX_AC97_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
-	.ops = {
-		.hw_params = pxa2xx_ac97_hw_lfe_params,},
+	.ops = &pxa2xx_ac97_lfe_ops,
 },
 };
 EXPORT_SYMBOL_GPL(pxa_ac97_surround_dai);
