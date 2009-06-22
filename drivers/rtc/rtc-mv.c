@@ -269,15 +269,6 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pdata);
 
 	if(pdata->irq >= 0) {
-		writel(0, pdata->ioaddr + RTC_ALARM_INTERRUPT_MASK_REG_OFFS);
-                if (devm_request_irq(&pdev->dev, pdata->irq, mv_rtc_interrupt,
-				     IRQF_DISABLED | IRQF_SHARED,
-				     pdev->name, pdata) < 0) {
-                        dev_warn(&pdev->dev, "interrupt not available.\n");
-                        pdata->irq = -1;
-                }
-	}
-	if(pdata->irq >= 0) {
 		device_init_wakeup(&pdev->dev, 1);
 		pdata->rtc = rtc_device_register(pdev->name, &pdev->dev,
 						 &mv_rtc_alarm_ops, THIS_MODULE);
@@ -286,6 +277,16 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 						 &mv_rtc_ops, THIS_MODULE);
 	if (IS_ERR(pdata->rtc))
 		return PTR_ERR(pdata->rtc);
+
+	if(pdata->irq >= 0) {
+		writel(0, pdata->ioaddr + RTC_ALARM_INTERRUPT_MASK_REG_OFFS);
+                if (devm_request_irq(&pdev->dev, pdata->irq, mv_rtc_interrupt,
+				     IRQF_DISABLED | IRQF_SHARED,
+				     pdev->name, pdata) < 0) {
+                        dev_warn(&pdev->dev, "interrupt not available.\n");
+                        pdata->irq = -1;
+                }
+	}
 
 	return 0;
 }
