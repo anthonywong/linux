@@ -30,6 +30,10 @@
 
 #define DRV_NAME "pata_fsl"
 
+#define DMA_MODE_READ		0
+#define DMA_MODE_WRITE		1
+#define DMA_MODE_MASK		1
+
 struct pata_fsl_priv {
 	int ultra;
 	u8 *fsl_ata_regs;
