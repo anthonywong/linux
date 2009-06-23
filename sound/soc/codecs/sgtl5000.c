@@ -429,11 +429,12 @@ static int sgtl5000_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream)
+static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dia)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int reg;
 
 	reg = sgtl5000_read(codec, SGTL5000_CHIP_DIG_POWER);
@@ -446,11 +447,12 @@ static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream)
  * input: params_rate, params_fmt
  */
 static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
-				  struct snd_pcm_hw_params *params)
+				  struct snd_pcm_hw_params *params,
+				  struct snd_soc_dai *dia)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
 	int fs = params_rate(params);
 	int channels = params_channels(params);
@@ -662,6 +664,14 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 			SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE)
 
+struct snd_soc_dai_ops sgtl5000_ops = {
+	.shutdown = sgtl5000_pcm_shutdown,
+	.hw_params = sgtl5000_pcm_hw_params,
+	.digital_mute = sgtl5000_digital_mute,
+	.set_fmt = sgtl5000_set_dai_fmt,
+	.set_sysclk = sgtl5000_set_dai_sysclk
+};
+
 struct snd_soc_dai sgtl5000_dai = {
 	.name = "SGTL5000",
 	.playback = {
@@ -678,21 +688,14 @@ struct snd_soc_dai sgtl5000_dai = {
 		    .rates = SGTL5000_RATES,
 		    .formats = SGTL5000_FORMATS,
 		    },
-	.ops = {
-		.shutdown = sgtl5000_pcm_shutdown,
-		.hw_params = sgtl5000_pcm_hw_params,
-		},
-	.dai_ops = {
-		    .digital_mute = sgtl5000_digital_mute,
-		    .set_fmt = sgtl5000_set_dai_fmt,
-		    .set_sysclk = sgtl5000_set_dai_sysclk}
+	.ops = &sgtl5000_ops
 };
 EXPORT_SYMBOL_GPL(sgtl5000_dai);
 
 static int sgtl5000_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	sgtl5000_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -702,7 +705,7 @@ static int sgtl5000_suspend(struct platform_device *pdev, pm_message_t state)
 static int sgtl5000_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	/* Bring the codec back up to standby first to minimise pop/clicks */
 	sgtl5000_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -718,7 +721,7 @@ static int sgtl5000_resume(struct platform_device *pdev)
 static int sgtl5000_init(struct snd_soc_device *socdev)
 {
 	struct sgtl5000_platform_data *plat = socdev->codec_data;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct i2c_client *client = codec->control_data;
 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
 	u16 reg, ana_pwr, lreg_ctrl, ref_ctrl, lo_ctrl, short_ctrl, sss;
@@ -878,7 +881,7 @@ static int sgtl5000_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct snd_soc_device *socdev = sgtl5000_socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	int ret;
 
 	i2c_set_clientdata(i2c, codec);
@@ -910,7 +913,7 @@ static struct i2c_driver sgtl5000_i2c_driver = {
 static int sgtl5000_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct sgtl5000_priv *sgtl5000;
 	int ret = 0;
 
@@ -925,7 +928,7 @@ static int sgtl5000_probe(struct platform_device *pdev)
 	}
 
 	codec->private_data = sgtl5000;
-	socdev->codec = codec;
+	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
@@ -945,7 +948,7 @@ static int sgtl5000_probe(struct platform_device *pdev)
 static int sgtl5000_remove(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 
 	if (codec->control_data)
 		sgtl5000_set_bias_level(codec, SND_SOC_BIAS_OFF);
