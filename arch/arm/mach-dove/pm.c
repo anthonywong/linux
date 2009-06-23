@@ -42,7 +42,6 @@ static void cpu_do_idle_disabled(void);
 extern MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr);
 extern MV_STATUS mvPmuCpuFreqScale (MV_PMU_CPU_SPEED cpuSpeed);
 void dove_pm_cpuidle_deepidle (void);
-static MV_U32 deepIdleCtr = 0;
 int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		     void *data)
 {
@@ -451,11 +450,6 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 				freqs.cpuFreq, freqs.axiFreq, freqs.l2Freq, freqs.ddrFreq);
 	}
 
-	str = "deepcnt";
-	if(!strncmp(buffer+len, str,strlen(str)))
-	{
-		printk("Deep Idle Entered for %d times.\n", deepIdleCtr);
-	}
 done:
 	return count;
 }
@@ -736,19 +730,7 @@ int dove_timekeeping_suspend(void);
 
 void dove_pm_cpuidle_deepidle (void)
 {
-	unsigned long ints;
-
-	//MV_U32 ier, lcr;
-#ifdef CONFIG_PMU_PROC
-	deepIdleCtr++;
-#endif
-	dove_pm_prepare();
-	local_irq_save(ints);
-	sysdev_suspend(PMSG_SUSPEND);
 	dove_pm_enter(PM_SUSPEND_STANDBY);
-	sysdev_resume();	
-	local_irq_restore(ints);
-	dove_pm_finish();
 }
 
 void dove_pm_register (void)
