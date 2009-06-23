@@ -43,6 +43,7 @@
 #include "kgsl_sharedmem.h"
 
 #define DRIVER_NAME "kgsl"
+#define CHIP_REV_251 0x020501
 
 struct kgsl_driver {
 	struct miscdevice misc;
@@ -53,6 +54,7 @@ struct kgsl_driver {
 	int interrupt_num;
 	int have_irq;
 
+	struct clk *grp_pclk;
 	struct clk *grp_clk;
 	struct clk *imem_clk;
 
