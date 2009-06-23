@@ -457,7 +457,7 @@ imx_pcm_mmap(struct snd_pcm_substream *substream, struct vm_area_struct *vma)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_dai *cpu_dai = socdev->machine->dai_link->cpu_dai;
+	struct snd_soc_dai *cpu_dai = socdev->card->dai_link->cpu_dai;
 	struct mxc_audio_platform_data *dev_data = cpu_dai->private_data;
 	int ext_ram = 0;
 	int ret = 0;
@@ -499,7 +499,7 @@ static int imx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	struct snd_dma_buffer *buf = &substream->dma_buffer;
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_dai *cpu_dai = socdev->machine->dai_link->cpu_dai;
+	struct snd_soc_dai *cpu_dai = socdev->card->dai_link->cpu_dai;
 	struct mxc_audio_platform_data *dev_data = cpu_dai->private_data;
 	int ext_ram = 0;
 	size_t size = imx_pcm_hardware.buffer_bytes_max;
@@ -532,7 +532,7 @@ static void imx_pcm_free_dma_buffers(struct snd_pcm *pcm)
 	struct snd_dma_buffer *buf;
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_dai *cpu_dai = socdev->machine->dai_link->cpu_dai;
+	struct snd_soc_dai *cpu_dai = socdev->card->dai_link->cpu_dai;
 	struct mxc_audio_platform_data *dev_data = cpu_dai->private_data;
 	int ext_ram = 0;
 	int stream;
