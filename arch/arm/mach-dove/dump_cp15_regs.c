@@ -167,6 +167,10 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	asm volatile("mrc p15, 1, %0, c15, c11, 7": "=r"(value));
 	p += sprintf(p, "L2C Error Capture: 0x%08x\n", value);
 	
+	asm volatile("mrc p15, 0, %0, c9, c14, 0": "=r"(value));
+	p += sprintf(p, "User mode access for PMC registers: %s\n", (value & 1) ?
+		     "Enabled" : "Disabled");
+
 	len = (p - page) - off;
 	if (len < 0)
 		len = 0;
