@@ -65,14 +65,14 @@ int dove_init_cpuidle(void)
 	/* Wait for interrupt state */
 	device->states[0].enter = dove_enter_idle;
 	device->states[0].exit_latency = 1;		/* Few CPU clock cycles */
-	device->states[0].target_residency = 10000;
+	device->states[0].target_residency = 1000;
 	device->states[0].flags = CPUIDLE_FLAG_TIME_VALID;
 	strcpy(device->states[0].name, "WFI");
 	strcpy(device->states[0].desc, "Wait for interrupt");
 
 	/* Deep Idle Mode (eBook if LCD is OFF) */
 	device->states[1].enter = dove_enter_idle;
-	device->states[1].exit_latency = 11200;		/* 11.2ms regulator powerup delay */
+	device->states[1].exit_latency = 300;		/* 300us regulator powerup delay */
 	device->states[1].target_residency = 10000;
 	device->states[1].flags = CPUIDLE_FLAG_TIME_VALID;
 	strcpy(device->states[1].name, "DEEP IDLE");
