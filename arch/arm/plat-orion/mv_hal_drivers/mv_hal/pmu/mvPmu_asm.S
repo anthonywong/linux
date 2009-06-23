@@ -155,7 +155,8 @@ skip_ddrfs_sr_exit:
 /*************************************************************/
 /*   FOR DEBUG ONLY - BLINK LED ON MPP7 AS A LIFE INDICATION */
 /*************************************************************/
-	mov	r4, #100
+/*
+	mov	r4, #1
 	ldr	r0, led_addr
 	ldr	r1, led_val_on
 	ldr	r2, led_val_off
@@ -178,6 +179,7 @@ loop_delay2:
 	sub	r4, r4, #1
 	cmp	r4, #0
 	bne	loop_blink
+*/
 /********************************************************************/
 
 	ldmfd	sp!, {r4 - r10, pc}	@ restore regs and return
@@ -333,7 +335,6 @@ ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
  *    None
  **************************************************************/
 ENTRY(mvPmuSramDeepIdleExitFunc)
-	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
 
 	/*
 	 * Move back Internal regs to Linux base
