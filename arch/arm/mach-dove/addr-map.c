@@ -77,7 +77,7 @@ static void __init setup_cpu_win(int win, u32 base, u32 size,
 		writel(0, WIN_REMAP_HI(win));
 	}
 }
-
+extern int pm_enable;
 void __init dove_setup_cpu_mbus(void)
 {
 	int i;
@@ -116,8 +116,13 @@ void __init dove_setup_cpu_mbus(void)
 	/*
 	 * Setup the Window to the BootROM for Stanby and Sleep Resume
 	 */
-	setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
-		      TARGET_BOOTROM, ATTR_BOOTROM, -1);
+
+	if (pm_enable) 
+		setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
+			      TARGET_BOOTROM, ATTR_DEV_SPI0_ROM, -1);
+	else
+		setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
+			      TARGET_BOOTROM, ATTR_BOOTROM, -1);
 
 #ifndef CONFIG_DOVE_REV_Z0
 	/*
