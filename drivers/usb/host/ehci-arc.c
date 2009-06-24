@@ -122,7 +122,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	/* Need platform data for setup */
 	if (!pdata) {
 		dev_err(&pdev->dev,
-			"No platform data for %s.\n", pdev->dev.bus_id);
+			"No platform data for %s.\n", dev_name(&(pdev->dev)));
 		return -ENODEV;
 	}
 
@@ -135,11 +135,11 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	      (pdata->operating_mode == FSL_USB2_DR_OTG))) {
 		dev_err(&pdev->dev,
 			"Non Host Mode configured for %s. "
-			"Wrong driver linked.\n", pdev->dev.bus_id);
+			"Wrong driver linked.\n", dev_name(&(pdev->dev)));
 		return -ENODEV;
 	}
 
-	hcd = usb_create_hcd(driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&(pdev->dev)));
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err1;
@@ -151,7 +151,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 		if (!res) {
 			dev_err(&pdev->dev,
 				"Found HC with no IRQ. Check %s setup!\n",
-				pdev->dev.bus_id);
+				dev_name(&(pdev->dev)));
 			return -ENODEV;
 		}
 		irq = res[1].start;
@@ -164,7 +164,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 		if (!res) {
 			dev_err(&pdev->dev,
 				"Found HC with no IRQ. Check %s setup!\n",
-				pdev->dev.bus_id);
+				dev_name(&(pdev->dev)));
 			return -ENODEV;
 		}
 		irq = res->start;
@@ -244,7 +244,7 @@ err3:
 err2:
 	usb_put_hcd(hcd);
 err1:
-	dev_err(&pdev->dev, "init %s fail, %d\n", pdev->dev.bus_id, retval);
+	dev_err(&pdev->dev, "init %s fail, %d\n", dev_name(&(pdev->dev)), retval);
 	if (pdata->platform_uninit)
 		pdata->platform_uninit(pdata);
 	return retval;
