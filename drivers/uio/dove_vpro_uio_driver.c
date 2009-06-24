@@ -29,6 +29,40 @@ struct vpro_uio_data {
 	struct uio_info		uio_info;
 };
 
+static int vpro_mmap(struct uio_info *info, struct vm_area_struct *vma)
+{
+	struct uio_device *idev = vma->vm_private_data;
+	int mi;
+
+	for (mi = 0; mi < MAX_UIO_MAPS; mi++) {
+		if (info->mem[mi].size == 0) {
+			mi = -1;
+			break;
+		}
+		if (vma->vm_pgoff == mi)
+			break;
+	}
+
+	if (mi < 0)
+		return -EINVAL;
+
+	vma->vm_flags |= VM_IO | VM_RESERVED;
+
+#if defined(CONFIG_ARCH_DOVE) && !defined(CONFIG_DOVE_REV_Z0)
+	if(mi == VPRO_CONTROL_REGISTER_MAP)
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	else if(mi == VPRO_DMA_BUFFER_MAP)
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+#else
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+#endif
+	return remap_pfn_range(vma,
+			       vma->vm_start,
+			       info->mem[mi].addr >> PAGE_SHIFT,
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot);
+}
+
 static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
@@ -239,6 +273,7 @@ printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
 	vd->uio_info.irq = platform_get_irq(pdev, 0);
 	vd->uio_info.handler = vpro_irqhandler;
 	vd->uio_info.ioctl = vpro_ioctl;
+	vd->uio_info.mmap = vpro_mmap;
 
 	// init video buffer queue for vpro xv interface
 	xvd = kzalloc(sizeof(struct vpro_xv_data), GFP_KERNEL);
