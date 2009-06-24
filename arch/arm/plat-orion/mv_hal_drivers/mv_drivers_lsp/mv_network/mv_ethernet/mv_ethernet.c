@@ -196,6 +196,13 @@ int mv_eth_stop( struct net_device *dev )
     {
         free_irq(dev->irq, priv);
     }
+
+    if(priv->timer_flag == 1)
+    {
+        del_timer( &priv->timer );
+        priv->timer_flag = 0;
+    }
+
     printk( KERN_NOTICE "%s: stopped\n", dev->name );
 
     return 0;
