@@ -1592,7 +1592,7 @@ static int __init mv_usb_gadget_probe(struct device *_dev)
     mv_dev->gadget.is_dualspeed = 1;
 
     /* the "gadget" abstracts/virtualizes the controller */
-    strcpy (mv_dev->gadget.dev.bus_id, "gadget");
+    strcpy (dev_name(&mv_dev->gadget.dev), "gadget");
     mv_dev->gadget.dev.parent = _dev;
     mv_dev->gadget.dev.dma_mask = _dev->dma_mask; /* ?????? */
     mv_dev->gadget.dev.release = mv_usb_gadget_release ;
