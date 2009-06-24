@@ -86,7 +86,10 @@ static void sdhci_enable_sdio_gpio_irq(struct mmc_host *mmc, int enable)
 	struct sdhci_mv_host *mv_host = sdhci_priv(host);
 	unsigned long flags;
 	struct sdhci_dove_int_wa *wa_info;
-	
+
+	if (!mv_host->dove_card_int_wa)
+		return;
+
 	wa_info = &mv_host->dove_int_wa_info;
 	spin_lock_irqsave(&host->lock, flags);
 
@@ -97,7 +100,7 @@ static void sdhci_enable_sdio_gpio_irq(struct mmc_host *mmc, int enable)
 		}
 	} else {
 		if (wa_info->status == 1) {
-			disable_irq(wa_info->irq);
+			disable_irq_nosync(wa_info->irq);
 			wa_info->status = 0;
 		}
 	}
@@ -226,7 +229,7 @@ static int __devinit sdhci_mv_probe(struct platform_device *pdev)
 		}
 
                 /* to balance disable/enable_irq */
-                disable_irq(mv_host->dove_int_wa_info.irq);
+                disable_irq_nosync(mv_host->dove_int_wa_info.irq);
 
         } else {
 		dev_dbg(&pdev->dev, " no request wa irq\n");
