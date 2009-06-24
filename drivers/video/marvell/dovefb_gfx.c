@@ -370,8 +370,13 @@ static void set_dma_control1(struct dovefb_layer_info *dfli, int sync)
 static int wait_for_vsync(struct dovefb_layer_info *dfli)
 {
 	if (dfli) {
+		u32 irq_ena = readl(dfli->reg_base + SPU_IRQ_ENA);
+		writel(irq_ena | GRA_FRAME_IRQ0_ENA_MASK, 
+		       dfli->reg_base + SPU_IRQ_ENA);
 		wait_event_interruptible(dfli->w_intr_wq,
 				atomic_read(&dfli->w_intr));
+		writel(irq_ena, 
+		       dfli->reg_base + SPU_IRQ_ENA);
 		atomic_set(&dfli->w_intr, 0);
 		return 0;
 	}

@@ -45,7 +45,7 @@
 
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
-#define DOVEFB_INT_MASK (GRA_FRAME_IRQ0_ENA(0x1) | DMA_FRAME_IRQ0_ENA(0x1))
+#define DOVEFB_INT_MASK  DMA_FRAME_IRQ0_ENA(0x1)
 
 extern int enable_ebook;
 
