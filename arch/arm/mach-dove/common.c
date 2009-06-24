@@ -218,7 +218,7 @@ static struct platform_device dove_sdio0 = {
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-#ifdef CONFIG_DOVE_REV_Z0
+#if defined (CONFIG_DOVE_REV_Z0) || defined (CONFIG_DOVE_REV_Y0)
 		.platform_data		= &sdio0_data,
 #endif
 	},
@@ -257,7 +257,7 @@ static struct platform_device dove_sdio1 = {
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-#ifdef CONFIG_DOVE_REV_Z0
+#if defined (CONFIG_DOVE_REV_Z0) || defined (CONFIG_DOVE_REV_Y0)
 		.platform_data		= &sdio1_data,
 #endif
 	},
