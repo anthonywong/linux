@@ -122,7 +122,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 	/* Need platform data for setup */
 	if (!pdata) {
 		dev_err(&pdev->dev,
-			"No platform data for %s.\n", dev_name(&(pdev->dev));
+			"No platform data for %s.\n", dev_name(&(pdev->dev)));
 		return -ENODEV;
 	}
 
@@ -151,7 +151,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 		if (!res) {
 			dev_err(&pdev->dev,
 				"Found HC with no IRQ. Check %s setup!\n",
-				dev_name(&(pdev->dev));
+				dev_name(&(pdev->dev)));
 			return -ENODEV;
 		}
 		irq = res[1].start;
@@ -164,7 +164,7 @@ static int usb_hcd_fsl_probe(const struct hc_driver *driver,
 		if (!res) {
 			dev_err(&pdev->dev,
 				"Found HC with no IRQ. Check %s setup!\n",
-				dev_name(&(pdev->dev));
+				dev_name(&(pdev->dev)));
 			return -ENODEV;
 		}
 		irq = res->start;
