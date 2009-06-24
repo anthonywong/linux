@@ -421,9 +421,7 @@
 #define     DMA_FRAME_IRQ1_ENA_MASK		0x40000000
 #define     DMA_FF_UNDERFLOW_ENA(ff)		(ff<<29)
 #define     DMA_FF_UNDERFLOW_ENA_MASK		0x20000000
-#define     GRA_FRAME_IRQ0_ENA(irq)		(irq<<27)
 #define     GRA_FRAME_IRQ0_ENA_MASK		0x08000000
-#define     GRA_FRAME_IRQ1_ENA(irq)		(irq<<26)
 #define     GRA_FRAME_IRQ1_ENA_MASK		0x04000000
 #define     GRA_FF_UNDERFLOW_ENA(ff)		(ff<<25)
 #define     GRA_FF_UNDERFLOW_ENA_MASK		0x02000000
