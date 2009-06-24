@@ -519,6 +519,12 @@ static u32 vfp_regs[32];
 
 void vfp_save(void)
 {
+	/*
+	 * if VFP was not initialized yet, then do nothing
+	 */
+	if (!VFP_arch)
+		return;
+
 	fpexc = fmrx(FPEXC);
 	fpscr = fmrx(FPSCR);
 	vfp_save_user_state(vfp_regs);
@@ -528,6 +534,9 @@ void vfp_restore(void)
 {
 	u32 access;
 	
+	if (!VFP_arch)
+		return;
+
 	access = get_copro_access();	
 	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
 	vfp_load_user_state(vfp_regs);
