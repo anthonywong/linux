@@ -56,6 +56,7 @@ disclaimer.
 #   define ETH_INCLUDE_TSO
 #endif /* CONFIG_MV_ETH_TSO */
 
+#if defined(CONFIG_MV_ETH_INET_LRO)
 #if defined(CONFIG_INET_LRO)
   /* LRO support */
 #   include <linux/inet_lro.h>
@@ -74,6 +75,7 @@ disclaimer.
 #   include <linux/udp.h>
 #   define ETH_INCLUDE_UFO
 #endif
+#endif /*CONFIG_MV_ETH_INET_LRO*/
 
 #ifdef CONFIG_MV_ETH_NFP
 #   include "eth/nfp/mvNfp.h"
