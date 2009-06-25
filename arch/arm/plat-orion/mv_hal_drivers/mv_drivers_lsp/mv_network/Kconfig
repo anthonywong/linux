@@ -121,9 +121,16 @@ config  MV_ETH_UFO
         Marvell network interface.
         UFO stands for UDP Fragmentation Offload
 
+config  MV_ETH_INET_LRO
+        bool "LRO support for Marvell network interface"
+	depends on INET_LRO
+	default n
+        ---help---
+        Adds LRO support
+
 config  MV_ETH_LRO_UDP
         bool "LRO UDP support for Marvell network interface"
-	depends on INET_LRO
+	depends on MV_ETH_INET_LRO
         ---help---
         Adds LRO support for receiving large UDP datagrams on Marvell network interface.
         LRO stands for Large Receive Offload
