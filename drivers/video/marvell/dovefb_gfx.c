@@ -1113,7 +1113,7 @@ struct fb_ops dovefb_gfx_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= dovefb_cursor,
+	/*.fb_cursor	= dovefb_cursor,*/
 	.fb_sync	= dovefb_fb_sync,
 	.fb_ioctl	= dovefb_gfx_ioctl,
 };
