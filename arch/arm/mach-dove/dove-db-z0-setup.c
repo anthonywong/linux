@@ -52,6 +52,12 @@ module_param(left_tact, uint, 0);
 MODULE_PARM_DESC(left_tact, "Use left tact as mouse. this will disable I2S"
 		 "JPR 3 should be removed, JPR 6 on 2-3");
 
+static unsigned int use_hal_giga = 1;
+#ifdef CONFIG_MV643XX_ETH
+module_param(use_hal_giga, uint, 0);
+MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
+#endif
+
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram);
 
 static struct orion_i2s_platform_data i2s1_data = {
@@ -60,12 +66,9 @@ static struct orion_i2s_platform_data i2s1_data = {
 	.spdif_play	= 1,
 };
 
-#if 1
 static struct mv643xx_eth_platform_data dove_db_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR_DEFAULT,
 };
-
-#endif
 
 static struct mv_sata_platform_data dove_db_sata_data = {
         .n_ports        = 1,
@@ -351,8 +354,12 @@ static void __init dove_db_init(void)
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
-	dove_mv_eth_init();
+	if(use_hal_giga)
+		dove_mv_eth_init();
+	else
 #endif
+	dove_ge00_init(&dove_db_ge00_data);
+
 	dove_ehci0_init();
 	dove_ehci1_init();
 
@@ -360,9 +367,7 @@ static void __init dove_db_init(void)
 	 * all clocks
 	 */
 	ds_clks_disable_all(0, 0);
-#if 1
-	dove_ge00_init(&dove_db_ge00_data);
-#endif
+
 	dove_sata_init(&dove_db_sata_data);
 	dove_spi0_init(0);
 	dove_spi1_init(0);
