@@ -43,7 +43,7 @@
 #include <video/dovefbreg.h>
 #include "dovefb_if.h"
 
-#define MAX_QUEUE_NUM	30
+#define MAX_QUEUE_NUM	60
 #define RESET_BUF	0x1
 #define FREE_ENTRY	0x2
 
@@ -416,9 +416,14 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 				return 0;
 			}
 
+			kfree(surface);
+#if 0
 			/*
-			 * if it has its own physical address,
-			 * switch to this memory.
+			 * Fix me: Currently not implemented yet.
+			 * Application allocate a physical contiguous
+			 * buffer and pass it into driver. Here is to
+			 * update fb's info to new buffer and free
+			 * old buffer.
 			 */
 			if (start_addr) {
 				if (dfli->mem_status)
@@ -441,8 +446,7 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 				fi->screen_base = dfli->fb_start;
 				fi->screen_size = dfli->fb_size;
 			}
-
-			kfree(surface);
+#endif
 		}
 
 		mutex_unlock(&dfli->access_ok);
@@ -734,8 +738,7 @@ static int dovefb_switch_buff(struct fb_info *fi)
 
 	if (!pOvlySurface) {
 		/*printk(KERN_INFO "********Oops: pOvlySurface"
-			" is NULL!!!!\n\n");
-		*/
+			" is NULL!!!!\n\n");*/
 		return -1;
 	}
 
@@ -770,6 +773,9 @@ static int dovefb_switch_buff(struct fb_info *fi)
 static void set_dma_control0(struct dovefb_layer_info *dfli)
 {
 	u32 x, x_bk;
+	int pix_fmt;
+
+	pix_fmt = dfli->pix_fmt;
 
 	/*
 	 * Get reg's current value
@@ -784,26 +790,39 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 	 * If we are in a pseudo-color mode, we need to enable
 	 * palette lookup.
 	 */
-	if (dfli->pix_fmt == PIX_FMT_PSEUDOCOLOR)
+	if (pix_fmt == PIX_FMT_PSEUDOCOLOR)
 		x |= 0x10000000;
 
 	/*
 	 * Configure hardware pixel format.
 	 */
-	x |= ((dfli->pix_fmt & ~0x1000) >> 1) << 20;
+	x |= ((pix_fmt & ~0x1000) >> 1) << 20;
 
 	/*
 	 * 0. check YUV or RGB format,
 	 * 1. enable on yuv2rgb conversion
 	 * 2. UV or RB swap or Panel output data swap
 	 */
+#if 0
 	if ((dfli->pix_fmt >= 10)) {
 		x |= 0x00000002;
 		x |= ((dfli->pix_fmt & 0x1000) ? 0x4:0x0);
 		x |= (dfli->pix_fmt & 1)	<< 3;
 		x |= (dfli->info->panel_rbswap & 1)	<< 4;
+#else
+	if ((pix_fmt & 0x1000) || (pix_fmt == 10) || (pix_fmt == 11)) {
+		x |= 0x00000002;
+		if (!(pix_fmt & 0x1000)) {
+			x |= 1 << 2;    /* Y and U/V is swapped */
+			x |= (pix_fmt & 1) << 3;
+		}
+	} else if (pix_fmt >= 12) {
+		x |= 0x00000002;
+		x |= ((pix_fmt & 1) ^ 1) << 3;     /* U and V is swapped?*/
+		x |= dfli->info->panel_rbswap << 4;
+#endif
 	} else {
-		x |= ((dfli->pix_fmt & 1)^(dfli->info->panel_rbswap)) << 4;
+		x |= ((pix_fmt & 1)^(dfli->info->panel_rbswap)) << 4;
 	}
 
 	if (x_bk != x)
@@ -857,14 +876,6 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 		addr = dfli->fb_start_dma +
 			(pixel_offset * (var->bits_per_pixel >> 3));
 	}
-
-	/* Because we set DMA buffer to cacheable, we should flush cache
-	 * before we enable the dma. But currently, we use three buffers
-	 * to avoid this issue. Because video frame is always bigger than
-	 * cache size, when we use three buffers, cache flush will be
-	 * done before we use it. So that, we mark this code.
-	 */
-	/*dma_cache_maint( dfli->fb_start, dfli->fb_size, DMA_TO_DEVICE);*/
 
 	writel(addr, dfli->reg_base + LCD_SPU_DMA_START_ADDR_Y0);
 
@@ -1093,7 +1104,15 @@ static int dovefb_ovly_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	/* This is an IO map - tell maydump to skip this VMA */
 	vma->vm_flags |= VM_IO | VM_RESERVED;
 
-	vma->vm_page_prot |= L_PTE_CACHEABLE | L_PTE_BUFFERABLE;
+	/* io control needs non-cacheable attribute. */
+	if (start == info->fix.mmio_start)
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	else
+#if defined(CONFIG_DOVE_REV_Z0)
+		vma->vm_page_prot |= L_PTE_CACHEABLE | L_PTE_BUFFERABLE;
+#else
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+#endif
 
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
@@ -1105,7 +1124,7 @@ struct fb_ops dovefb_ovly_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= dovefb_ovly_open,
 	.fb_release	= dovefb_release,
-#if defined (CONFIG_DOVE_REV_Z0)
+#if defined(CONFIG_DOVE_REV_Z0)
 	.fb_mmap	= dovefb_ovly_mmap,
 #endif
 	.fb_check_var	= dovefb_check_var,
