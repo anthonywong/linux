@@ -62,6 +62,7 @@
  */
 extern void __init mx51_3stack_io_init(void);
 extern struct cpu_wp *(*get_cpu_wp)(int *wp);
+extern void __init mxc_map_io(void);
 
 /* working point(wp): 0 - 800MHz; 1 - 200MHz; */
 static struct cpu_wp cpu_wp_auto[] = {
