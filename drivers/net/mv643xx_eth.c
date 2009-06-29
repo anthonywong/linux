@@ -2724,9 +2724,41 @@ static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int mv643xx_eth_shared_suspend(struct platform_device *pdev,
+				      pm_message_t state)
+{
+	return 0;
+}
+static int mv643xx_eth_shared_resume(struct platform_device *pdev)
+{
+	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
+	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
+
+	/*
+	 * (Re-)program MBUS remapping windows if we are asked to.
+	 */
+	if (pd != NULL && pd->dram != NULL)
+		mv643xx_eth_conf_mbus_windows(msp, pd->dram);
+
+	/*
+	 * Detect hardware parameters.
+	 */
+	msp->t_clk = (pd != NULL && pd->t_clk != 0) ? pd->t_clk : 133000000;
+	infer_hw_params(msp);
+	return 0;
+}
+
+#else
+#define mv643xx_eth_shared_suspend	NULL
+#define mv643xx_eth_shared_resume	NULL
+#endif
+
 static struct platform_driver mv643xx_eth_shared_driver = {
 	.probe		= mv643xx_eth_shared_probe,
 	.remove		= mv643xx_eth_shared_remove,
+	.suspend	= mv643xx_eth_shared_suspend,
+	.resume		= mv643xx_eth_shared_resume,
 	.driver = {
 		.name	= MV643XX_ETH_SHARED_NAME,
 		.owner	= THIS_MODULE,
@@ -3016,10 +3048,67 @@ static void mv643xx_eth_shutdown(struct platform_device *pdev)
 		port_reset(mp);
 }
 
+#if CONFIG_PM
+static int mv643xx_eth_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct mv643xx_eth_private *mp = platform_get_drvdata(pdev);
+
+	if (netif_running(mp->dev)) {
+		netif_device_detach(mp->dev);
+
+		wrlp(mp, INT_MASK_EXT, 0);
+		wrlp(mp, INT_MASK, 0);
+		rdlp(mp, INT_MASK);
+
+		port_reset(mp);
+		mv643xx_eth_get_stats(mp->dev);
+		mib_counters_update(mp);
+	}
+	return 0;
+}
+
+static int mv643xx_eth_resume(struct platform_device *pdev)
+{
+	struct mv643xx_eth_private *mp = platform_get_drvdata(pdev);
+	struct mv643xx_eth_platform_data *pd = pdev->dev.platform_data;
+	if (netif_running(mp->dev)) {
+		wrlp(mp, INT_CAUSE, 0);
+		wrlp(mp, INT_CAUSE_EXT, 0);
+		rdlp(mp, INT_CAUSE_EXT);
+
+		init_pscr(mp, pd->speed, pd->duplex);
+
+		mib_counters_clear(mp);
+
+		if (mp->shared->win_protect)
+			wrl(mp, WINDOW_PROTECT(mp->port_num),
+			    mp->shared->win_protect);
+
+		wrlp(mp, SDMA_CONFIG, PORT_SDMA_CONFIG_DEFAULT_VALUE);
+
+		set_rx_coal(mp, 250);
+		set_tx_coal(mp, 0);
+
+		port_start(mp);
+
+		wrlp(mp, INT_MASK_EXT, INT_EXT_LINK_PHY | INT_EXT_TX);
+		wrlp(mp, INT_MASK, mp->interrupt_mask);
+		netif_device_attach(mp->dev);
+	}
+	return 0;
+}
+
+#else
+#define mv643xx_eth_suspend	NULL
+#define mv643xx_eth_resume	NULL
+#endif
+
 static struct platform_driver mv643xx_eth_driver = {
 	.probe		= mv643xx_eth_probe,
 	.remove		= mv643xx_eth_remove,
 	.shutdown	= mv643xx_eth_shutdown,
+	.suspend	= mv643xx_eth_suspend,
+	.resume		= mv643xx_eth_resume,
 	.driver = {
 		.name	= MV643XX_ETH_NAME,
 		.owner	= THIS_MODULE,
