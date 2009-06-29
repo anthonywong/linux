@@ -2087,10 +2087,11 @@ static int mxc_alsa_spdif_probe(struct platform_device
 	}
 
 	/* register the soundcard */
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    sizeof(struct mxc_spdif_device));
-	if (card == NULL)
-		return -ENOMEM;
+	err = snd_card_create(index[dev], id[dev], THIS_MODULE,
+			      sizeof(struct mxc_spdif_device), &card);
+	if (err < 0)
+		return err;
+
 	chip = card->private_data;
 	chip->card = card;
 	card->dev = &pdev->dev;
