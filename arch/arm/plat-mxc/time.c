@@ -296,10 +296,10 @@ void __init mxc_timer_init(const char *clk_timer)
 #else
 void __init mxc_timer_init(struct clk *timer_clk)
 {
+#endif /* CONFIG_ARCH_MXC_CANONICAL */
 	uint32_t tctl_val;
 	int irq;
 
-#endif /* CONFIG_ARCH_MXC_CANONICAL */
 	clk_enable(timer_clk);
 
 	if (cpu_is_mx1()) {
