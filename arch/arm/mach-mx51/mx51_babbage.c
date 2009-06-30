@@ -51,6 +51,8 @@
 #include "iomux.h"
 #include "crm_regs.h"
 
+extern int mx51_babbage_init_mc13892(void);
+
 /*!
  * @file mach-mx51/mx51_babbage.c
  *
