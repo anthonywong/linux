@@ -79,6 +79,4 @@
 #define MXC_LL_UART_PADDR	UART1_BASE_ADDR
 #define MXC_LL_UART_VADDR	AIPS1_IO_ADDRESS(UART1_BASE_ADDR)
 
-extern int __init mx51_babbage_init_mc13892(void);
-
 #endif				/* __ASM_ARCH_MXC_BOARD_MX51_BABBAGE_H__ */
