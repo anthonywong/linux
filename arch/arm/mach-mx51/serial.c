@@ -21,7 +21,6 @@
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <mach/hardware.h>
-#include <mach/mxc_uart.h>
 #include <mach/spba.h>
 #include "serial.h"
 #include <mach/board-mx51_3stack.h>

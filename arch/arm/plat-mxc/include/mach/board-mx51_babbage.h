@@ -32,7 +32,6 @@
 /*
  * Include Files
  */
-#include <mach/mxc_uart.h>
 
 /*!
  * @name MXC UART board level configurations
