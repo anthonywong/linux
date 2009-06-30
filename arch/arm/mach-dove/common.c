@@ -415,7 +415,7 @@ void __init dove_ehci1_init(void)
 	platform_device_register(&dove_ehci1);
 #endif
 }
-
+#ifdef CONFIG_MV_ETHERNET
 /*****************************************************************************
  * Ethernet
  ****************************************************************************/
@@ -458,7 +458,7 @@ void __init dove_mv_eth_init(void)
 	platform_device_register(&dove_eth);
 	platform_device_register(&dove_eth_addr_dec);
 }
-
+#endif
 #if 1
 /*****************************************************************************
  * GE00
