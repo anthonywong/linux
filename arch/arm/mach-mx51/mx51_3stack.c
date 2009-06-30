@@ -49,7 +49,7 @@
 #include <mach/gpio.h>
 #include <mach/mmc.h>
 
-#include "board-mx51_3stack.h"
+#include <mach/board-mx51_3stack.h>
 #include "iomux.h"
 #include "crm_regs.h"
 
