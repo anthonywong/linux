@@ -24,7 +24,7 @@
 #include <mach/mxc_uart.h>
 #include <mach/spba.h>
 #include "serial.h"
-#include "board-mx51_3stack.h"
+#include <mach/board-mx51_3stack.h>
 
 #if defined(CONFIG_SERIAL_MXC) || defined(CONFIG_SERIAL_MXC_MODULE)
 

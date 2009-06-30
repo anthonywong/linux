@@ -52,6 +52,14 @@
 #ifdef CONFIG_MACH_MX27LITE
 #include <mach/board-mx27lite.h>
 #endif
+/* XXX: Disable 3DS until we rename common symbol names
+#ifdef CONFIG_MACH_MX51_3DS
+#include <mach/board-mx51_3stack.h>
+#endif
+*/
+#ifdef CONFIG_MACH_MX51_BABBAGE
+#include <mach/board-mx51_babbage.h>
+#endif
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
