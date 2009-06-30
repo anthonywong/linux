@@ -73,16 +73,32 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	
 	asm volatile("mrc p15, 0, %0, c0, c2, 5": "=r"(value));
 	p += sprintf(p, "Set Attribute 5: 0x%08x\n", value);
+#ifdef CONFIG_CPU_V7
+	asm volatile("mrc p15, 1, %0, c0, c0, 0": "=r"(value));
+	p += sprintf(p, "Current Cache Size ID: 0x%08x\n", value);
 	
+	asm volatile("mrc p15, 1, %0, c0, c0, 1": "=r"(value));
+	p += sprintf(p, "Current Cache Level ID: 0x%08x\n", value);
+
+	asm volatile("mrc p15, 2, %0, c0, c0, 0": "=r"(value));
+	p += sprintf(p, "Cache Size Selection: 0x%08x\n", value);
+
+#endif
 	asm volatile("mrc p15, 0, %0, c1, c0, 0": "=r"(value));
 	p += sprintf(p, "Control : 0x%08x\n", value);
+#ifdef CONFIG_CPU_V6
 #ifndef CONFIG_DOVE_REV_Z0	
 	p += sprintf(p, "    L2\t\t: %s\n", (value & (1 << 26)) ?
 		     "Enabled" : "Disabled");
 #endif
+#endif
 	asm volatile("mrc p15, 0, %0, c1, c0, 1": "=r"(value));
 	p += sprintf(p, "Auxiliary Control : 0x%08x\n", value);
 
+#ifdef CONFIG_CPU_V7
+	p += sprintf(p, "    L2\t\t: %s\n", (value & (1 << 1)) ?
+		     "Enabled" : "Disabled");
+#endif
 	asm volatile("mrc p15, 0, %0, c1, c0, 2": "=r"(value));
 	p += sprintf(p, "Coprocessor Access Control : 0x%08x\n", value);
 	
@@ -109,6 +125,9 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	
 	asm volatile("mrc p15, 0, %0, c6, c0, 0": "=r"(value));
 	p += sprintf(p, "Data Fault Address : 0x%08x\n", value);
+
+	asm volatile("mrc p15, 0, %0, c6, c0, 1": "=r"(value));
+	p += sprintf(p, "Watchpoint Fault Address : 0x%08x\n", value);
 
 	asm volatile("mrc p15, 0, %0, c6, c0, 2": "=r"(value));
 	p += sprintf(p, "Instruction Fault Address : 0x%08x\n", value);
