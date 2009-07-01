@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.30-dove-3.0.0
-# Thu Jun 25 17:11:43 2009
+# Linux kernel version: 2.6.30-dove-3.0.3
+# Wed Jul  1 18:03:27 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -2013,7 +2013,7 @@ CONFIG_UIO_PDRV=y
 # CONFIG_UIO_AEC is not set
 # CONFIG_UIO_SERCOS3 is not set
 CONFIG_UIO_DOVE_VPRO=y
-CONFIG_UIO_DOVE_VPRO_MEM_SIZE=34
+CONFIG_UIO_DOVE_VPRO_MEM_SIZE=96
 CONFIG_VPRO_NEW=y
 # CONFIG_STAGING is not set
 
