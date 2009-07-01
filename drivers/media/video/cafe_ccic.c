@@ -1998,7 +1998,7 @@ printk("cafe_init_cam\n");
 	if (ret)
 		goto out;
 
-	cam->sensor_addr = 0x42;
+	cam->sensor_addr = 0x21;
 	cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev, &cam->i2c_adapter,
 			"ov7670", "ov7670", cam->sensor_addr, NULL);
 	if (cam->sensor == NULL) {
