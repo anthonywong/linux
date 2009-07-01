@@ -81,6 +81,9 @@ ENTRY(cpu_v7_dcache_clean_area)
 #ifndef TLB_CAN_READ_FROM_L1_CACHE
 	dcache_line_size r2, r3
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
+#ifndef CONFIG_MRV_PTE_IN_L2
+	mcr     p15, 1, r0, c7, c11, 1		@ clean L2C D entry
+#endif
 	add	r0, r0, r2
 	subs	r1, r1, r2
 	bhi	1b
@@ -103,7 +106,11 @@ ENTRY(cpu_v7_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
+#ifdef CONFIG_MRV_PTE_IN_L2 
 	orr	r0, r0, #TTB_FLAGS
+#else
+	bic     r0, r0, #0x18                   @ DONOT Cache the page table in L2
+#endif
 #ifdef CONFIG_ARM_ERRATA_430973
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 #endif
@@ -165,6 +172,13 @@ ENDPROC(cpu_v7_set_pte_ext)
 
 cpu_v7_name:
 	.ascii	"ARMv7 Processor"
+#ifdef CONFIG_IWMMXT
+	.ascii	"-wmmx"
+#endif
+#ifdef CONFIG_CPU_ENABLE_WRITECO
+	.ascii	"-wco"
+#endif 
+	.ascii  "\0"
 	.align
 
 	__INIT
@@ -191,6 +205,12 @@ __v7_setup:
 	orreq	r0, r0, #(1 << 6) | (1 << 0)	@ Enable SMP/nAMP mode and
 	mcreq	p15, 0, r0, c1, c0, 1		@ TLB ops broadcasting
 #endif
+#ifdef CONFIG_CPU_PJ4_PMC_ACCESS_IN_USERMODE
+	@ Enable performance counters user access
+	mrc     p15, 0, r0, c9, c14, 0
+	orr     r0, r0, #0x1
+	mcr     p15, 0, r0, c9, c14, 0
+#endif /* CONFIG_CPU_PJ4_PMC_ACCESS_IN_USERMODE */
 	adr	r12, __v7_setup_stack		@ the local stack
 	stmia	r12, {r0-r5, r7, r9, r11, lr}
 	bl	v7_flush_dcache_all
@@ -233,7 +253,20 @@ __v7_setup:
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r10, c2, c0, 2		@ TTB control register
+#ifdef CONFIG_MRV_PTE_IN_L2
 	orr	r4, r4, #TTB_FLAGS
+#else
+						@ OC bits in TTB1 register
+	bic	r4, r4, #0x18                   @ DONOT Cache the page table in L2
+#endif
+#ifdef CONFIG_CPU_ENABLE_WRITECO
+						@ Refer 88SV581x-v7.Rev1.5.pdf
+	mrc	p15, 1, r0, c15, c1, 0		@ Read Marvell Extra Features Reg
+	orr	r0, r0, #0x100
+						@ Write coalesce cycles
+	orr	r0, r0, #CONFIG_CPU_WRITECO_CYCLE << 9
+	mcr	p15, 1, r0, c15, c1, 0		@ Write Marvell Extra Features Reg
+#endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
