@@ -47,9 +47,9 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define OV7670_FRAME_RATE 30
 
 /*
- * The 7670 sits on i2c with ID 0x42
+ * The 7670 sits on i2c with ID 0x21
  */
-#define OV7670_I2C_ADDR 0x42
+#define OV7670_I2C_ADDR 0x21
 
 /* Registers */
 #define REG_GAIN	0x00	/* Gain lower 8 bits (rest in vref) */
