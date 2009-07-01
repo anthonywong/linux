@@ -178,7 +178,7 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 
 static irqreturn_t vpro_irqhandler(int irq, void *dev_id)
 {
-	disable_irq(irq);
+	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
 }
 
