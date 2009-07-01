@@ -304,7 +304,8 @@ static inline void cafe_reg_set_bit(struct cafe_camera *cam,
 }
 
 
-
+static void cafe_ctlr_power_up(struct cafe_camera *cam);
+static void cafe_ctlr_power_down(struct cafe_camera *cam);
 /* -------------------------------------------------------------------- */
 /*
  * The I2C/SMBUS interface to the camera itself starts here.  The
@@ -479,11 +480,17 @@ static int cafe_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		cam_err(cam, "funky xfer size %d\n", size);
 		return -EINVAL;
 	}
+	if (cam->users == 0)
+		cafe_ctlr_power_up(cam);
 
 	if (rw == I2C_SMBUS_WRITE)
 		ret = cafe_smbus_write_data(cam, addr, command, data->byte);
 	else if (rw == I2C_SMBUS_READ)
 		ret = cafe_smbus_read_data(cam, addr, command, &data->byte);
+
+	if (cam->users == 0)
+		cafe_ctlr_power_down(cam);
+
 	return ret;
 }
 
@@ -521,7 +528,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
 	strcpy(adap->name, "cafe_ccic");
-//	adap->dev.parent = &cam->pdev->dev;
+	adap->dev.parent = cam->dev;
 	i2c_set_adapdata(adap, &cam->v4l2_dev);
 	
 	if(cam->numbered_i2c_bus == 0)
