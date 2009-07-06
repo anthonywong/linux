@@ -117,4 +117,10 @@ config CHARGER_PCF50633
 	help
 	 Say Y to include support for NXP PCF50633 Main Battery Charger.
 
+config BATTERY_DS2782
+	tristate "DS2782 battery driver"
+	depends on I2C
+	help
+	  Say Y here to enable support for batteries with ds2782 chip.
+
 endif # POWER_SUPPLY
