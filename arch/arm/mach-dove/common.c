@@ -228,9 +228,6 @@ static struct platform_device dove_sdio0 = {
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-#if defined (CONFIG_DOVE_REV_Z0) || defined (CONFIG_DOVE_REV_Y0)
-		.platform_data		= &sdio0_data,
-#endif
 	},
 	.resource	= dove_sdio0_resources,
 	.num_resources	= ARRAY_SIZE(dove_sdio0_resources),
@@ -267,9 +264,6 @@ static struct platform_device dove_sdio1 = {
 	.dev		= {
 		.dma_mask		= &sdio_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-#if defined (CONFIG_DOVE_REV_Z0) || defined (CONFIG_DOVE_REV_Y0)
-		.platform_data		= &sdio1_data,
-#endif
 	},
 	.resource	= dove_sdio1_resources,
 	.num_resources	= ARRAY_SIZE(dove_sdio1_resources),
@@ -293,11 +287,13 @@ void __init dove_sd_card_int_wa_setup(int port)
 	case 0:
 		gpio = DOVE_SD0_DATA1_GPIO;
 		name = "sd0_data1";
+		dove_sdio0.dev.platform_data = &sdio0_data;
 		sdio0_data.irq = gpio_to_irq(gpio);
 		break;
 	case 1:
 		gpio = DOVE_SD1_DATA1_GPIO;
 		name = "sd1_data1";
+		dove_sdio1.dev.platform_data = &sdio1_data;
 		sdio1_data.irq = gpio_to_irq(gpio);
 		break;
 	default:
