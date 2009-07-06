@@ -76,6 +76,7 @@ static int sdhci_cam_mbus_probe(struct platform_device *pdev)
         if (base == NULL)
 		return -ENOMEM;
 
+	platform_set_drvdata(pdev, base);
         /*
          * (Re-)program MBUS remapping windows if we are asked to.
          */
@@ -91,9 +92,35 @@ static int sdhci_cam_mbus_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int sdhci_cam_mbus_suspend(struct platform_device *pdev,
+				      pm_message_t state)
+{
+	return 0;
+}
+static int sdhci_cam_mbus_resume(struct platform_device *pdev)
+{
+	struct mbus_dram_target_info    *dram = pdev->dev.platform_data;
+	void __iomem *base = platform_get_drvdata(pdev);
+
+        /*
+         * (Re-)program MBUS remapping windows if we are asked to.
+         */
+        if (dram != NULL)
+                sdhci_cam_conf_mbus_windows(base, dram);
+	return 0;
+}
+
+#else
+#define sdhci_cam_mbus_suspend	NULL
+#define sdhci_cam_mbus_resume	NULL
+#endif
+
 static struct platform_driver sdhci_cam_mbus_driver = {
 	.probe		= sdhci_cam_mbus_probe,
 	.remove		= sdhci_cam_mbus_remove,
+	.suspend	= sdhci_cam_mbus_suspend,
+	.resume		= sdhci_cam_mbus_resume,
 	.driver = {
 		.name	= SDHCI_CAM_MBUS_NAME,
 		.owner	= THIS_MODULE,
