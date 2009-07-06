@@ -540,5 +540,19 @@ config TOUCHSCREEN_PCAP
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called pcap_ts.
+
+config TOUCHSCREEN_RT5611
+        tristate "RT5611 touchscreens"
+        depends on AC97_BUS
+        help
+          Say Y here if you have a touchscreen interface using the
+          Realtek ALC5611 controller, and your board-specific
+          setup code includes that in its table of AC97 devices.
+
+          If unsure, say N (but it's safe to say "Y").
+
+          To compile this driver as a module, choose M here: the
+          module will be called rt5611_ts.
+
 endif
 
