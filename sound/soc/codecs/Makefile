@@ -48,6 +48,8 @@ snd-soc-wm-hubs-objs := wm_hubs.o
 
 # Amp
 snd-soc-max9877-objs := max9877.o
+snd-soc-rt5623-objs := rt5623.o
+snd-soc-rt5610-objs := rt5610.o
 
 obj-$(CONFIG_SND_SOC_AC97_CODEC)	+= snd-soc-ac97.o
 obj-$(CONFIG_SND_SOC_AD1836)	+= snd-soc-ad1836.o
@@ -58,11 +60,8 @@ obj-$(CONFIG_SND_SOC_AK4104)	+= snd-soc-ak4104.o
 obj-$(CONFIG_SND_SOC_AK4535)	+= snd-soc-ak4535.o
 obj-$(CONFIG_SND_SOC_AK4642)	+= snd-soc-ak4642.o
 obj-$(CONFIG_SND_SOC_CS4270)	+= snd-soc-cs4270.o
-<<<<<<< HEAD:sound/soc/codecs/Makefile
 obj-$(CONFIG_SND_SOC_CX20442)	+= snd-soc-cx20442.o
-=======
 obj-$(CONFIG_SND_SOC_CS42L51)	+= snd-soc-cs42l51.o
->>>>>>> orion i2s: convert to soc driver:sound/soc/codecs/Makefile
 obj-$(CONFIG_SND_SOC_L3)	+= snd-soc-l3.o
 obj-$(CONFIG_SND_SOC_PCM3008)	+= snd-soc-pcm3008.o
 obj-$(CONFIG_SND_SOC_SPDIF)	+= snd-soc-spdif.o
@@ -98,7 +97,12 @@ obj-$(CONFIG_SND_SOC_WM9081)	+= snd-soc-wm9081.o
 obj-$(CONFIG_SND_SOC_WM9705)	+= snd-soc-wm9705.o
 obj-$(CONFIG_SND_SOC_WM9712)	+= snd-soc-wm9712.o
 obj-$(CONFIG_SND_SOC_WM9713)	+= snd-soc-wm9713.o
+<<<<<<< HEAD:sound/soc/codecs/Makefile
 obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
 
 # Amp
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
+=======
+obj-$(CONFIG_SND_SOC_RT5623)    += snd-soc-rt5623.o
+obj-$(CONFIG_SND_SOC_RT5610)    += snd-soc-rt5610.o
+>>>>>>> update avengers driver ds2782 / tsc2005 / rt5623 / rt5611:sound/soc/codecs/Makefile
