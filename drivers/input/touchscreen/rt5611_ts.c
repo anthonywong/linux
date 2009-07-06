@@ -1,0 +1,669 @@
+/*
+ *	Driver for Realtek Touch Screen Controller ALC5611 
+ *	 
+ * 
+ * 
+ * Author	: Brian Hsu bhsu@marvell.com)
+ * Date		: 04-06-2009
+ */
+
+ 
+#include <linux/rt5611_ts.h>
+
+
+//#define SWAP_X
+#define SWAP_Y
+
+
+static int abs_x[3] = {0,4096, 0};
+static int abs_y[3] = {0, 4096, 0};
+static int abs_p[3] = {0, 150, 0};
+
+/*
+ * ADC sample delay times in uS
+ */
+static const int delay_table[] = {
+	84,    /*	0x00b=>4 AC97 frames(20.8us) */
+	167,  /*	0x01b=>8 */
+	333,  /*	0x10b=>16 */
+	667,  /*	0x11b=>32 */
+};
+static u16 delay_sel= (CB1_DEL_16F>>7); //default delay selection
+
+static inline void poll_delay(int d)
+{
+
+	d=(((d<=3)&&(d>=0))?d:((d>3)?3:0));
+	udelay(delay_table[d]+ 3*AC97_LINK_FRAME);
+
+}
+
+int rt5611_ts_reg_read(struct rt5611_ts *rt, u16 reg)
+{
+		int val=0;
+		val= soc_ac97_ops.read(rt->codec->ac97, reg);
+
+//		printk("RT5611 TS:rt5611_ts_reg_read: (reg,val)=(%x,%x)\n",reg,val);
+		return val;
+}
+void rt5611_ts_reg_write(struct rt5611_ts *rt, u16 reg, u16 val)
+{
+//	printk("RT5611 TS:rt5611_ts_reg_write: (reg,val)=(%x,%x)\n",reg,val);
+	soc_ac97_ops.write(rt->codec->ac97, reg, val); return;
+	
+}
+
+bool rt5611_ts_reg_write_mask(struct rt5611_ts *rt, u16 reg, u16 val,u16 mask)
+{
+	bool RetVal=0;
+	u16 data=0;
+	if(!mask)
+		return RetVal; 
+	
+	//printk("RT5611 TS:rt5611_ts_reg_write_mask: (reg,val,mask)=(%x,%x,%x)\n",reg,val,mask);
+
+	if(mask!=0xFFFF) //portion mask
+	 {
+			data=soc_ac97_ops.read(rt->codec->ac97, reg);
+			data&=~mask;
+			data|=(val&mask);
+			soc_ac97_ops.write(rt->codec->ac97, reg, data);
+	 }		
+	else //All mask
+	{
+			soc_ac97_ops.write(rt->codec->ac97, reg, data);
+
+	}
+
+	return RetVal;
+}
+
+static void rt5611_ts_phy_init(struct rt5611_ts *rt)
+{
+//	printk("RT5611 TS:rt5611_ts_phy_init\n");
+
+	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE1, CB1_DEFALT);
+	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE2, CB2_DEFALT);
+	rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_STICKY,0,RT_GPIO_BIT13);
+
+}
+static int rt5611_ts_poll_coord(struct rt5611_ts *rt, struct rt5611_ts_data *data)
+{
+	bool FoundXSample=0, FoundYSample=0, FoundPSample=0;
+	u16 val=0;
+	u8 i=0;
+	data->x=MAX_ADC_VAL;data->y=MAX_ADC_VAL;data->p=MAX_ADC_VAL;
+//	printk("RT5611 TS:rt5611_ts_poll_coord\n");
+	for( i=0;i< MAX_CONVERSIONS;i++)
+	{	
+		/*wait some delay- delay for conversion */
+		poll_delay(delay_sel); 
+		val = rt5611_ts_reg_read(rt, RT_TP_INDICATION);
+		if (!(val & CB3_PD_STATUS))
+		{
+			return RC_PENUP;		
+		}
+		
+		if(!FoundXSample &&((val&CB3_ADCSRC_MASK)==CB3_ADCSRC_X))
+		{
+			data->x=val&CB3_ADC_DATA;		//get X sample
+			 FoundXSample=1;
+		}
+		else if(!FoundYSample &&((val&CB3_ADCSRC_MASK)==CB3_ADCSRC_Y))
+		{
+			data->y=val&CB3_ADC_DATA;		//get Y sample
+			 FoundYSample=1;
+		}
+		else if(!FoundPSample &&((val&CB3_ADCSRC_MASK)==CB3_ADCSRC_PRE))
+		{
+			data->p=val&CB3_ADC_DATA;		//get Presure sample
+			 FoundPSample=1;
+		}
+
+		 if(FoundXSample&&FoundYSample&&FoundPSample)
+		{
+			break;
+		}
+
+	}
+	if (!(FoundXSample && FoundYSample && FoundPSample))
+		return RC_AGAIN;
+	else
+		return RC_VALID;
+}
+#ifdef POLLING_MODE//poll mode
+static int rt5611_ts_poll_sample(struct rt5611_ts *rt, int adcsel, int *sample)
+{
+	u16 val=0;
+	unsigned short adccr=0;
+
+	*sample=MAX_ADC_VAL;
+//	printk("RT5611 TS:rt5611_ts_poll_sample\n");       
+	
+ 	//enable ADC target    
+    	switch(adcsel)
+	{
+		case RT_ADC_X:
+			adccr=CB2_X_EN;
+			break;
+		case RT_ADC_Y:
+			adccr=CB2_Y_EN;			
+			break;
+		case RT_ADC_P:
+			adccr=CB2_PRESSURE_EN;
+			break;
+		default:
+			return -EINVAL;				
+    	}
+     
+	//set internal Pull-up resistor and Polling mode
+   	adccr |=CB2_PPR_64 | CB2_POLL_TRIG;
+	
+  	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE2, adccr);
+	do{
+		val=rt5611_ts_reg_read(rt, RT_TP_CTRL_BYTE2);		
+	}while(val & CB2_POLL_TRIG);
+
+	val=rt5611_ts_reg_read(rt, RT_TP_INDICATION);	
+	if (val&CB3_PD_STATUS)
+	{
+	      *sample=val & CB3_ADC_DATA;
+		return RC_VALID;
+	}
+	else
+		return RC_PENUP;
+	
+}
+#endif
+
+static int rt5611_ts_poll_touch(struct rt5611_ts *rt, struct rt5611_ts_data *data)
+{
+	int rc=0;
+//		printk("RT5611 TS:rt5611_ts_poll_touch\n");
+
+#ifdef POLLING_MODE//poll mode
+
+		rc = rt5611_ts_poll_sample(rt, RT_ADC_X, &data->x);
+		if (rc != RC_VALID)
+			return rc;
+		rc = rt5611_ts_poll_sample(rt, RT_ADC_Y, &data->y);
+		if (rc != RC_VALID)
+			return rc;
+		rc = rt5611_ts_poll_sample(rt, RT_ADC_P,&data->p);
+		if (rc != RC_VALID)
+			return rc;
+
+#else	//continuous mode
+		rc = rt5611_ts_poll_coord(rt, data);
+		return rc;
+#endif
+
+}
+static void rt5611_ts_enable(struct rt5611_ts *rt, int enable)
+{
+//		printk("RT5611 TS:rt5611_ts_enable(%d)\n", enable);
+	if (enable) {
+		//power on main BIAS
+		rt5611_ts_reg_write_mask(rt,RT_PWR_MANAG_ADD1,PWR_MAIN_BIAS|PWR_IP_ENA,PWR_MAIN_BIAS|PWR_IP_ENA);
+		//enable touch panel and ADC and VREF of all analog
+		rt5611_ts_reg_write_mask(rt, RT_PWR_MANAG_ADD2, PWR_MIXER_VREF |PWR_TP_ADC,PWR_MIXER_VREF |PWR_TP_ADC);
+
+#ifdef POLLING_MODE	//poll mode
+
+		//set touch control register1
+		rt5611_ts_reg_write(rt,RT_TP_CTRL_BYTE1, POW_TP_CTRL_1 | CB1_CR2 | CB1_CLK_DIV64 | CB1_DEL_8F);
+	
+#else	//continuous mode
+	
+		//set touch control register1
+		rt5611_ts_reg_write(rt,RT_TP_CTRL_BYTE1, POW_TP_CTRL_1 | CB1_CR1| CB1_CLK_DIV64 | CB1_DEL_16F | CB1_SLOT_READBACK|CB1_PRES_CURR_375UA);
+		//set touch control register2
+		rt5611_ts_reg_write(rt,RT_TP_CTRL_BYTE2,	CB2_MODE_SEL | CB2_X_EN | CB2_Y_EN | CB2_PRESSURE_EN|CB2_PPR_64);		
+
+#endif
+
+
+		//set GPIO 2 to output pin
+		rt5611_ts_reg_write_mask(rt,RT_GPIO_PIN_CONFIG,RT_GPIO_BIT13, RT_GPIO_BIT2 | RT_GPIO_BIT13);
+		
+		//set GPIO 2 to IRQ function
+		rt5611_ts_reg_write_mask(rt,RT_GPIO_PIN_SHARING,GPIO2_PIN_SHARING_IRQ, GPIO2_PIN_SHARING_MASK);	
+		
+		//set pen down to sticky mode
+		rt5611_ts_reg_write_mask(rt,RT_GPIO_PIN_STICKY,RT_GPIO_BIT13, RT_GPIO_BIT13);	
+		
+		//set Pen down detect have Wake-up function
+		rt5611_ts_reg_write_mask(rt,RT_GPIO_PIN_WAKEUP,RT_GPIO_BIT13, RT_GPIO_BIT13);	
+		
+		//Enable GPIO wakeup control
+		rt5611_ts_reg_write_mask(rt,RT_MISC_CTRL,GPIO_WAKEUP_CTRL, GPIO_WAKEUP_CTRL);	
+
+
+	}else{
+		rt5611_ts_reg_write_mask(rt,RT_PWR_MANAG_ADD1,0,PWR_IP_ENA);
+
+		rt5611_ts_reg_write_mask(rt, RT_PWR_MANAG_ADD2, 0,PWR_TP_ADC);
+	}
+	
+}
+
+
+/*
+* The touchscreen sample reader.
+*/
+static int rt5611_ts_read_samples(struct rt5611_ts *rt)
+{
+	struct rt5611_ts_data data;
+	int rc=0;
+//		printk("RT5611 TS:rt5611_ts_read_samples\n");
+	mutex_lock(&rt->codec->mutex);
+
+	rc = rt5611_ts_poll_touch(rt, &data);
+	if (rc & RC_PENUP) {
+		if (rt->pen_is_down) {
+			rt->pen_is_down = 0;
+			//dev_dbg(rt->dev, "pen up\n");
+			printk("RT5611 TS:pen up\n");
+
+			input_report_abs(rt->input_dev, ABS_PRESSURE, 0);
+			input_report_key(rt->input_dev, BTN_TOUCH, 0);
+			input_sync(rt->input_dev);
+		}else{ //rt->pen_is_down=0
+			/* We need high frequency updates only while
+			* pen is down, the user never will be able to
+			* touch screen faster than a few times per
+			* second... On the other hand, when the user
+			* is actively working with the touchscreen we
+			* don't want to lose the quick response. So we
+			* will slowly increase sleep time after the
+			* pen is up and quicky restore it to ~one task
+			* switch when pen is down again.
+			*/
+
+			if (rt->ts_reader_interval < HZ / 10)
+				rt->ts_reader_interval++;		
+		}
+
+	}else if (rc & RC_VALID) {
+
+#ifdef SWAP_X
+	data.x = 4096 - data.x;
+#endif
+#ifdef SWAP_Y
+	data.y = 4096 - data.y;
+#endif
+		printk("RT5611 TS: pen down: x=%d, y=%d, p=%d\n",
+			data.x, data.y,data.p);
+
+		input_report_abs(rt->input_dev, ABS_X, data.x);
+		input_report_abs(rt->input_dev, ABS_Y, data.y);
+		input_report_abs(rt->input_dev, ABS_PRESSURE, data.p);
+		input_report_key(rt->input_dev, BTN_TOUCH, 1);
+
+		input_sync(rt->input_dev);
+		rt->pen_is_down = 1;
+		rt->ts_reader_interval = rt->ts_reader_min_interval;
+	}
+
+	mutex_unlock(&rt->codec->mutex);
+	return rc;
+}
+
+static void rt5611_ts_reader(struct work_struct *work)
+{
+	int rc=0;
+	struct rt5611_ts *rt = container_of(work, struct rt5611_ts, ts_reader.work);
+//	printk("RT5611 TS:rt5611_ts_reader\n");
+
+	do {
+		rc = rt5611_ts_read_samples(rt);
+	} while (rc & RC_AGAIN);
+
+	//Enable timer polling:
+	if (rt->pen_is_down || !rt->pen_irq)
+		queue_delayed_work(rt->ts_workq, &rt->ts_reader,
+				   rt->ts_reader_interval);
+	
+	// Pen Up, enable IRQ if IRQ has been assigned
+	if( !rt->pen_is_down && rt->pen_irq)
+	{
+		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_POLARITY, RT_GPIO_BIT2,RT_GPIO_BIT2|RT_GPIO_BIT13);
+		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_STATUS, 0,RT_GPIO_BIT2|RT_GPIO_BIT13);
+		
+		enable_irq(rt->pen_irq);
+	}
+}
+
+
+static irqreturn_t  rt5611_ts_pen_interrupt(int irq, void *dev_id)
+{
+	struct  rt5611_ts *rt = dev_id;
+//	printk("RT5611 TS:rt5611_ts_pen_interrupt\n");
+	if (!work_pending(&rt->pen_event_work)) {
+		disable_irq_nosync(irq);
+		queue_work(rt->ts_workq, &rt->pen_event_work);
+	}
+	return IRQ_HANDLED;
+}
+/*
+ * Handle a pen down interrupt.
+ */
+static void rt5611_ts_pen_irq_worker(struct work_struct *work)
+{
+	struct rt5611_ts *rt = container_of(work, struct rt5611_ts, pen_event_work);
+	int pen_was_down = rt->pen_is_down;
+//	printk("RT5611 TS:rt5611_ts_pen_irq_worker\n");
+
+		u16 status, pol;
+		mutex_lock(&rt->codec->mutex);
+		status = rt5611_ts_reg_read(rt, RT_GPIO_PIN_STATUS);
+		pol = rt5611_ts_reg_read(rt, RT_GPIO_PIN_POLARITY);
+
+		if (RT_GPIO_BIT13 & pol & status) {
+			rt->pen_is_down = 1;
+			
+		} else {
+			rt->pen_is_down = 0;
+
+		}
+
+		rt5611_ts_reg_write(rt, RT_GPIO_PIN_POLARITY, (pol |RT_GPIO_BIT2) & ~RT_GPIO_BIT13);
+		rt5611_ts_reg_write(rt, RT_GPIO_PIN_STATUS, status & ~(RT_GPIO_BIT2|RT_GPIO_BIT13));
+
+		
+		mutex_unlock(&rt->codec->mutex);
+		
+		/* Data is not availiable immediately on pen down */		
+		queue_delayed_work(rt->ts_workq, &rt->ts_reader,  1);
+
+		/* Let ts_reader report the pen up for debounce. */
+		if (!rt->pen_is_down && pen_was_down)
+			rt->pen_is_down = 1;
+}
+
+
+
+/*
+ * initialise pen IRQ handler and workqueue
+ */
+static int  rt5611_ts_init_pen_irq(struct  rt5611_ts *rt)
+{
+
+//	printk("RT5611 TS:rt5611_ts_init_pen_irq\n");
+	
+
+	/* If an interrupt is supplied an IRQ enable operation must also be
+	 * provided. */
+
+	if (request_irq(rt->pen_irq, rt5611_ts_pen_interrupt,0,
+			"rt5611_ts-pen", rt)) {
+		dev_err(rt->dev,
+			"Failed to register pen down interrupt, polling");
+		rt->pen_irq = 0;
+		return -EINVAL;
+	}
+
+
+	return 0;
+}
+
+static int rt5611_ts_input_open(struct input_dev *idev)
+{
+	struct rt5611_ts *rt = input_get_drvdata(idev);
+//	printk("RT5611 TS:rt5611_ts_input_open\n");
+
+	rt->ts_workq = create_singlethread_workqueue("rt5611_ts");
+	if (rt->ts_workq == NULL) {
+		dev_err(rt->dev,
+			"Failed to create workqueue\n");
+		return -EINVAL;
+	}
+
+	rt5611_ts_enable(rt, RT_TP_ENABLE);
+	
+	INIT_DELAYED_WORK(&rt->ts_reader, rt5611_ts_reader);
+	INIT_WORK(&rt->pen_event_work, rt5611_ts_pen_irq_worker);
+
+	rt->ts_reader_min_interval =(HZ >= 100 ? HZ / 100 : 1);
+	rt->ts_reader_interval = rt->ts_reader_min_interval;
+
+	rt->pen_is_down = 0;
+	if (rt->pen_irq)
+		rt5611_ts_init_pen_irq(rt);
+	else
+		dev_err(rt->dev, "No IRQ specified\n");
+
+	/* If we either don't have an interrupt for pen down events or
+	 * failed to acquire it then we need to poll.
+	 */
+	if (rt->pen_irq == 0)
+		queue_delayed_work(rt->ts_workq, &rt->ts_reader,rt->ts_reader_interval);
+
+	return 0;
+
+}
+
+static void rt5611_ts_input_close(struct input_dev *idev)
+{
+	struct rt5611_ts *rt = input_get_drvdata(idev);
+//	printk("RT5611 TS:rt5611_ts_input_close\n");
+	if (rt->pen_irq) {
+		/* Return the interrupt to GPIO usage (disabling it) */
+		// Config GPIO2 as GPIO
+		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_SHARING, 0, GPIO2_PIN_SHARING_MASK);
+		free_irq(rt->pen_irq, rt);
+	}
+
+	rt->pen_is_down = 0;
+
+
+	/* ts_reader rearms itself so we need to explicitly stop it
+	 * before we destroy the workqueue.
+	 */
+	cancel_delayed_work_sync(&rt->ts_reader);
+
+	destroy_workqueue(rt->ts_workq);
+
+	/* stop digitiser */
+	rt5611_ts_enable(rt, RT_TP_DISABLE);
+}
+
+
+static int rt5611_ts_probe(struct platform_device *pdev)
+	
+{
+	struct rt5611_ts *rt;
+	int ret = 0;
+	printk("RT5611 TS:rt5611_ts_probe\n");
+
+	rt = kzalloc(sizeof(struct rt5611_ts), GFP_KERNEL);
+	if (!rt)
+		return -ENOMEM;
+	rt->codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
+	if (rt->codec == NULL)
+		return -ENOMEM;
+
+	mutex_init(&rt->codec->mutex);	
+	ret = snd_soc_new_ac97_codec(rt->codec, &soc_ac97_ops, 0);
+	if (ret < 0)
+		goto alloc_err;
+	
+       rt->dev=&pdev->dev;
+	platform_set_drvdata(pdev, rt);
+	
+	rt->pen_irq=platform_get_irq(pdev, 0);
+//	printk("RT5611 TS: Pendown IRQ=%x\n",rt->pen_irq);
+	
+	rt->id = rt5611_ts_reg_read(rt, RT_VENDOR_ID2);
+	printk("RT5611 TS: Vendor id=%08X\n", rt->id);
+
+
+	/* set up physical characteristics */
+       rt5611_ts_phy_init(rt);	
+	/* load gpio cache */
+	rt->gpio[0] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_CONFIG);
+	rt->gpio[1] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_POLARITY);
+	rt->gpio[2] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_STICKY);
+	rt->gpio[3] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_WAKEUP);
+	rt->gpio[4] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_STATUS);
+	rt->gpio[5] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_SHARING);
+	
+
+	rt->input_dev = input_allocate_device();
+	if (rt->input_dev == NULL) {
+		ret = -ENOMEM;
+		goto alloc_err;
+	}
+
+	/* set up touch configuration */
+	rt->input_dev->name = "rt5611 touchscreen";
+	rt->input_dev->phys = "rt5611";
+	rt->input_dev->open = rt5611_ts_input_open;
+	rt->input_dev->close = rt5611_ts_input_close;
+
+	rt->input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
+	rt->input_dev->absbit[0] = BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) | BIT_MASK(ABS_PRESSURE);
+	rt->input_dev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+
+
+	
+	input_set_abs_params(rt->input_dev, ABS_X, abs_x[0], abs_x[1],  abs_x[2], 0);
+	input_set_abs_params(rt->input_dev, ABS_Y, abs_y[0], abs_y[1],  abs_y[2], 0);
+	input_set_abs_params(rt->input_dev, ABS_PRESSURE, abs_p[0], abs_p[1], abs_p[2], 0);
+	
+	input_set_drvdata(rt->input_dev, rt);
+	rt->input_dev->dev.parent = pdev->dev.parent;
+	
+
+	ret = input_register_device(rt->input_dev);
+	if (ret < 0)
+		goto dev_alloc_err;
+
+
+	return ret;
+
+
+ dev_alloc_err:
+	input_free_device(rt->input_dev);
+ alloc_err:
+	kfree(rt);
+
+	return ret;	
+}
+
+
+static int rt5611_ts_remove(struct platform_device *pdev)
+{
+//	printk("RT5611 TS:rt5611_ts_remove\n");
+
+       struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
+	input_unregister_device(rt->input_dev);
+	kfree(rt);
+
+	return 0;
+}
+#ifdef CONFIG_PM
+
+static int rt5611_ts_resume(struct platform_device *pdev)
+
+{
+//	printk("RT5611 TS:rt5611_ts_resume\n");
+
+       struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
+
+	/* restore TouchPanel and gpios */
+
+	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE1, rt->cb[0]);
+	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE2, rt->cb[1]);
+	rt5611_ts_reg_write(rt, RT_MISC_CTRL, rt->misc);
+	if (rt->input_dev->users) {
+		rt5611_ts_reg_write_mask(rt,RT_PWR_MANAG_ADD2, 1, PWR_TP_ADC);
+	}
+
+	rt5611_ts_reg_write(rt, RT_GPIO_PIN_CONFIG,	rt->gpio[0]);
+	rt5611_ts_reg_write(rt, RT_GPIO_PIN_POLARITY,	rt->gpio[1]);
+	rt5611_ts_reg_write(rt, RT_GPIO_PIN_STICKY,	rt->gpio[2]);
+	rt5611_ts_reg_write(rt, RT_GPIO_PIN_WAKEUP,	rt->gpio[3]);
+	rt5611_ts_reg_write(rt, RT_GPIO_PIN_STATUS,	rt->gpio[4]);
+	rt5611_ts_reg_write(rt, RT_GPIO_PIN_SHARING,	rt->gpio[5]);
+
+	if (rt->input_dev->users && !rt->pen_irq) {
+		rt->ts_reader_interval = rt->ts_reader_min_interval;
+		queue_delayed_work(rt->ts_workq, &rt->ts_reader,
+				   rt->ts_reader_interval);
+	}
+
+	return 0;
+}
+
+static int rt5611_ts_suspend(struct platform_device *pdev,pm_message_t state)
+
+{
+
+	u16 reg=0;
+	int suspend_mode=0;
+
+//	printk("RT5611 TS:rt5611_ts_suspend\n");
+	
+       struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
+
+	if (device_may_wakeup(&rt->input_dev->dev))
+		suspend_mode = rt->suspend_mode;
+	else
+		suspend_mode = 0;
+
+	if (rt->input_dev->users)
+		cancel_delayed_work_sync(&rt->ts_reader);
+
+	/* Power down TP  (bypassing the cache for resume) */
+	rt5611_ts_reg_write_mask(rt,RT_TP_CTRL_BYTE1, 0, POW_TP_CTRL_MASK);
+	
+	if (rt->input_dev->users)
+		reg |= suspend_mode;
+
+	/* rt5611_ts has an additional power bit - turn it off if there
+	 * are no users or if suspend mode is zero. */
+	if (!rt->input_dev->users || !suspend_mode) {
+		rt5611_ts_reg_write_mask(rt,RT_PWR_MANAG_ADD2, 0, PWR_TP_ADC);
+	}
+
+	return 0;
+}
+#else
+#define rt5611_ts_suspend		NULL
+#define rt5611_ts_resume		NULL
+#endif
+
+static struct platform_driver rt5611_ts_driver = {
+	.driver={
+		.name =		"rt5611_ts",
+		.bus =		&ac97_bus_type,
+		.owner =		THIS_MODULE,
+	},
+	.probe =		rt5611_ts_probe,
+	.remove =	rt5611_ts_remove,
+	.suspend =	rt5611_ts_suspend,
+	.resume =	rt5611_ts_resume,	
+};
+	
+
+static int __init rt5611_ts_init(void)
+{
+	return platform_driver_register(&rt5611_ts_driver);
+}
+
+static void __exit rt5611_ts_exit(void)
+{
+	platform_driver_unregister(&rt5611_ts_driver);
+
+}
+
+late_initcall(rt5611_ts_init);
+
+module_exit(rt5611_ts_exit);
+
+/* Module information */
+MODULE_AUTHOR("bhsu");
+MODULE_DESCRIPTION("Realtek ACL66511-Touch Screen Driver");
+MODULE_LICENSE("GPL");
+

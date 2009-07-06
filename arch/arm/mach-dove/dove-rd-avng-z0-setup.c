@@ -185,11 +185,9 @@ static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
 		.irq = 19 + IRQ_DOVE_GPIO_START,
 	},
 #endif
-#ifdef CONFIG_APM_EMU_DS2782
 	{
 		I2C_BOARD_INFO("ds2782", 0x34),
 	},
-#endif
 };
 
 /*****************************************************************************
