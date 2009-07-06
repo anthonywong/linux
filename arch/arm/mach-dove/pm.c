@@ -26,6 +26,7 @@
 #include "pmu/mvPmuRegs.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "common.h"
+#include "mpp.h"
 #include <asm/cpu-single.h>
 
 #define CONFIG_PMU_PROC
@@ -589,6 +590,9 @@ void dove_standby(void)
 	reg |= (PMU_SIGNAL_BLINK/*PMU_SIGNAL_0*/ << PMU_SIG_7_SLCT_CTRL_OFFS);
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
+	/* Save Controllers state */
+	dove_mpp_regs_save();
+
 	/* Save CPU Peripherals state */
 	dove_save_cpu_wins();
 	dove_save_cpu_conf_regs();
@@ -621,6 +625,10 @@ void dove_standby(void)
 	dove_restore_timer_regs();	
 	dove_restore_cpu_conf_regs();
 	dove_restore_cpu_wins();
+
+	/* Restore Controllers state */
+	dove_mpp_regs_restore();
+
 	//dove_restore_pcie_regs(); /* Should be done after restoring cpu configuration registers */
 
 	/* Put off the Led on MPP7 */
