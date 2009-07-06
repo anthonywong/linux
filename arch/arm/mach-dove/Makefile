@@ -1,6 +1,8 @@
 obj-y				+= clock.o common.o addr-map.o irq.o pcie.o mpp.o \
 				sdhci_cam_mbus.o
 obj-$(CONFIG_MACH_DOVE_RD_AVNG)	+= dove-rd-avng-setup.o
+obj-$(CONFIG_MACH_DOVE_RD_AVNG_Z0)	+= dove-rd-avng-z0-setup.o
+obj-$(CONFIG_MACH_DOVE_RD_AVNG_NB_Z0)	+= dove-rd-avng-nb-z0-setup.o
 obj-$(CONFIG_MACH_DOVE_RD)	+= dove-rd-setup.o dove-front-panel-common.o
 obj-$(CONFIG_MACH_DOVE_DB)	+= dove-db-setup.o dove-front-panel-common.o
 obj-$(CONFIG_MACH_DOVE_DB_Z0)	+= dove-db-z0-setup.o dove-front-panel-common.o

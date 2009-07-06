@@ -1780,7 +1780,9 @@ dove_db                 MACH_DOVE_DB            DOVE_DB                 1788
 dove_db_z0              MACH_DOVE_DB_Z0         DOVE_DB_Z0              1788
 dove_rd                 MACH_DOVE_RD            DOVE_RD                 1789
 dove_rd_avng		MACH_DOVE_RD_AVNG	DOVE_RD_AVNG		1790
+dove_rd_avng_z0		MACH_DOVE_RD_AVNG_Z0	DOVE_RD_AVNG_Z0		1790
 vandihud		MACH_VANDIHUD		VANDIHUD		1790
+dove_rd_avng_nb_z0	MACH_DOVE_RD_AVNG_NB_Z0	DOVE_RD_AVNG_NB_Z0	1791
 magx_e8			MACH_MAGX_E8		MAGX_E8			1791
 magx_z6			MACH_MAGX_Z6		MAGX_Z6			1792
 magx_v8			MACH_MAGX_V8		MAGX_V8			1793

@@ -577,12 +577,12 @@ time_out:
 	return ret;
 }
 
-static int m25p80_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int m25p80_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct m25p *flash = mtd_to_m25p(mtd);
 	u8 sr;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %llu\n",
 	      dev_name(&flash->spi->dev), __func__, "offset",
 			(u32)ofs, len);
 
@@ -618,14 +618,14 @@ static int m25p80_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 	return 0;
 }
 
-static int m25p80_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
+static int m25p80_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
 	struct m25p *flash = mtd_to_m25p(mtd);
 	u8 sr;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %zd\n",
+	DEBUG(MTD_DEBUG_LEVEL2, "%s: %s %s 0x%08x, len %llu\n",
 	      dev_name(&flash->spi->dev), __func__, "offset",
-			(u32)ofs, len);
+			(u32)ofs, (long long) len);
 
 	/* sanity checks */
 	if (!len)
@@ -757,9 +757,9 @@ static struct flash_info __devinitdata m25p_data [] = {
 	{ "w25x64", 0xef3017, 0, 64 * 1024, 128, SECT_4K, },
 
 	/* MXIC -- single (large) sector size only */
-	{ "mx25l1605", 0xc22015, 64 * 1024, 32, },
-	{ "mx25l3205", 0xc22016, 64 * 1024, 64, },
-	{ "mx25l6405", 0xc22017, 64 * 1024, 128, },
+	{ "mx25l1605", 0xc22015, 0, 64 * 1024, 32, },
+	{ "mx25l3205", 0xc22016, 0, 64 * 1024, 64, },
+	{ "mx25l6405", 0xc22017, 0, 64 * 1024, 128, },
 };
 
 static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
