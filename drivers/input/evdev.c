@@ -29,6 +29,7 @@ struct evdev {
 	struct input_handle handle;
 	wait_queue_head_t wait;
 	struct evdev_client *grab;
+	int grab_exclusive;
 	struct list_head client_list;
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
@@ -80,7 +81,7 @@ static void evdev_event(struct input_handle *handle,
 	rcu_read_lock();
 
 	client = rcu_dereference(evdev->grab);
-	if (client)
+	if (client && evdev->grab_exclusive)
 		evdev_pass_event(client, &event);
 	else
 		list_for_each_entry_rcu(client, &evdev->client_list, node)
@@ -154,6 +155,7 @@ static int evdev_ungrab(struct evdev *evdev, struct evdev_client *client)
 	rcu_assign_pointer(evdev->grab, NULL);
 	synchronize_rcu();
 	input_release_device(&evdev->handle);
+	evdev->grab_exclusive = 0;
 
 	return 0;
 }
@@ -577,8 +579,14 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 		return 0;
 
 	case EVIOCGRAB:
+
 		if (p)
-			return evdev_grab(evdev, client);
+		{
+			error = evdev_grab(evdev, client);
+			if(error == 0)
+				evdev->grab_exclusive = ((long)p == 1);
+			return error;
+		}
 		else
 			return evdev_ungrab(evdev, client);
 
