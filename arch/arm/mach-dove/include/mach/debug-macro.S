@@ -15,7 +15,9 @@
 	ldrne	\rx, =DOVE_SB_REGS_VIRT_BASE
 	orr	\rx, \rx, #0x00012000
 #ifdef CONFIG_DOVE_REV_Z0
+#if !defined(CONFIG_MACH_DOVE_RD_AVNG_Z0) && !defined(CONFIG_MACH_DOVE_RD_AVNG_NB_Z0)
 	orr	\rx, \rx, #0x00000100
+#endif
 #endif
 	.endm
 
