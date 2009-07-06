@@ -34,7 +34,6 @@
 #include <plat/orion_wdt.h>
 #include <plat/time.h>
 #include <plat/mv_eth.h>
-#include <plat/mvsdmmc-orion.h>
 #include <asm/mach-types.h>
 #include "common.h"
 
@@ -67,42 +66,6 @@ void __init kirkwood_map_io(void)
  */
 unsigned int kirkwood_clk_ctrl = CGC_DUNIT | CGC_RESERVED;
 	
-/*****************************************************************************
- * SD/SDIO/MMC
- ****************************************************************************/
-static struct resource sdmmc_resources[] = {
-        [0] = {
-                .start  = SDIO_PHYS_BASE,
-                .end    = SDIO_PHYS_BASE + SZ_1K - 1,
-                .flags  = IORESOURCE_MEM,
-        },
-        [1] = {
-                .start  = IRQ_KIRKWOOD_SDIO,
-                .end    = IRQ_KIRKWOOD_SDIO,
-                .flags  = IORESOURCE_IRQ,
-        },
-};
-
-static u64 sdmmc_dmamask = 0xffffffffUL;
-
-static struct platform_device kirkwood_sdmmc = {
-        .name           = "mvsdmmc",
-        .id             = -1,
-        .dev            = {
-                .dma_mask = &sdmmc_dmamask,
-                .coherent_dma_mask = 0xffffffff,
-        },
-        .num_resources  = ARRAY_SIZE(sdmmc_resources),
-        .resource       = sdmmc_resources,
-};
-
-void __init kirkwood_sdmmc_init(struct orion_mvsdmmc_data *sdmmc_data)
-{
-        sdmmc_data->dram = &kirkwood_mbus_dram_info;
-        kirkwood_sdmmc.dev.platform_data = sdmmc_data;
-        platform_device_register(&kirkwood_sdmmc);
-}
-
 /*****************************************************************************
  * EHCI
  ****************************************************************************/
