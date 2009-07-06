@@ -84,7 +84,7 @@ struct mpp_config dove_mpp_table[] =
 	 dove_mpp_legacy_config},
 	/* MPP 11 */
 	{{{MPP_GPIO, 0}, {MPP_SATA_PRESENCE, 1}, {MPP_SATA_ACT, 2}, {MPP_SDIO0, 3},
-	  {MPP_SDIO0, 4}, MPP_LAST2},
+	  {MPP_SDIO1, 4}, MPP_LAST2},
 	 dove_mpp_legacy_config},
 	/* MPP 12 */
 	{{{MPP_GPIO, 0}, {MPP_SDIO1, 4}, MPP_LAST5},
@@ -110,6 +110,7 @@ struct mpp_config dove_mpp_table[] =
 	/* MPP 19 */
 	{{{MPP_GPIO, 0}, {MPP_UART3, 2}, {MPP_TWSI, 4}, {MPP_MII, 6}, MPP_LAST3},
 	 dove_mpp_legacy_config},
+#ifndef CONFIG_DOVE_REV_Z0
 	/* MPP 20 */
 	{{{MPP_GPIO, 0}, {MPP_NB_CLOCK, 4}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST3},
 	 dove_mpp_legacy_config},
@@ -122,6 +123,20 @@ struct mpp_config dove_mpp_table[] =
 	/* MPP 23 */
 	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
 	 dove_mpp_legacy_config},
+#else
+	/* MPP 20 */
+	{{{MPP_GPIO, 0}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_SDIO0, 5}, MPP_LAST3},
+	 dove_mpp_legacy_config},
+	/* MPP 21 */
+	{{{MPP_GPIO, 0}, {MPP_UART1, 1}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_NB_CLOCK, 4}, {MPP_SDIO0, 5}, MPP_LAST},
+	 dove_mpp_legacy_config},
+	/* MPP 22 */
+	{{{MPP_GPIO, 0}, {MPP_UART1, 1}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_SDIO0, 5}, MPP_LAST2},
+	 dove_mpp_legacy_config},
+	/* MPP 23 */
+	{{{MPP_GPIO, 0}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_SDIO0, 5}, MPP_LAST3},
+	 dove_mpp_legacy_config},
+#endif
 	/* MPP 24 */
 	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
 	 dove_mpp_high_config},
