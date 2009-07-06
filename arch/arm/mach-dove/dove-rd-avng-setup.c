@@ -1,7 +1,7 @@
 /*
- * arch/arm/mach-dove/dove-rd-setup.c
+ * arch/arm/mach-dove/dove-rd-avng-setup.c
  *
- * Marvell Dove MV88F6781-RD Board Setup
+ * Marvell Dove MV88F6781-RD Avengers Mobile Internet Device Board Setup
  *
  * Author: Tzachi Perelstein <tzachi@marvell.com>
  *
@@ -26,36 +26,33 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/orion_spi.h>
 #include <linux/spi/flash.h>
-#include <linux/spi/ads7846.h>
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
+#include <mach/dove_bl.h>
 #include <plat/i2s-orion.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <mach/dove.h>
-//#include <asm/mach/dma.h>
 #include <asm/hardware/pxa-dma.h>
 #include <mach/dove_nand.h>
-#include <mach/dove_bl.h>
+#include <plat/cafe-orion.h>
 #include "common.h"
 #include "clock.h"
 #include "mpp.h"
+#include "pm.h"
+#include "pmu/mvPmu.h"
+#include "pmu/mvPmuRegs.h"
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
 extern void (*arm_shut_down)(void);
 extern int mvmpp_sys_init(void);
 
-
-/*****************************************************************************
- * BACKLIGHT
- ****************************************************************************/
-static struct dovebl_platform_data backlight_data = {
-	.default_intensity = 0xa,
-	.max_brightness = 0xe,
-	.gpio_pm_control = 1,
-};
-
+static unsigned int use_hal_giga = 1;
+#ifdef CONFIG_MV643XX_ETH
+module_param(use_hal_giga, uint, 0);
+MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
+#endif
 
 /*****************************************************************************
  * LCD
@@ -64,7 +61,8 @@ static struct dovebl_platform_data backlight_data = {
  * LCD input clock.
  */
 #define LCD_SCLK	(CONFIG_FB_DOVE_CLCD_SCLK_VALUE*1000*1000)
-static struct dovefb_mach_info dove_avng_lcd0_dmi = {
+
+static struct dovefb_mach_info dove_rd_avng_lcd0_dmi = {
 	.id_gfx			= "GFX Layer 0",
 	.id_ovly		= "Video Layer 0",
 	.sclk_clock		= LCD_SCLK,
@@ -91,7 +89,7 @@ static struct dovefb_mach_info dove_avng_lcd0_dmi = {
 	.active			= 1,
 };
 
-static struct dovefb_mach_info dove_anvg_lcd0_vid_dmi = {
+static struct dovefb_mach_info dove_rd_avng_lcd0_vid_dmi = {
 	.id_ovly		= "Video Layer 0",
 	.sclk_clock		= LCD_SCLK,
 //	.num_modes		= ARRAY_SIZE(video_modes),
@@ -113,11 +111,58 @@ static struct dovefb_mach_info dove_anvg_lcd0_vid_dmi = {
 	.enable_lcd0		= 0,
 };
 
-static struct orion_i2s_platform_data i2s0_data = {
-	.i2s_play	= 1,
-	.i2s_rec	= 1,
-	.spdif_play	= 1,
-	.spdif_rec	= 1,
+/*****************************************************************************
+ * BACKLIGHT
+ ****************************************************************************/
+static struct dovebl_platform_data dove_rd_avng_backlight_data = {
+	.default_intensity = 0xa,
+	.max_brightness = 0xe,
+	.gpio_pm_control = 1,
+};
+
+void __init dove_rd_avng_clcd_init(void) {
+#ifdef CONFIG_FB_DOVE
+	clcd_platform_init(&dove_rd_avng_lcd0_dmi, &dove_rd_avng_lcd0_vid_dmi,
+			   NULL, NULL,
+			   &dove_rd_avng_backlight_data);
+#endif /* CONFIG_FB_DOVE */
+}
+
+/*****************************************************************************
+ * I2C devices:
+ * 	MCU PIC-xx, address 0x??
+ ****************************************************************************/
+static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
+#if 0
+	{
+		I2C_BOARD_INFO("pic-xx", 0x??),
+	},
+#endif
+};
+
+/*****************************************************************************
+ * Camera
+ ****************************************************************************/
+static struct cafe_cam_platform_data dove_cafe_cam_data = {
+	.power_down 	= 2, //CTL0 connected to the sensor power down
+	.reset		= 1, //CTL1 connected to the sensor reset
+};
+
+static int __init dove_rd_avng_cam_init(void)
+{
+	if (machine_is_dove_rd_avng())
+		dove_cam_init(&dove_cafe_cam_data);
+	
+	return 0;
+}
+
+late_initcall(dove_rd_avng_cam_init);
+
+/*****************************************************************************
+ * Ethernet
+ ****************************************************************************/
+static struct mv643xx_eth_platform_data dove_rd_avng_ge00_data = {
+	.phy_addr	= MV643XX_ETH_PHY_ADDR_DEFAULT,
 };
 
 /*****************************************************************************
@@ -140,45 +185,12 @@ static struct spi_board_info __initdata dove_rd_avng_spi_flash_info[] = {
 };
 
 /*****************************************************************************
- * I2C devices:
- * 	Audio codec CS42L51-CNZ, address 0x4A
- ****************************************************************************/
-static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
-	{
-		I2C_BOARD_INFO("i2s_i2c", 0x4A),
-	},
-#ifdef CONFIG_MV_TOUCH_KEY
-	{
-		I2C_BOARD_INFO("touch_key_i2c", 0x0b),
-		.irq = 18 + IRQ_DOVE_GPIO_START,
-	},
-#endif
-#ifdef CONFIG_MV_TOUCH_SLIDER
-	{
-		I2C_BOARD_INFO("touch_slider_i2c", 0x0a),
-		.irq = 19 + IRQ_DOVE_GPIO_START,
-	},
-#endif
-#ifdef CONFIG_APM_EMU_DS2782
-	{
-		I2C_BOARD_INFO("ds2782", 0x34),
-	},
-#endif
-};
-
-/*****************************************************************************
  * NAND
  ****************************************************************************/
 static struct mtd_partition partition_dove[] = {
-	{ .name		= "UBoot",
-	  .offset	= 0,
-	  .size		= 1 * SZ_1M },
-	{ .name		= "UImage",
-	  .offset	= MTDPART_OFS_APPEND,
-	  .size		= 4 * SZ_1M },
 	{ .name		= "Root",
-	  .offset	= MTDPART_OFS_APPEND,
-	  .size		= 2043 * SZ_1M },
+	  .offset	= 0,
+	  .size		= MTDPART_SIZ_FULL },
 };
 static u64 nfc_dmamask = DMA_BIT_MASK(32);
 static struct dove_nand_platform_data dove_rd_avng_nfc_data = {
@@ -233,48 +245,38 @@ static void __init dove_rd_avng_nfc_init(void)
 	platform_device_register(&dove_nfc);
 }
 
-#if 0
-/*****************************************************************************
- * PCI
- ****************************************************************************/
-static int __init dove_rd_avng_pci_init(void)
-{
-	if (machine_is_dove_rd_avng()) {
-		dove_pcie_init(1, 1);
-	}
-
-	return 0;
-}
-
-subsys_initcall(dove_rd_avng_pci_init);
-#endif
-
 /*****************************************************************************
  * MPP
  ****************************************************************************/
 static struct dove_mpp_mode dove_rd_avng_mpp_modes[] __initdata = {
-	{ 3, MPP_GPIO },	/* STBY_DETECTED */
-	{ 4, MPP_GPIO },	/* SHDN_DETECTED */
-	{ 5, MPP_GPIO },	/* STBY_REQUEST */
-	{ 6, MPP_GPIO },	/* SHDN_REQUEST */
+	{ 0, MPP_GPIO },	/* MCU_INTRn */
+	{ 1, MPP_GPIO },	/* MCU_REQUEST */
+	{ 2, MPP_PMU },		/* Standby power control */
+	{ 3, MPP_PMU },		/* Power button - standby wakeup */
+	{ 4, MPP_PMU },		/* Core power good indication */
+	{ 5, MPP_PMU },		/* DeepIdle power control */
+	{ 6, MPP_GPIO },	/* PMU - DDR termination control */
+	{ 7, MPP_GPIO },	/* DOVE_REQUEST */
 
-	{ 7, MPP_GPIO },	/* KEY_F1 */
-	{ 8, MPP_GPIO },	/* KEY_F2 */
-	{ 9, MPP_GPIO },	/* KEY_HOLD */
-	{ 10, MPP_GPIO },	/* KEY_UP*/
-	{ 11, MPP_GPIO },	/* KEY_DOWN */
-	{ 12, MPP_GPIO },	/* TKEY_INT0 */
-	{ 13, MPP_GPIO },	/* TKEY_INT1 */
+	{ 8, MPP_GPIO },	/* OFF_CTRL */
 
-	{ 14, MPP_GPIO },	/* DOCK_DET# */
+	{ 9, MPP_PMU },		/* Cpu power good indication */
+	{ 10, MPP_PMU },	/* DVS SDI control */
+
+	{ 11, MPP_GPIO },	/* KEY_HOLD */
+	{ 12, MPP_GPIO },	/* 3G_RF_DISABLE */
+	{ 13, MPP_GPIO },	/* MINICARD_WAKE */
+	{ 14, MPP_GPIO },	/* GP_PD_WLANn */
 	{ 15, MPP_GPIO },	/* AC_PlugIn */
+	{ 16, MPP_GPIO },	/* GP_WKUP_WLAN */
+	{ 17, MPP_GPIO },	/* GP_SLP_WLANn */
 
-	{ 18, MPP_GPIO },	/* TSC_RST */
-	{ 19, MPP_GPIO },	/* TSC_INTR */
-	{ 20, MPP_SPI1 },	/* TSC_MISO */
-	{ 21, MPP_SPI1 },	/* TSC_CS */
-	{ 22, MPP_SPI1 },	/* TSC_MOSI */
-	{ 23, MPP_SPI1 },	/* TSC_SCK */
+	{ 18, MPP_GPIO },	/* CMMB_RST */
+	{ 19, MPP_GPIO },	/* CMMB_INTR */
+	{ 20, MPP_SPI1 },	/* CMMB_MISO */
+	{ 21, MPP_SPI1 },	/* CMMB_CS */
+	{ 22, MPP_SPI1 },	/* CMMB_MOSI */
+	{ 23, MPP_SPI1 },	/* CMMB_SCK */
 
 	{ 52, MPP_GPIO },	/* AU1 Group to GPIO */
 	{ 62, MPP_GPIO },	/* UA1 Group to GPIO */
@@ -286,197 +288,214 @@ static struct dove_mpp_mode dove_rd_avng_mpp_modes[] __initdata = {
  ****************************************************************************/
 static void dove_rd_avng_shutdown(void)
 {
-	gpio_set_value(6, 1);
+	gpio_set_value(7, 1);
 	mdelay(10);
-	gpio_set_value(6, 0);
+	gpio_set_value(7, 0);
 }
 
 static void dove_rd_avng_gpio_init(void)
 {
-	gpio_direction_input(3);
-	gpio_direction_input(4);
-	gpio_direction_output(5, 0);
-	gpio_direction_output(6, 0);
+	orion_gpio_set_valid(0, 1);
+	if (gpio_request(0, "MCU_INTRn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for MCU_INTRn\n");	
+	gpio_direction_input(0);	/* MCU interrupt */
+	orion_gpio_set_valid(1, 1);
+	if (gpio_request(1, "MCU_REQUEST") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for MCU_REQUEST\n");	
+	gpio_direction_input(1);	/* MCU request */
 
-	//GPIO_KEY
-	gpio_direction_input(7);
-	gpio_direction_input(8);
-	gpio_direction_input(9);
-	gpio_direction_input(10);
+	orion_gpio_set_valid(6, 1);
+	if (gpio_request(6, "MPP_DDR_TERM") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for MPP_DDR_TERM\n");	
+	gpio_direction_output(6, 1);	/* Enable DDR 1.8v */
+	orion_gpio_set_valid(7, 1);
+	if (gpio_request(7, "DOVE_REQUEST") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for DOVE_REQUEST\n");	
+	gpio_direction_output(7, 0);	/* Dove request */
+	orion_gpio_set_valid(8, 1);
+	if (gpio_request(8, "OFF_CTRL") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for OFF_CTRL\n");	
+	gpio_direction_output(8, 0);	/* Power off */
+
+	orion_gpio_set_valid(11, 1);
+	if (gpio_request(11, "Key_Hold") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for Key_Hold\n");	
 	gpio_direction_input(11);
-	//TOUCH_KEY
-	gpio_direction_input(12);
+	orion_gpio_set_valid(12, 1);
+	if (gpio_request(12, "3G_RF_DISABLE") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for 3G_RF_DISABLE\n");	
+	gpio_direction_output(12, 1);
+	orion_gpio_set_valid(13, 1);
+	if (gpio_request(13, "MINICARD_WAKE") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for MINICARD_WAKE\n");	
 	gpio_direction_input(13);
-
-	gpio_direction_input(14);
-	gpio_direction_input(15);
-
-	gpio_direction_output(18,1);
+	orion_gpio_set_valid(14, 1);
+	if (gpio_request(14, "GP_PD_WLANn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for GP_PD_WLANn\n");	
+	gpio_direction_output(14, 1);
+	orion_gpio_set_valid(16, 1);
+	if (gpio_request(16, "GP_WKUP_WLAN") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for GP_WKUP_WLAN\n");	
+	gpio_direction_input(16);
+	orion_gpio_set_valid(17, 1);
+	if (gpio_request(17, "GP_SLP_WLANn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for GP_SLP_WLANn\n");	
+	gpio_direction_output(17, 1);
+	orion_gpio_set_valid(18, 1);
+	if (gpio_request(18, "CMMB_RSTn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for CMMB_RSTn\n");	
+	gpio_direction_output(18, 1);
+	orion_gpio_set_valid(19, 1);
+	if (gpio_request(19, "CMMB_INTRn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for CMMB_INTRn\n");	
 	gpio_direction_input(19);
 
-	gpio_direction_input(53);	/* Ph_LineIN# */
-	gpio_direction_output(62, 1);	/* GP_VTTON */
-	gpio_direction_output(63, 1);	/* CMRA_V2.8_EN */
+	orion_gpio_set_valid(52, 1);
+	if (gpio_request(52, "GP_WLAN_RSTn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for GP_WLAN_RSTn\n");	
+	gpio_direction_input(52);
+	orion_gpio_set_valid(53, 1);
+	if (gpio_request(53, "Ph_LineINn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for Ph_LineINn\n");	
+	gpio_direction_input(53);	/* Ph_LineINn */
+	orion_gpio_set_valid(54, 1);
+	if (gpio_request(54, "GEPHY_PWRDWNn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for GEPHY_PWRDWNn\n");	
+	gpio_direction_output(54, 1);	/* GEPHY_PWRDWNn */
+	orion_gpio_set_valid(55, 1);
+	if (gpio_request(55, "HUB_RESETn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for HUB_RESETn\n");	
+	gpio_direction_output(55, 1);	/* HUB_RESETn */
+	orion_gpio_set_valid(56, 1);
+	if (gpio_request(56, "CMMB_EN") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for CMMB_EN\n");	
+	gpio_direction_output(56, 1);	/* CMMB_EN */
+	orion_gpio_set_valid(57, 1);
+	if (gpio_request(57, "MINICARD_PRSTn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for MINICARD_PRSTn\n");	
+	gpio_direction_output(57, 1);	/* MINICARD_PRSTn */
+	orion_gpio_set_valid(62, 1);
+	if (gpio_request(62, "AU_IRQOUTn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for AU_IRQOUTn\n");	
+	gpio_direction_input(62);	/* AU_IRQOUTn */
+	orion_gpio_set_valid(63, 1);
+	if (gpio_request(63, "DOCK_DETn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for DOCK_DETn\n");	
+	gpio_direction_input(63);	/* DOCK_DETn */
 }
-
 
 /*****************************************************************************
- * GPIO_KEY
+ * POWER MANAGEMENT
  ****************************************************************************/
-static struct platform_device dove_gpio_key = {
-	.name		= "mv_gpio_key",
-};
-
-static void __init dove_rd_avng_gpio_key_init(void)
+static int __init dove_rd_avng_pm_init(void)
 {
-	platform_device_register(&dove_gpio_key);
-}
+	MV_PMU_INFO pmuInitInfo;	
 
-#include <linux/spi/tsc200x.h>
+	pmuInitInfo.deepIdleStatus = MV_FALSE; 			/* Disable L2 retention */
+	pmuInitInfo.cpuPwrGoodEn = MV_FALSE;			/* Don't wait for external power good signal */
+	pmuInitInfo.batFltMngDis = MV_FALSE;			/* Keep battery fault enabled */
+	pmuInitInfo.exitOnBatFltDis = MV_FALSE;			/* Keep exit from STANDBY on battery fail enabled */
+	pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;	/* STANDBY => 0: I/O off, 1: I/O on */
+	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;	/* power on push button */
+	pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
+	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
+	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;		/* Charger interrupt - not used */
+	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
+	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC;		/* CPU power good  - not used */
+	pmuInitInfo.sigSelctor[10] = PMU_SIGNAL_SDI;		/* Voltage regulator control */
+	pmuInitInfo.sigSelctor[11] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[12] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[13] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[14] = PMU_SIGNAL_NC;
+	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
+	pmuInitInfo.dvsDelay = 0;				/* PMU cc delay for DVS change */
+	pmuInitInfo.ddrTermGpioNum = 6;				/* GPIO 6 used to disable terminations */
 
-#define DOVE_AVNG_TS_RESET_GPIO   (18)
-#define DOVE_AVNG_TS_PEN_GPIO	(19)
-#define DOVE_AVNG_TS_PEN_IRQ	(DOVE_AVNG_TS_PEN_GPIO + 64)
+	/* Initialize the PMU HAL */
+	if (mvPmuInit(&pmuInitInfo) != MV_OK)
+		printk(KERN_NOTICE "Failed to initialive the PMU!\n");
 
+	/* Configure wakeup events */
+	mvPmuWakeupEventSet(PMU_STBY_WKUP_CTRL_EXT0_FALL | PMU_STBY_WKUP_CTRL_RTC_MASK);
 
-static struct tsc2005_platform_data ts_info = {
+	/* Register the PM operation in the Linux stack */
+	dove_pm_register();
 
-	.model			= 2005,
-	.x_plate_ohms		= 450,
-	.y_plate_ohms		= 250,
-};
-
-
-struct spi_board_info __initdata dove_avng_spi_devs[] = {
-	{
-		.modalias  		= "tsc2005",
-		.irq			= DOVE_AVNG_TS_PEN_IRQ,
-		.max_speed_hz		= 10000000, //10MHz
-		.bus_num		= 1,
-		.chip_select		= 0,
-		.mode		        = SPI_MODE_0,      
-		.platform_data          = &ts_info,
-	},
-};
-
-int __init dove_avng_ts_gpio_setup(void)
-{
-     
-	//RESET
-	orion_gpio_set_valid(DOVE_AVNG_TS_RESET_GPIO, 1);
-	if (gpio_request(DOVE_AVNG_TS_RESET_GPIO,"DOVE_TS_RESET") != 0)
-		pr_err("Dove: failed to setup TS RESET GPIO\n");		
-	gpio_direction_output(DOVE_AVNG_TS_RESET_GPIO,0);
-	mdelay(10);
-	gpio_direction_output(DOVE_AVNG_TS_RESET_GPIO,1);
-
-	//IRQ
-	set_irq_chip(DOVE_AVNG_TS_PEN_IRQ, &orion_gpio_irq_chip);
-	set_irq_handler(DOVE_AVNG_TS_PEN_IRQ, handle_level_irq);
-	set_irq_type(DOVE_AVNG_TS_PEN_IRQ, IRQ_TYPE_LEVEL_LOW);
-
-	orion_gpio_set_valid(DOVE_AVNG_TS_PEN_GPIO, 1);
-	if (gpio_request(DOVE_AVNG_TS_PEN_GPIO, "DOVE_TS_PEN_IRQ") != 0)
-		pr_err("Dove: failed to setup TS IRQ GPIO\n");
-	if (gpio_direction_input(DOVE_AVNG_TS_PEN_GPIO) != 0) {
-		printk(KERN_ERR "%s failed "
-		       "to set output pin %d\n", __func__,
-		       DOVE_AVNG_TS_PEN_GPIO);
-		gpio_free(DOVE_AVNG_TS_PEN_GPIO);
-		return -1;
-	}
 	return 0;
 }
 
-
+__initcall(dove_rd_avng_pm_init);
 
 /*****************************************************************************
- * General
+ * Board Init
  ****************************************************************************/
 static void __init dove_rd_avng_init(void)
 {
 	arm_shut_down = dove_rd_avng_shutdown;
 
 	/*
-	 * Basic Dove setup (needs to be called early).
+	 * Basic Dove setup. Needs to be called early.
 	 */
 	dove_init();
-
-	if (dove_avng_ts_gpio_setup() != 0)
-		return;
-
-	/*
-	 * Mux pins and GPIO pins setup
-	 */
 	dove_mpp_conf(dove_rd_avng_mpp_modes);
 	dove_rd_avng_gpio_init();
 
-	/* card interrupt workaround using GPIOs */
+	/* sdio card interrupt workaround using GPIOs */
 	dove_sd_card_int_wa_setup(0);
 	dove_sd_card_int_wa_setup(1);
 
-	/*
-	 * On-chip device registration
-	 */
+	/* Initialize AC'97 related regs. */
+	dove_ac97_setup();
+
 	dove_rtc_init();
 	pxa_init_dma_wins(&dove_mbus_dram_info);
 	pxa_init_dma(16);
+	dove_xor0_init();
+	dove_xor1_init();
+#ifdef CONFIG_MV_ETHERNET
+	if(use_hal_giga)
+		dove_mv_eth_init();
+	else
+#endif
+	dove_ge00_init(&dove_rd_avng_ge00_data);
 	dove_ehci0_init();
 	dove_ehci1_init();
 	/* ehci init functions access the usb port, only now it's safe to disable
 	 * all clocks
 	 */
-	ds_clks_disable_all(1, 1);
-
-#ifdef CONFIG_MV_ETHERNET
-	dove_mv_eth_init();
-#endif
-	/* dove_sata_init(&dove_rd_sata_data); */
+	ds_clks_disable_all(0, 0);
 	dove_spi0_init(0);
-	dove_spi1_init(1); /* use interrupt mode */
+	dove_spi1_init(1);
+
 	/* uart0 is the debug port, register it first so it will be */
 	/* represented by device ttyS0, root filesystems usually expect the */
 	/* console to be on that device */
 	dove_uart0_init();
 	/* dove_uart1_init(); not in use */
-	/* dove_uart2_init(); not in use */
-	/* dove_uart3_init(); not in use */
 	dove_i2c_init();
 	dove_i2c_exp_init(0);
 	dove_sdhci_cam_mbus_init();
 	dove_sdio0_init();
 	dove_sdio1_init();
 	dove_rd_avng_nfc_init();
-	dove_i2s_init(0, &i2s0_data);
-
+	dove_rd_avng_clcd_init();
 	dove_vpro_init();
 	dove_gpu_init();
 	dove_cesa_init();
 	dove_hwmon_init();
 
-	dove_cam_init(NULL);
-#ifdef CONFIG_FB_DOVE
-	clcd_platform_init(&dove_avng_lcd0_dmi, 
-			   &dove_anvg_lcd0_vid_dmi,
-			   NULL, NULL, &backlight_data);
-#endif /* CONFIG_FB_DOVE */
-	/* dove_tact_init(&tact_dove_fp_data); gpio-mouse driver, not in use */
-	/*
-	 * On-board device registration
-	 */
-
-	spi_register_board_info(dove_rd_avng_spi_flash_info,
-				ARRAY_SIZE(dove_rd_avng_spi_flash_info));
-	spi_register_board_info(dove_avng_spi_devs,
-				ARRAY_SIZE(dove_avng_spi_devs));
 	i2c_register_board_info(0, dove_rd_avng_i2c_devs,
 				ARRAY_SIZE(dove_rd_avng_i2c_devs));
-	dove_rd_avng_gpio_key_init();
+	spi_register_board_info(dove_rd_avng_spi_flash_info,
+				ARRAY_SIZE(dove_rd_avng_spi_flash_info));
 
 	mvmpp_sys_init();
 }
 
-MACHINE_START(DOVE_RD_AVNG, "Marvell MV88F6781-RD Avengers Board")
+MACHINE_START(DOVE_RD_AVNG, "Marvell MV88F6781-RD Avengers MID Board")
 	.phys_io	= DOVE_SB_REGS_PHYS_BASE,
 	.io_pg_offst	= ((DOVE_SB_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
