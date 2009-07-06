@@ -182,3 +182,12 @@ config SND_SOC_WM9712
 
 config SND_SOC_WM9713
 	tristate
+
+# Realtek RT5623 Codec
+config SND_SOC_RT5623
+       tristate
+       depends on SND_SOC
+
+config SND_SOC_RT5610
+        tristate
+        depends on SND_SOC
