@@ -10,6 +10,7 @@
  * 
  * Author	: Pavan Savoy (pavan_savoy@mindtree.com)
  * Date		: 15-05-2008
+ * Author	: Ethan Ku (eku@marvell.com)
  */
 
 /*
@@ -441,10 +442,10 @@ static int tsc2005_check_reg(struct tsc2005 *ts)
 	if (status != 0) {
 		return -1;
 	}
-	printk("cfr0 = %x\n",be16_to_cpu(cfr0_val));
 
 	if((be16_to_cpu(cfr0_val) &0x3fff) != (TSC2005_CFR0_INITVALUE & 0x3fff))
 	{
+		printk("cfr0: write = %x, read = %x\n",TSC2005_CFR0_INITVALUE,be16_to_cpu(cfr0_val));
 		return -1;
 	}
 
@@ -470,9 +471,10 @@ static int tsc2005_check_reg(struct tsc2005 *ts)
 	if (status != 0) {
 		return -1;
 	}
-	printk("cfr1 = %x\n",be16_to_cpu(cfr1_val));
+
 	if(be16_to_cpu(cfr1_val) != TSC2005_CFR1_INITVALUE)
 	{
+		printk("cfr1 : write = %x, read = %x\n",TSC2005_CFR1_INITVALUE,be16_to_cpu(cfr1_val));
 		return -1;
 	}
 	//read cfr2
@@ -499,9 +501,9 @@ static int tsc2005_check_reg(struct tsc2005 *ts)
 		return -1;
 	}
 
-	printk("cfr2 = %x\n",be16_to_cpu(cfr2_val));
 	if(be16_to_cpu(cfr2_val) != TSC2005_CFR2_INITVALUE)
 	{
+		printk("cfr2 : write = %x, read = %x\n",TSC2005_CFR2_INITVALUE,be16_to_cpu(cfr2_val));
 		return -1;
 	}
 
@@ -571,7 +573,9 @@ static int tsc2005_spi_setup(struct tsc2005 *ts)
 	struct spi_transfer x_temp[2];
 	int i;
 
+        #ifdef DEBUG
 	printk("[%s]\n",__func__);
+	#endif
 
 	cfr0_val = 0;
 	status = 0;
@@ -601,7 +605,9 @@ static int tsc2005_spi_setup(struct tsc2005 *ts)
 		x->bits_per_word = 8;
 		spi_message_add_tail(x, m);
 
+#ifdef DEBUG
 		printk("wr = %x\n", (wr_cmd[1] << 8) + wr_cmd[2]);
+#endif
 		status = spi_sync(ts->spi_dev,m);
 		if (status != 0) {
 			goto err_status;
@@ -654,7 +660,9 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 	/*
 	 * Check for Max_speed of SPI bus 
 	 */
+        #ifdef DEBUG
 	printk("[%s]\n",__func__);
+	#endif
 
 	if (!pdata) {
 		dev_dbg(&spi->dev, "no platform data?\n");
@@ -758,6 +766,7 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 		goto err_free_irq;
 	}
 
+	printk("tsc2005 touch screen driver load \n");
 	return 0;
 
 err_free_irq:
@@ -790,7 +799,9 @@ static int __devexit tsc2005_remove(struct spi_device *spi)
 /*
  * Undo things done in _probe
  */
+        #ifdef DEBUG
 	printk("tsc2005 remove\n");
+	#endif
 
 	input_unregister_device(ts->input_dev);
 	free_irq(ts->penirq, ts);
@@ -869,3 +880,4 @@ module_exit(tsc2005_exit);
 MODULE_DESCRIPTION("TSC2005 TouchScreen Driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pavan_Savoy@mindtree.com");
+MODULE_AUTHOR("eku@marvell.com");
