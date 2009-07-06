@@ -56,6 +56,9 @@ struct dove_mpp_mode {
 };
 
 void dove_mpp_conf(struct dove_mpp_mode *mode);
-
+#ifdef CONFIG_PM
+void dove_mpp_regs_save(void);
+void dove_mpp_regs_restore(void);
+#endif
 
 #endif
