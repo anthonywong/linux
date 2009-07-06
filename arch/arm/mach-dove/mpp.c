@@ -393,10 +393,37 @@ void __init dove_mpp_pmu_config(int mpp, enum dove_mpp_type type)
 {
 	u32 pmu_mpp_ctrl;
 	
-	pmu_mpp_ctrl = readl(DOVE_SB_REGS_VIRT_BASE | MPP_GENERAL_CONTROL_REG);
+	pmu_mpp_ctrl = readl(DOVE_PMU_MPP_GENERAL_CTRL);
 	if (type == MPP_PMU)
 		pmu_mpp_ctrl |= (1 << mpp);
 	else
 		pmu_mpp_ctrl &= ~(1 << mpp);
-	writel(pmu_mpp_ctrl, (DOVE_SB_REGS_VIRT_BASE | MPP_GENERAL_CONTROL_REG));
+	writel(pmu_mpp_ctrl, DOVE_PMU_MPP_GENERAL_CTRL);
 }
+
+#ifdef CONFIG_PM
+
+static u32 dove_mpp_regs[] = {
+	DOVE_MPP_VIRT_BASE,
+	DOVE_MPP_VIRT_BASE + 4,
+	DOVE_MPP_VIRT_BASE + 8,
+	DOVE_PMU_MPP_GENERAL_CTRL,
+	DOVE_MPP_GENERAL_VIRT_BASE,
+	DOVE_MPP_CTRL4_VIRT_BASE	
+};
+static u32 dove_mpp_regs_values[ARRAY_SIZE(dove_mpp_regs)];
+
+void dove_mpp_regs_save(void)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(dove_mpp_regs); i++)
+		dove_mpp_regs_values[i] = readl(dove_mpp_regs[i]);
+}
+
+void dove_mpp_regs_restore(void)
+{
+	int i;
+	for (i = 0; i < ARRAY_SIZE(dove_mpp_regs); i++)
+		writel(dove_mpp_regs_values[i], dove_mpp_regs[i]);
+}
+#endif
