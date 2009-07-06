@@ -8,8 +8,14 @@
 
 #include <mach/dove.h>
 
+#if defined(CONFIG_MACH_DOVE_RD_AVNG) || defined(CONFIG_MACH_DOVE_RD_AVNG_Z0) ||\
+	defined(CONFIG_MACH_DOVE_RD_AVNG_NB_Z0)
+#define UART_THR ((volatile unsigned char *)(DOVE_UART0_PHYS_BASE + 0x0))
+#define UART_LSR ((volatile unsigned char *)(DOVE_UART0_PHYS_BASE + 0x14))
+#else
 #define UART_THR ((volatile unsigned char *)(DOVE_UART1_PHYS_BASE + 0x0))
 #define UART_LSR ((volatile unsigned char *)(DOVE_UART1_PHYS_BASE + 0x14))
+#endif
 
 #define LSR_THRE	0x20
 
