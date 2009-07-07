@@ -363,29 +363,3 @@ void __init tauros2_init(void)
 			 "in %s mode.\n", mode);
 
 }
-
-#ifdef CONFIG_PM
-#if defined(CONFIG_CPU_32v6) || defined(CONFIG_CPU_V7)
-static int l2_halted = 0;
-void tauros2_halt(void)
-{
-	/* Check if L2 was enabled */
-	if (get_cr() & 0x04000000) {
-		/* clean all L2 cache */
-		l2_halted = 1;
-		__asm__("mcr p15, 1, %0, c7, c11, 0\n" : : "r" (0x0)); /* Clean all L2 */
-		adjust_cr(0x04000000, 0x0);	/* disable L2 */
-	}
-}
-
-void tauros2_resume(void)
-{
-	if (l2_halted) {
-		l2_halted = 0;
-		adjust_cr(0x04000000, 0x04000000); /* enable L2 */
-	}
-}
-#else
-#error "L2 Cache intialization not supported for PM resume"
-#endif
-#endif
