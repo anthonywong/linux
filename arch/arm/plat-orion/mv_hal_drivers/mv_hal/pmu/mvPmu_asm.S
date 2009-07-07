@@ -223,12 +223,13 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 	 * Save the physical address of the resume SP
 	 */
 	mov	r4, r0				@ suspend mode needed later
+	mov	r5, r2				@ CR needed later for L2
 	mov	r0, sp
-	ldr	r1, pmu_sbe_vtp
+	ldr	r1, die_vtp
 	adr	lr, sb_pc_v2p_res
 	mov	pc, r1
 sb_pc_v2p_res:
-	adr	r1, stby_saved_sp
+	adr	r1, dix_saved_sp
 	sub	r1, r1, #4
 
 #ifndef CONFIG_DOVE_REV_Z0
@@ -236,56 +237,61 @@ sb_pc_v2p_res:
 	 * Write SP to scratch NVRAM
 	 * First Convert external to internal addrress space
 	 */
-	ldr	r2, pmu_sbe_nvram_sp_mask
-	and	r1, r1, r2
-	ldr	r2, pmu_sbe_nvram_int_base
-	orr	r1, r1, r2
+	ldr	r3, die_nvram_sp_mask
+	and	r1, r1, r3
+	ldr	r3, die_nvram_int_base
+	orr	r1, r1, r3
 #endif
 	str	r0, [r1]
 
 	/*
 	 * Flush all L1 DCache
 	 */
+	mov	r0, #0
 	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
-	mcr     p15, 0, r2, c7, c5, 6           @ flush BTAC/BTB
+	mcr     p15, 0, r0, c7, c5, 6           @ flush BTAC/BTB
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
-	mcr     p15, 0, r2, c7, c10, 4          @ drain write buffer
+	tst	r5, #0x04000000			@ check if L2 is enabled
+	beq	die_skip_l2_clean
+	mcr 	p15, 1, r0, c7, c11, 0		@ clean all L2 cache
+die_skip_l2_clean:
+	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
 
 	/*
 	 * Set DDR in Self refresh mode and poll status bit
 	 */
 	cmp	r4, #0
-	bne	skip_ddr_sr
-	ldr	r0, pmu_sbe_ctrl_reg
+	bne	die_leave_ddr_active
+	ldr	r0, die_ctrl_reg
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
 	str	r2, [r0]
-ddr_sr_loop:
+die_sr_loop:
 	ldr	r2, [r0]
 	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
-	beq	ddr_sr_loop
+	beq	die_sr_loop
 
 	/*
 	 * Disable DDR Terminations
 	 */
-	ldr	r0, pmu_sbe_term_ctrl_addr
+	ldr	r0, die_term_ctrl_addr
 	ldr	r0, [r0]
 	cmp	r0, #1
-	bne	skip_ddr_sr
-	ldr	r2, pmu_sbe_term_mask_addr
+	bne	die_leave_ddr_active
+	ldr	r2, die_term_mask_addr
 	ldr	r2, [r2]
-	ldr	r0, pmu_sbe_gpio_out_val_reg
+	ldr	r0, die_gpio_out_val_reg
 	ldr	r1, [r0]
 	bic	r1, r1, r2
 	str	r1, [r0]
 	
-skip_ddr_sr:
+die_leave_ddr_active:
 	/*
 	 * Initiate Deep Idle flow
 	 */
-	ldr	r0, pmu_sbe_ctrl_reg
-	ldr	r1, =PMU_CTRL_DEEPIDLE_MODE_EN_MASK
+	ldr	r0, die_ctrl_reg
+	mov	r1, #PMU_CTRL_DEEPIDLE_MODE_EN_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
 	str	r2, [r0]
@@ -293,7 +299,7 @@ skip_ddr_sr:
 	/*
 	 * Relocate the Internal Registers Window to h/w default
 	 */
-	ldr	r1, pmu_sbe_irb_reg
+	ldr	r1, die_irb_reg
 	mov	r0, #0xD0000000
 	str	r0, [r1]	
 
@@ -303,22 +309,22 @@ skip_ddr_sr:
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4	
 
-pmu_sbe_vtp:
+die_vtp:
 	.word mvPmuSramVirt2Phys
-pmu_sbe_ctrl_reg:
+die_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
-pmu_sbe_irb_reg:
+die_irb_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + 0x20080)
-pmu_sbe_gpio_out_val_reg:
+die_gpio_out_val_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + 0xD0400)
-pmu_sbe_term_ctrl_addr:
+die_term_ctrl_addr:
 	.word (PMU_SP_TERM_EN_CTRL_ADDR)
-pmu_sbe_term_mask_addr:
+die_term_mask_addr:
 	.word (PMU_SP_TERM_GPIO_MASK_ADDR)
 #ifndef CONFIG_DOVE_REV_Z0
-pmu_sbe_nvram_int_base:
+die_nvram_int_base:
 	.word (PMU_SCRATCHPAD_INT_BASE)
-pmu_sbe_nvram_sp_mask:
+die_nvram_sp_mask:
 	.word (0x7FF)
 #endif
 
@@ -335,92 +341,90 @@ ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
  *    None
  **************************************************************/
 ENTRY(mvPmuSramDeepIdleExitFunc)
-
 	/*
 	 * Move back Internal regs to Linux base
 	 */
-	ldr	r1, pmu_sbx_irbd_reg
+	ldr	r1, dix_irbd_reg
 	mov	r0, #DOVE_SB_REGS_PHYS_BASE
 	str	r0, [r1]
 
 	mov	r1, #0
-	mcr	p15, 0, r1, c7, c7, 0		@ invalidate I & D caches, BTB
-	mcr	p15, 0, r1, c7, c10, 4		@ drain write (&fill) buffer
+	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
 	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
-	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs		
+	mcr	p15, 1, r1, c7, c7, 0		@ Invalidate entire L2
 
 	/*
 	 * Exit DDR self refresh mode if active
 	 */
-	ldr	r0, pmu_sbx_ctrl_reg
+	ldr	r0, dix_ctrl_reg
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
-	beq	skip_ddr_sr_exit
+	beq	dix_ddr_active
 	bic	r2, r2, r1
 	str	r2, [r0]
-ddr_sr_exit_loop:
+dix_sr_exit_loop:
 	ldr	r2, [r0]
 	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
-	bne	ddr_sr_exit_loop		
+	bne	dix_sr_exit_loop		
 
 	/*
 	 * Re-enable DDR terminations
 	 */
-	ldr	r0, pmu_sbx_term_ctrl_addr
+	ldr	r0, dix_term_ctrl_addr
 	ldr	r0, [r0]
 	cmp	r0, #1
-	bne	skip_ddr_sr_exit
-	ldr	r2, pmu_sbx_term_mask_addr
+	bne	dix_ddr_active
+	ldr	r2, dix_term_mask_addr
 	ldr	r2, [r2]
-	ldr	r0, pmu_sbx_gpio_out_val_reg
+	ldr	r0, dix_gpio_out_val_reg
 	ldr	r1, [r0]
 	orr	r1, r1, r2
 	str	r1, [r0]
 
 	mov	r1, #0x40
-term_enable_delay:
+dix_term_enable_delay:
 	sub	r1, r1, #1
 	cmp	r1, #0
-	bne	term_enable_delay	
+	bne	dix_term_enable_delay	
 
-skip_ddr_sr_exit:	
-	ldr	r0, stby_saved_sp		@ stack phys addr
+dix_ddr_active:	
+	ldr	r0, dix_saved_sp		@ stack phys addr
 	ldmfd	r0, {r2-r8}
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
 	mcr 	p15, 0, r4, c13, c0, 0		@ restore CP15 - FCSE
 	mcr 	p15, 0, r3, c3, c0, 0		@ restore CP15 - DACR
-	adr	r3, sb_resume_after_mmu		@ physical resume address
-	ldr	r4, pmu_sbx_virt_mask
+	adr	r3, dix_resume_after_mmu	@ physical resume address
+	ldr	r4, dix_virt_mask
 	and	r3, r3, r4
-	ldr	r4, pmu_sbx_virt_offs
+	ldr	r4, dix_virt_offs
 	orr	r3, r3, r4			@ virtual resume address
-	mcr 	p15, 0, r2, c1, c0, 0		@ restore CP15 - CR
+	mcr	p15, 0, r2, c1, c0, 0		@ write control reg
 	mov	pc, r3
 
-stby_saved_sp:
+dix_saved_sp:
 	.word	0				@ physical SP saved here
 
 	.text
-sb_resume_after_mmu:
+dix_resume_after_mmu:
 	mov	r13, r8				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
 
-pmu_sbx_irbd_reg:
+dix_irbd_reg:
 	.word (0xD0020080)
-pmu_sbx_ctrl_reg:
+dix_ctrl_reg:
 	.word (DOVE_SB_REGS_PHYS_BASE + PMU_CTRL_REG)
-pmu_sbx_virt_mask:
+dix_virt_mask:
 	.word (0xFFFFF)
-pmu_sbx_virt_offs:
+dix_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
-pmu_sbx_gpio_out_val_reg:
+dix_gpio_out_val_reg:
 	.word (DOVE_SB_REGS_PHYS_BASE + 0xD0400)
-pmu_sbx_term_ctrl_addr:
+dix_term_ctrl_addr:
 	.word (PMU_SP_TERM_EN_CTRL_ADDR_PHYS)
-pmu_sbx_term_mask_addr:
+dix_term_mask_addr:
 	.word (PMU_SP_TERM_GPIO_MASK_ADDR_PHYS)
 
 ENTRY(mvPmuSramDeepIdleExitFuncSZ)
@@ -450,68 +454,76 @@ ENTRY(mvPmuSramStandbyEnterFunc)
 	 * Save the physical address of the resume SP
 	 */
 	mov	r4, r0				@ suspend mode needed later
+	mov	r5, r2				@ CR needed later for L2
 	mov	r0, sp
-	ldr	r1, pmu_slpe_vtp
-	adr	lr, slp_pc_v2p_res
+	ldr	r1, sbe_vtp
+	adr	lr, sbe_pc_v2p_res
 	mov	pc, r1
-slp_pc_v2p_res:
-	adr	r1, standby_saved_sp
+sbe_pc_v2p_res:
+	adr	r1, sbx_saved_sp
 	sub	r1, r1, #4
 
 	/*
 	 * Write SP to scratch NVRAM
 	 * Convert to internal addrress space
 	 */
-	ldr	r2, pmu_slpe_nvram_sp_mask
+	ldr	r2, sbe_nvram_sp_mask
 	and	r1, r1, r2
-	ldr	r2, pmu_slpe_nvram_int_base
+	ldr	r2, sbe_nvram_int_base
 	orr	r1, r1, r2
 	str	r0, [r1]
 
 	/*
 	 * Flush all L1 Cache
 	 */
+	mov	r0, #0
 	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
-	mcr     p15, 0, r2, c7, c5, 6           @ flush BTAC/BTB
+	mcr     p15, 0, r0, c7, c5, 6           @ flush BTAC/BTB
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
-	mcr     p15, 0, r2, c7, c10, 4          @ drain write buffer
+	tst	r5, #0x04000000
+	beq	sbe_skip_l2_clean
+	mcr 	p15, 1, r0, c7, c11, 0		@ clean all L2 cache
+sbe_skip_l2_clean:
+	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
+	mcr	p15, 0, r0, c7, c10, 5		@ data memory barrier
+
+	/*
+	 * Initiate standby flow
+	 */
+	ldr	r0, sbe_ctrl_reg
+	mov	r1, #(PMU_CTRL_STANDBY_MODE_EN_MASK | PMU_CTRL_DDR_SLF_RFRSH_EN_MASK)
+	ldr	r2, [r0]
+	orr	r2, r2, r1
+	str	r2, [r0]
 
 	/*
 	 * Block all data requests to the MC from the SB
 	 * Step 4: 0xB00007E0 = 0x1
 	 */
-	ldr	r0, pmu_slpe_mc_ctrl_reg
+	ldr	r0, sbe_mc_ctrl_reg
 	mov	r1, #0x1
 	str	r1, [r0]	
-
-	/*
-	 * Initiate standby flow
-	 */
-	ldr	r0, pmu_slpe_ctrl_reg
-	ldr	r1, =(PMU_CTRL_STANDBY_MODE_EN_MASK | PMU_CTRL_DDR_SLF_RFRSH_EN_MASK)
-	ldr	r2, [r0]
-	orr	r2, r2, r1
-	str	r2, [r0]
 
 	/*
 	 * Enter standby by entering WFI
 	 */
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4	
+
 #ifdef CONFIG_DOVE_REV_Z0
-pmu_slpe_nvram_int_base:
+sbe_nvram_int_base:
 	.word (PMU_CESA_SP_BASE)
 #else
-pmu_slpe_nvram_int_base:
+sbe_nvram_int_base:
 	.word (PMU_SCRATCHPAD_INT_BASE)
 #endif
-pmu_slpe_nvram_sp_mask:
+sbe_nvram_sp_mask:
 	.word (0x7FF)
-pmu_slpe_vtp:
+sbe_vtp:
 	.word mvPmuSramVirt2Phys
-pmu_slpe_ctrl_reg:
+sbe_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
-pmu_slpe_mc_ctrl_reg:
+sbe_mc_ctrl_reg:
 	.word (DOVE_NB_REGS_VIRT_BASE + 0x7E0)
 
 ENTRY(mvPmuSramStandbyEnterFuncSZ)
@@ -527,15 +539,12 @@ ENTRY(mvPmuSramStandbyEnterFuncSZ)
  *    None
  **************************************************************/
 ENTRY(mvPmuSramStandbyExitFunc)
-	msr	cpsr_c, #PSR_F_BIT | PSR_I_BIT | SVC_MODE
-
 	mov	r1, #0
-	mcr	p15, 0, r1, c7, c7, 0		@ invalidate I & D caches, BTB
-	mcr	p15, 0, r1, c7, c10, 4		@ drain write (&fill) buffer
+	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
 	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
-	mcr	p15, 0, r1, c8, c7, 0   	@ invalidate I & D TLBs
+	mcr	p15, 1, r1, c7, c7, 0		@ Invalidate entire L2
 
-	ldr	r0, standby_saved_sp		@ stack phys addr
+	ldr	r0, sbx_saved_sp		@ stack phys addr
 	ldmfd	r0, {r2-r8}
 
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 extra features		
@@ -543,25 +552,25 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
 	mcr 	p15, 0, r4, c13, c0, 0		@ restore CP15 - FCSE
 	mcr 	p15, 0, r3, c3, c0, 0		@ restore CP15 - DACR
-	adr	r3, slp_resume_after_mmu	@ physical resume address
-	ldr	r4, pmu_slpx_virt_mask
+	adr	r3, sbx_resume_after_mmu	@ physical resume address
+	ldr	r4, sbx_virt_mask
 	and	r3, r3, r4
-	ldr	r4, pmu_slpx_virt_offs
+	ldr	r4, sbx_virt_offs
 	orr	r3, r3, r4			@ virtual resume address
 	mcr 	p15, 0, r2, c1, c0, 0		@ restore CP15 - CR
 	mov	pc, r3
 
-standby_saved_sp:
+sbx_saved_sp:
 	.word	0				@ physical SP saved here
 
 	.text
-slp_resume_after_mmu:
+sbx_resume_after_mmu:
 	mov	r13, r8				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
 
-pmu_slpx_virt_mask:
+sbx_virt_mask:
 	.word (0xFFFFF)
-pmu_slpx_virt_offs:
+sbx_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
 
 ENTRY(mvPmuSramStandbyExitFuncSZ)
