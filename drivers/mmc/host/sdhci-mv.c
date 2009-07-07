@@ -35,18 +35,24 @@ struct sdhci_mv_host {
 
 static int sdhci_mv_suspend(struct platform_device *pdev, pm_message_t state)
 {
-//	struct sdhci_host *host = dev_get_drvdata(&pdev->dev);
+	struct sdhci_host *host = dev_get_drvdata(&pdev->dev);
 
-//	return mmc_suspend_host(host->mmc, state);
-	return 0;
+	return sdhci_suspend_host(host, state);
 }
 
 static int sdhci_mv_resume(struct platform_device *pdev)
 {
-//	struct sdhci_host *host = dev_get_drvdata(&pdev->dev);
+	struct sdhci_host *host = dev_get_drvdata(&pdev->dev);
 
-//	return mmc_resume_host(host->mmc);
-	return 0;
+	{
+		u32 ier = sdhci_readl(host, SDHCI_INT_ENABLE);
+		ier |= SDHCI_INT_CARD_INSERT;
+		ier |= SDHCI_INT_CARD_REMOVE;
+		sdhci_writel(host, ier, SDHCI_INT_ENABLE);
+	}
+	mmiowb();
+	mdelay(400);
+	return sdhci_resume_host(host);
 }
 
 #else
