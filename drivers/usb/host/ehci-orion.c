@@ -26,6 +26,7 @@
 #define USB_WINDOW_BASE(i)	(0x324 + ((i) << 4))
 #define USB_IPG			0x360
 #define USB_PHY_PWR_CTRL	0x400
+#define USB_PHY_PLL_CTRL	0x410
 #define USB_PHY_TX_CTRL		0x420
 #define USB_PHY_RX_CTRL		0x430
 #define USB_PHY_IVREF_CTRL	0x440
@@ -101,6 +102,81 @@ static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 	 */
 	wrl(USB_MODE, 0x13);
 #endif
+}
+
+static void orion_usb_phy_v2_setup(struct usb_hcd *hcd)
+{
+	u32 reg;
+
+	/* The below GLs are according to the Orion Errata document */
+	/*
+	 * Clear interrupt cause and mask
+	 */
+	wrl(USB_CAUSE, 0);
+	wrl(USB_MASK, 0);
+
+	/*
+	 * Reset controller
+	 */
+	wrl(USB_CMD, rdl(USB_CMD) | 0x2);
+	while (rdl(USB_CMD) & 0x2);
+
+	wrl(USB_IPG, rdl(USB_IPG) & ~(0x3 << 30));
+
+	/* VCO recalibrate */
+	wrl(USB_PHY_PLL_CTRL, rdl(USB_PHY_PLL_CTRL) | (1 << 21));
+
+	wrl(USB_PHY_PLL_CTRL, rdl(USB_PHY_PLL_CTRL) & ~(1 << 21));
+	
+	reg = rdl(USB_PHY_TX_CTRL);
+	reg |= 1 << 11; /* LOWVDD_EN */
+	reg |= 1 << 12; /* REG_RCAL_START */
+	reg &= ~(1 << 21); /* TX_BLOCK_EN */
+	reg &= ~(1 << 31); /* HS_STRESS_CTRL */
+	wrl(USB_PHY_TX_CTRL, reg);
+	reg = rdl(USB_PHY_TX_CTRL);
+	reg &= ~(1 << 12); /* REG_RCAL_START */
+	wrl(USB_PHY_TX_CTRL, reg);
+
+	reg = rdl(USB_PHY_RX_CTRL);
+	reg &= ~(3 << 2); /* LPL_COEF */
+	reg &= ~(0xf << 4);
+#ifdef CONFIG_DOVE_REV_Z0
+	reg |= 7 << 4; /* SQ_THRESH */
+#else
+	reg |= 8 << 4; /* SQ_THRESH */ 
+#endif
+	reg &= ~(3 << 15); /* REG_SQ_LENGTH */
+	reg |= 1 << 15;
+	reg &= ~(1 << 21); /* CDR_FASTLOCK_EN */
+	reg &= ~(3 << 26); /* EDGE_DET */
+	wrl(USB_PHY_RX_CTRL, reg);
+
+
+	/*
+	 * USB PHY IVREF Control
+	 * TXVDD12[9:8]=0x3
+	 */
+	wrl(USB_PHY_IVREF_CTRL, rdl(USB_PHY_IVREF_CTRL) | 0x3);
+
+
+	/*
+	 * GL# USB-3 GL# USB-9: USB PHY Test Group Control
+	 * REG_FIFO_SQ_RST[15]=0
+	 */
+	wrl(USB_PHY_TST_GRP_CTRL, rdl(USB_PHY_TST_GRP_CTRL) & ~0x8000);
+
+	/*
+	 * Stop and reset controller
+	 */
+	wrl(USB_CMD, rdl(USB_CMD) & ~0x1);
+	wrl(USB_CMD, rdl(USB_CMD) | 0x2);
+	while (rdl(USB_CMD) & 0x2);
+
+	/*
+	 * GL# USB-4 Setup USB Host mode
+	 */
+	wrl(USB_MODE, 0x3);
 }
 
 static int ehci_orion_setup(struct usb_hcd *hcd)
@@ -193,6 +269,35 @@ ehci_orion_conf_mbus_windows(struct usb_hcd *hcd,
 	}
 }
 
+static void __devinit
+ehci_orion_hw_init(struct usb_hcd *hcd,  struct orion_ehci_data *pd)
+{
+	/*
+	 * (Re-)program MBUS remapping windows if we are asked to.
+	 */
+	if (pd != NULL && pd->dram != NULL)
+		ehci_orion_conf_mbus_windows(hcd, pd->dram);
+
+
+	/*
+	 * setup Orion USB controller.
+	 */
+	switch (pd->phy_version) {
+	case EHCI_PHY_NA:	/* dont change USB phy settings */
+		break;
+	case EHCI_PHY_ORION:
+		orion_usb_phy_v1_setup(hcd);
+		break;
+	case EHCI_PHY_DOVE:
+		orion_usb_phy_v2_setup(hcd);
+		break;
+	case EHCI_PHY_DD:
+	case EHCI_PHY_KW:
+	default:
+		printk(KERN_WARNING "Orion ehci -USB phy version isn't supported.\n");
+	}
+
+}
 static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 {
 	struct orion_ehci_data *pd = pdev->dev.platform_data;
@@ -266,26 +371,7 @@ static int __devinit ehci_orion_drv_probe(struct platform_device *pdev)
 	hcd->has_tt = 1;
 	ehci->sbrn = 0x20;
 
-	/*
-	 * (Re-)program MBUS remapping windows if we are asked to.
-	 */
-	if (pd != NULL && pd->dram != NULL)
-		ehci_orion_conf_mbus_windows(hcd, pd->dram);
-
-	/*
-	 * setup Orion USB controller.
-	 */
-	switch (pd->phy_version) {
-	case EHCI_PHY_NA:	/* dont change USB phy settings */
-		break;
-	case EHCI_PHY_ORION:
-		orion_usb_phy_v1_setup(hcd);
-		break;
-	case EHCI_PHY_DD:
-	case EHCI_PHY_KW:
-	default:
-		printk(KERN_WARNING "Orion ehci -USB phy version isn't supported.\n");
-	}
+	ehci_orion_hw_init(hcd, pd);
 
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED | IRQF_DISABLED);
 	if (err)
