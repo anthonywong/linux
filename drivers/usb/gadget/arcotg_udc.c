@@ -2599,14 +2599,15 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		goto err1a;
 	}
 
-	if (!request_mem_region(res->start, res->end - res->start + 1,
+	if (!request_mem_region(res->start, resource_size(res),
 				driver_name)) {
 		ERR("request mem region for %s failed \n", pdev->name);
 		ret = -EBUSY;
 		goto err1a;
 	}
 #endif
-	dr_regs = ioremap(res->start, res->end - res->start + 1);
+	dr_regs = ioremap(res->start, resource_size(res));
+
 	if (!dr_regs) {
 		ret = -ENOMEM;
 		goto err1;
@@ -2741,7 +2742,7 @@ err2a:
 	iounmap(dr_regs);
 err1:
 	if (!udc_controller->transceiver)
-		release_mem_region(res->start, res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 err1a:
 	kfree(udc_controller);
 	udc_controller = NULL;
@@ -2780,7 +2781,7 @@ static int __exit fsl_udc_remove(struct platform_device *pdev)
 
 #ifndef CONFIG_USB_OTG
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 #endif
 
 	device_unregister(&udc_controller->gadget.dev);
