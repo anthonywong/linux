@@ -316,6 +316,7 @@ void __init dove_sd_card_int_wa_setup(int port)
  ****************************************************************************/
 static struct orion_ehci_data dove_ehci_data = {
 	.dram		= &dove_mbus_dram_info,
+	.phy_version	= EHCI_PHY_DOVE,
 };
 
 static u64 ehci_dmamask = DMA_BIT_MASK(32);
@@ -357,7 +358,7 @@ void __init dove_ehci0_init(void)
 
 	if (strcmp(usb0Mode, "host") == 0) {
 		printk("Initializing USB0 Host\n");
-		mvUsbHalInit(0, 1);
+		//mvUsbHalInit(0, 1);
 	}
 	else {
 		printk("Initializing USB0 Device\n");
@@ -400,7 +401,7 @@ void __init dove_ehci1_init(void)
 #ifdef CONFIG_MV_INCLUDE_USB
 	if (strcmp(usb1Mode, "host") == 0) {
 		printk("Initializing USB1 Host\n");
-		mvUsbHalInit(1, 1);
+		//mvUsbHalInit(1, 1);
 	}
 	else {
 		printk("Initializing USB1 Device\n");
