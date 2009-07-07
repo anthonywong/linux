@@ -52,6 +52,7 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 	unsigned int mc, mc2;
 	int dummy;
 	MV_U32 reg;
+	MV_STATUS stat;
 
 	str = "dvs ";
 	if(!strncmp(buffer+len, str,strlen(str))) {
@@ -121,31 +122,40 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		str = "turbo";
 		if(!strncmp(buffer+len, str,strlen(str))) {
 			len += strlen(str);
-			printk("Set CPU Frequency to TURBO ");
+			printk("Set CPU Frequency to TURBO");			
+
 			local_irq_save(ints);
-			mc = MV_REG_READ(0x20210);
-			MV_REG_WRITE(0x20214, (mc | 0x2));
-			if (mvPmuCpuFreqScale (CPU_CLOCK_TURBO) != MV_OK)
-				printk(">>>>>> FAILED\n");
+			mc = MV_REG_READ(0x20214);
+			MV_REG_WRITE(0x20214, (mc | 0x2));	/* enable PMU interrupts if not already enabled */
+			stat = mvPmuCpuFreqScale (CPU_CLOCK_TURBO);
+			MV_REG_WRITE(0x20214, mc);
+			local_irq_restore(ints);			
+
+			if (stat != MV_OK)
+				printk(">E\n");
 			else
 				printk("\n");
-			MV_REG_WRITE(0x20214, mc);
-			local_irq_restore(ints);
+			
+			
 			goto done;
 		}
 		str = "ddr";
 		if(!strncmp(buffer+len, str,strlen(str))) {
 			len += strlen(str);
-			printk("Set CPU Frequency to DDR frequency ");
+			printk("Set CPU Frequency to DDR");
+			
 			local_irq_save(ints);
-			mc = MV_REG_READ(0x20210);
+			mc = MV_REG_READ(0x20214);
 			MV_REG_WRITE(0x20214, (mc | 0x2));
-			if (mvPmuCpuFreqScale (CPU_CLOCK_SLOW) != MV_OK)
-				printk(">>>>>> FAILED\n");
-			else
-				printk("\n");
+			stat = mvPmuCpuFreqScale (CPU_CLOCK_SLOW);
 			MV_REG_WRITE(0x20214, mc);
 			local_irq_restore(ints);
+
+			if (stat != MV_OK)
+				printk(">E\n");
+			else
+				printk("\n");
+						
 			goto done;
 		}
 		goto done;
@@ -230,7 +240,9 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 
 	str = "deepidle";
 	if(!strncmp(buffer+len, str,strlen(str))) {
+		local_irq_save(ints);
 		dove_pm_cpuidle_deepidle();
+		local_irq_restore(ints);
 		goto done;
 	}
 
@@ -546,10 +558,6 @@ void dove_deepidle(void)
 	reg |= (PMU_SIGNAL_0 << PMU_SIG_7_SLCT_CTRL_OFFS);
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
-
-#if defined(CONFIG_CACHE_TAUROS2)
-	tauros2_halt();
-#endif
 #if defined(CONFIG_VFP)
 	vfp_save();
 #endif
@@ -562,10 +570,6 @@ void dove_deepidle(void)
 	vfp_restore();
 #endif
 
-	/* Reinit L2 Cache */
-#if defined(CONFIG_CACHE_TAUROS2)	
-	tauros2_resume();
-#endif
 	/* Put off the Led on MPP7 */
 	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
 	reg &= ~PMU_SIG_7_SLCT_CTRL_MASK;
@@ -599,10 +603,6 @@ void dove_standby(void)
 	dove_save_timer_regs();	
 	dove_save_int_regs();
 
-#if defined(CONFIG_CACHE_TAUROS2)
-	tauros2_halt();
-#endif
-
 #if defined(CONFIG_VFP)
 	vfp_save();
 #endif
@@ -613,11 +613,6 @@ void dove_standby(void)
 
 #if defined(CONFIG_VFP)
 	vfp_restore();
-#endif
-
-	/* Reinit L2 Cache */
-#if defined(CONFIG_CACHE_TAUROS2)	
-	tauros2_resume();
 #endif
 
 	/* Restore CPU Peripherals state */
