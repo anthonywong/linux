@@ -36,7 +36,6 @@
 #include <linux/console.h>
 #include <linux/io.h>
 
-//#include <asm/hardware.h>
 #include <asm/irq.h>
 
 #include <video/dovefb.h>
@@ -133,6 +132,24 @@ static int convert_pix_fmt(u32 vmode)
 		return PIX_FMT_YVU420PLANAR;
 	case DOVEFB_VMODE_YUV422PACKED_SWAPYUorV:
 		return PIX_FMT_UYVY422PACK;
+	case DOVEFB_VMODE_RGB565:
+		return PIX_FMT_RGB565;
+	case DOVEFB_VMODE_BGR565:
+		return PIX_FMT_BGR565;
+	case DOVEFB_VMODE_RGB1555:
+		return PIX_FMT_RGB1555;
+	case DOVEFB_VMODE_BGR1555:
+		return PIX_FMT_BGR1555;
+	case DOVEFB_VMODE_RGB888PACK:
+		return PIX_FMT_RGB888PACK;
+	case DOVEFB_VMODE_BGR888PACK:
+		return PIX_FMT_BGR888PACK;
+	case DOVEFB_VMODE_RGBA888:
+		return PIX_FMT_RGBA888;
+	case DOVEFB_VMODE_BGRA888:
+		return PIX_FMT_BGRA888;
+	case DOVEFB_VMODE_RGB888UNPACK:
+	case DOVEFB_VMODE_BGR888UNPACK:
 	case DOVEFB_VMODE_YUV422PLANAR_SWAPYUorV:
 	case DOVEFB_VMODE_YUV420PLANAR_SWAPYUorV:
 	default:
@@ -726,6 +743,7 @@ static int dovefb_switch_buff(struct fb_info *fi)
 	struct _sOvlySurface *pOvlySurface = 0;
 	unsigned long startaddr;
 	int fbid;
+
 	/*
 	 * Find the latest frame.
 	 */
@@ -815,6 +833,7 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 		if (!(pix_fmt & 0x1000)) {
 			x |= 1 << 2;    /* Y and U/V is swapped */
 			x |= (pix_fmt & 1) << 3;
+			x |= (dfli->info->panel_rbswap) << 4;
 		}
 	} else if (pix_fmt >= 12) {
 		x |= 0x00000002;
@@ -1124,9 +1143,7 @@ struct fb_ops dovefb_ovly_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= dovefb_ovly_open,
 	.fb_release	= dovefb_release,
-#if defined(CONFIG_DOVE_REV_Z0)
 	.fb_mmap	= dovefb_ovly_mmap,
-#endif
 	.fb_check_var	= dovefb_check_var,
 	.fb_set_par	= dovefb_ovly_set_par,
 /*	.fb_setcolreg	= dovefb_setcolreg,*/
