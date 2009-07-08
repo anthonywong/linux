@@ -39,7 +39,7 @@ __setup("ignore_extra_features", ignore_extra_features_setup);
  * outer cache operations into the kernel image if the kernel has been
  * configured to support a pre-v7 CPU.
  */
-#if __LINUX_ARM_ARCH__ < 7
+#if __LINUX_ARM_ARCH__ >= 6
 /*
  * Low-level cache maintenance operations.
  */
@@ -352,6 +352,20 @@ void __init tauros2_init(void)
 
 		mode = "ARMv7";
 	}
+#if 1
+        if (cpuid_scheme() && (read_mmfr3() & 0xf) == 0) {
+                if (!(get_cr() & 0x04000000)) {
+                        printk(KERN_INFO "Tauros2: Enabling L2 cache.\n");
+                        adjust_cr(0x04000000, 0x04000000);
+                }
+
+                mode = "ARMv7";
+                outer_cache.inv_range = tauros2_inv_range;
+                outer_cache.clean_range = tauros2_clean_range;
+                outer_cache.flush_range = tauros2_flush_range;
+        }
+#endif
+
 #endif
 
 	if (mode == NULL) {
