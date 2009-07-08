@@ -29,6 +29,7 @@ struct sgtl5000_priv {
 	int master;
 	int fmt;
 	int rev;
+	int lrclk;
 };
 
 static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
@@ -482,8 +483,16 @@ static int sgtl5000_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
 
-	sgtl5000->sysclk = freq;
-
+	switch (clk_id) {
+	case SGTL5000_SYSCLK:
+		sgtl5000->sysclk = freq;
+		break;
+	case SGTL5000_LRCLK:
+		sgtl5000->lrclk = freq;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
@@ -516,7 +525,6 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
-	int fs = params_rate(params);
 	int channels = params_channels(params);
 	int clk_ctl = 0;
 	int pll_ctl = 0;
@@ -539,7 +547,7 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 		sgtl5000_write(codec, SGTL5000_CHIP_ANA_TEST2, reg);
 	}
 
-	switch (fs) {
+	switch (sgtl5000->lrclk) {
 	case 32000:
 		clk_ctl |= SGTL5000_SYS_FS_32k << SGTL5000_SYS_FS_SHIFT;
 		break;
@@ -553,7 +561,8 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 		clk_ctl |= SGTL5000_SYS_FS_96k << SGTL5000_SYS_FS_SHIFT;
 		break;
 	default:
-		pr_err("%s: sample rate %d not supported\n", __func__, fs);
+		pr_err("%s: sample rate %d not supported\n", __func__,
+		       sgtl5000->lrclk);
 		return -EFAULT;
 	}
 
@@ -585,7 +594,7 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 			div2 = 0;
 			in = sgtl5000->sysclk;
 		}
-		if (fs == 44100)
+		if (sgtl5000->lrclk == 44100)
 			out = 180633600;
 		else
 			out = 196608000;
@@ -629,7 +638,7 @@ static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	pr_debug("fs=%d,clk_ctl=%d,pll_ctl=%d,i2s_ctl=%d,div2=%d\n",
-		 fs, clk_ctl, pll_ctl, i2s_ctl, div2);
+		 sgtl5000->lrclk, clk_ctl, pll_ctl, i2s_ctl, div2);
 
 	if ((clk_ctl & SGTL5000_MCLK_FREQ_MASK) == SGTL5000_MCLK_FREQ_PLL) {
 		sgtl5000_write(codec, SGTL5000_CHIP_PLL_CTRL, pll_ctl);
