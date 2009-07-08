@@ -1,4 +1,5 @@
 /*
+ *	dove_ac97avng.c  --  SoC audio for Dove Avengers MID board
  *
  *	Marvell Orion Alsa SOC Sound driver
  *
@@ -29,8 +30,6 @@
 #include "../pxa/pxa2xx-pcm.h"
 #include "../pxa/pxa2xx-ac97.h"
 
-
-
 static struct platform_device *dove_ac97_snd_device;
 
 static struct snd_soc_dai_link dove_ac97_dai[] = {
@@ -49,18 +48,16 @@ static struct snd_soc_card dove = {
 	.num_links = ARRAY_SIZE(dove_ac97_dai),
 };
 
-
 static struct snd_soc_device dove_ac97_snd_devdata = {
 	.card = &dove,
 	.codec_dev = &soc_codec_dev_rt5610,
 };
 
-
-static int dove_ac97_snd_probe(struct platform_device *pdev)
+static int __init dove_ac97_snd_init(void)
 {
 	int ret = 0;
 
-	dove_ac97_snd_device = platform_device_alloc("soc-audio", -1);
+	dove_ac97_snd_device = platform_device_alloc("soc-audio", 0);
 	if (!dove_ac97_snd_device)
 		return -ENOMEM;
 
@@ -75,32 +72,9 @@ static int dove_ac97_snd_probe(struct platform_device *pdev)
 
 }
 
-static int dove_ac97_snd_remove(struct platform_device *dev)
-{
-	platform_device_unregister(dove_ac97_snd_device);
-	return 0;
-}
-
-static struct platform_driver dove_ac97_snd_driver = {
-	.probe = dove_ac97_snd_probe,
-	.remove = dove_ac97_snd_remove,
-	.suspend = NULL,
-	.resume = NULL,
-	.driver = {
-		   .name = "dove_ac97_snd",
-		   },
-
-};
-
-static int __init dove_ac97_snd_init(void)
-{
-	return platform_driver_register(&dove_ac97_snd_driver);
-}
-
 static void __exit dove_ac97_snd_exit(void)
 {
-	platform_driver_unregister(&dove_ac97_snd_driver);
-
+	platform_device_unregister(dove_ac97_snd_device);
 }
 
 module_init(dove_ac97_snd_init);
