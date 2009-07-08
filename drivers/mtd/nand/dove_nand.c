@@ -337,8 +337,8 @@ static struct pxa3xx_nand_timing st_timing = {
 	.tWP	= 12,
 	.tRH	= 10,
 	.tRP	= 12,
-	.tR	= 25121,
-	.tWHR	= 60,
+	.tR	= 60000,
+	.tWHR	= 80,
 	.tAR	= 10,
 	.tRHW	= 100,
 };
