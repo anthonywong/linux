@@ -40,6 +40,10 @@
 #define PMD_FLAGS	PMD_SECT_WBWA|PMD_SECT_S
 #endif
 
+#ifdef CONFIG_CPU_PJ4
+#define CPU_V7_CR_TRE_REMAP_ENABLE
+#endif
+
 ENTRY(cpu_v7_proc_init)
 	mov	pc, lr
 ENDPROC(cpu_v7_proc_init)
@@ -134,7 +138,9 @@ ENDPROC(cpu_v7_switch_mm)
  *	- pte   - PTE value to store
  *	- ext	- value for extended PTE bits
  */
+	armv6_mt_table cpu_v7
 ENTRY(cpu_v7_set_pte_ext)
+#ifdef CPU_V7_CR_TRE_REMAP_ENABLE
 #ifdef CONFIG_MMU
  ARM(	str	r1, [r0], #-2048	)	@ linux version
  THUMB(	str	r1, [r0]		)	@ linux version
@@ -163,11 +169,15 @@ ENTRY(cpu_v7_set_pte_ext)
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_PRESENT
 	moveq	r3, #0
-
 	str	r3, [r0]
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
 #endif
+#else /* CPU_V7_CR_TRE_REMAP_ENABLE */
+	/* Use TRE=0 (remap is off) scheme for full featured MMU */
+	armv6_set_pte_ext cpu_v7 
+#endif /* CPU_V7_CR_TRE_REMAP_ENABLE */
 	mov	pc, lr
+
 ENDPROC(cpu_v7_set_pte_ext)
 
 cpu_v7_name:
@@ -299,7 +309,15 @@ __v7_setup:
 	 *   NOS = PRRR[24+n] = 1	- not outer shareable
 	 */
 	ldr	r5, =0xff0a81a8			@ PRRR
+#ifdef CONFIG_CPU_ENABLE_WRITECO
+						@ FIXME: Work around for WCO
+						@ not working when TRE=1
+						@ Set write-through, noWA instead
+						@ Impact: D$ performance
+	ldr	r6, =0x40e840e8
+#else
 	ldr	r6, =0x40e040e0			@ NMRR
+#endif
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 #endif
@@ -323,7 +341,11 @@ ENDPROC(__v7_setup)
 	 */
 	.type	v7_crval, #object
 v7_crval:
+#ifdef CPU_V7_CR_TRE_REMAP_ENABLE
 	crval	clear=0x0120c302, mmuset=0x10c03c7d, ucset=0x00c01c7c
+#else
+	crval	clear=0x0120c302, mmuset=0x00c03c7d, ucset=0x00c01c7c
+#endif
 
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers
