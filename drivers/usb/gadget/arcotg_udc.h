@@ -24,8 +24,12 @@
 #define FALSE 0
 
 #define MSC_BULK_CB_WRAP_LEN 31
+#if CONFIG_ARCH_MXC
 #define USE_MSC_WR(len) (((cpu_is_mx37_rev(CHIP_REV_1_0) == 1) ||\
 	(cpu_is_mx51_rev(CHIP_REV_2_0) < 0)) && ((len) == MSC_BULK_CB_WRAP_LEN))
+#else
+#define USE_MSC_WR(len) false
+#endif
 
 /* Iram patch */
 #ifdef CONFIG_USB_STATIC_IRAM_PPH
@@ -96,6 +100,8 @@ struct usb_dr_device {
 	u32 endptstatus;	/* Endpoint Status Register */
 	u32 endptcomplete;	/* Endpoint Complete Register */
 	u32 endptctrl[8 * 2];	/* Endpoint Control Registers */
+	u32 res8[256];
+	u32 usbctrl;
 };
 
  /* non-EHCI USB system interface registers (Big Endian) */
@@ -336,6 +342,8 @@ struct usb_sys_interface {
 /* control Register Bit Masks */
 #define  USB_CTRL_IOENB                       (0x00000004)
 #define  USB_CTRL_ULPI_INT0EN                 (0x00000001)
+#define  USB_CTRL_OTG_WUIR                   (0x80000000)
+#define  USB_CTRL_OTG_WUIE                   (0x08000000)
 
 /*!
  * Endpoint Queue Head data struct
@@ -563,6 +571,7 @@ struct fsl_udc {
 	unsigned stopped:1;
 	unsigned remote_wakeup:1;
 	unsigned already_stopped:1;
+	unsigned dr_remapped:1;
 
 	struct ep_queue_head *ep_qh;	/* Endpoints Queue-Head */
 	struct fsl_req *status_req;	/* ep0 status request */
@@ -665,7 +674,7 @@ static void dump_msg(const char *label, const u8 * buf, unsigned int length)
 /* Bulk only class request */
 #define USB_BULK_RESET_REQUEST          0xff
 
-#ifdef CONFIG_ARCH_MXC
+#if defined(CONFIG_ARCH_MXC) || defined(CONFIG_ARCH_STMP3XXX)
 #include <mach/fsl_usb_gadget.h>
 #elif CONFIG_PPC32
 #include <asm/fsl_usb_gadget.h>
