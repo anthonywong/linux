@@ -508,15 +508,17 @@ static void sdhci_prepare_data(struct sdhci_host *host, struct mmc_data *data)
 		int i;
 		struct scatterlist *tsg;
 
-		DBG("Configure the sg DMA, %s, len is 0x%x\n",
-		    (data->flags & MMC_DATA_READ)
-		    ? "DMA_FROM_DEIVCE" : "DMA_TO_DEVICE", data->sg_len);
+		host->dma_size = data->blocks * data->blksz;
 		count =
 		    dma_map_sg(mmc_dev(host->mmc), data->sg, data->sg_len,
 			       (data->
 				flags & MMC_DATA_READ) ? DMA_FROM_DEVICE :
 			       DMA_TO_DEVICE);
 		BUG_ON(count != data->sg_len);
+		DBG("Configure the sg DMA, %s, len is 0x%x, count is %d\n",
+		    (data->flags & MMC_DATA_READ)
+		    ? "DMA_FROM_DEIVCE" : "DMA_TO_DEVICE", host->dma_size,
+		    count);
 
 		/* Make sure the ADMA mode is selected. */
 		i = readl(host->ioaddr + SDHCI_HOST_CONTROL);
@@ -901,6 +903,10 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			}
 		}
 	}
+
+	if (host->flags & SDHCI_USE_EXTERNAL_DMA)
+		spin_unlock_irqrestore(&host->lock, flags);
+
 	host->mrq = mrq;
 	if (!(host->flags & SDHCI_CD_PRESENT)) {
 		host->mrq->cmd->error = -ENOMEDIUM;
@@ -908,7 +914,8 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	} else
 		sdhci_send_command(host, mrq->cmd);
 
-	spin_unlock_irqrestore(&host->lock, flags);
+	if (!(host->flags & SDHCI_USE_EXTERNAL_DMA))
+		spin_unlock_irqrestore(&host->lock, flags);
 
 	mmiowb();
 }
@@ -1573,6 +1580,8 @@ static int sdhci_suspend(struct platform_device *pdev, pm_message_t state)
 		free_irq(chip->hosts[i]->irq, chip->hosts[i]);
 	}
 
+	gpio_sdhc_inactive(pdev->id);
+
 	return 0;
 }
 
@@ -1586,6 +1595,8 @@ static int sdhci_resume(struct platform_device *pdev)
 		return 0;
 
 	DBG("Resuming...\n");
+
+	gpio_sdhc_active(pdev->id);
 
 	for (i = 0; i < chip->num_slots; i++) {
 		if (!chip->hosts[i])
@@ -1769,7 +1780,7 @@ static int __devinit sdhci_probe_slot(struct platform_device
 	mmc->caps |= mmc_plat->caps;
 
 	if (caps & SDHCI_CAN_DO_HISPD)
-		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
+		mmc->caps |= MMC_CAP_SD_HIGHSPEED | MMC_CAP_MMC_HIGHSPEED;
 
 	mmc->ocr_avail = mmc_plat->ocr_mask;
 	if (caps & SDHCI_CAN_VDD_330)
