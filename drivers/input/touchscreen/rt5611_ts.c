@@ -7,7 +7,8 @@
  * Date		: 04-06-2009
  */
 
- 
+//#define DEBUG
+
 #include <linux/rt5611_ts.h>
 
 
@@ -262,8 +263,8 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 	if (rc & RC_PENUP) {
 		if (rt->pen_is_down) {
 			rt->pen_is_down = 0;
-			//dev_dbg(rt->dev, "pen up\n");
-			printk("RT5611 TS:pen up\n");
+			dev_dbg(rt->dev, "pen up\n");
+			//printk("RT5611 TS:pen up\n");
 
 			input_report_abs(rt->input_dev, ABS_PRESSURE, 0);
 			input_report_key(rt->input_dev, BTN_TOUCH, 0);
@@ -292,7 +293,8 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 #ifdef SWAP_Y
 	data.y = 4096 - data.y;
 #endif
-		printk("RT5611 TS: pen down: x=%d, y=%d, p=%d\n",
+		//printk("RT5611 TS: pen down: x=%d, y=%d, p=%d\n",
+		dev_dbg(rt->dev, "pen down: x=%d, y=%d, p=%d\n",
 			data.x, data.y,data.p);
 
 		input_report_abs(rt->input_dev, ABS_X, data.x);
@@ -474,7 +476,7 @@ static int rt5611_ts_probe(struct platform_device *pdev)
 {
 	struct rt5611_ts *rt;
 	int ret = 0;
-	printk("RT5611 TS:rt5611_ts_probe\n");
+//	printk("RT5611 TS:rt5611_ts_probe\n");
 
 	rt = kzalloc(sizeof(struct rt5611_ts), GFP_KERNEL);
 	if (!rt)
@@ -658,8 +660,7 @@ static void __exit rt5611_ts_exit(void)
 
 }
 
-late_initcall(rt5611_ts_init);
-
+module_init(rt5611_ts_init);
 module_exit(rt5611_ts_exit);
 
 /* Module information */
