@@ -521,12 +521,14 @@ do_DataAbort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	info.si_errno = 0;
 	info.si_code  = inf->code;
 	info.si_addr  = (void __user *)addr;
-	arm_notify_die("", regs, &info, fsr, 0);
+	arm_notify_die("Oops - unhandled data abort", regs, &info, fsr, 0);
 }
 
 asmlinkage void __exception
-do_PrefetchAbort(unsigned long addr, struct pt_regs *regs)
+do_PrefetchAbort(unsigned long addr, unsigned int ifsr, struct pt_regs *regs)
 {
+	struct vm_area_struct *vma;
+	struct siginfo info;
 
 #ifdef CONFIG_EMULATE_DOMAIN_MANAGER_V7
 	if (emulate_domain_manager_prefetch_abort(ifsr, addr))
@@ -534,5 +536,22 @@ do_PrefetchAbort(unsigned long addr, struct pt_regs *regs)
 #endif
 
 	do_translation_fault(addr, 0, regs);
+
+	/*
+	 * Normal handling does not verifiy execution permision.  If
+	 * instruction fault status is a permission fault verify execution
+	 * priviledges. (IFSR & 0x80D) == 0x00D is a permission error.
+	 */
+	if ((ifsr & 0x80D) == 0x00D) {
+		vma = find_vma(current->mm, addr);
+		if (vma && !(vma->vm_flags & VM_EXEC)) {
+			info.si_signo = SIGSEGV;
+			info.si_errno = 0;
+			info.si_code  = SEGV_ACCERR;
+			info.si_addr  = (void __user *)addr;
+			arm_notify_die("Oops - execution permission fault",
+				       regs, &info, ifsr, 0);
+		}
+	}
 }
 
