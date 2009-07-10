@@ -66,7 +66,9 @@ endif
 	@echo "CONCURRENCY_LEVEL = $(CONCURRENCY_LEVEL)"
 
 printchanges:
-	@git-log NBK-Ubuntu-$(release)-$(prev_revision)..HEAD | \
+	@baseCommit=$$(git log --pretty=format:'%H %s' | \
+		awk '/UBUNTU: '".*Ubuntu-$(release)-$(prev_revision)"'$$/ { print $$1; exit }'); \
+		git log "$$baseCommit"..HEAD | \
 		perl -w -f debian/scripts/misc/git-ubuntu-log $(ubuntu_log_opts)
 
 insertchanges:
