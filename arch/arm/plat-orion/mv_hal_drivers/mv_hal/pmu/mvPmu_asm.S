@@ -495,7 +495,7 @@ sbe_skip_l2_clean:
 	ldr	r2, [r0]
 	orr	r2, r2, r1
 	str	r2, [r0]
-
+#if 0
 	/*
 	 * Block all data requests to the MC from the SB
 	 * Step 4: 0xB00007E0 = 0x1
@@ -503,7 +503,7 @@ sbe_skip_l2_clean:
 	ldr	r0, sbe_mc_ctrl_reg
 	mov	r1, #0x1
 	str	r1, [r0]	
-
+#endif
 	/*
 	 * Enter standby by entering WFI
 	 */
