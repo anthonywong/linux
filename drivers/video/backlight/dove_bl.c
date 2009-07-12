@@ -24,8 +24,6 @@
 
 
 
-extern int enable_ebook;
-
 struct dove_backlight {
 	int powermode;          /* blacklight */
 	int lcd_powermode;      /* lcd panel */
@@ -91,9 +89,6 @@ static int dovebl_suspend(struct platform_device *pdev, pm_message_t state)
 	struct backlight_device *bd = platform_get_drvdata(pdev);
 	struct dove_backlight *bl = bl_get_data(bd);
 
-	if (enable_ebook)
-		return 0;
-
 	bl->powermode = FB_BLANK_POWERDOWN;
 	backlight_update_status(bd);
 	clk_disable(bl->clk);
@@ -106,8 +101,6 @@ static int dovebl_resume(struct platform_device *pdev)
 	struct backlight_device *bd = platform_get_drvdata(pdev);
 	struct dove_backlight *bl = bl_get_data(bd);
 
-	if (enable_ebook)
-		return 0;
 
 	clk_enable(bl->clk);
 

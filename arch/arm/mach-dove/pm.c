@@ -501,7 +501,7 @@ static int pm_proc_init(void)
 }
 #endif /* CONFIG_PMU_PROC */
 
-MV_BOOL enable_ebook = MV_TRUE;
+static MV_BOOL enable_ebook = MV_TRUE;
 
 static ssize_t ebook_show(struct kobject *kobj, struct kobj_attribute *attr,
 			 char *buf)
