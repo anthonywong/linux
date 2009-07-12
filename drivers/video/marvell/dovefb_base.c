@@ -47,8 +47,6 @@
 #define DEFAULT_REFRESH		60	/* Hz */
 #define DOVEFB_INT_MASK  DMA_FRAME_IRQ0_ENA(0x1)
 
-extern int enable_ebook;
-
 static int dovefb_init_layer(struct platform_device *pdev,
 		enum dovefb_type type, struct dovefb_info *info,
 		struct resource *res);
@@ -873,16 +871,12 @@ static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 	struct dovefb_info *dfi = platform_get_drvdata(pdev);
 	unsigned int reg;
 
-	printk(KERN_INFO "dovefb_suspend(): state = %d ebook %d.\n",
-	       mesg.event, enable_ebook);
+	printk(KERN_INFO "dovefb_suspend(): state = %d.\n", mesg.event);
 
 	/* Disable interrupts */
 	reg = readl(dfi->reg_base+SPU_IRQ_ENA);
 	reg &= ~DOVEFB_INT_MASK;
 	writel(reg, dfi->reg_base+SPU_IRQ_ENA);
-
-	if (enable_ebook) 
-		return 0;
 
 	acquire_console_sem();
 
@@ -907,17 +901,10 @@ static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 	return 0;
 }
-
+int lcd_set_clock(struct clk *clk, unsigned long rate);
 static int dovefb_resume(struct platform_device *pdev)
 {
 	struct dovefb_info *dfi = platform_get_drvdata(pdev);
-
-	if (enable_ebook) {
-		/* Enable interrupts */
-		writel(readl(dfi->reg_base + SPU_IRQ_ENA) | DOVEFB_INT_MASK,
-		       dfi->reg_base + SPU_IRQ_ENA);
-		return 0;
-	}
 
 	printk(KERN_INFO "dovefb_resume().\n");
 
