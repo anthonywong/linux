@@ -30,8 +30,6 @@
 #include <linux/clk.h>
 #include <video/dovedcon.h>
 
-extern int enable_ebook;
-
 static int dovedcon_enable(struct dovedcon_info *ddi)
 {
 	unsigned int channel_ctrl;
@@ -61,9 +59,6 @@ static int dovedcon_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct dovedcon_info *ddi = platform_get_drvdata(pdev);
 
-	if (enable_ebook) 
-		return 0;
-
 	printk(KERN_INFO "dovedcon_suspend().\n");
 
 	clk_disable(ddi->clk);
@@ -74,9 +69,6 @@ static int dovedcon_suspend(struct platform_device *pdev, pm_message_t state)
 static int dovedcon_resume(struct platform_device *pdev)
 {
 	struct dovedcon_info *ddi = platform_get_drvdata(pdev);
-
-	if (enable_ebook) 
-		return 0;
 
 	printk(KERN_INFO "dovedcon_resume().\n");
 	clk_enable(ddi->clk);
