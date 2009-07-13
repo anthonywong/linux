@@ -39,6 +39,93 @@ static suspend_state_t dove_target_pm_state = PM_SUSPEND_ON;
 static void cpu_do_idle_enabled(void);
 static void cpu_do_idle_disabled(void);
 
+/* manage generic interface for list of registers to save & restore */
+static LIST_HEAD(registers_list);
+static DEFINE_MUTEX(registers_mutex);
+
+struct regs_entry {
+	struct list_head	node;
+	union {
+		u32		*regs_addresses;
+		u32		reg_address;
+	};
+	union {      
+		u32		*regs_values;
+		u32		reg_value;
+	};
+	int		count;
+	int		single;
+};
+
+enum pm_action_type {
+	SAVE,
+	RESTORE
+};
+static int __pm_registers_add(u32 *registers, int count, int single)
+{
+	struct regs_entry *entry;
+	
+	if (!count)
+		return 0;
+
+	entry = kzalloc(sizeof(struct regs_entry), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+	
+	if (single)
+		entry->reg_address = *registers;
+	else
+		entry->regs_addresses = registers;
+
+	entry->count = count;
+	entry->single = single;
+	
+	if (!single) {
+		entry->regs_values = kmalloc(sizeof(u32) * count, GFP_KERNEL);
+		if (!entry->regs_values) {
+			kfree(entry);
+			return -ENOMEM;
+		}
+	}
+
+	mutex_lock(&registers_mutex);
+	list_add_tail(&entry->node, &registers_list);
+	mutex_unlock(&registers_mutex);
+
+	return 0;
+}
+
+int pm_registers_add(u32 *registers, int count)
+{
+	return __pm_registers_add(registers, count, 0);
+}
+
+int pm_registers_add_single(u32 register_address)
+{
+	return __pm_registers_add(&register_address, 1, 1);
+}
+
+static void pm_registers_action(enum pm_action_type type)
+{
+	struct regs_entry *p;
+	
+	list_for_each_entry(p, &registers_list, node) {
+		int i;
+		if (p->single) {
+			if (type == SAVE)
+                                p->reg_value = readl(p->reg_address);
+                        else
+                                writel(p->reg_value, p->reg_address);
+		} 
+		else 
+			for (i = 0; i < p->count; i++)
+				if (type == SAVE)
+					p->regs_values[i] = readl(p->regs_addresses[i]);
+				else
+					writel(p->regs_values[i], p->regs_addresses[i]);
+	}
+}
+
 #ifdef CONFIG_PMU_PROC
 extern MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr);
 extern MV_STATUS mvPmuCpuFreqScale (MV_PMU_CPU_SPEED cpuSpeed);
@@ -594,6 +681,9 @@ void dove_standby(void)
 	reg |= (PMU_SIGNAL_BLINK/*PMU_SIGNAL_0*/ << PMU_SIG_7_SLCT_CTRL_OFFS);
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
+	/* Save generic list of registes */
+	pm_registers_action(SAVE);
+
 	/* Save Controllers state */
 	dove_mpp_regs_save();
 
@@ -623,6 +713,9 @@ void dove_standby(void)
 
 	/* Restore Controllers state */
 	dove_mpp_regs_restore();
+
+	/* Save generic list of registes */
+	pm_registers_action(RESTORE);
 
 	//dove_restore_pcie_regs(); /* Should be done after restoring cpu configuration registers */
 
