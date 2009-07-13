@@ -684,9 +684,6 @@ void dove_standby(void)
 	/* Save generic list of registes */
 	pm_registers_action(SAVE);
 
-	/* Save Controllers state */
-	dove_mpp_regs_save();
-
 	/* Save CPU Peripherals state */
 	dove_save_cpu_wins();
 	dove_save_cpu_conf_regs();
@@ -710,9 +707,6 @@ void dove_standby(void)
 	dove_restore_timer_regs();	
 	dove_restore_cpu_conf_regs();
 	dove_restore_cpu_wins();
-
-	/* Restore Controllers state */
-	dove_mpp_regs_restore();
 
 	/* Save generic list of registes */
 	pm_registers_action(RESTORE);
