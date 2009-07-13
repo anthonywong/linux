@@ -409,7 +409,8 @@ static u32 dove_mpp_regs[] = {
 	DOVE_MPP_VIRT_BASE + 8,
 	DOVE_PMU_MPP_GENERAL_CTRL,
 	DOVE_MPP_GENERAL_VIRT_BASE,
-	DOVE_MPP_CTRL4_VIRT_BASE	
+	DOVE_MPP_CTRL4_VIRT_BASE,
+	DOVE_SSP_CTRL_STATUS_1
 };
 static u32 dove_mpp_regs_values[ARRAY_SIZE(dove_mpp_regs)];
 
