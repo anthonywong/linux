@@ -1,6 +1,6 @@
-diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_mast.c openswan-2.6.21/linux/net/ipsec/ipsec_mast.c
---- openswan-2.6.21.orig/linux/net/ipsec/ipsec_mast.c	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/linux/net/ipsec/ipsec_mast.c	2009-05-13 18:50:04.000000000 +0300
+diff -Nur openswan-2.6.21/linux/net/ipsec/ipsec_mast.c openswan-2.6.21.patched/linux/net/ipsec/ipsec_mast.c
+--- openswan-2.6.21/linux/net/ipsec/ipsec_mast.c	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/linux/net/ipsec/ipsec_mast.c	2009-07-12 16:41:04.000000000 +0300
 @@ -87,7 +87,7 @@
  DEBUG_NO_STATIC int
  ipsec_mast_open(struct net_device *dev)
@@ -83,9 +83,9 @@ diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_mast.c openswan-2.6.21/linu
  			dev_put(mastdevices[i]);
  			mastdevices[i]=NULL;
  		}
-diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_ocf.c openswan-2.6.21/linux/net/ipsec/ipsec_ocf.c
---- openswan-2.6.21.orig/linux/net/ipsec/ipsec_ocf.c	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/linux/net/ipsec/ipsec_ocf.c	2009-05-14 18:37:33.000000000 +0300
+diff -Nur openswan-2.6.21/linux/net/ipsec/ipsec_ocf.c openswan-2.6.21.patched/linux/net/ipsec/ipsec_ocf.c
+--- openswan-2.6.21/linux/net/ipsec/ipsec_ocf.c	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/linux/net/ipsec/ipsec_ocf.c	2009-07-12 16:41:04.000000000 +0300
 @@ -367,7 +367,7 @@
  
  		/* OCF needs cri_mlen initialized in order to properly migrate the
@@ -104,9 +104,9 @@ diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_ocf.c openswan-2.6.21/linux
  
  		crda->crd_key    = ipsp->ips_key_a;
  		crda->crd_klen   = ipsp->ips_key_bits_a;
-diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_proc.c openswan-2.6.21/linux/net/ipsec/ipsec_proc.c
---- openswan-2.6.21.orig/linux/net/ipsec/ipsec_proc.c	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/linux/net/ipsec/ipsec_proc.c	2009-05-13 17:39:51.000000000 +0300
+diff -Nur openswan-2.6.21/linux/net/ipsec/ipsec_proc.c openswan-2.6.21.patched/linux/net/ipsec/ipsec_proc.c
+--- openswan-2.6.21/linux/net/ipsec/ipsec_proc.c	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/linux/net/ipsec/ipsec_proc.c	2009-07-13 08:55:25.000000000 +0300
 @@ -550,7 +550,7 @@
  		ipsec_snprintf(name, (ssize_t) sizeof(name), IPSEC_DEV_FORMAT, i);
  		dev = __ipsec_dev_get(name);
@@ -116,9 +116,21 @@ diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_proc.c openswan-2.6.21/linu
  			len += ipsec_snprintf(buffer+len, length-len, "%s",
  				       dev->name);
  			if(priv) {
-diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_rcv.c openswan-2.6.21/linux/net/ipsec/ipsec_rcv.c
---- openswan-2.6.21.orig/linux/net/ipsec/ipsec_rcv.c	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/linux/net/ipsec/ipsec_rcv.c	2009-05-13 18:47:10.000000000 +0300
+@@ -947,9 +947,11 @@
+ 				item->read_proc  = it->readthing;
+ 				item->write_proc = it->writething;
+ 				item->data       = it->data;
++#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,30)
+ #ifdef MODULE
+ 				item->owner = THIS_MODULE;
+ #endif
++#endif
+ 			} else {
+ 				error |= 1;
+ 			}
+diff -Nur openswan-2.6.21/linux/net/ipsec/ipsec_rcv.c openswan-2.6.21.patched/linux/net/ipsec/ipsec_rcv.c
+--- openswan-2.6.21/linux/net/ipsec/ipsec_rcv.c	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/linux/net/ipsec/ipsec_rcv.c	2009-07-12 16:41:04.000000000 +0300
 @@ -843,7 +843,7 @@
  
  		for(i = 0; i <= ipsecdevices_max; i++) {
@@ -137,9 +149,9 @@ diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_rcv.c openswan-2.6.21/linux
  		    prvdev = prv ? (struct net_device *)(prv->dev) : NULL;
  		    if(prvdev && !strncmp(prvdev->name, skb->dev->name, IFNAMSIZ))
  			{
-diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_tunnel.c openswan-2.6.21/linux/net/ipsec/ipsec_tunnel.c
---- openswan-2.6.21.orig/linux/net/ipsec/ipsec_tunnel.c	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/linux/net/ipsec/ipsec_tunnel.c	2009-05-13 18:44:30.000000000 +0300
+diff -Nur openswan-2.6.21/linux/net/ipsec/ipsec_tunnel.c openswan-2.6.21.patched/linux/net/ipsec/ipsec_tunnel.c
+--- openswan-2.6.21/linux/net/ipsec/ipsec_tunnel.c	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/linux/net/ipsec/ipsec_tunnel.c	2009-07-12 16:41:04.000000000 +0300
 @@ -104,7 +104,7 @@
  DEBUG_NO_STATIC int
  ipsec_tunnel_open(struct net_device *dev)
@@ -296,9 +308,9 @@ diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_tunnel.c openswan-2.6.21/li
  	}
  	return error;
  }
-diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_xmit.c openswan-2.6.21/linux/net/ipsec/ipsec_xmit.c
---- openswan-2.6.21.orig/linux/net/ipsec/ipsec_xmit.c	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/linux/net/ipsec/ipsec_xmit.c	2009-05-13 18:45:50.000000000 +0300
+diff -Nur openswan-2.6.21/linux/net/ipsec/ipsec_xmit.c openswan-2.6.21.patched/linux/net/ipsec/ipsec_xmit.c
+--- openswan-2.6.21/linux/net/ipsec/ipsec_xmit.c	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/linux/net/ipsec/ipsec_xmit.c	2009-07-12 16:41:04.000000000 +0300
 @@ -425,7 +425,7 @@
  		return IPSEC_XMIT_NODEV;
  	}
@@ -308,9 +320,9 @@ diff -Nur openswan-2.6.21.orig/linux/net/ipsec/ipsec_xmit.c openswan-2.6.21/linu
  	if (ixs->prv == NULL) {
  		KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
  			    "klips_error:ipsec_xmit_sanity_check_dev: "
-diff -Nur openswan-2.6.21.orig/linux/net/ipsec/pfkey_v2.c openswan-2.6.21/linux/net/ipsec/pfkey_v2.c
---- openswan-2.6.21.orig/linux/net/ipsec/pfkey_v2.c	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/linux/net/ipsec/pfkey_v2.c	2009-05-13 18:51:19.000000000 +0300
+diff -Nur openswan-2.6.21/linux/net/ipsec/pfkey_v2.c openswan-2.6.21.patched/linux/net/ipsec/pfkey_v2.c
+--- openswan-2.6.21/linux/net/ipsec/pfkey_v2.c	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/linux/net/ipsec/pfkey_v2.c	2009-07-12 16:41:04.000000000 +0300
 @@ -672,7 +672,7 @@
  		return -EPROTONOSUPPORT;
  	}
@@ -329,9 +341,9 @@ diff -Nur openswan-2.6.21.orig/linux/net/ipsec/pfkey_v2.c openswan-2.6.21/linux/
  		KLIPS_PRINT(debug_pfkey,
  			    "klips_debug:pfkey_sendmsg: "
  			    "must be root to send messages to pfkey sockets.\n");
-diff -Nur openswan-2.6.21.orig/packaging/linus/config-all.h openswan-2.6.21/packaging/linus/config-all.h
---- openswan-2.6.21.orig/packaging/linus/config-all.h	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/packaging/linus/config-all.h	2009-05-14 18:10:25.000000000 +0300
+diff -Nur openswan-2.6.21/packaging/linus/config-all.h openswan-2.6.21.patched/packaging/linus/config-all.h
+--- openswan-2.6.21/packaging/linus/config-all.h	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/packaging/linus/config-all.h	2009-07-12 16:41:04.000000000 +0300
 @@ -22,9 +22,11 @@
  #define CONFIG_KLIPS_AH 1
  #endif
@@ -361,9 +373,9 @@ diff -Nur openswan-2.6.21.orig/packaging/linus/config-all.h openswan-2.6.21/pack
  #ifndef CONFIG_KLIPS_ALG_AES_MAC
  #define CONFIG_KLIPS_ALG_AES_MAC 1
  #endif
-diff -Nur openswan-2.6.21.orig/packaging/makefiles/module.defs openswan-2.6.21/packaging/makefiles/module.defs
---- openswan-2.6.21.orig/packaging/makefiles/module.defs	2009-03-30 16:11:28.000000000 +0300
-+++ openswan-2.6.21/packaging/makefiles/module.defs	2009-05-14 18:11:48.000000000 +0300
+diff -Nur openswan-2.6.21/packaging/makefiles/module.defs openswan-2.6.21.patched/packaging/makefiles/module.defs
+--- openswan-2.6.21/packaging/makefiles/module.defs	2009-03-30 16:11:28.000000000 +0300
++++ openswan-2.6.21.patched/packaging/makefiles/module.defs	2009-07-12 16:41:04.000000000 +0300
 @@ -1,5 +1,7 @@
  # To config as static (preferred), 'y'.  To config as module, 'm'.
 -CONFIG_KLIPS=m
