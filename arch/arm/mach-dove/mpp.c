@@ -17,8 +17,21 @@
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
 #include "common.h"
+#include <mach/pm.h>
 #include "mpp.h"
 #include "ctrlEnv/mvCtrlEnvRegs.h"
+
+#ifdef CONFIG_PM
+static u32 dove_mpp_regs[] = {
+	DOVE_MPP_VIRT_BASE,
+	DOVE_MPP_VIRT_BASE + 4,
+	DOVE_MPP_VIRT_BASE + 8,
+	DOVE_PMU_MPP_GENERAL_CTRL,
+	DOVE_MPP_GENERAL_VIRT_BASE,
+	DOVE_MPP_CTRL4_VIRT_BASE,
+	DOVE_SSP_CTRL_STATUS_1
+};
+#endif
 
 #define DOVE_MPP_MAX_OPTIONS	7
 #define DOVE_PMU_MAX_PINS	16
@@ -311,6 +324,9 @@ void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 		}
 		mode++;
 	}
+#ifdef CONFIG_PM
+	pm_registers_add(dove_mpp_regs, ARRAY_SIZE(dove_mpp_regs));
+#endif
 }
 
 /* This function configures mpp mode for mpps 0-23 */
@@ -400,31 +416,3 @@ void __init dove_mpp_pmu_config(int mpp, enum dove_mpp_type type)
 		pmu_mpp_ctrl &= ~(1 << mpp);
 	writel(pmu_mpp_ctrl, DOVE_PMU_MPP_GENERAL_CTRL);
 }
-
-#ifdef CONFIG_PM
-
-static u32 dove_mpp_regs[] = {
-	DOVE_MPP_VIRT_BASE,
-	DOVE_MPP_VIRT_BASE + 4,
-	DOVE_MPP_VIRT_BASE + 8,
-	DOVE_PMU_MPP_GENERAL_CTRL,
-	DOVE_MPP_GENERAL_VIRT_BASE,
-	DOVE_MPP_CTRL4_VIRT_BASE,
-	DOVE_SSP_CTRL_STATUS_1
-};
-static u32 dove_mpp_regs_values[ARRAY_SIZE(dove_mpp_regs)];
-
-void dove_mpp_regs_save(void)
-{
-	int i;
-	for (i = 0; i < ARRAY_SIZE(dove_mpp_regs); i++)
-		dove_mpp_regs_values[i] = readl(dove_mpp_regs[i]);
-}
-
-void dove_mpp_regs_restore(void)
-{
-	int i;
-	for (i = 0; i < ARRAY_SIZE(dove_mpp_regs); i++)
-		writel(dove_mpp_regs_values[i], dove_mpp_regs[i]);
-}
-#endif
