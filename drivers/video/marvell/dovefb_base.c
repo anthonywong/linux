@@ -766,8 +766,11 @@ static int __init dovefb_probe(struct platform_device *pdev)
 	info->panel_rbswap = dmi->panel_rbswap;
 
 	/* get LCD clock information. */
-	info->clk = clk_get(&pdev->dev, "LCD");
-
+	info->clk = clk_get(&pdev->dev, "LCDCLK");
+	if (IS_ERR(info->clk))
+		dev_notice(&pdev->dev, "cannot get clkdev\n");
+	else
+		clk_enable(info->clk);
 #ifndef MODULE
 	/*
 	 * Get video option from boot args
@@ -850,9 +853,10 @@ failed_irq:
 	free_irq(res->start, info);
 failed:
 
-	if (info && info->clk)
+	if (info && !IS_ERR(info->clk)) {
+		clk_disable(info->clk);
 		clk_put(info->clk);
-
+	}
 	platform_set_drvdata(pdev, NULL);
 
 	if (info && info->reg_base)
@@ -895,8 +899,8 @@ static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 	}
 
 	pdev->dev.power.power_state = mesg;
-
-	clk_disable(dfi->clk);
+	if (!IS_ERR(dfi->clk))
+		clk_disable(dfi->clk);
 	release_console_sem();
 
 	return 0;
@@ -909,7 +913,8 @@ static int dovefb_resume(struct platform_device *pdev)
 	printk(KERN_INFO "dovefb_resume().\n");
 
 	acquire_console_sem();
-	clk_enable(dfi->clk);
+	if (!IS_ERR(dfi->clk))
+		clk_enable(dfi->clk);
 
 	if (dovefb_enable_lcd0(pdev)) {
 		printk(KERN_INFO "dovefb_resume(): "
