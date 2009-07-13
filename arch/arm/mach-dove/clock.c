@@ -558,6 +558,9 @@ int __init dove_devclks_init(void)
 #ifdef CONFIG_SYSFS
 	dove_upstream_clocks_sysfs_setup();
 #endif
+#ifdef CONFIG_PM
+	/* ask the pm to save & restore this register */
+	pm_registers_add_single(CLOCK_GATING_CONTROL);
 #endif
 //	__clk_disable(&clk_usb0);
 //	__clk_disable(&clk_usb1);
