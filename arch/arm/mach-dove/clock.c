@@ -180,7 +180,7 @@ static int gpu_set_clock(struct clk *clk, unsigned long rate)
 }
 
 #ifndef CONFIG_DOVE_REV_Z0
-static int lcd_set_clock(struct clk *clk, unsigned long rate)
+ int lcd_set_clock(struct clk *clk, unsigned long rate)
 {
 	u32 divider;
 
@@ -191,6 +191,18 @@ static int lcd_set_clock(struct clk *clk, unsigned long rate)
 	return 0;
 }
 #endif
+static void __lcd_clk_enable(struct clk *clk)
+{
+	dove_clocks_set_lcd_clock(1);
+	return;
+}
+
+static void __lcd_clk_disable(struct clk *clk)
+{
+	dove_clocks_set_lcd_clock(0);
+	return;
+}
+
 static unsigned long axi_get_clock(struct clk *clk)
 {
 	u32 divider;
@@ -285,6 +297,11 @@ const struct clkops gpu_clk_ops = {
 const struct clkops axi_clk_ops = {
 	.getrate	= axi_get_clock,
 	.setrate	= axi_set_clock,
+};
+
+const struct clkops lcd_clk_ops = {
+	.enable		= __lcd_clk_enable,
+	.disable	= __lcd_clk_disable,
 };
 
 int clk_enable(struct clk *clk)
@@ -475,6 +492,10 @@ static struct clk clk_axi = {
 	.ops	= &axi_clk_ops,
 };
 
+static struct clk clk_lcd = {
+	.ops	= &lcd_clk_ops,
+};
+
 #define INIT_CK(dev,con,ck)			\
 	{ .dev_id = dev, .con_id = con, .clk = ck }
 
@@ -501,6 +522,7 @@ static struct clk_lookup dove_clocks[] = {
 //	INIT_CK(NULL, "GIGA_PHY", &clk_giga_phy),
 	INIT_CK(NULL, "GCCLK", &clk_gpu),
 	INIT_CK(NULL, "AXICLK", &clk_axi),
+	INIT_CK(NULL, "LCDCLK", &clk_lcd),
 };
 
 int __init dove_clk_config(struct device *dev, const char *id, unsigned long rate)
@@ -536,11 +558,7 @@ int __init dove_devclks_init(void)
 #ifdef CONFIG_SYSFS
 	dove_upstream_clocks_sysfs_setup();
 #endif
-
-#ifndef CONFIG_DOVE_REV_Z0
-	lcd_set_clock(NULL, 2000000000ll);
 #endif
-
 //	__clk_disable(&clk_usb0);
 //	__clk_disable(&clk_usb1);
 //	__clk_disable(&clk_ac97);
