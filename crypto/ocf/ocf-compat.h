@@ -189,16 +189,6 @@ struct ocf_device {
 #define htole16(x)	cpu_to_le16(x)
 #define htobe16(x)	cpu_to_be16(x)
 
-/* older kernels don't have these */
-
-#ifndef IRQ_NONE
-#define IRQ_NONE
-#define IRQ_HANDLED
-#define irqreturn_t void
-#endif
-#ifndef IRQF_SHARED
-#define IRQF_SHARED	SA_SHIRQ
-#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 # define strlcpy(dest,src,len) \
