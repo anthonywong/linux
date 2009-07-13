@@ -207,7 +207,7 @@ int __pxa2xx_pcm_open(struct snd_pcm_substream *substream)
 				       &rtd->dma_desc_array_phys, GFP_KERNEL);
 	if (!rtd->dma_desc_array)
 		goto err1;
-
+	rtd->dma_ch = -1;
 	runtime->private_data = rtd;
 	return 0;
 
