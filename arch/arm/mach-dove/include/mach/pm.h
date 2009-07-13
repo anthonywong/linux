@@ -51,4 +51,15 @@ static inline int irq_to_pmu(int irq)
 	return -EINVAL;
 }
 
+/* request the pm core to save & restore a list of registes on power management
+ * transitions.
+ * The registers list is not copied, instead, the pm will use the pointer,
+ * so the callee must not free it.
+ */
+int pm_registers_add(u32 *registers, int count);
+
+/*
+ * request the pm core to save & restore single register
+ */
+int pm_registers_add_single(u32 register_address);
 #endif
