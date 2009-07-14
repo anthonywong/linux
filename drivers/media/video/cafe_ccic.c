@@ -197,6 +197,7 @@ struct cafe_camera
 #if defined(CONFIG_HAVE_CLK)
 	struct clk		*clk;
 #endif
+	unsigned int	powered_on;
 	/* Board info */
 	u32 power_down; /* value to set into GPR to power down the sensor*/
 	u32 reset;	/* value to set into GPR to reset the senser */
@@ -471,6 +472,7 @@ static int cafe_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	struct v4l2_device *v4l2_dev = i2c_get_adapdata(adapter);
 	struct cafe_camera *cam = to_cam(v4l2_dev);
 	int ret = -EINVAL;
+	int power_off = 0;
 
 	/*
 	 * This interface would appear to only do byte data ops.  OK
@@ -480,15 +482,17 @@ static int cafe_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 		cam_err(cam, "funky xfer size %d\n", size);
 		return -EINVAL;
 	}
-	if (cam->users == 0)
+	if (cam->powered_on == 0) {
 		cafe_ctlr_power_up(cam);
+		power_off = 1;
+	}
 
 	if (rw == I2C_SMBUS_WRITE)
 		ret = cafe_smbus_write_data(cam, addr, command, data->byte);
 	else if (rw == I2C_SMBUS_READ)
 		ret = cafe_smbus_read_data(cam, addr, command, &data->byte);
 
-	if (cam->users == 0)
+	if (power_off)
 		cafe_ctlr_power_down(cam);
 
 	return ret;
@@ -788,6 +792,7 @@ static void cafe_ctlr_power_up(struct cafe_camera *cam)
 /*	mdelay(1); */ /* Marvell says 1ms will do it */
 	cafe_reg_write(cam, REG_GPR, GPR_C1EN | GPR_C0EN | cam->reset);
 /*	mdelay(1); */ /* Enough? */
+	cam->powered_on = 1;
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 	msleep(5); /* Just to be sure */
 }
@@ -804,6 +809,7 @@ static void cafe_ctlr_power_down(struct cafe_camera *cam)
 		cafe_reg_write(cam, REG_GL_GPIOR, GGPIO_OUT);
 	}
 	cafe_reg_set_bit(cam, REG_CTRL1, C1_PWRDWN);
+	cam->powered_on = 0;
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 }
 
@@ -2087,7 +2093,8 @@ static int cafe_platform_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 	struct cafe_camera *cam;
-printk("cafe_platform_probe\n");
+	
+	printk("cafe_platform_probe\n");
 	/*
 	 * Start putting together one of our big camera structures.
 	 */
