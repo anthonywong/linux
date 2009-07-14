@@ -167,6 +167,8 @@
 #define  DOVE_TWSI_OPTION3_GPIO		(1 << 22)
 #define DOVE_SSP_CTRL_STATUS_1	(DOVE_SB_REGS_VIRT_BASE | 0xe8034)
 #define  DOVE_SSP_ON_AU1		(1 << 0)
+#define  DOVE_SSP_CLOCK_ENABLE		(1 << 1)
+#define  DOVE_SSP_BPB_CLOCK_SRC_SSP	(1 << 11)
 /* Memory Controller */
 #define DOVE_MC_VIRT_BASE	(DOVE_NB_REGS_VIRT_BASE | 0x00000)
 

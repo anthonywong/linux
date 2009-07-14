@@ -19,7 +19,7 @@
 
 #include <mach/pm.h>
 #include <mach/hardware.h>
-
+#include <audio/mvAudioRegs.h>
 #include "clock.h"
 
 /* downstream clocks*/
@@ -83,6 +83,57 @@ static void __ds_clk_disable(struct clk *clk)
 const struct clkops ds_clk_ops = {
 	.enable		= __ds_clk_enable,
 	.disable	= __ds_clk_disable,
+};
+
+static void __ac97_clk_enable(struct clk *clk)
+{
+	u32 reg, ctrl;
+	printk("%s %d\n", __func__, __LINE__);
+
+	__ds_clk_enable(clk);
+
+	/*
+	 * change BPB to use DCO0
+	 */
+	reg = readl(DOVE_SSP_CTRL_STATUS_1);
+	reg &= ~DOVE_SSP_BPB_CLOCK_SRC_SSP;
+	writel(reg, DOVE_SSP_CTRL_STATUS_1);
+	printk("%s %d\n", __func__, __LINE__);
+	/* Set DCO clock to 24.576		*/
+	/* make sure I2S Audio 0 is not gated off */
+	ctrl = readl(CLOCK_GATING_CONTROL);
+	if (!(ctrl & CLOCK_GATING_I2S0_MASK))
+		writel(ctrl | CLOCK_GATING_I2S0_MASK, CLOCK_GATING_CONTROL);
+	printk("%s %d\n", __func__, __LINE__);
+	/* update the DCO clock frequency */
+	reg = readl(DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
+	reg = (reg & ~0x3) | 0x2;
+	writel(reg, DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
+	printk("%s %d\n", __func__, __LINE__);
+	/* disable back I2S 0 */
+	if (!(ctrl & CLOCK_GATING_I2S0_MASK))
+		writel(ctrl, CLOCK_GATING_CONTROL);
+	printk("%s %d\n", __func__, __LINE__);
+	return;
+}
+
+static void __ac97_clk_disable(struct clk *clk)
+{
+	u32 ctrl;
+
+	/* 
+	 * change BPB to use PLL clock instead of DCO0
+	 */
+	ctrl = readl(DOVE_SSP_CTRL_STATUS_1);
+	ctrl |= DOVE_SSP_BPB_CLOCK_SRC_SSP;
+	writel(ctrl, DOVE_SSP_CTRL_STATUS_1);
+
+	__ds_clk_disable(clk);
+}
+
+const struct clkops ac97_clk_ops = {
+	.enable		= __ac97_clk_enable,
+	.disable	= __ac97_clk_disable,
 };
 
 /*****************************************************************************
@@ -456,7 +507,7 @@ static struct clk clk_crypto = {
 };
 
 static struct clk clk_ac97 = {
-	.ops	= &ds_clk_ops,
+	.ops	= &ac97_clk_ops,
 	.rate	= &tclk_rate,
 	.mask	= CLOCK_GATING_AC97_MASK,
 };
