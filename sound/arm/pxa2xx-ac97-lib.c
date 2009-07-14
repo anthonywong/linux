@@ -387,8 +387,8 @@ int pxa2xx_ac97_hw_resume(void)
 		set_resetgpio_mode(RESETGPIO_NORMAL_ALTFUNC);
 	}
 #endif
-	GCR &= ~GCR_ACLINK_OFF;
 	clk_enable(ac97_clk);
+	GCR &= ~GCR_ACLINK_OFF;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_resume);
