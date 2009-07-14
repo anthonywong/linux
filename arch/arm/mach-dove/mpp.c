@@ -31,6 +31,8 @@ static u32 dove_mpp_regs[] = {
 	DOVE_MPP_CTRL4_VIRT_BASE,
 	DOVE_SSP_CTRL_STATUS_1
 };
+
+static u32 dove_pm_gpio_regs[] = DOVE_GPIO_REGISTERS;
 #endif
 
 #define DOVE_MPP_MAX_OPTIONS	7
@@ -326,6 +328,7 @@ void __init dove_mpp_conf(struct dove_mpp_mode *mode)
 	}
 #ifdef CONFIG_PM
 	pm_registers_add(dove_mpp_regs, ARRAY_SIZE(dove_mpp_regs));
+	pm_registers_add(dove_pm_gpio_regs, ARRAY_SIZE(dove_pm_gpio_regs));
 #endif
 }
 
