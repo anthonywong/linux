@@ -43,8 +43,6 @@
 #include <plat/mv_eth.h>
 #include <plat/time.h>
 #include <plat/mv_xor.h>
-#include <ctrlEnv/mvCtrlEnvRegs.h>
-#include <audio/mvAudioRegs.h>
 #ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
 #endif
@@ -1540,10 +1538,6 @@ void __init dove_ac97_setup(void)
 		return;
 	}
 
-	/* Set DCO clock to 24.576		*/
-	reg = readl(DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
-	reg = (reg & ~0x3) | 0x2;
-	writel(reg, DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
 	platform_device_register(&dove_device_ac97);
 }
 
