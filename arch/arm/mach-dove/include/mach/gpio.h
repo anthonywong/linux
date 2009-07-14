@@ -32,6 +32,26 @@
 #define GPIO_EDGE_MASK(pin)	(GPIO_BASE(pin) + 0x18)
 #define GPIO_LEVEL_MASK(pin)	(GPIO_BASE(pin) + 0x1c)
 
+#define DOVE_GPIO_REGISTERS	\
+{				\
+	GPIO_OUT(0),		\
+	GPIO_IO_CONF(0),	\
+	GPIO_BLINK_EN(0),	\
+	GPIO_IN_POL(0),		\
+	GPIO_DATA_IN(0),	\
+	GPIO_EDGE_CAUSE(0),	\
+	GPIO_EDGE_MASK(0),	\
+	GPIO_LEVEL_MASK(0),	\
+	GPIO_OUT(32),		\
+	GPIO_IO_CONF(32),	\
+	GPIO_BLINK_EN(32),	\
+	GPIO_IN_POL(32),	\
+	GPIO_DATA_IN(32),	\
+	GPIO_EDGE_CAUSE(32),	\
+	GPIO_EDGE_MASK(32),	\
+	GPIO_LEVEL_MASK(32)	\
+}
+
 static inline int gpio_to_irq(int pin)
 {
 	if (pin < NR_GPIO_IRQS)
