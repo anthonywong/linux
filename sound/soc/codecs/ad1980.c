@@ -194,6 +194,18 @@ static int ad1980_soc_suspend(struct platform_device *pdev,
 
 static int ad1980_soc_resume(struct platform_device *pdev)
 {
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+	u16 *cache = codec->reg_cache;
+	int ret, i;
+
+	ret = ad1980_reset(codec, 0, CODEC_TYPE_AD1888);
+	if (ret < 0)
+		printk(KERN_ERR "Failed to reset AD1980: AC97 link error\n");
+
+	for (i = 2; i < ARRAY_SIZE(ad1980_reg) << 1; i += 2)
+		soc_ac97_ops.write(codec->ac97, i, cache[i >> 1]);
+
 	return 0;
 }
 
