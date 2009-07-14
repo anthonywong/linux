@@ -350,6 +350,7 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 
 	mov	r1, #0
 	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
+	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate
 	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
 	mcr	p15, 1, r1, c7, c7, 0		@ Invalidate entire L2
 
@@ -409,6 +410,8 @@ dix_saved_sp:
 
 	.text
 dix_resume_after_mmu:
+	mov	r0, #0
+	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
 	mov	r13, r8				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
 
@@ -541,6 +544,7 @@ ENTRY(mvPmuSramStandbyEnterFuncSZ)
 ENTRY(mvPmuSramStandbyExitFunc)
 	mov	r1, #0
 	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
+	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate
 	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
 	mcr	p15, 1, r1, c7, c7, 0		@ Invalidate entire L2
 
@@ -565,6 +569,8 @@ sbx_saved_sp:
 
 	.text
 sbx_resume_after_mmu:
+	mov	r0, #0
+	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
 	mov	r13, r8				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
 
