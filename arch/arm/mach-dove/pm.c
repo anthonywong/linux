@@ -673,7 +673,7 @@ void dove_standby(void)
 {
 	MV_U32 reg;
 
-	pr_debug("dove_standby: Entering Dove STANDBY mode.\n");
+	printk(KERN_NOTICE "Dove: Entering Standby Mode...\n");
 
 	/* Put on the Led on MPP7 */
 	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
@@ -719,7 +719,7 @@ void dove_standby(void)
 	reg |= (PMU_SIGNAL_1 << PMU_SIG_7_SLCT_CTRL_OFFS);
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
-	pr_debug("dove_standby: Exiting Dove STANDBY mode.\n");
+	printk(KERN_NOTICE "Dove: Exiting Standby Mode...\n");
 }
 
 /*
