@@ -55,6 +55,10 @@ static unsigned int left_tact = 0;
 module_param(left_tact, uint, 0);
 MODULE_PARM_DESC(left_tact, "Use left tact as mouse");
 
+static unsigned int right_tact = 0;
+module_param(right_tact, uint, 0);
+MODULE_PARM_DESC(right_tact, "Use Right tact as keys");
+
 static unsigned int use_hal_giga = 1;
 #ifdef CONFIG_MV643XX_ETH
 module_param(use_hal_giga, uint, 0);
@@ -415,7 +419,8 @@ static int pca9555_setup(struct i2c_client *client,
 	if(front_panel) {
 		if(left_tact)
 			dove_tact_init(&ltact_dove_data);
-		platform_device_register(&keys_gpio);
+		if(right_tact)
+			platform_device_register(&keys_gpio);
 	}
 	return 0;
 }
