@@ -171,6 +171,9 @@ ENTRY(cpu_v7_set_pte_ext)
 	moveq	r3, #0
 	str	r3, [r0]
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
+#ifndef CONFIG_MRV_PTE_IN_L2
+        mcr     p15, 1, r0, c7, c11, 1 @ clean L2C D entry
+#endif
 #endif
 #else /* CPU_V7_CR_TRE_REMAP_ENABLE */
 	/* Use TRE=0 (remap is off) scheme for full featured MMU */
