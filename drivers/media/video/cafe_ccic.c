@@ -1994,7 +1994,7 @@ out:
 static int cafe_init_cam(struct cafe_camera *cam)
 {
 	int ret;
-printk("cafe_init_cam\n");
+
 	/*
 	 * Initialize the controller and leave it powered up.  It will
 	 * stay that way until the sensor driver shows up.
@@ -2094,7 +2094,6 @@ static int cafe_platform_probe(struct platform_device *pdev)
 	int ret;
 	struct cafe_camera *cam;
 	
-	printk("cafe_platform_probe\n");
 	/*
 	 * Start putting together one of our big camera structures.
 	 */
