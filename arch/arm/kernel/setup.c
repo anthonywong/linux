@@ -635,6 +635,45 @@ static int __init parse_tag_cmdline(const struct tag *tag)
 
 __tagtable(ATAG_CMDLINE, parse_tag_cmdline);
 
+
+#if defined (CONFIG_PM) && defined (CONFIG_ARCH_DOVE)
+
+MV_DRAM_INIT 	mv_dram_init_info;
+u32		mv_dram_init_valid = 0;
+
+static int __init parse_tag_mv_dram(const struct tag *tag)
+{
+	int hdr = 0, cfg = 0;
+ 
+	printk(KERN_INFO "Marvell Dove DRAM parameters found (version = 0x%08X)\n", tag->u.mv_dram.version);
+
+	memcpy(&mv_dram_init_info, &(tag->u.mv_dram.mv_dram_init), sizeof(MV_DRAM_INIT));
+	mv_dram_init_valid = 1;
+
+#ifdef CONFIG_PM_DEBUG
+	/* for debug print the DDR parameters */
+	for (hdr = 0; hdr < MV_DRAM_HEADERS_CNT; hdr++) {
+		if (mv_dram_init_info.dram_init_ctrl[hdr].freq_mask == 0)
+			break;
+		printk(KERN_INFO "Configuration #%d: Frequency Mask = 0x%08X, Flags = 0x%08X, start index = %d, size = %d\n", 
+			hdr, mv_dram_init_info.dram_init_ctrl[hdr].freq_mask, mv_dram_init_info.dram_init_ctrl[hdr].flags, 
+			mv_dram_init_info.dram_init_ctrl[hdr].start_index, mv_dram_init_info.dram_init_ctrl[hdr].size);
+		for (cfg = mv_dram_init_info.dram_init_ctrl[hdr].start_index; 
+		     cfg < mv_dram_init_info.dram_init_ctrl[hdr].start_index + mv_dram_init_info.dram_init_ctrl[hdr].size; 
+		     cfg++) {
+				printk(KERN_INFO "cfg = %d, Reg = 0x%08X, Value = 0x%08X\n", cfg, 
+					mv_dram_init_info.reg_init[cfg].reg_addr, mv_dram_init_info.reg_init[cfg].reg_value);
+		}
+	}
+#endif
+	return 0;
+}
+
+__tagtable(ATAG_MV_DRAM_PARAMS, parse_tag_mv_dram);
+
+#endif
+
+
 /*
  * Scan the tag table for this tag, and call its parse function.
  * The tag table is built by the linker from all the __tagtable
