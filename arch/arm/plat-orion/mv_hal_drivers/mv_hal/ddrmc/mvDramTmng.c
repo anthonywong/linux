@@ -67,254 +67,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ddrmc/mvDramIf.h"
 #include "ctrlEnv/sys/mvCpuIf.h"
 #include "pmu/mvPmuRegs.h"
+#include <asm/setup.h>
 
-#ifdef CONFIG_DOVE_REV_Z0
-MV_DDR_MC_PARAMS ddr2_400mhz[] ={{0xd00d0048, 0x00000101},	/* Select NB PLL and Ratio */
-				{0xd0800010, 0xf1800000},	/* Set DDR register space */
-                                {0xd00d025c, 0x000f1890},	/* Set NB register space */
-				{0xd0020080, 0xf1000000},	/* Set SB register space */
-			 	{0xf1800140, 0x20004433}, 
-             			{0xf18001d0, 0x0FFC2771},
-             			{0xf18001e0, 0x033C2770},
-             			{0xf18001f0, 0xC0000077},
-             			{0xf1800240, 0x8000FF02},
-             			{0xf1800210, 0x00300000},
-             			{0xf1800230, 0x00347C86},
-           			{0xf1800280, 0x01010e01}, 
-            			{0xf1800510, 0x010e0101},
-             			{0xf1800E10, 0x00347C86},
-             			{0xf1800E20, 0x00347C86},
-             			{0xf1800E30, 0x00347C86},
-             			{0xf1800020, 0x00042430},
-             			{0xf1800030, 0x00042430},
-             			{0xf1800050, 0x2D180618},
-             			{0xf1800060, 0x84660342},
-             			{0xf1800190, 0x20C938E2},
-             			{0xf18001C0, 0x350628A1},
-             			{0xf1800650, 0x00130142},
-              			{0xf18001a0, 0x20818005},
-             			{0xf1800100, 0x000D0001},
-             			{0xf1800110, 0x000D0000},
-             			{0xf1800760, 0x00000001},
-             			{0xf1800770, 0x02000002},
-             			{0xf1800120, 0x00000001}};
+#if defined (CONFIG_PM) && defined (CONFIG_ARCH_DOVE)
 
-MV_DDR_MC_PARAMS ddr2_200mhz[] ={{0xd00d0048, 0x00000102},	/* Select NB PLL and Ratio */
-				{0xd0800010, 0xf1800000},	/* Set DDR register space */
-                                {0xd00d025c, 0x000f1890},	/* Set NB register space */
-				{0xd0020080, 0xf1000000},	/* Set SB register space */
-                                {0xf1800140, 0x20004433},
-                                {0xf18001f0, 0xC0000077},
-                                {0xf1800240, 0x8000FF02},
-                                {0xf1800210, 0x00300000},
-                                {0xf1800230, 0x21F00102}, 
-                                {0xf1800E10, 0x01F00102},
-                                {0xf1800E20, 0x01F00102},
-                                {0xf1800E30, 0x01F00102},
-                                {0xf1800020, 0x00022430},
-                                {0xf1800030, 0x00022430},
-                                {0xf1800050, 0x4D160618},
-                                {0xf1800060, 0x64660342},
-                                {0xf1800190, 0x20C938E2},
-                                {0xf18001C0, 0x350628A1},
-                                {0xf1800650, 0x00130141},
-                                {0xf18001a0, 0x00814005},
-                                {0xf1800100, 0x000D0001},
-                                {0xf1800110, 0x000D0000},
-                                {0xf1800760, 0x00000003},
-                                {0xf1800770, 0x0200000A},
-                                {0xf1800120, 0x00000001}};
+/* DDR speed to mask map table */
+MV_U32 ddr_freq_mask[][2] = {{100, MV_DDR_100},
+			     {133, MV_DDR_133},
+			     {167, MV_DDR_167},
+			     {200, MV_DDR_200},
+			     {233, MV_DDR_233},
+			     {250, MV_DDR_250},
+			     {267, MV_DDR_267},
+			     {333, MV_DDR_333},
+			     {400, MV_DDR_400},
+			     {500, MV_DDR_500},
+			     {533, MV_DDR_533},
+			     };
+#define MV_DRAM_FREQ_MASK_CNT	(sizeof(ddr_freq_mask)/sizeof(ddr_freq_mask[0]))
 
-MV_DDR_MC_PARAMS ddr2_400mhz_reconfig[] ={
-                               {0x00140, 0x20004433},
-                               {0x001d0, 0x0FFC2771},
-                               {0x001e0, 0x033C2770},
-                               {0x001f0, 0xC0000077},
-                               {0x00240, 0x8000FF02},
-                               {0x00200, 0x0011310C},
-                               {0x00210, 0x00300000},
-                               {0x00230, 0x00347C86},
-                               {0x00280, 0x01010E01},
-                               {0x00510, 0x010E0101},
-                               {0x00E10, 0x00347C86},
-                               {0x00E20, 0x00347C86},
-                               {0x00E30, 0x00347C86},
-                               {0x00020, 0x00042430},
-                               {0x00030, 0x00042430},
-                               {0x00050, 0x2D180618},
-                               {0x00060, 0x84660342},
-                               {0x00190, 0x20C938E2},
-                               {0x001C0, 0x350628A1},
-                               {0x00650, 0x00130142},
-                               {0x001a0, 0x20818005},	/* Fast bank enabled */
-                               {0x00100, 0x000D0001},
-                               {0x00110, 0x000D0000},
-                               {0x00760, 0x00000001},
-                               {0x00770, 0x02000002},
-                                {0x00120, 0x03000100},		/* Load Mode Register */
-				{0x00120, 0x03000200},		/* load Extended Mode Register */
-				};
+/* Mandatory address decoding configurations */
+MV_DDR_MC_PARAMS dove_windows[]={{0xD0800010, 0xF1800000},	/* Set DDR register space */
+                                 {0xD00D025C, 0x000F1890},	/* Set NB register space */
+				 {0xD0020080, 0xF1000000},	/* Set SB register space */
+				 };
+#define MV_DRAM_ADDR_DEC_CNT	(sizeof(dove_windows)/sizeof(dove_windows[0]))
 
-MV_DDR_MC_PARAMS ddr2_200mhz_reconfig[] ={
-                               {0x00140, 0x20004433},
-                               {0x001d0, 0x2FFC2781},
-                               {0x001e0, 0x0FF00780},
-                               {0x001f0, 0xC0000078},
-                               {0x00240, 0x8000FF02},
-                               {0x00200, 0x00113108},
-                               {0x00210, 0x00300000},
-                               {0x00230, 0x00347C86},
-                               {0x00280, 0x01010E01},
-                               {0x00510, 0x010E0101},
-                               {0x00E10, 0x00347C86},
-                               {0x00E20, 0x00347C86},
-                               {0x00E30, 0x00347C86},
-                               {0x00020, 0x00042430},
-                               {0x00030, 0x00042430},
-                               {0x00050, 0x4D180618},
-                               {0x00060, 0x64660342},
-                               {0x00190, 0x20C938E2},
-                               {0x001C0, 0x350628A1},
-                               {0x00650, 0x00130142},
-                               {0x001a0, 0x20818005},	/* 0x00818005 */
-                               {0x00100, 0x000D0001},
-                               {0x00110, 0x000D0000},
-                               {0x00760, 0x00000003},
-                               {0x00770, 0x0200000A},
-				{0x00120, 0x03000100},				/* Load Mode Register */
-				{0x00120, 0x03000200}, 				/* load Extended Mode Register */
-				};
+/* Mandatory DDR reconfig configurations */
+MV_DDR_MC_PARAMS ddr_reconfig[]={{0x00120, 0x03000100},	/* Load Mode Register */
+			         {0x00120, 0x03000200},	/* load Extended Mode Register */
+				 };
+#define MV_DRAM_RECONFIG_CNT	(sizeof(ddr_reconfig)/sizeof(ddr_reconfig[0]))
 
-#else
-
-MV_DDR_MC_PARAMS ddr2_400mhz[]={{0xD00D0048, 0x00000101},	/* Select NB PLL and Ratio */
-				                {0xD0800010, 0xF1800000},	/* Set DDR register space */
-                                {0xD00D025c, 0x000F1890},	/* Set NB register space */
-				{0xD0020080, 0xF1000000},	/* Set SB register space */
-				{0xF1800020, 0x00022430},
-				{0xF1800030, 0x00022430},
-				{0xF1800050, 0x4CD600C8},
-				{0xF1800060, 0x53560332},
-				{0xF1800190, 0x50C83742},
-                                {0xF18001C0, 0x34F400A0},
-                                {0xF1800650, 0x001200E1},
-                                {0xF1800080, 0x00000000},
-                                {0xF1800090, 0x00080000},
-                                {0xF18000F0, 0xC0000000},
-                                {0xF18001A0, 0x20818005},
-                                {0xF1800280, 0x010E0202},
-                                {0xF1800760, 0x00000001},
-                                {0xF1800770, 0x01000002},
-                                {0xF1800140, 0x20004455},
-                                {0xF18001D0, 0x17784779},
-                                {0xF18001E0, 0x0FF00770},
-                                {0xF18001F0, 0x3F000077},
-                                {0xF1800200, 0x0011311C},
-                                {0xF1800210, 0x00300000},
-                                {0xF1800240, 0x80000000},
-                                {0xF1800510, 0x010E0101},
-                                {0xF1800230, 0x2025004A},
-                                {0xF1800E10, 0x00250042},
-                                {0xF1800E20, 0x00250042},
-                                {0xF1800E30, 0x00250042},
-                                {0xF1800100, 0x000D0001},
-                                {0xF1800110, 0x000D0000},
-                                {0xF1800120, 0x00000001}};
-
-MV_DDR_MC_PARAMS ddr2_200mhz[]={{0xD0800010, 0xF1800000},	/* Set DDR register space */
-                                {0xD00D025c, 0x000F1890},	/* Set NB register space */
-                                {0xD0020080, 0xF1000000},	/* Set SB register space */
-                                {0xF1800020, 0x00022430},
-                                {0xF1800030, 0x00022430},
-                                {0xF1800050, 0x488B00C8},
-                                {0xF1800060, 0x323301A2},
-                                {0xF1800190, 0x30C81C42},
-                                {0xF18001C0, 0x32820050},
-                                {0xF1800650, 0x00090071},
-                                {0xF1800080, 0x00000000},
-                                {0xF1800090, 0x00080000},
-                                {0xF18000F0, 0xC0000000},
-                                {0xF18001A0, 0x20818005},
-                                {0xF1800280, 0x010E0202},
-                                {0xF1800760, 0x00000001},
-                                {0xF1800770, 0x01000002},
-                                {0xF1800140, 0x20004455},
-                                {0xF18001D0, 0x17784779},
-                                {0xF18001E0, 0x0FF00770},
-                                {0xF18001F0, 0x3F000077},
-                                {0xF1800200, 0x0011311C},
-                                {0xF1800210, 0x00300000},
-                                {0xF1800240, 0x80000000},
-                                {0xF1800510, 0x010E0101},
-                                {0xF1800230, 0x2025004A},
-                                {0xF1800E10, 0x00250042},
-                                {0xF1800E20, 0x00250042},
-                                {0xF1800E30, 0x00250042},
-                                {0xF1800100, 0x000D0001},
-                                {0xF1800110, 0x000D0000},
-                                {0xf1800120, 0x00000001}};
-
-MV_DDR_MC_PARAMS ddr2_400mhz_reconfig[] ={
-                               {0x00140, 0x20004433},
-                               {0x001d0, 0x0FFC2771},
-                               {0x001e0, 0x033C2770},
-                               {0x001f0, 0xC0000077},
-                               {0x00240, 0x8000FF02},
-                               {0x00200, 0x0011310C},
-                               {0x00210, 0x00300000},
-                               {0x00230, 0x00347C86},
-                               {0x00280, 0x01010E01},
-                               {0x00510, 0x010E0101},
-                               {0x00E10, 0x00347C86},
-                               {0x00E20, 0x00347C86},
-                               {0x00E30, 0x00347C86},
-                               {0x00020, 0x00042430},
-                               {0x00030, 0x00042430},
-                               {0x00050, 0x2D180618},
-                               {0x00060, 0x84660342},
-                               {0x00190, 0x20C938E2},
-                               {0x001C0, 0x350628A1},
-                               {0x00650, 0x00130142},
-                               {0x001a0, 0x20818005},	/* Fast bank enabled */
-                               {0x00100, 0x000D0001},
-                               {0x00110, 0x000D0000},
-                               {0x00760, 0x00000001},
-                               {0x00770, 0x02000002},
-                                {0x00120, 0x03000100},		/* Load Mode Register */
-				{0x00120, 0x03000200},		/* load Extended Mode Register */
-				};
-
-MV_DDR_MC_PARAMS ddr2_200mhz_reconfig[] ={
-                               {0x00140, 0x20004433},
-                               {0x001d0, 0x2FFC2781},
-                               {0x001e0, 0x0FF00780},
-                               {0x001f0, 0xC0000078},
-                               {0x00240, 0x8000FF02},
-                               {0x00200, 0x00113108},
-                               {0x00210, 0x00300000},
-                               {0x00230, 0x00347C86},
-                               {0x00280, 0x01010E01},
-                               {0x00510, 0x010E0101},
-                               {0x00E10, 0x00347C86},
-                               {0x00E20, 0x00347C86},
-                               {0x00E30, 0x00347C86},
-                               {0x00020, 0x00042430},
-                               {0x00030, 0x00042430},
-                               {0x00050, 0x4D180618},
-                               {0x00060, 0x64660342},
-                               {0x00190, 0x20C938E2},
-                               {0x001C0, 0x350628A1},
-                               {0x00650, 0x00130142},
-                               {0x001a0, 0x20818005},	/* 0x00818005 */
-                               {0x00100, 0x000D0001},
-                               {0x00110, 0x000D0000},
-                               {0x00760, 0x00000003},
-                               {0x00770, 0x0200000A},
-				{0x00120, 0x03000100},				/* Load Mode Register */
-				{0x00120, 0x03000200}, 				/* load Extended Mode Register */
-				};
-
-#endif
+extern MV_DRAM_INIT 	mv_dram_init_info;
+extern u32		mv_dram_init_valid;
 
 /*******************************************************************************
 * mvDramIfParamCountGet - Get the number of Addr/Value configuration needed 
@@ -336,16 +122,28 @@ MV_DDR_MC_PARAMS ddr2_200mhz_reconfig[] ={
 MV_U32 mvDramIfParamCountGet(MV_VOID)
 {
 	MV_U32 cnt=0;
+	MV_U32 hdr;
 
-	/* Return the max number of Addr/Value configuration needed to init the DDR */	
-	if ((sizeof(ddr2_200mhz)/sizeof(ddr2_200mhz[0])) > cnt)
-		cnt = (sizeof(ddr2_200mhz)/sizeof(ddr2_200mhz[0]));
-	if (((sizeof(ddr2_400mhz)/sizeof(ddr2_400mhz[0]))) > cnt)
-		cnt = (sizeof(ddr2_400mhz)/sizeof(ddr2_400mhz[0]));
-	if ((sizeof(ddr2_200mhz_reconfig)/sizeof(ddr2_200mhz_reconfig[0]) +1) > cnt)
-		cnt = (sizeof(ddr2_200mhz_reconfig)/sizeof(ddr2_200mhz_reconfig[0]) +1);
-	if ((sizeof(ddr2_400mhz_reconfig)/sizeof(ddr2_400mhz_reconfig[0]) + 1) > cnt)
-		cnt = (sizeof(ddr2_400mhz_reconfig)/sizeof(ddr2_400mhz_reconfig[0]) + 1);
+	if (!mv_dram_init_valid)
+	{
+		mvOsPrintf("Warning: DRAM Initialization Parameters Not Found (Check Tags)!");	
+		return 0;
+	}
+
+	/* scan all available frequencies and decide MAX parameters count */
+	for (hdr = 0; hdr < MV_DRAM_HEADERS_CNT; hdr++) {
+		if (mv_dram_init_info.dram_init_ctrl[hdr].freq_mask != 0) {
+			if (mv_dram_init_info.dram_init_ctrl[hdr].size > cnt) {				
+				cnt = mv_dram_init_info.dram_init_ctrl[hdr].size;
+			}
+		}
+	}
+
+	/* Add the FIXED count used for address decoding or reconfig; the bigger */
+	if (MV_DRAM_ADDR_DEC_CNT > MV_DRAM_RECONFIG_CNT)
+		cnt += MV_DRAM_ADDR_DEC_CNT;
+	else
+		cnt += MV_DRAM_RECONFIG_CNT;
 
 	return cnt;
 }
@@ -370,23 +168,60 @@ MV_U32 mvDramIfParamCountGet(MV_VOID)
 *******************************************************************************/
 MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params, MV_U32 * paramcnt)
 {
-	switch (ddrFreq)
-	{
-		case 400: /* DDR2 400Mhz */
-			mvOsMemcpy((void*)params, (void*)ddr2_400mhz, sizeof(ddr2_400mhz));
-			*paramcnt = (sizeof(ddr2_400mhz)/sizeof(ddr2_400mhz[0]));
-			break;
+	MV_U32	reg_index, i, mask;
 
-		case 200: /* DDR2 200Mhz */
-			mvOsMemcpy((void*)params, (void*)ddr2_200mhz, sizeof(ddr2_200mhz));
-			*paramcnt = (sizeof(ddr2_200mhz)/sizeof(ddr2_200mhz[0]));
-			break;
-	
-		default:
-			*paramcnt = 0;
-			return MV_FAIL;
+	/* Check that the Uboot passed valid parameters in the TAG */
+	if (!mv_dram_init_valid) {
+		*paramcnt = 0;
+		mvOsPrintf("Warning: DRAM Initialization Parameters Not Found (Check Tags)!");
+		return MV_FAIL;
 	}
 	
+	/* Lookup the appropriate frequency mask */
+	for (i=0; i<MV_DRAM_FREQ_MASK_CNT; i++) {
+		if (ddr_freq_mask[i][0] == ddrFreq) {
+			mask = ddr_freq_mask[i][1];
+			break;
+		}
+	}
+
+	/* Verify that the mask was found in the lookup table */
+	if (i == MV_DRAM_FREQ_MASK_CNT) {
+		*paramcnt = 0;
+		return MV_FAIL;
+	}
+
+	/* Lookup the configurations entry in the table */
+	for (i=0; i<MV_DRAM_HEADERS_CNT; i++) {
+		if (mv_dram_init_info.dram_init_ctrl[i].freq_mask & mask) {
+			reg_index = mv_dram_init_info.dram_init_ctrl[i].start_index;
+			*paramcnt = mv_dram_init_info.dram_init_ctrl[i].size;
+			break;
+		}
+	}
+
+	/* Check if frequency is not available OR zero configurations */
+	if ((i == MV_DRAM_HEADERS_CNT) || (*paramcnt == 0))
+		return MV_FAIL;
+
+	/* First copy the address decoding PREFIX */
+	for (i=0; i<MV_DRAM_ADDR_DEC_CNT; i++) {
+		params->addr = dove_windows[i].addr;
+		params->val = dove_windows[i].val;
+		params++;
+	}
+
+	/* Copy the parameters in 32bit access */
+	for (i=0; i<*paramcnt; i++) {
+		params->addr = mv_dram_init_info.reg_init[reg_index].reg_addr;
+		params->val = mv_dram_init_info.reg_init[reg_index].reg_value;
+		reg_index++;
+		params++;
+	}
+
+	/* Add the count of the Address decoding registers */
+	*paramcnt += MV_DRAM_ADDR_DEC_CNT;
+
 	return MV_OK;
 }
 
@@ -412,59 +247,64 @@ MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params, MV_U32 * 
 *******************************************************************************/
 MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARAMS * params, MV_U32 * paramcnt)
 {
-	MV_U32 i, cnt;
-	MV_U32 idx = 0;
+	MV_U32	reg_index, i, mask;
 
-#ifdef CONFIG_DOVE_REV_Z0
-	/* First configuration is the DDR clk source and ratio */
-	params[idx].addr = (PMU_CLK_DIVIDER_1_REG | DOVE_SB_REGS_VIRT_BASE);		/* DDR clk source and ratio */
-	switch (cpuFreq/ddrFreq)
-	{
-		case 1:	/* CPU=400Mhz, DDR=400Mhz */
-			params[idx].val = (PMU_CLK1_DIV_D2CLK_PLL_CPU);
-			break;
-
-		case 2: /* CPU=800Mhz, DDR=400Mhz  OR  CPU=400Mhz, DDR=200Mhz */
-			params[idx].val = (PMU_CLK1_DIV_D2CLK_PLL_CPU | PMU_CLK1_DIV_D2PRATIO_1TO1);
-			break;
-
-		case 4: /* CPU=800Mhz, DDR=200Mhz */
-			params[idx].val = (PMU_CLK1_DIV_D2CLK_PLL_CPU | PMU_CLK1_DIV_D2PRATIO_1TO2);
-			break;
-
-		default:
-			return MV_FAIL;
-	}
-	idx++;
-#endif
-
-	switch (ddrFreq)
-	{
-		case 400: /* DDR2 400MHz */
-			cnt = (sizeof(ddr2_400mhz_reconfig)/sizeof(ddr2_400mhz_reconfig[0]));
-			*paramcnt = (idx + cnt);
-			for (i=0; i < cnt; idx++, i++)
-			{
-				params[idx].addr = (ddr2_400mhz_reconfig[i].addr | DOVE_NB_REGS_VIRT_BASE);
-				params[idx].val = ddr2_400mhz_reconfig[i].val;		
-			}
-			break;
-
-		case 200: /* DDR2 200Mhz */
-			cnt = (sizeof(ddr2_200mhz_reconfig)/sizeof(ddr2_200mhz_reconfig[0]));
-			*paramcnt = (idx + cnt);
-			for (i=0; i < cnt; idx++, i++)
-			{
-				params[idx].addr = (ddr2_200mhz_reconfig[i].addr | DOVE_NB_REGS_VIRT_BASE);
-				params[idx].val = ddr2_200mhz_reconfig[i].val;		
-			}
-			break;
-	
-		default:
-			return MV_FAIL;
+	/* Check that the Uboot passed valid parameters in the TAG */
+	if (!mv_dram_init_valid) {
+		*paramcnt = 0;
+		mvOsPrintf("Warning: DRAM Initialization Parameters Not Found (Check Tags)!");
+		return MV_FAIL;
 	}
 	
-	return MV_OK;
+	/* Lookup the appropriate frequency mask */
+	for (i=0; i<MV_DRAM_FREQ_MASK_CNT; i++) {
+		if (ddr_freq_mask[i][0] == ddrFreq) {
+			mask = ddr_freq_mask[i][1];
+			break;
+		}
+	}
+
+	/* Verify that the mask was found in the lookup table */
+	if (i == MV_DRAM_FREQ_MASK_CNT) {
+		*paramcnt = 0;
+		return MV_FAIL;
+	}
+
+	/* Lookup the configurations entry in the table */
+	for (i=0; i<MV_DRAM_HEADERS_CNT; i++) {
+		if (mv_dram_init_info.dram_init_ctrl[i].freq_mask & mask) {
+			reg_index = mv_dram_init_info.dram_init_ctrl[i].start_index;
+			*paramcnt = mv_dram_init_info.dram_init_ctrl[i].size;
+			break;
+		}
+	}
+
+	/* Check if frequency is not available OR zero configurations */
+	if ((i == MV_DRAM_HEADERS_CNT) || (*paramcnt == 0))
+		return MV_FAIL;
+
+	/* Drop the last line with the DDR init trigger - replaced with LMR and LEMR */
+	(*paramcnt)--;
+
+	/* Firt copy the parameters in 32bit access */
+	for (i=0; i<*paramcnt; i++) {
+		params->addr = (mv_dram_init_info.reg_init[reg_index].reg_addr & 0xFFFFF); /* offset only */
+		params->val = mv_dram_init_info.reg_init[reg_index].reg_value;
+		reg_index++;
+		params++;
+	}
+
+	/* Finally add the DRAM reinit couples */
+	for (i=0; i<MV_DRAM_RECONFIG_CNT; i++) {
+		params->addr = ddr_reconfig[i].addr;
+		params->val = ddr_reconfig[i].val;
+		params++;
+	}
+
+	/* Add the count of LMR and LEMR registers count */
+	*paramcnt += MV_DRAM_RECONFIG_CNT;
+
+	return MV_OK;	
 }
 
 
@@ -497,3 +337,4 @@ MV_STATUS mvDramInitPollAmvFill(MV_DDR_INIT_POLL_AMV * amv)
 	return MV_OK;
 }
 
+#endif /* #if defined (CONFIG_PM) && defined (CONFIG_ARCH_DOVE) */
