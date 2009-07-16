@@ -121,11 +121,21 @@ static void orion_usb_phy_v2_setup(struct usb_hcd *hcd)
 	wrl(USB_CMD, rdl(USB_CMD) | 0x2);
 	while (rdl(USB_CMD) & 0x2);
 
-	wrl(USB_IPG, rdl(USB_IPG) & ~(0x3 << 30));
+
+	/* Clear bits 30 and 31.
+         */
+	reg = rdl(USB_IPG);
+	reg &= ~(0x3 << 30);
+	/* Change bits[14:8] - IPG for non Start of Frame Packets
+	 * from 0x9(default) to 0xD
+	 */
+	reg &= ~(0x7f << 8);
+	reg |= 0xd << 8;
+	wrl(USB_IPG, reg);
 
 	/* VCO recalibrate */
 	wrl(USB_PHY_PLL_CTRL, rdl(USB_PHY_PLL_CTRL) | (1 << 21));
-
+	udelay(100);
 	wrl(USB_PHY_PLL_CTRL, rdl(USB_PHY_PLL_CTRL) & ~(1 << 21));
 	
 	reg = rdl(USB_PHY_TX_CTRL);
@@ -134,6 +144,7 @@ static void orion_usb_phy_v2_setup(struct usb_hcd *hcd)
 	reg &= ~(1 << 21); /* TX_BLOCK_EN */
 	reg &= ~(1 << 31); /* HS_STRESS_CTRL */
 	wrl(USB_PHY_TX_CTRL, reg);
+	udelay(100);
 	reg = rdl(USB_PHY_TX_CTRL);
 	reg &= ~(1 << 12); /* REG_RCAL_START */
 	wrl(USB_PHY_TX_CTRL, reg);
