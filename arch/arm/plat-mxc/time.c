@@ -57,6 +57,17 @@
 #define MX3_TCN			0x24
 #define MX3_TCMP		0x10
 
+/* MX51 */
+#define MX51_TCTL_FRR		0x200
+#define MX51_TCTL_VAL		(2<<6)
+#define MX51_TCTL_TEN		0x1
+#define MX51_TCTL_INT_ENABLE	0x1
+#define MX51_IR			0x0c
+#define MX51_TSTAT		0x08
+#define MX51_TSTAT_OF1		(1 << 0)
+#define MX51_TCN		0x24
+#define MX51_TCMP		0x10
+
 static struct clock_event_device clockevent_mxc;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;
 #ifdef CONFIG_ARCH_MXC_CANONICAL
@@ -72,6 +83,8 @@ static inline void gpt_irq_disable(void)
 
 	if (cpu_is_mx3())
 		__raw_writel(0, timer_base + MX3_IR);
+	else if (cpu_is_mx51())
+		__raw_writel(0, timer_base + MX51_IR);
 	else {
 		tmp = __raw_readl(timer_base + MXC_TCTL);
 		__raw_writel(tmp & ~MX1_2_TCTL_IRQEN, timer_base + MXC_TCTL);
@@ -82,6 +95,8 @@ static inline void gpt_irq_enable(void)
 {
 	if (cpu_is_mx3())
 		__raw_writel(1<<0, timer_base + MX3_IR);
+	else if (cpu_is_mx51())
+		__raw_writel(1<<0, timer_base + MX51_IR);
 	else {
 		__raw_writel(__raw_readl(timer_base + MXC_TCTL) | MX1_2_TCTL_IRQEN,
 			timer_base + MXC_TCTL);
@@ -96,6 +111,8 @@ static void gpt_irq_acknowledge(void)
 		__raw_writel(MX2_TSTAT_CAPT | MX2_TSTAT_COMP, timer_base + MX1_2_TSTAT);
 	if (cpu_is_mx3())
 		__raw_writel(MX3_TSTAT_OF1, timer_base + MX3_TSTAT);
+	if (cpu_is_mx51())
+		__raw_writel(MX51_TSTAT_OF1, timer_base + MX51_TSTAT);
 }
 
 static cycle_t mx1_2_get_cycles(struct clocksource *cs)
@@ -106,6 +123,11 @@ static cycle_t mx1_2_get_cycles(struct clocksource *cs)
 static cycle_t mx3_get_cycles(struct clocksource *cs)
 {
 	return __raw_readl(timer_base + MX3_TCN);
+}
+
+static cycle_t mx51_get_cycles(struct clocksource *cs)
+{
+	return __raw_readl(timer_base + MX51_TCN);
 }
 
 static struct clocksource clocksource_mxc = {
@@ -123,6 +145,8 @@ static int __init mxc_clocksource_init(struct clk *timer_clk)
 
 	if (cpu_is_mx3())
 		clocksource_mxc.read = mx3_get_cycles;
+	if (cpu_is_mx51())
+		clocksource_mxc.read = mx51_get_cycles;
 
 	clocksource_mxc.mult = clocksource_hz2mult(c,
 					clocksource_mxc.shift);
@@ -159,6 +183,19 @@ static int mx3_set_next_event(unsigned long evt,
 				-ETIME : 0;
 }
 
+static int mx51_set_next_event(unsigned long evt,
+			      struct clock_event_device *unused)
+{
+	unsigned long tcmp;
+
+	tcmp = __raw_readl(timer_base + MX51_TCN) + evt;
+
+	__raw_writel(tcmp, timer_base + MX51_TCMP);
+
+	return (int)(tcmp - __raw_readl(timer_base + MX51_TCN)) < 0 ?
+				-ETIME : 0;
+}
+
 #ifdef DEBUG
 static const char *clock_event_mode_label[] = {
 	[CLOCK_EVT_MODE_PERIODIC] = "CLOCK_EVT_MODE_PERIODIC",
@@ -187,6 +224,9 @@ static void mxc_set_mode(enum clock_event_mode mode,
 		if (cpu_is_mx3())
 			__raw_writel(__raw_readl(timer_base + MX3_TCN) - 3,
 					timer_base + MX3_TCMP);
+		else if (cpu_is_mx51())
+			__raw_writel(__raw_readl(timer_base + MX51_TCN) - 3,
+					timer_base + MX51_TCMP);
 		else
 			__raw_writel(__raw_readl(timer_base + MX1_2_TCN) - 3,
 					timer_base + MX1_2_TCMP);
@@ -239,6 +279,8 @@ static irqreturn_t mxc_timer_interrupt(int irq, void *dev_id)
 
 	if (cpu_is_mx3())
 		tstat = __raw_readl(timer_base + MX3_TSTAT);
+	if (cpu_is_mx51())
+		tstat = __raw_readl(timer_base + MX51_TSTAT);
 	else
 		tstat = __raw_readl(timer_base + MX1_2_TSTAT);
 
@@ -270,6 +312,8 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 
 	if (cpu_is_mx3())
 		clockevent_mxc.set_next_event = mx3_set_next_event;
+	if (cpu_is_mx51())
+		clockevent_mxc.set_next_event = mx51_set_next_event;
 
 	clockevent_mxc.mult = div_sc(c, NSEC_PER_SEC,
 					clockevent_mxc.shift);
@@ -317,6 +361,11 @@ void __init mxc_timer_init(struct clk *timer_clk)
 		timer_base = IO_ADDRESS(GPT1_BASE_ADDR);
 		irq = MXC_INT_GPT;
 #endif
+	} else if (cpu_is_mx51()) {
+#ifdef CONFIG_ARCH_MX51
+		timer_base = IO_ADDRESS(GPT1_BASE_ADDR);
+		irq = MXC_INT_GPT;
+#endif
 	} else
 		BUG();
 
@@ -329,7 +378,10 @@ void __init mxc_timer_init(struct clk *timer_clk)
 
 	if (cpu_is_mx3())
 		tctl_val = MX3_TCTL_CLK_IPG | MX3_TCTL_FRR | MX3_TCTL_WAITEN | MXC_TCTL_TEN;
-	else
+	else if (cpu_is_mx51()) {
+		tctl_val = MX51_TCTL_FRR | MX51_TCTL_VAL | MX51_TCTL_TEN;
+		__raw_writel(MX51_TCTL_INT_ENABLE, timer_base + MX51_IR);
+	} else
 		tctl_val = MX1_2_TCTL_FRR | MX1_2_TCTL_CLK_PCLK1 | MXC_TCTL_TEN;
 
 	__raw_writel(tctl_val, timer_base + MXC_TCTL);
