@@ -350,8 +350,9 @@ static void    mvUsbPhy6781Y0Init(int dev)
     /* VCO recalibrate */
     regVal |= (0x1 << 21);
     MV_REG_WRITE(MV_USB_PHY_PLL_CTRL_REG(dev), regVal); 
+    /* wait 100 usec */
+    mvOsUDelay(100);
     regVal &= ~(0x1 << 21);
-
     MV_REG_WRITE(MV_USB_PHY_PLL_CTRL_REG(dev), regVal); 
     /*-------------------------------------------------*/
 
@@ -370,7 +371,11 @@ static void    mvUsbPhy6781Y0Init(int dev)
     /* bit[31]  (HS_STRESS_CTRL) = 0 */
     regVal &= ~(0x1 << 31);
 	
-    MV_REG_WRITE(MV_USB_PHY_TX_CTRL_REG(dev), regVal); 
+    MV_REG_WRITE(MV_USB_PHY_TX_CTRL_REG(dev), regVal);
+
+    /* wait 100 usec */
+    mvOsUDelay(100);
+ 
     /* Force impedance auto calibrate */
     /* bit[12]	(REG_RCAL_START) = 0 */ 
     regVal &= ~(0x1 << 12);
@@ -817,6 +822,12 @@ MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost)
 
         /*  Change bits31 & bit30 from 1 to 0 */
         regVal &= ~(0x3 << 30);
+
+        /*  Change bits[14:8] - IPG for non Start of Frame Packets
+         *  from 0x9(default) to 0xD
+         */
+        regVal &= ~(0x7F << 8);
+        regVal |= (0xD << 8);
 
         MV_REG_WRITE(MV_USB_BRIDGE_IPG_REG(dev), regVal);
 
