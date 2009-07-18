@@ -1421,11 +1421,6 @@ static irqreturn_t ipu_irq_handler(int irq, void *desc)
 	const int err_reg[] = { 5, 6, 9, 10, 0 };
 	const int int_reg[] = { 1, 2, 3, 4, 11, 12, 13, 14, 15, 0 };
 
-	if (g_ipu_irq[1]) {
-		disable_irq(g_ipu_irq[0]);
-		disable_irq(g_ipu_irq[1]);
-	}
-
 	for (i = 0;; i++) {
 		if (err_reg[i] == 0)
 			break;
@@ -1461,10 +1456,6 @@ static irqreturn_t ipu_irq_handler(int irq, void *desc)
 		}
 	}
 
-	if (g_ipu_irq[1]) {
-		enable_irq(g_ipu_irq[0]);
-		enable_irq(g_ipu_irq[1]);
-	}
 	return result;
 }
 
