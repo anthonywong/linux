@@ -82,7 +82,7 @@
 #define IRQ_DOVE_PERFORM_MNTR	49
 #define IRQ_DOVE_VPRO_DMA1	51
 #define IRQ_DOVE_SSP_TIMER	54
-#define IRQ_DOVE_SSP		54
+#define IRQ_DOVE_SSP		55
 #else
 #error "chip revision not defined"
 #endif
