@@ -276,6 +276,41 @@ static int axi_set_clock(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+
+static unsigned long ssp_get_clock(struct clk *clk)
+{
+	u32 divider;
+	u32 c;
+
+	divider = dove_clocks_get_bits(DOVE_SSP_CTRL_STATUS_1, 2, 7);
+	c = dove_clocks_divide(1000, divider);
+
+	return c * 1000000UL;
+}
+
+static int ssp_set_clock(struct clk *clk, unsigned long rate)
+{
+	u32 divider;
+
+	divider = dove_clocks_divide(1000, rate/1000000);
+	printk(KERN_INFO "Setting ssp clock to %lu (divider: %u)\n",
+		rate, divider);
+
+	dove_clocks_set_bits(DOVE_SSP_CTRL_STATUS_1, 2, 7, divider);
+
+	return 0;
+}
+
+
+const struct clkops ssp_clk_ops = {
+	.getrate	= ssp_get_clock,
+	.setrate	= ssp_set_clock,
+};
+
+
+
+
+
 #ifdef CONFIG_SYSFS
 static struct platform_device dove_clocks_sysfs = {
 	.name		= "dove_clocks_sysfs",
@@ -543,6 +578,10 @@ static struct clk clk_axi = {
 	.ops	= &axi_clk_ops,
 };
 
+static struct clk clk_ssp = {
+	.ops	= &ssp_clk_ops,
+};
+
 static struct clk clk_lcd = {
 	.ops	= &lcd_clk_ops,
 };
@@ -574,6 +613,7 @@ static struct clk_lookup dove_clocks[] = {
 	INIT_CK(NULL, "GCCLK", &clk_gpu),
 	INIT_CK(NULL, "AXICLK", &clk_axi),
 	INIT_CK(NULL, "LCDCLK", &clk_lcd),
+	INIT_CK(NULL, "ssp", &clk_ssp),
 };
 
 int __init dove_clk_config(struct device *dev, const char *id, unsigned long rate)
