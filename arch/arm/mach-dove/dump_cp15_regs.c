@@ -195,6 +195,9 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	asm volatile("mrc p15, 0, %0, c10, c2, 1": "=r"(value));
 	p += sprintf(p, "Memory Attribute NMRR: 0x%08x\n", value);
 
+	asm volatile("mrc p15, 1, %0, c15, c1, 1": "=r"(value));
+	p += sprintf(p, "Auxiliary Debug Modes Control: 0x%08x\n", value);
+
 	len = (p - page) - off;
 	if (len < 0)
 		len = 0;
