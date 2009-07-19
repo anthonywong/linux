@@ -14,12 +14,11 @@ obj-$(CONFIG_SND_DOVE_SOC_MRVL_AUDIO) += snd-mv88fx-pcm-soc.o
 snd-mv88fx-i2s-soc-objs               += mv88fx-i2s.o
 snd-mv88fx-pcm-soc-objs		      += mv88fx-pcm.o
 
-ifeq ($(CONFIG_SND_SOC_RT5623),y)
-snd-mv88fx-soc-objs                  := mv88fx-rt5623.o
+ifneq ("$(CONFIG_SND_SOC_RT5623)","")
+snd-mv88fx-soc-objs                  += mv88fx-rt5623.o
+else ifneq ("$(CONFIG_SND_SOC_CS42L51)","")
+snd-mv88fx-soc-objs                  += mv88fx.o
 endif
 
-ifeq ($(CONFIG_SND_SOC_CS42L51),y)
-snd-mv88fx-soc-objs                  := mv88fx.o
-endif
 
 
