@@ -831,6 +831,13 @@ config CPU_PJ4_PMC_ACCESS_IN_USERMODE
 	  Say Y if you allow user mode application to access Performance 
 	  Monitor Counter of PJ4 in user mode
 
+config DOVE_DEBUGGER_MODE_V6
+	bool "Dove debugger mode is V6"
+	depends on ARCH_DOVE && CPU_32v7
+	default y
+	help
+	  Say Y if Debugger mode of the cpu is v6.
+
 config CPU_ENABLE_WRITECO
 	bool "Enable Write Buffer Coalescing"
 	depends on CPU_PJ4
