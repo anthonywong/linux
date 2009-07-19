@@ -352,7 +352,7 @@ void __init tauros2_init(void)
 
 		mode = "ARMv7";
 	}
-#if 1
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
         if (cpuid_scheme() && (read_mmfr3() & 0xf) == 0) {
                 if (!(get_cr() & 0x04000000)) {
                         printk(KERN_INFO "Tauros2: Enabling L2 cache.\n");
