@@ -38,6 +38,7 @@
 #include <mach/dove.h>
 #include <asm/hardware/pxa-dma.h>
 #include <mach/dove_nand.h>
+#include <mach/dove_ssp.h>
 #include <plat/cafe-orion.h>
 #include "common.h"
 #include "clock.h"
@@ -166,6 +167,19 @@ static struct dovefb_mach_info dove_db_lcd1_vid_dmi = {
 	.panel_rbswap		= 1,
 	.active			= 0,
 };
+
+
+
+static struct dove_ssp_platform_data dove_ssp_platform_data = {
+	.use_dma = 0,
+	.use_loopback = 1,
+	.dss = 32,
+	.scr = 2,
+	.frf = 1,
+	.rft = 8,
+	.tft = 8
+};
+
 
 /*****************************************************************************
  * BACKLIGHT
@@ -686,6 +700,7 @@ static void __init dove_db_init(void)
 	dove_db_clcd_init();
 	dove_vpro_init();
 	dove_gpu_init();
+	dove_ssp_init(&dove_ssp_platform_data);
 	dove_cesa_init();
 	dove_hwmon_init();
 
