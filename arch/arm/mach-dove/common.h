@@ -17,6 +17,7 @@ struct dovefb_mach_info;
 struct gpio_mouse_platform_data;
 struct orion_i2s_platform_data;
 struct cafe_cam_platform_data;
+struct dove_ssp_platform_data;
 
 extern struct sys_timer dove_timer;
 extern struct mbus_dram_target_info dove_mbus_dram_info;
@@ -63,6 +64,7 @@ void dove_xor1_init(void);
 void dove_ac97_setup(void);
 void dove_cesa_init(void);
 void dove_hwmon_init(void);
+void dove_ssp_init(struct dove_ssp_platform_data *pdata);
 
 /*
  * Basic Dove PM functions
