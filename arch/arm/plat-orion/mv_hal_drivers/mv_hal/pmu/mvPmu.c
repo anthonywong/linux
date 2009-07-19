@@ -180,6 +180,49 @@ static MV_U32 mvPmuGetPllFreq(void);
 static MV_U32 mvPmuRatio2Divider(MV_U32 ratio);
 static MV_U32 mvPmuDivider2Ratio(MV_U32 div);
 
+
+/*******************************************************************************
+* mvPmuCodeFix - Fix teh PMU uCode
+*
+* DESCRIPTION:
+*   Apply the PMU uCode and function pointers fixes
+*
+* INPUT:
+	None
+* OUTPUT:
+*	None
+* RETURN:
+*	None
+*******************************************************************************/
+static MV_VOID mvPmuCodeFix (MV_VOID)
+{
+	MV_U32 reg;
+	MV_U32 i;
+
+	/* Initialize the uCode PCs of the different PMU operations */
+	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_PRE_PC_MASK) | PMU_DFS_PRE_PC_VAL));
+	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_CPU_PC_MASK) | PMU_DFS_CPU_PC_VAL));
+	MV_REG_WRITE(PMU_DFS_PROC_PC_1_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_1_REG) & ~PMU_DFS_DDR_PC_MASK) | PMU_DFS_DDR_PC_VAL));
+	MV_REG_WRITE(PMU_DFS_PROC_PC_1_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_1_REG) & ~PMU_DFS_L2_PC_MASK) | PMU_DFS_L2_PC_VAL));
+	MV_REG_WRITE(PMU_DFS_PROC_PC_2_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_2_REG) & ~PMU_DFS_PLL_PC_MASK) | PMU_DFS_PLL_PC_VAL));
+	MV_REG_WRITE(PMU_DFS_PROC_PC_2_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_2_REG) & ~PMU_DFS_POST_PC_MASK) | PMU_DFS_POST_PC_VAL));
+	MV_REG_WRITE(PMU_DVS_PROC_PC_REG, ((MV_REG_READ(PMU_DVS_PROC_PC_REG) & ~PMU_DVS_PRE_PC_MASK) | PMU_DVS_PRE_PC_VAL));
+	MV_REG_WRITE(PMU_DVS_PROC_PC_REG, ((MV_REG_READ(PMU_DVS_PROC_PC_REG) & ~PMU_DVS_POST_PC_MASK) | PMU_DVS_POST_PC_VAL));
+	MV_REG_WRITE(PMU_DEEPIDLE_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_DEEPIDLE_STBY_PROC_PC_REG) & ~PMU_DPIDL_PC_MASK) | PMU_DPIDL_PC_VAL));
+	MV_REG_WRITE(PMU_DEEPIDLE_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_DEEPIDLE_STBY_PROC_PC_REG) & ~PMU_STBY_PRE_PC_MASK) | PMU_STBY_PRE_PC_VAL));
+	MV_REG_WRITE(PMU_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_PROC_PC_REG) & ~PMU_STBY_DDR_PC_MASK) | PMU_STBY_DDR_PC_VAL));
+	MV_REG_WRITE(PMU_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_PROC_PC_REG) & ~PMU_STBY_POST_PC_MASK) | PMU_STBY_POST_PC_VAL));
+
+	/* Update uCode */
+	for (i=0; i< (sizeof(uCfix) / sizeof(uCfix[0])); i++)
+	{
+		reg = MV_REG_READ(PMU_PROGRAM_REG(uCfix[i][0]));
+		reg &= ~PMU_PROGRAM_MASK(uCfix[i][0]);
+		reg |= (uCfix[i][1] << PMU_PROGRAM_OFFS(uCfix[i][0]));
+		MV_REG_WRITE(PMU_PROGRAM_REG(uCfix[i][0]), reg);
+	}
+}
+
 /*******************************************************************************
 * mvPmuInit - Initialize the Power Management Unit (PMU)
 *
@@ -281,28 +324,8 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	/* Configure the DVS delay */
 	MV_REG_WRITE(PMU_DVS_DELAY_REG, pmu->dvsDelay);
 
-	/* Initialize the uCode PCs of the different PMU operations */
-	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_PRE_PC_MASK) | PMU_DFS_PRE_PC_VAL));
-	MV_REG_WRITE(PMU_DFS_PROC_PC_0_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_0_REG) & ~PMU_DFS_CPU_PC_MASK) | PMU_DFS_CPU_PC_VAL));
-	MV_REG_WRITE(PMU_DFS_PROC_PC_1_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_1_REG) & ~PMU_DFS_DDR_PC_MASK) | PMU_DFS_DDR_PC_VAL));
-	MV_REG_WRITE(PMU_DFS_PROC_PC_1_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_1_REG) & ~PMU_DFS_L2_PC_MASK) | PMU_DFS_L2_PC_VAL));
-	MV_REG_WRITE(PMU_DFS_PROC_PC_2_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_2_REG) & ~PMU_DFS_PLL_PC_MASK) | PMU_DFS_PLL_PC_VAL));
-	MV_REG_WRITE(PMU_DFS_PROC_PC_2_REG, ((MV_REG_READ(PMU_DFS_PROC_PC_2_REG) & ~PMU_DFS_POST_PC_MASK) | PMU_DFS_POST_PC_VAL));
-	MV_REG_WRITE(PMU_DVS_PROC_PC_REG, ((MV_REG_READ(PMU_DVS_PROC_PC_REG) & ~PMU_DVS_PRE_PC_MASK) | PMU_DVS_PRE_PC_VAL));
-	MV_REG_WRITE(PMU_DVS_PROC_PC_REG, ((MV_REG_READ(PMU_DVS_PROC_PC_REG) & ~PMU_DVS_POST_PC_MASK) | PMU_DVS_POST_PC_VAL));
-	MV_REG_WRITE(PMU_DEEPIDLE_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_DEEPIDLE_STBY_PROC_PC_REG) & ~PMU_DPIDL_PC_MASK) | PMU_DPIDL_PC_VAL));
-	MV_REG_WRITE(PMU_DEEPIDLE_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_DEEPIDLE_STBY_PROC_PC_REG) & ~PMU_STBY_PRE_PC_MASK) | PMU_STBY_PRE_PC_VAL));
-	MV_REG_WRITE(PMU_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_PROC_PC_REG) & ~PMU_STBY_DDR_PC_MASK) | PMU_STBY_DDR_PC_VAL));
-	MV_REG_WRITE(PMU_STBY_PROC_PC_REG, ((MV_REG_READ(PMU_STBY_PROC_PC_REG) & ~PMU_STBY_POST_PC_MASK) | PMU_STBY_POST_PC_VAL));
-
-	/* Update uCode */
-	for (i=0; i< (sizeof(uCfix) / sizeof(uCfix[0])); i++)
-	{
-		reg = MV_REG_READ(PMU_PROGRAM_REG(uCfix[i][0]));
-		reg &= ~PMU_PROGRAM_MASK(uCfix[i][0]);
-		reg |= (uCfix[i][1] << PMU_PROGRAM_OFFS(uCfix[i][0]));
-		MV_REG_WRITE(PMU_PROGRAM_REG(uCfix[i][0]), reg);
-	}
+	/* Apply uCode Fixes */
+	mvPmuCodeFix();
 
 	/* Save L2 ratio at reset - Needed in DFS scale up */
 	reg = MV_REG_READ(PMU_CLK_DIVIDER_0_REG);
@@ -500,7 +523,7 @@ MV_STATUS mvPmuStandby (void)
 	MV_U32 pllFreq, n, m, k;
 	MV_U32 ddrDiv = 1;
 	MV_U32 i;
-	
+
 	/* Get current DDR frequency to be configured in resume */
 	reg = MV_REG_READ(PMU_PLL_CTRL_0_REG);
 	n = ((reg & PMU_PLL_N_DIVIDER_MASK) >> PMU_PLL_N_DIVIDER_OFFS) + 1;
@@ -552,6 +575,9 @@ MV_STATUS mvPmuStandby (void)
 	MV_REG_WRITE(PMU_CTRL_REG, reg);
 
 	/* Unmask the M_RESETn for DDR3 */
+
+	/* Restore all uCode Fixes */
+	mvPmuCodeFix();
 
 	return MV_OK;
 }
