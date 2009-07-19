@@ -569,6 +569,10 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
         { -1 },
 };
 
+static struct dove_mpp_mode dove_db_right_tact_mpp_modes[] __initdata = {
+	{ 57, MPP_GPIO_AUDIO1 }, /* use this mpp for the tact irq line */
+};
+
 /*****************************************************************************
  * POWER MANAGEMENT
  ****************************************************************************/
@@ -625,7 +629,12 @@ static void __init dove_db_init(void)
 	 * Basic Dove setup. Needs to be called early.
 	 */
 	dove_init();
+
 	dove_mpp_conf(dove_db_mpp_modes);
+	
+	if ((front_panel) && (right_tact))
+		dove_mpp_conf(dove_db_right_tact_mpp_modes);
+
 
         /* the (SW1) button is for use as a "wakeup" button */
 	dove_wakeup_button_setup(DOVE_DB_WAKEUP_GPIO);
