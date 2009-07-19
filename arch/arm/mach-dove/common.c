@@ -1196,6 +1196,67 @@ void __init dove_gpu_init(void)
 #endif
 }
 
+
+
+/*****************************************************************************
+ * SSP
+ ****************************************************************************/
+static struct resource dove_ssp_resources[] = {
+	{
+		.name	= "ssp base",
+		.start	=  DOVE_SSP_PHYS_BASE,
+		.end	=  DOVE_SSP_PHYS_BASE +  64 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "ssp csr",
+		.start	=  DOVE_SSP_CTRL_STATUS_1,
+		.end	=  DOVE_SSP_CTRL_STATUS_1 +  16 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "ssp irq",
+		.start	= IRQ_DOVE_SSP,
+		.end	= IRQ_DOVE_SSP,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		/* Receive */
+		.start	= 13,
+		.end	= 13,
+		.flags	= IORESOURCE_DMA,
+	},
+	{
+		/* Transmit */
+		.start	= 14,
+		.end	= 14,
+		.flags	= IORESOURCE_DMA,
+	},
+
+};
+
+
+
+
+static struct platform_device dove_ssp_pdev = {
+	.name		= "dove-ssp",
+	.id		= 0,
+	.dev = {
+		.platform_data = NULL,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.num_resources	= ARRAY_SIZE(dove_ssp_resources),
+	.resource	= dove_ssp_resources,
+};
+
+
+
+void __init dove_ssp_init(struct dove_ssp_platform_data *pdata)
+{
+	dove_ssp_pdev.dev.platform_data = pdata;
+	platform_device_register(&dove_ssp_pdev);
+}
+
+
+
 /*****************************************************************************
  * TACT switch
  ****************************************************************************/
