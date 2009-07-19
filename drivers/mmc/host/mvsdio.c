@@ -58,57 +58,6 @@ struct mvsd_host {
 #define mvsd_write(offs, val)	writel(val, iobase + (offs))
 #define mvsd_read(offs)		readl(iobase + (offs))
 
-
-
-/*
- * Tx alignment. This is a workaround for problems with
- * data sizes which are not 4-bytes aligned.
- * Currently this function only works for LSB_FIRST=0.
- */
-static void mvsd_align_tx_data(struct mvsd_host *host, struct mmc_data *data)
-{
-	u32 size = data->blocks * data->blksz;
-	u32 aligned_size = ((size + 3) / 4) * 4;
-	u8 *ptr = sg_virt(data->sg);
-	u8 *end = ptr + aligned_size-4;
-	u32 remainder = size%4;
-	u8 tmp[4];
-
-	if (!remainder)
-		return;
-
-	data->sg->length = aligned_size;
-	memcpy(tmp, end, 4);
-	memset(end, 0, 4);
-	memcpy(end+4-remainder, tmp, remainder);
-}
-
-
-/*
- * Rx alignment. This is a workaround for problems with
- * data sizes which are not 4-bytes aligned.
- * Currently this function only works for LSB_FIRST=0
- */
-static void mvsd_align_rx_data(struct mvsd_host *host, struct mmc_data *data)
-{
-	u32 size = data->blocks * data->blksz;
-	u32 aligned_size = ((size + 3) / 4) * 4;
-	u8 *ptr = sg_virt(data->sg);
-	u8 *end = ptr + aligned_size-4;
-	u32 remainder = size%4;
-	u8 tmp[4];
-
-	if (!remainder)
-		return;
-
-	data->sg->length = aligned_size;
-	memcpy(tmp, end, 4);
-	memset(end, 0, 4);
-	memcpy(end, &tmp[4-remainder], remainder);
-}
-
-
-
 static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 {
 	void __iomem *iobase = host->base;
@@ -160,7 +109,7 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 	mvsd_write(MVSD_BLK_COUNT, data->blocks);
 	mvsd_write(MVSD_BLK_SIZE, data->blksz);
 
-	if (nodma || data->sg->offset & 3) {
+	if (nodma || (data->blksz | data->sg->offset) & 3) {
 		/*
 		 * We cannot do DMA on a buffer which offset or size
 		 * is not aligned on a 4-byte boundary.
@@ -177,19 +126,6 @@ static int mvsd_setup_data(struct mvsd_host *host, struct mmc_data *data)
 		dma_addr_t phys_addr;
 		int dma_dir = (data->flags & MMC_DATA_READ) ?
 			DMA_FROM_DEVICE : DMA_TO_DEVICE;
-
-		/*
-		 * Workaround for data sizes which are not 4-byte aligned.
-		 * Currently we are not taking care of offsets which are
-		 * not 4-byte aligned
-		 */
-		if (data->blksz & 3) {
-			if (dma_dir == DMA_TO_DEVICE)
-				mvsd_align_tx_data(host, data);
-			if (dma_dir == DMA_FROM_DEVICE)
-				mvsd_align_rx_data(host, data);
-		}
-
 		host->sg_frags = dma_map_sg(mmc_dev(host->mmc), data->sg,
 					    data->sg_len, dma_dir);
 		phys_addr = sg_dma_address(data->sg);
@@ -351,9 +287,6 @@ static u32 mvsd_finish_data(struct mvsd_host *host, struct mmc_data *data,
 			    u32 err_status)
 {
 	void __iomem *iobase = host->base;
-
-	if (data->flags & MMC_DATA_READ)
-		mvsd_align_rx_data(host, data);
 
 	if (host->pio_ptr) {
 		host->pio_ptr = NULL;
