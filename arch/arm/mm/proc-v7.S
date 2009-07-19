@@ -76,8 +76,14 @@ ENDPROC(cpu_v7_reset)
  *	IRQs are already disabled.
  */
 ENTRY(cpu_v7_do_idle)
+
 	dsb					@ WFI may enter a low-power mode
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
+	mov	r1, #0
+	mcr	p15, 0, r1, c7, c0, 4		@ wait for interrupt
+#else
 	wfi
+#endif
 	mov	pc, lr
 ENDPROC(cpu_v7_do_idle)
 
