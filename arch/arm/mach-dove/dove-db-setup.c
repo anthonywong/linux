@@ -560,7 +560,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
         { 54, MPP_AUDIO1 }, /* AU1 Group */
         { 55, MPP_AUDIO1 }, /* AU1 Group */
         { 56, MPP_AUDIO1 }, /* AU1 Group */
-        { 57, MPP_GPIO_AUDIO1 }, /* AU1 Group */
+        { 57, MPP_AUDIO1 }, /* AU1 Group */
 
 	{ 58, MPP_SPI0 }, /* will configure MPPs 58-61 */
 
