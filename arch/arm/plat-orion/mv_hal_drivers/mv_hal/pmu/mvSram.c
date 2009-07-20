@@ -117,11 +117,16 @@ static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
 	MV_U32 * src;
 	MV_U32 * dst;
 	MV_U32 i;
-
+	MV_U32 orig_size = size;
+/*
 	if (size & 0x3) {
 		dbg_print("Function relocated with non-alligned size\n");
 		return NULL;
 	}
+*/
+	/* Round up the size to a complete cache line */
+	size += 31;
+	size &= ~31;
 
 	if (size > mvPmuSramSize) {
 		dbg_print("No more space in SRAM for function relocation\n");
@@ -135,7 +140,7 @@ static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
 
 	if (start)
 	{
-		for (i=0; i<size; i+=4)
+		for (i=0; i<orig_size; i+=4)
 		{
 			*dst = *src;
 			dst++;
@@ -258,6 +263,10 @@ MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 					     (PMU_SCRATCHPAD_SIZE-1)) |
 					    (PMU_SCRATCHPAD_INT_BASE));
 
+	/* CODE SECTION STARTS HERE - ALLIGN TO CACHE LINE */
+	mvPmuSramOffs += 31;
+	mvPmuSramOffs &= ~31;
+	
 	/* Relocate the DDR reconfiguration function */
 	if ((_mvPmuSramDdrReconfigPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDdrReconfigFunc,
 		mvPmuSramDdrReconfigFuncSZ)) == NULL)
