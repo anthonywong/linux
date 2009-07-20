@@ -60,7 +60,7 @@ static unsigned int right_tact = 0;
 module_param(right_tact, uint, 0);
 MODULE_PARM_DESC(right_tact, "Use Right tact as keys");
 
-static unsigned int use_hal_giga = 1;
+static unsigned int use_hal_giga = 0;
 #ifdef CONFIG_MV643XX_ETH
 module_param(use_hal_giga, uint, 0);
 MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
