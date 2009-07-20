@@ -352,9 +352,9 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 
 	mov	r1, #0
 	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
-	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate
-	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
+	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate	
 	mcr	p15, 1, r1, c7, c7, 0		@ Invalidate entire L2
+	mcr	p15, 0, r1, c7, c5, 4		@ Prefetch Flush - ISB
 
 	/*
 	 * Exit DDR self refresh mode if active
@@ -406,11 +406,33 @@ dix_ddr_active:
 	orr	r3, r3, r4			@ virtual resume address
 
 	/*
-	 * Make sure that the following are alligned to 8B otherwise
-	 * a prefetch abort is generated
+	 * temporarily map PMU SRAM into the page table so that PA=VA
+	 * otherwise prefetch abort occurs after MMU is turned on
 	 */
+	ldr	r1, dix_virt_offs
+	mov	r1, r1, lsr #20
+	ldr	r0, [r5, r1, lsl #2]		@ use PMU mapping mode
+	bic	r0, r0, #0xFF000000
+	bic	r0, r0, #0x00FF0000
+	ldr	r1, dix_phys_offs
+	mov	r1, r1, lsr #20
+	orr	r7, r0, r1, lsl #20		@ temporay mapping
+	ldr	r4, [r5, r1, lsl #2]		@ save original mapping
+	str     r7, [r5, r1, lsl #2]		@ set temporary mapping
+
+	/*
+	 * Map the page table to its physical euivalent (PA=VA)
+	 * Needed to restore the original PTA in virtual mode
+	 */
+	mov	r6, r5, lsr #20
+	orr	r7, r0, r6, lsl #20		@ temporay mapping
+	ldr	r9, [r5, r6, lsl #2]		@ save original mapping
+	str     r7, [r5, r6, lsl #2]		@ set temporary mapping	
+
 	.align 5
-	mcr	p15, 0, r2, c1, c0, 0		@ write control reg
+	mcr 	p15, 0, r2, c1, c0, 0		@ restore CP15 - CR
+	mov 	r0, #0
+	mcr	p15, 0, r0, c7, c5, 4		@ Prefetch Flush - ISB
 	mov	pc, r3
 
 dix_saved_sp:
@@ -418,7 +440,8 @@ dix_saved_sp:
 
 	.text
 dix_resume_after_mmu:
-	mov	r0, #0
+	str	r4, [r5, r1, lsl #2]		@ restore original PMU mapping
+	str	r9, [r5, r6, lsl #2]		@ restore original PT mapping
 	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
 	mov	r13, r8				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
@@ -431,6 +454,8 @@ dix_virt_mask:
 	.word (0xFFFFF)
 dix_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
+dix_phys_offs:
+	.word (DOVE_SCRATCHPAD_PHYS_BASE)
 dix_gpio_out_val_reg:
 	.word (DOVE_SB_REGS_PHYS_BASE + 0xD0400)
 dix_term_ctrl_addr:
@@ -553,9 +578,9 @@ ENTRY(mvPmuSramStandbyEnterFuncSZ)
 ENTRY(mvPmuSramStandbyExitFunc)
 	mov	r1, #0
 	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
-	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate
-	mcr	p15, 0, r1, c7, c5, 4		@ flush prefetch buffer
+	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate	
 	mcr	p15, 1, r1, c7, c7, 0		@ Invalidate entire L2
+	mcr	p15, 0, r1, c7, c5, 4		@ Prefetch Flush - ISB
 
 	ldr	r0, sbx_saved_sp		@ stack phys addr
 	ldmfd	r0, {r2-r8}
@@ -572,11 +597,33 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	orr	r3, r3, r4			@ virtual resume address
 
 	/*
-	 * Make sure that the following are alligned to 8B otherwise
-	 * a prefetch abort is generated
+	 * temporarily map PMU SRAM into the page table so that PA=VA
+	 * otherwise prefetch abort occurs after MMU is turned on
 	 */
+	ldr	r1, sbx_virt_offs
+	mov	r1, r1, lsr #20
+	ldr	r0, [r5, r1, lsl #2]		@ use PMU mapping mode
+	bic	r0, r0, #0xFF000000
+	bic	r0, r0, #0x00FF0000
+	ldr	r1, sbx_phys_offs
+	mov	r1, r1, lsr #20
+	orr	r7, r0, r1, lsl #20		@ temporay mapping
+	ldr	r4, [r5, r1, lsl #2]		@ save original mapping
+	str     r7, [r5, r1, lsl #2]		@ set temporary mapping
+
+	/*
+	 * Map the page table to its physical euivalent (PA=VA)
+	 * Needed to restore the original PTA in virtual mode
+	 */
+	mov	r6, r5, lsr #20
+	orr	r7, r0, r6, lsl #20		@ temporay mapping
+	ldr	r9, [r5, r6, lsl #2]		@ save original mapping
+	str     r7, [r5, r6, lsl #2]		@ set temporary mapping	
+
 	.align 5
 	mcr 	p15, 0, r2, c1, c0, 0		@ restore CP15 - CR
+	mov 	r0, #0
+	mcr	p15, 0, r0, c7, c5, 4		@ Prefetch Flush - ISB
 	mov	pc, r3
 
 sbx_saved_sp:
@@ -584,7 +631,8 @@ sbx_saved_sp:
 
 	.text
 sbx_resume_after_mmu:
-	mov	r0, #0
+	str	r4, [r5, r1, lsl #2]		@ restore original PMU mapping
+	str	r9, [r5, r6, lsl #2]		@ restore original PT mapping
 	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
 	mov	r13, r8				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
@@ -593,6 +641,8 @@ sbx_virt_mask:
 	.word (0xFFFFF)
 sbx_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
+sbx_phys_offs:
+	.word (DOVE_SCRATCHPAD_PHYS_BASE)
 
 ENTRY(mvPmuSramStandbyExitFuncSZ)
 	.word	. - mvPmuSramStandbyExitFunc
