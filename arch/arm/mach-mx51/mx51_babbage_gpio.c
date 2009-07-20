@@ -401,7 +401,6 @@ void __init mx51_babbage_io_init(void)
 	mxc_iomux_set_pad(MX51_PIN_GPIO1_7, PAD_CTL_DRV_HIGH |
 			  PAD_CTL_PKE_ENABLE | PAD_CTL_SRE_FAST);
 	mxc_set_gpio_direction(MX51_PIN_GPIO1_7, 0);
-	mxc_set_gpio_dataout(MX51_PIN_GPIO1_7, 1);
 
 	/* Drive I2C1 SDA line low */
 	mxc_request_iomux(MX51_PIN_GPIO1_3, IOMUX_CONFIG_ALT0);
@@ -420,7 +419,7 @@ void __init mx51_babbage_io_init(void)
 	/* USB HUB RESET - De-assert USB HUB RESET_N */
 	msleep(1);
 	mxc_set_gpio_dataout(MX51_PIN_GPIO1_7, 0);
-	msleep(5);
+	msleep(1);
 	mxc_set_gpio_dataout(MX51_PIN_GPIO1_7, 1);
 
 	msleep(5);
@@ -453,6 +452,22 @@ void __init mx51_babbage_io_init(void)
 	mxc_set_gpio_direction(MX51_PIN_EIM_A21, 0);
 	msleep(10);
 	mxc_set_gpio_dataout(MX51_PIN_EIM_A21, 1);
+
+	/* Drive USB_CLK_EN_B line low */
+	mxc_request_iomux(MX51_PIN_EIM_D17, IOMUX_CONFIG_ALT1);
+	mxc_iomux_set_pad(MX51_PIN_EIM_D17, PAD_CTL_DRV_HIGH |
+			  PAD_CTL_PKE_ENABLE | PAD_CTL_SRE_FAST);
+	mxc_set_gpio_direction(MX51_PIN_EIM_D17, 0);
+	mxc_set_gpio_dataout(MX51_PIN_EIM_D17, 0);
+
+	/* MX51_PIN_EIM_D21 - De-assert USB PHY RESETB */
+	mxc_request_iomux(MX51_PIN_EIM_D21, IOMUX_CONFIG_ALT1);
+	mxc_iomux_set_pad(MX51_PIN_EIM_D21, PAD_CTL_DRV_HIGH |
+			  PAD_CTL_HYS_NONE | PAD_CTL_PUE_KEEPER |
+			  PAD_CTL_100K_PU | PAD_CTL_ODE_OPENDRAIN_NONE |
+			  PAD_CTL_PKE_ENABLE | PAD_CTL_SRE_FAST);
+	mxc_set_gpio_direction(MX51_PIN_EIM_D21, 0);
+	mxc_set_gpio_dataout(MX51_PIN_EIM_D21, 1);
 
 	/* MX51_PIN_EIM_CRE - De-assert USB PHY RESETB */
 	mxc_set_gpio_direction(MX51_PIN_EIM_CRE, 0);
