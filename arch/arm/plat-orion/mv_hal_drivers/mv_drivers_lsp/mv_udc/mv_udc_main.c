@@ -81,6 +81,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <asm/irq.h>
 #include <linux/device.h>
+#include <linux/clk.h>
 #include <linux/workqueue.h>
 
 
@@ -300,6 +301,10 @@ struct mv_usb_dev
     void*                       mv_usb_handle;
     int                         dev_no;
     MV_U8                       vbus_gpp_no;
+#if defined(CONFIG_HAVE_CLK)
+	struct clk              *clk;
+#endif
+
 };
 
 void    mv_usb_show(struct mv_usb_dev* mv_dev, unsigned int mode);
@@ -1602,6 +1607,20 @@ static int __init mv_usb_gadget_probe(struct platform_device *pdev)
 
     platform_set_drvdata(pdev, mv_dev);
     the_controllers[dev_no] = mv_dev;
+#if defined(CONFIG_HAVE_CLK)
+    if (dev_no == 0)
+	    mv_dev->clk = clk_get(NULL, "usb0");
+    else if (dev_no == 1)
+	    mv_dev->clk = clk_get(NULL, "usb1");
+    else {
+        mvOsPrintf("mv_udc_probe: unknown dev number\n");
+        return -EINVAL;
+    }
+    if (IS_ERR(mv_dev->clk))
+	    dev_notice(&pdev->dev, "cannot get clkdev\n");
+    else
+	    clk_enable(mv_dev->clk);
+#endif
 
 #ifdef MV_USB_VOLTAGE_FIX
 
@@ -1828,9 +1847,17 @@ static int __exit mv_usb_gadget_remove(struct platform_device *pdev)
     the_controllers[mv_dev->dev_no] = 0;
     device_unregister (&mv_dev->gadget.dev);
 
+#if defined(CONFIG_HAVE_CLK)
+    if (!IS_ERR(mv_dev->clk)) {
+	    clk_disable(mv_dev->clk);
+	    clk_put(mv_dev->clk);
+    }
+#endif
+
     kfree(mv_dev);
 
     platform_set_drvdata(pdev, 0);
+
     return 0;
 }
  
