@@ -232,6 +232,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/completion.h>
+#include <linux/version.h>
 #include <linux/dcache.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -379,7 +380,9 @@ static struct {
 	.product		= DRIVER_PRODUCT_ID,
 	.release		= 0xffff,	// Use controller chip type
 	.buflen			= 32768, // 16384,
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,22)
 	.use_directio	= 1,
+#endif
 	.use_rda		= 1,
 	.use_wr_thread	= 1,
 	};
@@ -398,9 +401,10 @@ MODULE_PARM_DESC(luns, "number of LUNs");
 module_param_named(removable, mod_data.removable, bool, S_IRUGO);
 MODULE_PARM_DESC(removable, "true to simulate removable media");
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,22)
 module_param_named(use_directio, mod_data.use_directio, bool, S_IRUGO);
 MODULE_PARM_DESC(use_directio, "true to use O_DIRECT for file storage access");
-
+#endif
 module_param_named(use_rda, mod_data.use_rda, bool, S_IRUGO);
 MODULE_PARM_DESC(use_rda, "true to use read ahead for performence enhancment");
  
