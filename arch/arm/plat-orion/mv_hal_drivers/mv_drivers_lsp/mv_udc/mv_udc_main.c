@@ -1549,17 +1549,16 @@ static void mv_usb_gadget_release (struct device *_dev)
 }
 
 
-static int __init mv_usb_gadget_probe(struct device *_dev) 
+static int __init mv_usb_gadget_probe(struct platform_device *pdev) 
 {
     struct mv_usb_dev       *mv_dev;
     int                     dev_no, retval, i;
     uint_8                  error;
-    struct platform_device  *pDev = to_platform_device(_dev); 
 
     for(dev_no=0; dev_no<mvCtrlUsbMaxGet(); dev_no++)
     {
-        if( (pDev->resource[1].flags == IORESOURCE_IRQ) &&
-            (pDev->resource[1].start == IRQ_USB_CTRL(dev_no)) )
+        if( (pdev->resource[1].flags == IORESOURCE_IRQ) &&
+            (pdev->resource[1].start == IRQ_USB_CTRL(dev_no)) )
         {
             break;
         }
@@ -1587,20 +1586,21 @@ static int __init mv_usb_gadget_probe(struct device *_dev)
 
     memset (mv_dev, 0, sizeof *mv_dev);
     spin_lock_init (&mv_dev->lock);
-    mv_dev->dev = _dev; 
+    mv_dev->dev = &pdev->dev; 
     mv_dev->gadget.ops = &mv_usb_ops;
     mv_dev->gadget.is_dualspeed = 1;
 
     /* the "gadget" abstracts/virtualizes the controller */
-    strcpy (dev_name(&mv_dev->gadget.dev), "gadget");
-    mv_dev->gadget.dev.parent = _dev;
-    mv_dev->gadget.dev.dma_mask = _dev->dma_mask; /* ?????? */
+//    strcpy (dev_name(&mv_dev->gadget.dev), "gadget");
+    dev_set_name(&mv_dev->gadget.dev, "gadget");
+    mv_dev->gadget.dev.parent = &pdev->dev;
+    mv_dev->gadget.dev.dma_mask = pdev->dev.dma_mask; /* ?????? */
     mv_dev->gadget.dev.release = mv_usb_gadget_release ;
     mv_dev->gadget.name = driver_name;
     mv_dev->mv_usb_handle = NULL;
     mv_dev->dev_no = dev_no;
 
-    dev_set_drvdata(_dev, mv_dev);
+    platform_set_drvdata(pdev, mv_dev);
     the_controllers[dev_no] = mv_dev;
 
 #ifdef MV_USB_VOLTAGE_FIX
@@ -1780,10 +1780,10 @@ static int __init mv_usb_gadget_probe(struct device *_dev)
     return retval; 
 }
 
-static int __exit mv_usb_gadget_remove(struct device *_dev)
+static int __exit mv_usb_gadget_remove(struct platform_device *pdev)
 {
     int                 i;
-    struct mv_usb_dev   *mv_dev = dev_get_drvdata(_dev); 
+    struct mv_usb_dev   *mv_dev = platform_get_drvdata(pdev); 
 
     mvOsPrintf("mv_usb_gadget_remove: mv_dev=%p, driver=%p\n", 
                 mv_dev, mv_dev->driver);
@@ -1830,7 +1830,7 @@ static int __exit mv_usb_gadget_remove(struct device *_dev)
 
     kfree(mv_dev);
 
-    dev_set_drvdata(_dev, 0);
+    platform_set_drvdata(pdev, 0);
     return 0;
 }
  
@@ -1902,12 +1902,15 @@ int usb_start_resource_dump(void)
   return 0;
 }
 
-static struct device_driver mv_usb_gadget_driver = 
+static struct platform_driver mv_usb_gadget_driver = 
 {
-    .name       = (char *) driver_name,
-    .bus        = &platform_bus_type,
-    .probe      = mv_usb_gadget_probe,
-    .remove     = __exit_p(mv_usb_gadget_remove), 
+	.driver = {
+		.name       = (char *) driver_name,
+		.owner = THIS_MODULE,
+	},
+//	.bus        = &platform_bus_type,
+	.probe      = mv_usb_gadget_probe,
+	.remove     = __exit_p(mv_usb_gadget_remove), 
 };
 
 MODULE_VERSION (DRIVER_VERSION);
@@ -1925,7 +1928,7 @@ static int __init init (void)
 	the_controllers[dev_no] = NULL;
     }
     usb_start_resource_dump();
-    return driver_register(&mv_usb_gadget_driver); 
+    return platform_driver_register(&mv_usb_gadget_driver); 
 }
 module_init (init);
 
@@ -1938,6 +1941,6 @@ static void __exit cleanup (void)
 #else
     remove_proc_entry("usb_dump" , NULL);
 #endif
-    driver_unregister(&mv_usb_gadget_driver);
+    platform_driver_unregister(&mv_usb_gadget_driver);
 }
 module_exit (cleanup);
