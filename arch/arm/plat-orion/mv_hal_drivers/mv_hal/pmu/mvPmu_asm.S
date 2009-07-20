@@ -85,6 +85,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * Outputs:
  *    None
  **************************************************************/
+	.align 5
 ENTRY(mvPmuSramDdrReconfigFunc)
 	stmfd	sp!, {r4 - r10, lr}	@ save registers on stack
 
@@ -208,6 +209,7 @@ ENTRY(mvPmuSramDdrReconfigFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
+	.align 5
 ENTRY(mvPmuSramDeepIdleEnterFunc)
 	stmfd	sp!, {r4-r12, lr}		@ save general regs
 	mrc 	p15, 0, r2, c1, c0, 0		@ save CP15 - CR
@@ -230,7 +232,6 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 	mov	pc, r1
 sb_pc_v2p_res:
 	adr	r1, dix_saved_sp
-	sub	r1, r1, #4
 
 #ifndef CONFIG_DOVE_REV_Z0
 	/*
@@ -340,6 +341,7 @@ ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
+	.align 5
 ENTRY(mvPmuSramDeepIdleExitFunc)
 	/*
 	 * Move back Internal regs to Linux base
@@ -402,6 +404,12 @@ dix_ddr_active:
 	and	r3, r3, r4
 	ldr	r4, dix_virt_offs
 	orr	r3, r3, r4			@ virtual resume address
+
+	/*
+	 * Make sure that the following are alligned to 8B otherwise
+	 * a prefetch abort is generated
+	 */
+	.align 5
 	mcr	p15, 0, r2, c1, c0, 0		@ write control reg
 	mov	pc, r3
 
@@ -441,6 +449,7 @@ ENTRY(mvPmuSramDeepIdleExitFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
+	.align 5
 ENTRY(mvPmuSramStandbyEnterFunc)
 
 	stmfd	sp!, {r4-r12, lr}		@ save general regs
@@ -464,7 +473,6 @@ ENTRY(mvPmuSramStandbyEnterFunc)
 	mov	pc, r1
 sbe_pc_v2p_res:
 	adr	r1, sbx_saved_sp
-	sub	r1, r1, #4
 
 	/*
 	 * Write SP to scratch NVRAM
@@ -541,6 +549,7 @@ ENTRY(mvPmuSramStandbyEnterFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
+	.align 5
 ENTRY(mvPmuSramStandbyExitFunc)
 	mov	r1, #0
 	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
@@ -561,6 +570,12 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	and	r3, r3, r4
 	ldr	r4, sbx_virt_offs
 	orr	r3, r3, r4			@ virtual resume address
+
+	/*
+	 * Make sure that the following are alligned to 8B otherwise
+	 * a prefetch abort is generated
+	 */
+	.align 5
 	mcr 	p15, 0, r2, c1, c0, 0		@ restore CP15 - CR
 	mov	pc, r3
 
