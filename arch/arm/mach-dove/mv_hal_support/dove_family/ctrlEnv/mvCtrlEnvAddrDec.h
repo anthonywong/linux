@@ -67,21 +67,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __INCmvCtrlEnvAddrDech
 
 /* includes */
-#include "ctrlEnv/mvCtrlEnvLib.h"
-#include "ctrlEnv/mvCtrlEnvRegs.h"
 
 /* typedefs */
 
 /* Unsupported attributes for address decode:                               */
 /* 2) PCI0/1_REQ64n control                                                 */
-
-typedef struct _mvDecRegs
-{
-    MV_U32 baseReg;
-    MV_U32 baseRegHigh;
-    MV_U32 sizeReg;
-
-} MV_DEC_REGS;
 
 typedef struct _mvTargetAttrib
 {
@@ -117,6 +107,7 @@ MV_STATUS mvCtrlRegToAddrDec(MV_DEC_REGS *pAddrDecRegs, MV_ADDR_WIN *pAddrDecWin
 MV_STATUS mvCtrlAttribGet(MV_TARGET target, MV_TARGET_ATTRIB *targetAttrib);
 
 MV_TARGET mvCtrlTargetGet(MV_TARGET_ATTRIB *targetAttrib);
+MV_TARGET mvCtrlTargetByWinInfoGet(MV_UNIT_WIN_INFO *unitWinInfo);
 
 MV_STATUS mvCtrlAddrDecToParams(MV_DEC_WIN *pAddrDecWin, 
                                 MV_DEC_WIN_PARAMS *pWinParam);
@@ -124,7 +115,6 @@ MV_STATUS mvCtrlAddrDecToParams(MV_DEC_WIN *pAddrDecWin,
 MV_STATUS mvCtrlParamsToAddrDec(MV_DEC_WIN_PARAMS *pWinParam, 
                                 MV_DEC_WIN *pAddrDecWin);
 
-
-
+MV_STATUS mvCtrlAddrWinMapBuild(MV_UNIT_WIN_INFO *pAddrWinMap, MV_U32 len);
 
 #endif /* __INCmvCtrlEnvAddrDech */

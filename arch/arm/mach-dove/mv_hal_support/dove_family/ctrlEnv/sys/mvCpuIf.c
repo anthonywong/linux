@@ -69,6 +69,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "cpu/mvCpu.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
 #include "mvSysHwConfig.h"
+#include "ddr/mvDramIf.h"
+#include "pci-if/pex/mvPexRegs.h"
 
 /*#define MV_DEBUG*/
 /* defines  */
@@ -115,6 +117,7 @@ MV_STATUS mvCpuIfInit(MV_CPU_DEC_WIN *cpuAddrWinMap)
 	MV_U32 regVal;
 	MV_TARGET target;
 	MV_ADDR_WIN addrWin;
+	int ii;
 
 	if (cpuAddrWinMap == NULL)
 	{
@@ -125,7 +128,7 @@ MV_STATUS mvCpuIfInit(MV_CPU_DEC_WIN *cpuAddrWinMap)
 	/* Set ARM Configuration register */
 	regVal  = MV_REG_READ(CPU_CONFIG_REG);
 	regVal &= ~CPU_CONFIG_DEFAULT_MASK;
-	regVal |= CPU_CONFIG_DEFAULT;
+	/* regVal |= CPU_CONFIG_DEFAULT; Note: not needed */
 	MV_REG_WRITE(CPU_CONFIG_REG,regVal);
 
 
@@ -159,8 +162,12 @@ MV_STATUS mvCpuIfInit(MV_CPU_DEC_WIN *cpuAddrWinMap)
 			continue;
 		}
 #endif /* MV_RUN_FROM_FLASH */
-		mvCpuIfTargetWinEnable(MV_CHANGE_BOOT_CS(target),MV_FALSE);
+		mvCpuIfTargetWinEnable(MV_CHANGE_BOOT_CS(target),MV_FALSE);		
 	}
+
+	/* TODO */
+	for (ii = 0; ii < 8; ii++)
+		MV_REG_WRITE(AHB_TO_MBUS_WIN_CTRL_REG(ii), 0);
 
 #if defined(MV_RUN_FROM_FLASH)
     	/* Resize the bootcs windows before other windows, because this     */
@@ -256,6 +263,13 @@ MV_STATUS mvCpuIfInit(MV_CPU_DEC_WIN *cpuAddrWinMap)
 		}
     }
 
+#ifdef MV_INCLUDE_PEX
+	mvCpuIfEnablePex();
+#endif
+
+#ifdef MV_INCLUDE_PMU
+	mvCpuIfEnablePmu();
+#endif
 	return MV_OK;
 
 
@@ -422,7 +436,6 @@ MV_STATUS mvCpuIfTargetWinGet(MV_TARGET target, MV_CPU_DEC_WIN *pAddrDecWin)
 		pAddrDecWin->addrWin.size = addrDecWin.addrWin.size;
 		pAddrDecWin->enable = addrDecWin.enable;
 		pAddrDecWin->winNum = 0xffffffff;
-
 	}
 	else
 	{
@@ -432,7 +445,6 @@ MV_STATUS mvCpuIfTargetWinGet(MV_TARGET target, MV_CPU_DEC_WIN *pAddrDecWin)
 		if (winNum >= MAX_AHB_TO_MBUS_WINS)
 		{
 			return MV_NO_SUCH;
-
 		}
 
 		if (mvAhbToMbusWinGet(winNum , &decWin) != MV_OK)
@@ -440,7 +452,6 @@ MV_STATUS mvCpuIfTargetWinGet(MV_TARGET target, MV_CPU_DEC_WIN *pAddrDecWin)
 			mvOsPrintf("%s: mvAhbToMbusWinGet Failed at winNum = %d\n",
 					   __FUNCTION__, winNum);
 			return MV_ERROR;
-
 		}
 
 		/* copy relevant data to MV_CPU_DEC_WIN structure */
@@ -451,9 +462,6 @@ MV_STATUS mvCpuIfTargetWinGet(MV_TARGET target, MV_CPU_DEC_WIN *pAddrDecWin)
 		pAddrDecWin->winNum = winNum;
 
 	}
-
-
-
 
 	return MV_OK;
 }
@@ -516,7 +524,6 @@ MV_STATUS mvCpuIfTargetWinEnable(MV_TARGET target,MV_BOOL enable)
 			DB(mvOsPrintf("%s: ERR. Target %d overlap\n",__FUNCTION__, target));
 			return MV_ERROR;
 		}
-
 	}
 
 
@@ -526,7 +533,6 @@ MV_STATUS mvCpuIfTargetWinEnable(MV_TARGET target,MV_BOOL enable)
 		{
 			mvOsPrintf("mvCpuIfTargetWinGet: mvDramIfWinEnable Failed at \n");
 			return MV_ERROR;
-
 		}
 
 	}
@@ -546,9 +552,7 @@ MV_STATUS mvCpuIfTargetWinEnable(MV_TARGET target,MV_BOOL enable)
 			mvOsPrintf("mvCpuIfTargetWinGet: Failed to enable window = %d\n",
 					   winNum);
 			return MV_ERROR;
-
 		}
-
 	}
 
 	return MV_OK;
@@ -585,7 +589,7 @@ MV_U32    mvCpuIfTargetWinSizeGet(MV_TARGET target)
 		return 0;
 	}
 
-    /* Get the winNum window */
+	/* Get the winNum window */
 	if (MV_OK != mvCpuIfTargetWinGet(target, &addrDecWin))
 	{
 		mvOsPrintf("mvCpuIfTargetWinSizeGet:ERR. Getting target %d failed.\n",
@@ -595,13 +599,13 @@ MV_U32    mvCpuIfTargetWinSizeGet(MV_TARGET target)
 
 	/* Check if window is enabled   */
 	if (addrDecWin.enable == MV_TRUE)
-    {
+	{
 		return (addrDecWin.addrWin.size);
-    }
-    else
-    {
-        return 0;		/* Window disabled. return 0 */
-    }
+	}
+	else
+	{
+        	return 0;		/* Window disabled. return 0 */
+	}
 }
 
 /*******************************************************************************
@@ -635,7 +639,7 @@ MV_U32   mvCpuIfTargetWinBaseLowGet(MV_TARGET target)
 		return 0xffffffff;
 	}
 
-    /* Get the target window */
+	/* Get the target window */
 	if (MV_OK != mvCpuIfTargetWinGet(target, &addrDecWin))
 	{
 		mvOsPrintf("mvCpuIfTargetWinBaseLowGet:ERR. Getting target %d failed.\n",
@@ -729,7 +733,6 @@ MV_U32 mvCpuIfPexRemap(MV_TARGET pexTarget, MV_ADDR_WIN *pAddrDecWin)
 			mvOsPrintf("mvCpuIfPexRemap: target %d is illegal\n",pexTarget);
 			return 0xffffffff;
 		}
-
 	}
 	else
 	{
@@ -738,7 +741,6 @@ MV_U32 mvCpuIfPexRemap(MV_TARGET pexTarget, MV_ADDR_WIN *pAddrDecWin)
 			mvOsPrintf("mvCpuIfPexRemap: target %d is illegal\n",pexTarget);
 			return 0xffffffff;
 		}
-
 	}
 
 	/* get the Window number associated with this target */
@@ -748,7 +750,6 @@ MV_U32 mvCpuIfPexRemap(MV_TARGET pexTarget, MV_ADDR_WIN *pAddrDecWin)
 	{
 		mvOsPrintf("mvCpuIfPexRemap: mvAhbToMbusWinTargetGet Failed\n");
 		return 0xffffffff;
-
 	}
 
 	return mvAhbToMbusWinRemap(winNum , pAddrDecWin);
@@ -793,7 +794,6 @@ MV_U32 mvCpuIfPciRemap(MV_TARGET pciTarget, MV_ADDR_WIN *pAddrDecWin)
 	{
 		mvOsPrintf("mvCpuIfPciRemap: mvAhbToMbusWinTargetGet Failed\n");
 		return 0xffffffff;
-
 	}
 
 	return mvAhbToMbusWinRemap(winNum , pAddrDecWin);
@@ -869,10 +869,9 @@ MV_TARGET mvCpuIfTargetOfBaseAddressGet(MV_U32 baseAddress)
 			{
 				if ((baseAddress >= win.addrWin.baseLow) &&
 					(baseAddress < win.addrWin.baseLow + win.addrWin.size)) break;
-            }
+			}
 		}
 		else return MAX_TARGETS;
-
 	}
 
 	return target;
@@ -901,13 +900,13 @@ MV_TARGET mvCpuIfTargetOfBaseAddressGet(MV_U32 baseAddress)
 *******************************************************************************/
 static MV_BOOL cpuTargetWinOverlap(MV_TARGET target, MV_ADDR_WIN *pAddrWin)
 {
-    MV_U32 			targetNum;
-    MV_CPU_DEC_WIN 	addrDecWin;
-	MV_STATUS		status;
+	MV_U32		targetNum;
+	MV_CPU_DEC_WIN 	addrDecWin;
+	MV_STATUS	status;
 
 
 	for(targetNum = 0; targetNum < MAX_TARGETS; targetNum++)
-    {
+	{
 #if defined(MV_RUN_FROM_FLASH)
 		if(MV_TARGET_IS_AS_BOOT(target))
 		{
@@ -917,21 +916,21 @@ static MV_BOOL cpuTargetWinOverlap(MV_TARGET target, MV_ADDR_WIN *pAddrWin)
 #endif /* MV_RUN_FROM_FLASH */
 
 		/* don't check our target or illegal targets */
-        if (targetNum == target)
-        {
-            continue;
-        }
+        	if (targetNum == target)
+        	{
+            		continue;
+        	}
 
 		/* Get window parameters 	*/
 		status = mvCpuIfTargetWinGet(targetNum, &addrDecWin);
-        if(MV_NO_SUCH == status)
-        {
-            continue;
-        }
+        	if(MV_NO_SUCH == status)
+        	{
+            		continue;
+        	}
 		if(MV_OK != status)
 		{
 			DB(mvOsPrintf("cpuTargetWinOverlap: ERR. TargetWinGet failed\n"));
-            return MV_TRUE;
+            		return MV_TRUE;
 		}
 
 		/* Do not check disabled windows	*/
@@ -940,14 +939,14 @@ static MV_BOOL cpuTargetWinOverlap(MV_TARGET target, MV_ADDR_WIN *pAddrWin)
 			continue;
 		}
 
-        if(MV_TRUE == ctrlWinOverlapTest(pAddrWin, &addrDecWin.addrWin))
+        	if(MV_TRUE == ctrlWinOverlapTest(pAddrWin, &addrDecWin.addrWin))
 		{
 			DB(mvOsPrintf(
 			"cpuTargetWinOverlap: Required target %d overlap current %d\n",
 								target, targetNum));
 			return MV_TRUE;
 		}
-    }
+    	}
 
 	return MV_FALSE;
 
@@ -1004,16 +1003,16 @@ MV_VOID mvCpuIfAddDecShow(MV_VOID)
 	}
 }
 
+#if defined(MV_INCLUDE_PEX)
 /*******************************************************************************
 * mvCpuIfEnablePex - Enable PCI Express.
 *
 * DESCRIPTION:
-*		This function Enable PCI Express.
+*	This function enables PCI Express access to the device address
+*	space.
 *
 * INPUT:
-*       pexIf   -  PEX interface number.
-*       pexType -  MV_PEX_ROOT_COMPLEX - root complex device
-*		   MV_PEX_END_POINT - end point device
+*	None.
 * OUTPUT:
 *       None.
 *
@@ -1021,25 +1020,46 @@ MV_VOID mvCpuIfAddDecShow(MV_VOID)
 *       None.
 *
 *******************************************************************************/
-#if defined(MV_INCLUDE_PEX)
-MV_VOID mvCpuIfEnablePex(MV_U32 pexIf, MV_PEX_TYPE pexType)
+MV_VOID mvCpuIfEnablePex(void)
 {
-	/* Set pex mode incase S@R not exist */
-	if( pexType == MV_PEX_END_POINT)
-	{
-		MV_REG_BIT_RESET(PEX_CTRL_REG(pexIf),PXCR_DEV_TYPE_CTRL_MASK);
-		/* Change pex mode in capability reg */
-		MV_REG_BIT_RESET(PEX_CFG_DIRECT_ACCESS(pexIf,PEX_CAPABILITY_REG), BIT22);
-		MV_REG_BIT_SET(PEX_CFG_DIRECT_ACCESS(pexIf,PEX_CAPABILITY_REG), BIT20);
-
-	}
-	else
-	{	
-		MV_REG_BIT_SET(PEX_CTRL_REG(pexIf),PXCR_DEV_TYPE_CTRL_MASK);
-	}
-
 	/* CPU config register Pex enable */
 	MV_REG_BIT_RESET(CPU_CTRL_STAT_REG,CCSR_PCI_ACCESS_MASK);
+}
+#endif
+
+#if defined(MV_INCLUDE_PMU)
+/*******************************************************************************
+* mvCpuIfEnablePmu
+*
+* DESCRIPTION:
+*	Enable the PMU Control over the CPU reset.
+*
+* INPUT:
+*	None.
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*       None.
+*
+*******************************************************************************/
+MV_VOID mvCpuIfEnablePmu(void)
+{
+	MV_U32 reg;
+
+#ifdef CONFIG_DOVE_REV_Z0
+	/* Reset bit0 in the Reset Strap since it is mixed up with the test mode in the BootROM */
+	reg = MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0);
+	reg &= ~0x1;
+	MV_REG_WRITE(MPP_SAMPLE_AT_RESET_REG0, reg);
+#endif
+
+	reg = MV_REG_READ(CPU_CONTROL_REG);
+	reg |= CPU_CTRL_PMU_CPU_RST_EN_MASK;
+	MV_REG_WRITE(CPU_CONTROL_REG, reg);
+
+	return;
 }
 #endif
 
