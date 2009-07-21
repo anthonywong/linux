@@ -74,11 +74,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MV_AHB_TO_MBUS_INTREG_WIN	8
 
 
-#define AHB_TO_MBUS_WIN_CTRL_REG(winNum)		(0x20000 + (winNum)*0x10)
-#define AHB_TO_MBUS_WIN_BASE_REG(winNum)		(0x20004 + (winNum)*0x10)
-#define AHB_TO_MBUS_WIN_REMAP_LOW_REG(winNum)		(0x20008 + (winNum)*0x10)
-#define AHB_TO_MBUS_WIN_REMAP_HIGH_REG(winNum)		(0x2000C + (winNum)*0x10)
-#define AHB_TO_MBUS_WIN_INTEREG_REG			0x20080
+#define AHB_TO_MBUS_WIN_CTRL_REG(winNum)		(MV_CPUIF_REGS_BASE + 0x0 + (winNum)*0x10)
+#define AHB_TO_MBUS_WIN_BASE_REG(winNum)		(MV_CPUIF_REGS_BASE + 0x04 + (winNum)*0x10)
+#define AHB_TO_MBUS_WIN_REMAP_LOW_REG(winNum)		(MV_CPUIF_REGS_BASE + 0x08 + (winNum)*0x10)
+#define AHB_TO_MBUS_WIN_REMAP_HIGH_REG(winNum)		(MV_CPUIF_REGS_BASE + 0x0C + (winNum)*0x10)
+#define AHB_TO_MBUS_WIN_INTEREG_REG			(MV_CPUIF_REGS_BASE + 0x80)
 
 /* Window Control Register      */
 /* AHB_TO_MBUS_WIN_CTRL_REG (ATMWCR)*/
