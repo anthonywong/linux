@@ -63,7 +63,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
 #define MV_ASMLANGUAGE
+#include "mvCommon.h"
 #include "mvOsAsm.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "mvDeviceId.h"
 #include "mvCtrlEnvRegs.h"
 #include "mvCpuIfRegs.h"
