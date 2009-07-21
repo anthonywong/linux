@@ -125,7 +125,6 @@ MV_U32  mvCpuL2ClkGet(MV_VOID)
 {
 #ifdef L2CLK_AUTO_DETECT
 	MV_U32 L2ClkRate, tmp, pClkRate, indexL2Rtio;
-	MV_U32 cpuCLK[] = MV_CPU_CLCK_TBL;
 	MV_U32 L2Rtio[][2] = MV_L2_CLCK_RTIO_TBL;
 
 	pClkRate = mvCpuPclkGet();
@@ -187,7 +186,26 @@ MV_VOID mvCpuNameGet(char *pNameBuff)
     return;
 }
 
-#if defined(MV88F6281)
+/*******************************************************************************
+* whoAmI - Get CPU name
+*
+* DESCRIPTION:
+*       This function returns a string describing the CPU model and revision.
+*
+* INPUT:
+*       None.
+*
+* OUTPUT:
+*       pNameBuff - Buffer to contain board name string. Minimum size 32 chars.
+*
+* RETURN:
+*       None.
+*******************************************************************************/
+unsigned int whoAmI(void)
+{
+	return MASTER_CPU;
+}
+
 
 #define MV_PROC_STR_SIZE 50
 
@@ -203,7 +221,9 @@ void mvCpuIfGetL2EccMode(MV_8 *buf)
 void mvCpuIfGetL2Mode(MV_8 *buf)
 {
     MV_U32 regVal = 0;
-    __asm volatile ("mrc	p15, 1, %0, c15, c1, 0" : "=r" (regVal)); /* Read Marvell extra features register */
+
+    MV_ASM_READ_EXTRA_FEATURES(regVal);
+
     if (regVal & BIT22)
 	mvOsSPrintf(buf, "L2 Enabled");
     else
@@ -213,7 +233,9 @@ void mvCpuIfGetL2Mode(MV_8 *buf)
 void mvCpuIfGetL2PrefetchMode(MV_8 *buf)
 {
     MV_U32 regVal = 0;
-    __asm volatile ("mrc	p15, 1, %0, c15, c1, 0" : "=r" (regVal)); /* Read Marvell extra features register */
+
+    MV_ASM_READ_EXTRA_FEATURES(regVal);
+
     if (regVal & BIT24)
 	mvOsSPrintf(buf, "L2 Prefetch Disabled");
     else
@@ -223,7 +245,9 @@ void mvCpuIfGetL2PrefetchMode(MV_8 *buf)
 void mvCpuIfGetWriteAllocMode(MV_8 *buf)
 {
     MV_U32 regVal = 0;
-    __asm volatile ("mrc	p15, 1, %0, c15, c1, 0" : "=r" (regVal)); /* Read Marvell extra features register */
+
+    MV_ASM_READ_EXTRA_FEATURES(regVal);
+
     if (regVal & BIT28)
 	mvOsSPrintf(buf, "Write Allocate Enabled");
     else
@@ -233,7 +257,9 @@ void mvCpuIfGetWriteAllocMode(MV_8 *buf)
 void mvCpuIfGetCpuStreamMode(MV_8 *buf)
 {
     MV_U32 regVal = 0;
-    __asm volatile ("mrc	p15, 1, %0, c15, c1, 0" : "=r" (regVal)); /* Read Marvell extra features register */
+
+    MV_ASM_READ_EXTRA_FEATURES(regVal);
+
     if (regVal & BIT29)
 	mvOsSPrintf(buf, "CPU Streaming Enabled");
     else
@@ -264,7 +290,5 @@ MV_U32 mvCpuIfPrintSystemConfig(MV_8 *buffer, MV_U32 index)
   count += mvOsSPrintf(buffer + count + index, "%s\n", Cpu_Stream_str);
   return count;
 }
-
-#endif
 
 

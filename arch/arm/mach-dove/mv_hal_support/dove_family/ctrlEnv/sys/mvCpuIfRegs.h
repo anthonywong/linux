@@ -69,16 +69,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /****************************************/
 /* ARM Control and Status Registers Map */
 /****************************************/
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "ctrlEnv/mvCtrlEnvRegs.h"
 
-#define CPU_CONFIG_REG				0x20100
-#define CPU_CTRL_STAT_REG			0x20104
-#define CPU_RSTOUTN_MASK_REG			0x20108
-#define CPU_SYS_SOFT_RST_REG			0x2010C
-#define CPU_AHB_MBUS_CAUSE_INT_REG		0x20110
-#define CPU_AHB_MBUS_MASK_INT_REG		0x20114
-#define CPU_FTDLL_CONFIG_REG			0x20120
+#define CPU_CONFIG_REG				(MV_CPUIF_REGS_BASE + 0x100)
+#define CPU_CTRL_STAT_REG			(MV_CPUIF_REGS_BASE + 0x104)
+#define CPU_RSTOUTN_MASK_REG			(MV_CPUIF_REGS_BASE + 0x108)
+#define CPU_SYS_SOFT_RST_REG			(MV_CPUIF_REGS_BASE + 0x10C)
+#define CPU_AHB_MBUS_CAUSE_INT_REG		(MV_CPUIF_REGS_BASE + 0x110)
+#define CPU_AHB_MBUS_MASK_INT_REG		(MV_CPUIF_REGS_BASE + 0x114)
+#define CPU_FTDLL_CONFIG_REG			(MV_CPUIF_REGS_BASE + 0x120)
 
-#define CPU_CONTROL_REG				0xD025C
+#define AXI_P_D_CTRL_REG			(MV_MISC_REGS_BASE + 0x224)
+#define CPU_CONTROL_REG				(MV_MISC_REGS_BASE + 0x25C)
 #define CPU_CTRL_PMU_CPU_RST_EN_OFFS		1
 #define CPU_CTRL_PMU_CPU_RST_EN_MASK		(0x1 << CPU_CTRL_PMU_CPU_RST_EN_OFFS)
 
@@ -87,7 +90,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /***************************/
 /* BOOTROM_ROUTINE_ERR_REG */
 /***************************/
-#define BOOTROM_ROUTINE_ERR_REG				0xD02D8
+#define BOOTROM_ROUTINE_ERR_REG			(MV_MISC_REGS_BASE + 0x2D8)
 
 /* Error Code , 0 - Pass, Non-Zero - Fail*/
 #define BRE_ERR_CODE_OFFS				0
@@ -336,25 +339,24 @@ while ARM boot is still in progress
 /* Main Interrupt Controller Registers Map */
 /*******************************************/
 
-#define CPU_MAIN_INT_CAUSE_REG			0x20200
-#define CPU_MAIN_IRQ_MASK_REG			0x20204
-#define CPU_MAIN_FIQ_MASK_REG			0x20208
-#define CPU_ENPOINT_MASK_REG			0x2020C
-#define CPU_MAIN_INT_CAUSE_HIGH_REG		0x20210
-#define CPU_MAIN_IRQ_MASK_HIGH_REG		0x20214
-#define CPU_MAIN_FIQ_MASK_HIGH_REG		0x20218
-#define CPU_ENPOINT_MASK_HIGH_REG		0x2021C
+#define CPU_MAIN_INT_CAUSE_REG			(MV_CPUIF_REGS_BASE + 0x200)
+#define CPU_MAIN_IRQ_MASK_REG			(MV_CPUIF_REGS_BASE + 0x204)
+#define CPU_MAIN_FIQ_MASK_REG			(MV_CPUIF_REGS_BASE + 0x208)
+#define CPU_ENPOINT_MASK_REG			(MV_CPUIF_REGS_BASE + 0x20C)
+#define CPU_MAIN_INT_CAUSE_HIGH_REG		(MV_CPUIF_REGS_BASE + 0x210)
+#define CPU_MAIN_IRQ_MASK_HIGH_REG		(MV_CPUIF_REGS_BASE + 0x214)
+#define CPU_MAIN_FIQ_MASK_HIGH_REG		(MV_CPUIF_REGS_BASE + 0x218)
+#define CPU_ENPOINT_MASK_HIGH_REG		(MV_CPUIF_REGS_BASE + 0x21C)
 
 
 /*******************************************/
 /* ARM Doorbell Registers Map		   */
 /*******************************************/
 
-#define CPU_HOST_TO_ARM_DRBL_REG		0x20400
-#define CPU_HOST_TO_ARM_MASK_REG		0x20404
-#define CPU_ARM_TO_HOST_DRBL_REG		0x20408
-#define CPU_ARM_TO_HOST_MASK_REG		0x2040C
-
+#define CPU_HOST_TO_ARM_DRBL_REG		(MV_CPUIF_REGS_BASE + 0x400)
+#define CPU_HOST_TO_ARM_MASK_REG		(MV_CPUIF_REGS_BASE + 0x404)
+#define CPU_ARM_TO_HOST_DRBL_REG		(MV_CPUIF_REGS_BASE + 0x408)
+#define CPU_ARM_TO_HOST_MASK_REG		(MV_CPUIF_REGS_BASE + 0x40C)
 
 
 /* CPU control register map */
