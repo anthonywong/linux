@@ -74,6 +74,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *   mvRegs.h
 *
 *******************************************************************************/
+#include "mvSataSoc.h"
 #include "mvOsS.h"
 #include "mvSata.h"
 #include "mvStorageDev.h"
