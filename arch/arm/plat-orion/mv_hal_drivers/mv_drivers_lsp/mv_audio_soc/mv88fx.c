@@ -35,6 +35,7 @@
 #include "mv88fx-pcm.h"
 #include "mv88fx-i2s.h"
 #include "audio/mvAudioRegs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 
 static struct mv88fx_snd_machine_data mv88fx_machine_data;
 
@@ -527,7 +528,7 @@ static int mv88fx_initalize_machine_data(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto error;
 	}
-	mv88fx_machine_data.base -= AUDIO_REG_BASE(mv88fx_machine_data.port);
+	mv88fx_machine_data.base -= MV_AUDIO_REGS_OFFSET(mv88fx_machine_data.port);
 
 	mv88fx_machine_data.irq = platform_get_irq(pdev, 0);
 	if (mv88fx_machine_data.irq == NO_IRQ) {
