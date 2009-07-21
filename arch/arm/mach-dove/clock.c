@@ -244,13 +244,17 @@ static int gpu_set_clock(struct clk *clk, unsigned long rate)
 #endif
 static void __lcd_clk_enable(struct clk *clk)
 {
+#ifndef CONFIG_DOVE_REV_Z0
 	dove_clocks_set_lcd_clock(1);
+#endif
 	return;
 }
 
 static void __lcd_clk_disable(struct clk *clk)
 {
+#ifndef CONFIG_DOVE_REV_Z0
 	dove_clocks_set_lcd_clock(0);
+#endif
 	return;
 }
 
