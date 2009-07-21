@@ -18,4 +18,9 @@ include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 # Objects list
 
 obj-y	+= mvKW_HAL_glue.o export.o 
+obj-$(CONFIG_MV_INCLUDE_CESA)		+= mv_hal_sys/mvSysCesa.o
+obj-$(CONFIG_MV_INCLUDE_GIG_ETH)	+= mv_hal_sys/mvSysEth.o
+obj-$(CONFIG_MV_INCLUDE_AUDIO)		+= mv_hal_sys/mvSysAudio.o
+obj-$(CONFIG_MV_INCLUDE_USB)		+= mv_hal_sys/mvSysUsb.o
+
 obj-$(CONFIG_MV_DBG_TRACE)	+= dbg-trace.o
