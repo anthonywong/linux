@@ -37,12 +37,10 @@ disclaimer.
 
 #include "mvOs.h"
 #include "mvCommon.h"
-#include "ctrlEnv/mvCtrlEnvLib.h"
-#include "cpu/mvCpu.h"
+#include "ctrlEnv/mvCtrlEnvRegs.h"
 #ifdef CONFIG_MV_INCLUDE_GIG_ETH
 #include "eth/mvEth.h"
 #endif
-//#include "ctrlEnv/sys/mvCpuIf.h"
 
 /*******************************************************************************
 * mvCtrlEthMaxPortGet - Get Marvell controller number of etherent ports.
@@ -198,7 +196,7 @@ MV_32 mvBoardPhyAddrGet(MV_U32 ethPortNum)
 *       MV_BOARD_MAC_SPEED, -1 if the port number is wrong.
 *
 *******************************************************************************/
-MV_BOARD_MAC_SPEED      mvBoardMacSpeedGet(MV_U32 ethPortNum)
+MV_ETH_MAC_SPEED      mvBoardMacSpeedGet(MV_U32 ethPortNum)
 {
 #if 0
 	MV_U32 boardId= mvBoardIdGet();
@@ -221,7 +219,7 @@ MV_BOARD_MAC_SPEED      mvBoardMacSpeedGet(MV_U32 ethPortNum)
 	else
 	     printk("error in %s: unknown board", __func__);
 #endif
-	return BOARD_MAC_SPEED_AUTO;
+	return ETH_MAC_SPEED_AUTO;
 #endif
 }
 
@@ -234,23 +232,6 @@ u32 overEthAddr = 0;
 //u8     mvMacAddr[6] = {0, };
 u8 mvMacAddr[CONFIG_MV_ETH_PORTS_NUM][6];
 u16 mvMtu[CONFIG_MV_ETH_PORTS_NUM] = {0};
-
-
-
-
-void    mvEthInit(void)
-{
-     MV_U32 port;
-
-     /* Power down all existing ports */
-     for(port=0; port<mvCtrlEthMaxPortGet(); port++)
-     {
-
-//	  mvEthWinInit(port);
-
-     }
-     mvEthHalInit();
-}
 
 #endif
 /*******************************************************************************
@@ -467,6 +448,7 @@ MV_STATUS mvXorInit (MV_VOID)
      return MV_OK;
 }
 #endif
+#if 0
 #include "twsi/mvTwsi.h"
 MV_U8 mvBoardA2DTwsiChanNumGet(MV_U8 unit)
 {
@@ -483,44 +465,7 @@ MV_U8 mvBoardA2DTwsiAddrGet(MV_U8 port)
 {
      return 0x4A;
 }
-
-#ifdef CONFIG_MV_INCLUDE_CESA
-#include "cesa/mvCesa.h"
-
-MV_STATUS mvCesaHalInit (int numOfSession, int queueDepth, char* pSramBase,
-			 MV_U32 cryptEngBase, void *osHandle);
-
-MV_STATUS mvCesaInit (int numOfSession, int queueDepth, char* pSramBase, void *osHandle)
-{
-    MV_U32 cesaCryptEngBase;
-#if 0
-    MV_CPU_DEC_WIN addrDecWin;
 #endif
-    if(sizeof(MV_CESA_SRAM_MAP) > MV_CESA_SRAM_SIZE)
-    {
-        mvOsPrintf("mvCesaInit: Wrong SRAM map - %d > %d\n",
-                sizeof(MV_CESA_SRAM_MAP), MV_CESA_SRAM_SIZE);
-        return MV_FAIL;
-    }
-#if 0
-    if (mvCpuIfTargetWinGet(CRYPT_ENG, &addrDecWin) == MV_OK)
-        cesaCryptEngBase = addrDecWin.addrWin.baseLow;
-    else
-    {
-        mvOsPrintf("mvCesaInit: ERR. mvCpuIfTargetWinGet failed\n");
-        return MV_ERROR;
-    }
-
-#if (MV_CESA_VERSION >= 2)
-    mvCesaTdmaAddrDecInit();
-#endif /* MV_CESA_VERSION >= 2 */
-#endif
-	return mvCesaHalInit(numOfSession, queueDepth, pSramBase, cesaCryptEngBase, 
-			     osHandle);
-
-}
-#endif
-
 MV_U32 mvCtrlUsbMaxGet(void)
 {
 	return 2;
@@ -529,6 +474,11 @@ MV_U32 mvCtrlUsbMaxGet(void)
 MV_U32 mv_crypto_base_get(void)
 {
 	return (DOVE_CESA_VIRT_BASE + 0x10000); 
+}
+
+MV_U32 mv_crypto_phys_base_get(void)
+{
+	return (DOVE_CESA_PHYS_BASE + 0x10000); 
 }
 
 MV_U32 mv_crypto_irq_get(void)
