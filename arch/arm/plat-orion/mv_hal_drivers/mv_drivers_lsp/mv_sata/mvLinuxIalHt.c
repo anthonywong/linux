@@ -69,7 +69,7 @@ disclaimer.
 #ifdef CONFIG_MV_INCLUDE_INTEG_SATA
 #include <linux/platform_device.h>
 #include "ctrlEnv/mvCtrlEnvLib.h"
-#include "ctrlEnv/sys/mvSysSata.h"
+#include "mvSysSataApi.h"
 #endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,0)
@@ -193,7 +193,11 @@ static struct platform_driver mv_platform_driver = {
 	.probe			= mv_platform_probe,
 	.remove			= __devexit_p(mv_platform_remove),
 	.driver			= {
+#ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
+				   .name = "sata_mv_hal",
+#else
 				   .name = "sata_mv",
+#endif
 				   .owner = THIS_MODULE,
 				  },
 };
@@ -211,7 +215,11 @@ static int __init mv_ial_init(void)
     platform_driver_register(&mv_platform_driver);
 #endif
 
+#ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
+    return 0;
+#else
     return (int)pci_register_driver(&mv_ial_pci_driver);
+#endif
 }
 
 static void __exit mv_ial_exit(void)
@@ -762,7 +770,7 @@ static int __devinit mv_ial_init_soc_sata(void)
         if (pAdapter->host[i] != NULL)
             pAdapter->host[i]->scsihost->base = pAdapter->host[0]->scsihost->base;
     }
-    pMvSataAdapter->adapterIoBaseAddress = (MV_BUS_ADDR_T)(INTER_REGS_BASE + SATA_REG_BASE - 
+    pMvSataAdapter->adapterIoBaseAddress = (MV_BUS_ADDR_T)(INTER_REGS_BASE + MV_SATA_REGS_OFFSET - 
                                             0x20000);
     
     mvLogMsg(MV_IAL_LOG_ID, MV_DEBUG, "io base address 0x%08lx\n",
