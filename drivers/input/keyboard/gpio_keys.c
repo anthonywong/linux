@@ -189,11 +189,12 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 
 	if (pdata->use_shared_irq) {
 		error = request_irq(pdata->shared_irq, gpio_keys_shared_isr,
-				    IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+				    IRQF_SHARED | IRQF_TRIGGER_RISING |
+				    IRQF_TRIGGER_FALLING,
 				    "gpio_keys", ddata);
 		if (error) {
 			pr_err("gpio-keys: Unable to claim irq %d; error %d\n",
-			       pdata->use_shared_irq, error);
+			       pdata->shared_irq, error);
 			goto fail2;
 		}
 	}
