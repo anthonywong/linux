@@ -33,7 +33,7 @@
 #include "mv88fx-pcm.h"
 
 #include "audio/mvAudio.h"
-#include "ctrlEnv/sys/mvSysAudio.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 
 #ifdef CONFIG_MACH_DOVE_RD_AVNG
 #include <linux/gpio.h>
@@ -140,9 +140,9 @@ static int mv88fx_config_dma_window(struct mv88fx_snd_chip *chip,
 	writel(((cs->size - 1) & 0xffff0000) |
 	       (cs->mbus_attr << 8) |
 	       (dram->mbus_dram_target_id << 4) | 1,
-	       chip->base + AUDIO_REG_BASE(chip->port) + WINDOW_CTRL(dma));
+	       chip->base + MV_AUDIO_REGS_OFFSET(chip->port) + WINDOW_CTRL(dma));
 	writel(cs->base,
-	       chip->base + AUDIO_REG_BASE(chip->port) + WINDOW_BASE(dma));
+	       chip->base + MV_AUDIO_REGS_OFFSET(chip->port) + WINDOW_BASE(dma));
 
 
 #undef WINDOW_CTRL

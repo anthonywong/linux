@@ -44,9 +44,10 @@ disclaimer.
 #include "dbg-trace.h"
 #include "mvSysHwConfig.h"
 #include "eth/mvEth.h"
+#include "eth/gbe/mvEthGbe.h"
 #include "eth-phy/mvEthPhy.h"
-#include "ctrlEnv/sys/mvSysGbe.h"
-
+#include "mvSysEthApi.h"
+#include "ctrlEnv/mvCtrlEnvLib.h"
 #include "mv_netdev.h"
 
 /*
@@ -2998,7 +2999,7 @@ static int mv_eth_probe(struct platform_device *pdev)
     spin_lock_init( &mii_lock );
 
     /* init MAC Unit */
-    mvEthHalInit();
+    mvSysEthInit();
 
     mv_eth_config_show();
 
