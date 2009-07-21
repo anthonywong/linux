@@ -34,6 +34,7 @@
 //#include <asm/plat-orion/i2s-orion.h>
 #include "mv88fx-pcm.h"
 #include "mv88fx-i2s.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "audio/mvAudioRegs.h"
 
 extern int mvmpp_gpio_get_value(unsigned int);
@@ -240,7 +241,7 @@ static int mv88fx_initalize_machine_data(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto error;
 	}
-	mv88fx_machine_data.base -= AUDIO_REG_BASE(mv88fx_machine_data.port);
+	mv88fx_machine_data.base -= MV_AUDIO_REGS_OFFSET(mv88fx_machine_data.port);
 
 	mv88fx_machine_data.irq = platform_get_irq(pdev, 0);
 	if (mv88fx_machine_data.irq == NO_IRQ) {
