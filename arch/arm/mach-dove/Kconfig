@@ -82,6 +82,14 @@ config MACH_DOVE_DB_Z0
 
 endmenu
 
+config MV_HAL_DRIVERS_SUPPORT
+	bool "Enable HAL based drivers support"
+	depends on ARCH_DOVE
+	select MV_INCLUDE_INTEG_SATA
+	help
+	  Say 'Y' here if you want your kernel to support HAL 
+	  based drivers where possible.
+
 config DOVE_PM_SUPPORT
 	depends on PM && MV_INCLUDE_PMU
 	def_bool y
