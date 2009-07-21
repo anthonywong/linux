@@ -62,11 +62,39 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
-#include "eth-phy/mvEthPhy.h"
-#include "eth/gbe/mvEthRegs.h"
-#include "boardEnv/mvBoardEnvLib.h"
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysEthPhyConfig.h"
+#include "mvEthPhyRegs.h"
+#include "mvEthPhy.h"
 
 static 	MV_VOID	mvEthPhyPower(MV_U32 ethPortNum, MV_BOOL enable);
+
+static MV_ETHPHY_HAL_DATA ethphyHalData;
+
+/*******************************************************************************
+* mvEthPhyHalInit -
+*
+* DESCRIPTION:
+*       Initialize the ethernet phy unit HAL.
+*
+* INPUT:
+*       halData	- Ethernet PHY HAL data.
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*       MV_OK on success, MV_ERROR otherwise.
+*
+*******************************************************************************/
+MV_STATUS mvEthPhyHalInit(MV_ETHPHY_HAL_DATA *halData)
+{
+	mvOsMemcpy(&ethphyHalData, halData, sizeof(MV_ETHPHY_HAL_DATA));
+
+	return MV_OK;
+}
 
 /*******************************************************************************
 * mvEthPhyRegRead - Read from ethernet phy register.
@@ -576,23 +604,23 @@ MV_STATUS	mvEthPhyPrintStatus( MV_U32 phyAddr )
 MV_VOID		mvEthE1111PhyBasicInit(MV_U32 ethPortNum)
 {
 	MV_U16 reg;
-	MV_U32 regOff, data;
 
 	/* Phy recv and tx delay */
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),20,&reg);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],20,&reg);
 	reg |= BIT1 | BIT7;
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),20,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],20,reg);
 
 	/* Leds link and activity*/
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),24,0x4111);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],24,0x4111);
 
 	/* reset the phy */
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),0,&reg);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],0,&reg);
 	reg |= BIT15;
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),0,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],0,reg);
 
-	if(mvBoardSpecInitGet(&regOff, &data) == MV_TRUE)
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),regOff , data);
+	if(ethphyHalData.boardSpecInit == MV_TRUE)
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],
+				ethphyHalData.specRegOff , ethphyHalData.specData);
 
 }
 
@@ -616,22 +644,22 @@ MV_VOID		mvEthE1112PhyBasicInit(MV_U32 ethPortNum)
 	MV_U16 reg;
 
 	/* Set phy address */
-	/*MV_REG_WRITE(ETH_PHY_ADDR_REG(ethPortNum), mvBoardPhyAddrGet(ethPortNum));*/
+	/*MV_REG_WRITE(ETH_PHY_ADDRESS_REG(ethPortNum), ethphyHalData.phyAddr[ethPortNum]);*/
 
 	/* Implement PHY errata */
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,2);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),0,0x140);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),0,0x8140);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,2);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],0,0x140);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],0,0x8140);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0);
 	
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,3);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,0x103);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,3);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,0x103);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0);
 
 	/* reset the phy */
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),0,&reg);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],0,&reg);
 	reg |= BIT15;
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),0,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],0,reg);
 
 }
 
@@ -655,27 +683,27 @@ MV_VOID		mvEthE1116PhyBasicInit(MV_U32 ethPortNum)
 	MV_U16 reg;
 
 	/* Set phy address */
-	MV_REG_WRITE(ETH_PHY_ADDR_REG(ethPortNum), mvBoardPhyAddrGet(ethPortNum));
+	MV_REG_WRITE(ETH_PHY_ADDRESS_REG(ethPortNum), ethphyHalData.phyAddr[ethPortNum]);
 
 	/* Leds link and activity*/
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0x3);
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),16,&reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0x3);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],16,&reg);
 	reg &= ~0xf;
 	reg	|= 0x1;
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,reg);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0x0);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0x0);
 
 	/* Set RGMII delay */
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,2);
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),21,&reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,2);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],21,&reg);
 	reg	|= (BIT5 | BIT4);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),21,reg);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],21,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0);
 
 	/* reset the phy */
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),0,&reg);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],0,&reg);
 	reg |= BIT15;
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),0,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],0,reg);
 }
 
 /*******************************************************************************
@@ -698,17 +726,17 @@ MV_VOID		mvEthE1011PhyBasicInit(MV_U32 ethPortNum)
 	MV_U16 reg;
 
 	/* Phy recv and tx delay */
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),20,&reg);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],20,&reg);
 	reg &= ~(BIT1 | BIT7);
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),20,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],20,reg);
 
 	/* Leds link and activity*/
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),24,0x4111);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],24,0x4111);
 
 	/* reset the phy */
-	mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),0, &reg);
+	mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],0, &reg);
 	reg |= BIT15;
-	mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),0,reg);
+	mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],0,reg);
 
 }
 
@@ -775,30 +803,30 @@ MV_VOID	mvEthE1116PhyPower(MV_U32 ethPortNum, MV_BOOL enable)
 	if (enable == MV_FALSE)
 	{
 	/* Power down command */
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),16,&reg); 		
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],16,&reg); 		
 		reg |= BIT2;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,reg);	
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,reg);	
 		
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg |= ETH_PHY_CTRL_RESET_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* software reset */			
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* software reset */			
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg |= ETH_PHY_CTRL_POWER_DOWN_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* power down the PHY */
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* power down the PHY */
 	}
 	else
 	{
 	/* Power up command */
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),16,&reg); 		
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],16,&reg); 		
 		reg &= ~BIT2;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,reg);		/* select to enable the SERDES */	
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,reg);		/* select to enable the SERDES */	
 		
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg |= ETH_PHY_CTRL_RESET_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* software reset */			
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* software reset */			
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg &= ~ETH_PHY_CTRL_POWER_DOWN_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* power up the PHY */
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* power up the PHY */
 	}
 }
 
@@ -825,42 +853,42 @@ static MV_VOID	mvEthPhyPower(MV_U32 ethPortNum, MV_BOOL enable)
 	if (enable == MV_FALSE)
 	{
 	/* Power down command */
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,2); 		/* select page 2 */
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),16,&reg); 		
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,2); 		/* select page 2 */
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],16,&reg); 		
 		reg |= BIT3;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,reg);		/* select to disable the SERDES */	
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0); 		/* select page 0 */			
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,reg);		/* select to disable the SERDES */	
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0); 		/* select page 0 */			
 		
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,3);		/* Power off LED's */
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,0x88);
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,3);		/* Power off LED's */
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,0x88);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0);
 
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg |= ETH_PHY_CTRL_RESET_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* software reset */			
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* software reset */			
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg |= ETH_PHY_CTRL_POWER_DOWN_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* power down the PHY */
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* power down the PHY */
 	}
 	else
 	{
 	/* Power up command */
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,2); 		/* select page 2 */
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),16,&reg); 		
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,2); 		/* select page 2 */
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],16,&reg); 		
 		reg &= ~BIT3;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,reg);		/* select to enable the SERDES */	
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0); 		/* select page 0 */
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,reg);		/* select to enable the SERDES */	
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0); 		/* select page 0 */
 		
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,3);		/* Power on LED's */
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),16,0x03);
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),22,0);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,3);		/* Power on LED's */
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],16,0x03);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],22,0);
 
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg |= ETH_PHY_CTRL_RESET_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* software reset */			
-		mvEthPhyRegRead(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,&reg); 		
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* software reset */			
+		mvEthPhyRegRead(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,&reg); 		
 		reg &= ~ETH_PHY_CTRL_POWER_DOWN_BIT;								        
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(ethPortNum),ETH_PHY_CTRL_REG,reg);	/* power up the PHY */
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[ethPortNum],ETH_PHY_CTRL_REG,reg);	/* power up the PHY */
 	}
 }
 
@@ -885,14 +913,14 @@ MV_VOID mvEth1145PhyBasicInit(MV_U32 port)
     MV_U16 value;
 
     /* Set phy address for each port */
-    MV_REG_WRITE(ETH_PHY_ADDR_REG(port), mvBoardPhyAddrGet(port));
+    MV_REG_WRITE(ETH_PHY_ADDRESS_REG(port), ethphyHalData.phyAddr[port]);
 	    /* Set Link1000 output pin to be link indication, set Tx output pin to be activity */
-    mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x18, ETH_PHY_LED_ACT_LNK_DV);
+    mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x18, ETH_PHY_LED_ACT_LNK_DV);
     mvOsDelay(10);
 	    
 	    /* Add delay to RGMII Tx and Rx */
-    mvEthPhyRegRead(mvBoardPhyAddrGet(port), 0x14, &value);
-    mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x14,(value | BIT1 | BIT7));
+    mvEthPhyRegRead(ethphyHalData.phyAddr[port], 0x14, &value);
+    mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x14,(value | BIT1 | BIT7));
     mvOsDelay(10);
 #if 0 /* Fix by yotam */
     if (boardId != RD_78XX0_AMC_ID && 
@@ -900,34 +928,34 @@ MV_VOID mvEth1145PhyBasicInit(MV_U32 port)
 	    /* Set port 2 - Phy addr 9 to RGMII */
 	if (port == 2)
 	{
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x1b, 0x808b);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x1b, 0x808b);
 		mvOsDelay(10);
 	}
 	
 	/* Set port 1 - Phy addr a to SGMII */
 	if (port == 1)
 	{
-	    mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x1b, 0x8084);
+	    mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x1b, 0x8084);
 	    mvOsDelay(10);
 		
 		/* Reset Phy */
-	    mvEthPhyRegRead( mvBoardPhyAddrGet(port), 0x00, &value);
-	    mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x00, (value | BIT15));
+	    mvEthPhyRegRead( ethphyHalData.phyAddr[port], 0x00, &value);
+	    mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x00, (value | BIT15));
 	    mvOsDelay(10);
 	#if defined(SGMII_OUTBAND_AN)
 		/* Set port 1 - Phy addr A Page 1 */
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x16, 0x1);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x16, 0x1);
 		mvOsDelay(10);
 	
 		/* Set port 1 - Phy addr A disable A.N. */
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x0, 0x140);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x0, 0x140);
 		mvOsDelay(10);
 	
 		/* Set port 1 - Phy addr A reset */
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x0, 0x8140);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x0, 0x8140);
 		mvOsDelay(10);
 	
-		mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x16, 0x0);
+		mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x16, 0x0);
 		mvOsDelay(10);
 	#endif
 	}
@@ -935,12 +963,12 @@ MV_VOID mvEth1145PhyBasicInit(MV_U32 port)
 #endif
 
 	    /* Set Phy TPVL to 0 */
-    mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x10, 0x60);
+    mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x10, 0x60);
     mvOsDelay(10);
 
     /* Reset Phy */
-    mvEthPhyRegRead(mvBoardPhyAddrGet(port), 0x00, &value);
-    mvEthPhyRegWrite(mvBoardPhyAddrGet(port), 0x00, (value | BIT15));
+    mvEthPhyRegRead(ethphyHalData.phyAddr[port], 0x00, &value);
+    mvEthPhyRegWrite(ethphyHalData.phyAddr[port], 0x00, (value | BIT15));
     mvOsDelay(10);
 
     return;
@@ -983,9 +1011,9 @@ MV_VOID mvEthSgmiiToCopperPhyBasicInit(MV_U32 port)
 MV_VOID mvEth1121PhyBasicInit(MV_U32 port)
 {
     	MV_U16 value;
-	MV_U16 phyAddr = mvBoardPhyAddrGet(port);
+	MV_U16 phyAddr = ethphyHalData.phyAddr[port];
 
-	MV_REG_WRITE(ETH_PHY_ADDR_REG(port), phyAddr);
+	MV_REG_WRITE(ETH_PHY_ADDRESS_REG(port), phyAddr);
 	
 	/* Change page select to 2 */
 	value = 2;
