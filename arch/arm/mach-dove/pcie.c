@@ -48,7 +48,11 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 	 * Generic PCIe unit setup.
 	 */
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
+#ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
+	orion_pcie_setup(pp->base, NULL);
+#else
 	orion_pcie_setup(pp->base, &dove_mbus_dram_info);
+#endif
 
 	/*
 	 * IORESOURCE_IO

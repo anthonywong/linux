@@ -66,6 +66,8 @@ module_param(use_hal_giga, uint, 0);
 MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
 #endif
 
+extern unsigned int useHalDrivers;
+
 /*
  * LCD input clock.
  */
@@ -411,7 +413,7 @@ __initcall(dove_db_7seg_init);
 static int __init dove_db_pci_init(void)
 {
 	if (machine_is_dove_db())
-			dove_pcie_init(1, 1);
+		dove_pcie_init(1, 1);
 
 	return 0;
 }
@@ -588,7 +590,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 static struct dove_mpp_mode dove_db_tact_int_mpp_modes[] __initdata = {
 	{ 57, MPP_GPIO_AUDIO1 }, /* use this mpp for the tact irq line */
 };
-
+#ifdef CONFIG_PM
 /*****************************************************************************
  * POWER MANAGEMENT
  ****************************************************************************/
@@ -633,6 +635,7 @@ static int __init dove_db_pm_init(void)
 }
 
 __initcall(dove_db_pm_init);
+#endif
 
 /*****************************************************************************
  * Board Init
@@ -675,7 +678,7 @@ static void __init dove_db_init(void)
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
-	if(use_hal_giga)
+	if(use_hal_giga || useHalDrivers)
 		dove_mv_eth_init();
 	else
 #endif
