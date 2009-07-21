@@ -81,9 +81,6 @@ extern "C" {
 #endif /* __cplusplus */
 
 /* Includes */
-#include "mvOsS.h"
-#include "mvSata.h"
-#include "mvRegs.h"
 
 /* Definitions */
 

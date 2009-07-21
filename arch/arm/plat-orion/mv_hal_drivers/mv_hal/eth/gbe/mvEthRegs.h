@@ -70,86 +70,84 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif /* __cplusplus */
 
-#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysEthConfig.h"
 
 /****************************************/
 /*        Ethernet Unit Registers       */
 /****************************************/
-#define ETH_REG_BASE 					MV_ETH_REG_BASE
-
-#define ETH_PHY_ADDR_REG(port)              (ETH_REG_BASE(port) + 0x000)
-#define ETH_SMI_REG(port)                   (ETH_REG_BASE(port) + 0x004)
-#define ETH_UNIT_DEF_ADDR_REG(port)         (ETH_REG_BASE(port) + 0x008)
-#define ETH_UNIT_DEF_ID_REG(port)           (ETH_REG_BASE(port) + 0x00c)
-#define ETH_UNIT_RESERVED(port)             (ETH_REG_BASE(port) + 0x014)
-#define ETH_UNIT_INTR_CAUSE_REG(port)       (ETH_REG_BASE(port) + 0x080)
-#define ETH_UNIT_INTR_MASK_REG(port)        (ETH_REG_BASE(port) + 0x084)
+#define ETH_PHY_ADDR_REG(port)              (MV_ETH_REGS_BASE(port) + 0x000)
+#define ETH_SMI_REG(port)                   (MV_ETH_REGS_BASE(port) + 0x004)
+#define ETH_UNIT_DEF_ADDR_REG(port)         (MV_ETH_REGS_BASE(port) + 0x008)
+#define ETH_UNIT_DEF_ID_REG(port)           (MV_ETH_REGS_BASE(port) + 0x00c)
+#define ETH_UNIT_RESERVED(port)             (MV_ETH_REGS_BASE(port) + 0x014)
+#define ETH_UNIT_INTR_CAUSE_REG(port)       (MV_ETH_REGS_BASE(port) + 0x080)
+#define ETH_UNIT_INTR_MASK_REG(port)        (MV_ETH_REGS_BASE(port) + 0x084)
 
 
-#define ETH_UNIT_ERROR_ADDR_REG(port)       (ETH_REG_BASE(port) + 0x094)
-#define ETH_UNIT_INT_ADDR_ERROR_REG(port)   (ETH_REG_BASE(port) + 0x098)
-#define ETH_UNIT_CONTROL_REG(port)          (ETH_REG_BASE(port) + 0x0B0)
+#define ETH_UNIT_ERROR_ADDR_REG(port)       (MV_ETH_REGS_BASE(port) + 0x094)
+#define ETH_UNIT_INT_ADDR_ERROR_REG(port)   (MV_ETH_REGS_BASE(port) + 0x098)
+#define ETH_UNIT_CONTROL_REG(port)          (MV_ETH_REGS_BASE(port) + 0x0B0)
 
-#define ETH_PORT_CONFIG_REG(port)           (ETH_REG_BASE(port) + 0x400)
-#define ETH_PORT_CONFIG_EXTEND_REG(port)    (ETH_REG_BASE(port) + 0x404)
-#define ETH_MII_SERIAL_PARAM_REG(port)      (ETH_REG_BASE(port) + 0x408)
-#define ETH_GMII_SERIAL_PARAM_REG(port)     (ETH_REG_BASE(port) + 0x40c)
-#define ETH_VLAN_ETHER_TYPE_REG(port)       (ETH_REG_BASE(port) + 0x410)
-#define ETH_MAC_ADDR_LOW_REG(port)          (ETH_REG_BASE(port) + 0x414)
-#define ETH_MAC_ADDR_HIGH_REG(port)         (ETH_REG_BASE(port) + 0x418)
-#define ETH_SDMA_CONFIG_REG(port)           (ETH_REG_BASE(port) + 0x41c)
-#define ETH_DIFF_SERV_PRIO_REG(port, code)  (ETH_REG_BASE(port) + 0x420  + ((code)<<2))
-#define ETH_PORT_SERIAL_CTRL_REG(port)      (ETH_REG_BASE(port) + 0x43c)
-#define ETH_VLAN_TAG_TO_PRIO_REG(port)      (ETH_REG_BASE(port) + 0x440)
-#define ETH_PORT_STATUS_REG(port)           (ETH_REG_BASE(port) + 0x444)
+#define ETH_PORT_CONFIG_REG(port)           (MV_ETH_REGS_BASE(port) + 0x400)
+#define ETH_PORT_CONFIG_EXTEND_REG(port)    (MV_ETH_REGS_BASE(port) + 0x404)
+#define ETH_MII_SERIAL_PARAM_REG(port)      (MV_ETH_REGS_BASE(port) + 0x408)
+#define ETH_GMII_SERIAL_PARAM_REG(port)     (MV_ETH_REGS_BASE(port) + 0x40c)
+#define ETH_VLAN_ETHER_TYPE_REG(port)       (MV_ETH_REGS_BASE(port) + 0x410)
+#define ETH_MAC_ADDR_LOW_REG(port)          (MV_ETH_REGS_BASE(port) + 0x414)
+#define ETH_MAC_ADDR_HIGH_REG(port)         (MV_ETH_REGS_BASE(port) + 0x418)
+#define ETH_SDMA_CONFIG_REG(port)           (MV_ETH_REGS_BASE(port) + 0x41c)
+#define ETH_DIFF_SERV_PRIO_REG(port, code)  (MV_ETH_REGS_BASE(port) + 0x420  + ((code)<<2))
+#define ETH_PORT_SERIAL_CTRL_REG(port)      (MV_ETH_REGS_BASE(port) + 0x43c)
+#define ETH_VLAN_TAG_TO_PRIO_REG(port)      (MV_ETH_REGS_BASE(port) + 0x440)
+#define ETH_PORT_STATUS_REG(port)           (MV_ETH_REGS_BASE(port) + 0x444)
 
-#define ETH_RX_QUEUE_COMMAND_REG(port)      (ETH_REG_BASE(port) + 0x680)
-#define ETH_TX_QUEUE_COMMAND_REG(port)      (ETH_REG_BASE(port) + 0x448)
+#define ETH_RX_QUEUE_COMMAND_REG(port)      (MV_ETH_REGS_BASE(port) + 0x680)
+#define ETH_TX_QUEUE_COMMAND_REG(port)      (MV_ETH_REGS_BASE(port) + 0x448)
 
-#define ETH_PORT_SERIAL_CTRL_1_REG(port)    (ETH_REG_BASE(port) + 0x44c)
-#define ETH_PORT_STATUS_1_REG(port)         (ETH_REG_BASE(port) + 0x450)
-#define ETH_PORT_MARVELL_HEADER_REG(port)   (ETH_REG_BASE(port) + 0x454)
-#define ETH_PORT_FIFO_PARAMS_REG(port)      (ETH_REG_BASE(port) + 0x458)
-#define ETH_MAX_TOKEN_BUCKET_SIZE_REG(port) (ETH_REG_BASE(port) + 0x45c)
-#define ETH_INTR_CAUSE_REG(port)            (ETH_REG_BASE(port) + 0x460)
-#define ETH_INTR_CAUSE_EXT_REG(port)        (ETH_REG_BASE(port) + 0x464)
-#define ETH_INTR_MASK_REG(port)             (ETH_REG_BASE(port) + 0x468)
-#define ETH_INTR_MASK_EXT_REG(port)         (ETH_REG_BASE(port) + 0x46c)
-#define ETH_TX_FIFO_URGENT_THRESH_REG(port) (ETH_REG_BASE(port) + 0x474)
-#define ETH_RX_MINIMAL_FRAME_SIZE_REG(port) (ETH_REG_BASE(port) + 0x47c)
-#define ETH_RX_DISCARD_PKTS_CNTR_REG(port)  (ETH_REG_BASE(port) + 0x484)
-#define ETH_RX_OVERRUN_PKTS_CNTR_REG(port)  (ETH_REG_BASE(port) + 0x488)
-#define ETH_INTERNAL_ADDR_ERROR_REG(port)   (ETH_REG_BASE(port) + 0x494)
-#define ETH_TX_FIXED_PRIO_CFG_REG(port)     (ETH_REG_BASE(port) + 0x4dc)
-#define ETH_TX_TOKEN_RATE_CFG_REG(port)     (ETH_REG_BASE(port) + 0x4e0)
-#define ETH_TX_QUEUE_COMMAND1_REG(port)     (ETH_REG_BASE(port) + 0x4e4)
-#define ETH_MAX_TRANSMIT_UNIT_REG(port)     (ETH_REG_BASE(port) + 0x4e8)
-#define ETH_TX_TOKEN_BUCKET_SIZE_REG(port)  (ETH_REG_BASE(port) + 0x4ec)
-#define ETH_TX_TOKEN_BUCKET_COUNT_REG(port) (ETH_REG_BASE(port) + 0x780)
-#define ETH_RX_DESCR_STAT_CMD_REG(port, q)  (ETH_REG_BASE(port) + 0x600 + ((q)<<4))
-#define ETH_RX_BYTE_COUNT_REG(port, q)      (ETH_REG_BASE(port) + 0x604 + ((q)<<4))
-#define ETH_RX_BUF_PTR_REG(port, q)         (ETH_REG_BASE(port) + 0x608 + ((q)<<4))
-#define ETH_RX_CUR_DESC_PTR_REG(port, q)    (ETH_REG_BASE(port) + 0x60c + ((q)<<4))
-#define ETH_TX_CUR_DESC_PTR_REG(port, q)    (ETH_REG_BASE(port) + 0x6c0 + ((q)<<2))
+#define ETH_PORT_SERIAL_CTRL_1_REG(port)    (MV_ETH_REGS_BASE(port) + 0x44c)
+#define ETH_PORT_STATUS_1_REG(port)         (MV_ETH_REGS_BASE(port) + 0x450)
+#define ETH_PORT_MARVELL_HEADER_REG(port)   (MV_ETH_REGS_BASE(port) + 0x454)
+#define ETH_PORT_FIFO_PARAMS_REG(port)      (MV_ETH_REGS_BASE(port) + 0x458)
+#define ETH_MAX_TOKEN_BUCKET_SIZE_REG(port) (MV_ETH_REGS_BASE(port) + 0x45c)
+#define ETH_INTR_CAUSE_REG(port)            (MV_ETH_REGS_BASE(port) + 0x460)
+#define ETH_INTR_CAUSE_EXT_REG(port)        (MV_ETH_REGS_BASE(port) + 0x464)
+#define ETH_INTR_MASK_REG(port)             (MV_ETH_REGS_BASE(port) + 0x468)
+#define ETH_INTR_MASK_EXT_REG(port)         (MV_ETH_REGS_BASE(port) + 0x46c)
+#define ETH_TX_FIFO_URGENT_THRESH_REG(port) (MV_ETH_REGS_BASE(port) + 0x474)
+#define ETH_RX_MINIMAL_FRAME_SIZE_REG(port) (MV_ETH_REGS_BASE(port) + 0x47c)
+#define ETH_RX_DISCARD_PKTS_CNTR_REG(port)  (MV_ETH_REGS_BASE(port) + 0x484)
+#define ETH_RX_OVERRUN_PKTS_CNTR_REG(port)  (MV_ETH_REGS_BASE(port) + 0x488)
+#define ETH_INTERNAL_ADDR_ERROR_REG(port)   (MV_ETH_REGS_BASE(port) + 0x494)
+#define ETH_TX_FIXED_PRIO_CFG_REG(port)     (MV_ETH_REGS_BASE(port) + 0x4dc)
+#define ETH_TX_TOKEN_RATE_CFG_REG(port)     (MV_ETH_REGS_BASE(port) + 0x4e0)
+#define ETH_TX_QUEUE_COMMAND1_REG(port)     (MV_ETH_REGS_BASE(port) + 0x4e4)
+#define ETH_MAX_TRANSMIT_UNIT_REG(port)     (MV_ETH_REGS_BASE(port) + 0x4e8)
+#define ETH_TX_TOKEN_BUCKET_SIZE_REG(port)  (MV_ETH_REGS_BASE(port) + 0x4ec)
+#define ETH_TX_TOKEN_BUCKET_COUNT_REG(port) (MV_ETH_REGS_BASE(port) + 0x780)
+#define ETH_RX_DESCR_STAT_CMD_REG(port, q)  (MV_ETH_REGS_BASE(port) + 0x600 + ((q)<<4))
+#define ETH_RX_BYTE_COUNT_REG(port, q)      (MV_ETH_REGS_BASE(port) + 0x604 + ((q)<<4))
+#define ETH_RX_BUF_PTR_REG(port, q)         (MV_ETH_REGS_BASE(port) + 0x608 + ((q)<<4))
+#define ETH_RX_CUR_DESC_PTR_REG(port, q)    (MV_ETH_REGS_BASE(port) + 0x60c + ((q)<<4))
+#define ETH_TX_CUR_DESC_PTR_REG(port, q)    (MV_ETH_REGS_BASE(port) + 0x6c0 + ((q)<<2))
 
-#define ETH_TXQ_TOKEN_COUNT_REG(port, q)    (ETH_REG_BASE(port) + 0x700 + ((q)<<4))
-#define ETH_TXQ_TOKEN_CFG_REG(port, q)      (ETH_REG_BASE(port) + 0x704 + ((q)<<4))
-#define ETH_TXQ_ARBITER_CFG_REG(port, q)    (ETH_REG_BASE(port) + 0x708 + ((q)<<4))
+#define ETH_TXQ_TOKEN_COUNT_REG(port, q)    (MV_ETH_REGS_BASE(port) + 0x700 + ((q)<<4))
+#define ETH_TXQ_TOKEN_CFG_REG(port, q)      (MV_ETH_REGS_BASE(port) + 0x704 + ((q)<<4))
+#define ETH_TXQ_ARBITER_CFG_REG(port, q)    (MV_ETH_REGS_BASE(port) + 0x708 + ((q)<<4))
 
 #if (MV_ETH_VERSION >= 4) 
-#define ETH_TXQ_CMD_1_REG(port)             (ETH_REG_BASE(port) + 0x4E4)
-#define ETH_EJP_TX_HI_IPG_REG(port)         (ETH_REG_BASE(port) + 0x7A8)
-#define ETH_EJP_TX_LO_IPG_REG(port)         (ETH_REG_BASE(port) + 0x7B8)
-#define ETH_EJP_HI_TKN_LO_PKT_REG(port)     (ETH_REG_BASE(port) + 0x7C0)
-#define ETH_EJP_HI_TKN_ASYNC_PKT_REG(port)  (ETH_REG_BASE(port) + 0x7C4)
-#define ETH_EJP_LO_TKN_ASYNC_PKT_REG(port)  (ETH_REG_BASE(port) + 0x7C8)
-#define ETH_EJP_TX_SPEED_REG(port)          (ETH_REG_BASE(port) + 0x7D0)
+#define ETH_TXQ_CMD_1_REG(port)             (MV_ETH_REGS_BASE(port) + 0x4E4)
+#define ETH_EJP_TX_HI_IPG_REG(port)         (MV_ETH_REGS_BASE(port) + 0x7A8)
+#define ETH_EJP_TX_LO_IPG_REG(port)         (MV_ETH_REGS_BASE(port) + 0x7B8)
+#define ETH_EJP_HI_TKN_LO_PKT_REG(port)     (MV_ETH_REGS_BASE(port) + 0x7C0)
+#define ETH_EJP_HI_TKN_ASYNC_PKT_REG(port)  (MV_ETH_REGS_BASE(port) + 0x7C4)
+#define ETH_EJP_LO_TKN_ASYNC_PKT_REG(port)  (MV_ETH_REGS_BASE(port) + 0x7C8)
+#define ETH_EJP_TX_SPEED_REG(port)          (MV_ETH_REGS_BASE(port) + 0x7D0)
 #endif /* MV_ETH_VERSION >= 4 */
 
-#define ETH_MIB_COUNTERS_BASE(port)         (ETH_REG_BASE(port) + 0x1000)
-#define ETH_DA_FILTER_SPEC_MCAST_BASE(port) (ETH_REG_BASE(port) + 0x1400)
-#define ETH_DA_FILTER_OTH_MCAST_BASE(port)  (ETH_REG_BASE(port) + 0x1500)
-#define ETH_DA_FILTER_UCAST_BASE(port)      (ETH_REG_BASE(port) + 0x1600)
+#define ETH_MIB_COUNTERS_BASE(port)         (MV_ETH_REGS_BASE(port) + 0x1000)
+#define ETH_DA_FILTER_SPEC_MCAST_BASE(port) (MV_ETH_REGS_BASE(port) + 0x1400)
+#define ETH_DA_FILTER_OTH_MCAST_BASE(port)  (MV_ETH_REGS_BASE(port) + 0x1500)
+#define ETH_DA_FILTER_UCAST_BASE(port)      (MV_ETH_REGS_BASE(port) + 0x1600)
 
 /* Phy address register definitions */
 #define ETH_PHY_ADDR_OFFS          0                                       
@@ -670,9 +668,9 @@ typedef struct _ethTxDesc
 
 
 /* Relevant for 6183 ONLY */
-#define ETH_UNIT_PORTS_PADS_CALIB_0_REG     (MV_ETH_REG_BASE(0) + 0x0A0)
-#define ETH_UNIT_PORTS_PADS_CALIB_1_REG     (MV_ETH_REG_BASE(0) + 0x0A4)
-#define ETH_UNIT_PORTS_PADS_CALIB_2_REG     (MV_ETH_REG_BASE(0) + 0x0A8)
+#define ETH_UNIT_PORTS_PADS_CALIB_0_REG     (MV_ETH_REGS_BASE(0) + 0x0A0)
+#define ETH_UNIT_PORTS_PADS_CALIB_1_REG     (MV_ETH_REGS_BASE(0) + 0x0A4)
+#define ETH_UNIT_PORTS_PADS_CALIB_2_REG     (MV_ETH_REGS_BASE(0) + 0x0A8)
 /* Ethernet Unit Ports Pads Calibration_REG (ETH_UNIT_PORTS_PADS_CALIB_x_REG)  */
 #define ETH_ETHERNET_PAD_CLIB_DRVN_OFFS		0
 #define ETH_ETHERNET_PAD_CLIB_DRVN_MASK		(0x1F << ETH_ETHERNET_PAD_CLIB_DRVN_OFFS)
@@ -692,6 +690,38 @@ typedef struct _ethTxDesc
 #define ETH_ETHERNET_PAD_CLIB_WR_EN_OFFS        31                   
 #define ETH_ETHERNET_PAD_CLIB_WR_EN_MASK        (0x1  << ETH_ETHERNET_PAD_CLIB_WR_EN_OFFS) 
 
+
+/**** Address decode register ****/
+
+#define ETH_WIN_BASE_REG(port, win)         (MV_ETH_REGS_BASE(port) + 0x200 + ((win)<<3))
+#define ETH_WIN_SIZE_REG(port, win)         (MV_ETH_REGS_BASE(port) + 0x204 + ((win)<<3))
+#define ETH_WIN_REMAP_REG(port, win)        (MV_ETH_REGS_BASE(port) + 0x280 + ((win)<<2))
+#define ETH_BASE_ADDR_ENABLE_REG(port)      (MV_ETH_REGS_BASE(port) + 0x290)
+#define ETH_ACCESS_PROTECT_REG(port)        (MV_ETH_REGS_BASE(port) + 0x294)
+
+/* Ethernet Base Address Register bits		    */
+#define ETH_MAX_DECODE_WIN              6
+#define ETH_MAX_HIGH_ADDR_REMAP_WIN     4
+
+/* Ethernet Port Access Protect (EPAP) register	    */
+/* The target associated with this window	    */
+#define ETH_WIN_TARGET_OFFS             0 
+#define ETH_WIN_TARGET_MASK             (0xf << ETH_WIN_TARGET_OFFS)
+/* The target attributes Associated with window	    */
+#define ETH_WIN_ATTR_OFFS               8 
+#define ETH_WIN_ATTR_MASK               (0xff << ETH_WIN_ATTR_OFFS)
+
+#define ETH_WIN_SIZE_OFFS		16
+#define ETH_WIN_SIZE_MASK		(0xFFFF<<ETH_WIN_SIZE_OFFS)
+#define ETH_WIN_BASE_OFFS		16
+#define ETH_WIN_BASE_MASK		(0xFFFF<<ETH_WIN_BASE_OFFS)
+
+/* Ethernet Port Access Protect Register (EPAPR)    */
+#define ETH_PROT_NO_ACCESS              NO_ACCESS_ALLOWED
+#define ETH_PROT_READ_ONLY              READ_ONLY
+#define ETH_PROT_FULL_ACCESS            FULL_ACCESS
+#define ETH_PROT_WIN_OFFS(winNum)       (2 * (winNum))
+#define ETH_PROT_WIN_MASK(winNum)       (0x3 << ETH_PROT_WIN_OFFS(winNum))
 
 #ifdef __cplusplus
 }

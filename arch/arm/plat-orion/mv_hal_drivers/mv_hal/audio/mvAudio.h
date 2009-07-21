@@ -64,13 +64,102 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCMVAudioH
 #define __INCMVAudioH
 
-#include "mvCommon.h"
-#include "audio/mvAudioRegs.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysAudioConfig.h"
 
 /*********************************/
 /* General enums and structures */
 /*********************************/
+
+typedef struct {
+	MV_U32	tclk;
+}MV_AUDIO_HAL_DATA;
+
+/* Audio source Clocks enum*/
+typedef enum _mvAudioClock
+{
+	AUDIO_DCO_CLK = 0,
+	AUDIO_SPCR_CLK = 2,
+	AUDIO_EXT_CLK = 3
+
+}MV_AUDIO_CLOCK;
+
+typedef enum _mvAudioFreq
+{
+	AUDIO_FREQ_44_1KH = 0,   	/* 11.2896Mhz */
+	AUDIO_FREQ_48KH = 1,     	/* 12.288Mhz */
+	AUDIO_FREQ_96KH =2, 		/* 24.576Mhz */
+	AUDIO_FREQ_LOWER_44_1KH = 3 ,	/*Lower than 11.2896MHz*/
+	AUDIO_FREQ_HIGHER_96KH = 4,	/*Higher than 24.576MHz*/
+	AUDIO_FREQ_OTHER = 7,		/*Other frequency*/
+}MV_AUDIO_FREQ;
+
+
+typedef enum _mvAudioSampleFreq
+{
+	SMAPLE_8KHZ = 0,
+	SMAPLE_16KHZ,
+	SMAPLE_22_05KHZ,
+	SMAPLE_24KHZ,
+	SMAPLE_32KHZ,
+	SMAPLE_44_1KHZ,
+	SMAPLE_48KHZ,
+	SMAPLE_64KHZ,
+	SMAPLE_88KHZ,
+	SMAPLE_96KHZ,
+	SMAPLE_176KHZ,
+	SMAPLE_192KHZ
+}MV_AUDIO_SAMPLE_FREQ;
+
+typedef enum _mvAudioBurstSize
+{
+	AUDIO_32BYTE_BURST = 1,
+	AUDIO_128BYTE_BURST = 2,
+
+}MV_AUDIO_BURST_SIZE;
+
+typedef enum _mvAudioPlaybackMono
+{
+	AUDIO_PLAY_MONO_OFF = 0,
+	AUDIO_PLAY_LEFT_MONO = 1,
+	AUDIO_PLAY_RIGHT_MONO = 2,
+	AUDIO_PLAY_BOTH_MONO = 3,
+	AUDIO_PLAY_OTHER_MONO = 4
+
+}MV_AUDIO_PLAYBACK_MONO;
+
+typedef enum _mvAudioRecordMono
+{
+	AUDIO_REC_LEFT_MONO = 0,
+	AUDIO_REC_RIGHT_MONO = 1,
+
+}MV_AUDIO_RECORD_MONO;
+
+typedef enum _mvAudioSampleSize
+{
+	SAMPLE_32BIT = 0,
+	SAMPLE_24BIT = 1,
+	SAMPLE_20BIT = 2,
+	SAMPLE_16BIT = 3,
+	SAMPLE_16BIT_NON_COMPACT = 7
+
+}MV_AUDIO_SAMPLE_SIZE;
+
+typedef enum _mvAudioI2SJustification
+{
+	LEFT_JUSTIFIED = 0,
+	I2S_JUSTIFIED = 5,
+	RISE_BIT_CLCK_JUSTIFIED =7,
+	RIGHT_JUSTIFIED = 8,
+
+}MV_AUDIO_I2S_JUSTIFICATION;
+
+
 /* Type of Audio operations*/
 typedef enum _mvAudioOperation
 {
@@ -305,7 +394,10 @@ mvAudioRecordPause(pause)
 /* Functions API 				*/
 /*********************************/
 
-MV_VOID mvAudioHalInit(MV_U8 unit);
+MV_VOID mvAudioHalInit(MV_U8 unit, MV_AUDIO_HAL_DATA *halData);
+MV_STATUS mvAudioWinInit(MV_U32 unit, MV_UNIT_WIN_INFO *addrWinMap);
+MV_STATUS mvAudioWinRead(MV_U32 unit, MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvAudioWinWrite(MV_U32 unit, MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
 
 /* Clocks Control and Status related*/
 MV_STATUS mvAudioDCOCtrlSet(int unit, MV_AUDIO_FREQ_DATA *dcoCtrl);
@@ -338,5 +430,10 @@ MV_VOID	mvSPDIFRecordStatusGet(int unit, MV_SPDIF_RECORD_STATUS *status);
 /* I2S Recording Related*/
 MV_STATUS	mvI2SRecordCntrlSet(int unit, MV_I2S_RECORD_CTRL *ctrl);
 MV_VOID	mvI2SRecordCntrlGet(int unit, MV_I2S_RECORD_CTRL *ctrl);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif
