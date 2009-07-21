@@ -17,12 +17,9 @@
 #include <linux/kernel.h>
 
 #include "ctrlEnv/mvCtrlEnvLib.h"
-#include "ctrlEnv/sys/mvCpuIf.h"
-#include "boardEnv/mvBoardEnvLib.h"
+#include "mvKW_HAL_glue.h"
 #include "mvDebug.h"
 #include "mvSysHwConfig.h"
-//#include "pex/mvPexRegs.h"
-//#include "cntmr/mvCntmr.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
 #include "mvOs.h"
 
@@ -68,8 +65,7 @@ EXPORT_SYMBOL(mvBoardTclkGet);
  *************************************************************************************************************/
 #ifdef CONFIG_MV_INCLUDE_AUDIO
 #include "audio/mvAudio.h"
-#include "ctrlEnv/sys/mvSysAudio.h"
-#include "audio/dac/mvCLAudioCodec.h"
+#include "mvSysAudioApi.h"
 EXPORT_SYMBOL(mvSPDIFRecordTclockSet);
 EXPORT_SYMBOL(mvSPDIFPlaybackCtrlSet);
 EXPORT_SYMBOL(mvI2SPlaybackCtrlSet);
@@ -77,13 +73,8 @@ EXPORT_SYMBOL(mvAudioPlaybackControlSet);
 EXPORT_SYMBOL(mvAudioDCOCtrlSet);
 EXPORT_SYMBOL(mvI2SRecordCntrlSet);
 EXPORT_SYMBOL(mvAudioRecordControlSet);
-EXPORT_SYMBOL(mvAudioInit);
-EXPORT_SYMBOL(mvCLAudioCodecInit);
-EXPORT_SYMBOL(mvBoardA2DTwsiAddrGet);
-EXPORT_SYMBOL(mvBoardA2DTwsiAddrTypeGet);
-EXPORT_SYMBOL(mvCLAudioCodecRegGet);
-EXPORT_SYMBOL(mvCLAudioCodecRegSet);
-EXPORT_SYMBOL(mvCLAudioCodecRegBitsReset);
+EXPORT_SYMBOL(mvSysAudioInit);
+EXPORT_SYMBOL(mvAudioHalInit);
 #endif
 
 /*************************************************************************************************************
@@ -104,12 +95,13 @@ EXPORT_SYMBOL(mvUsbBackVoltageUpdate);
  * CESA
  *************************************************************************************************************/
 #ifdef CONFIG_MV_INCLUDE_CESA
-#include "ctrlEnv/sys/mvSysCesa.h"
+#include "mvSysCesaApi.h"
 #include "cesa/mvCesa.h"
 #include "cesa/mvMD5.h"
 #include "cesa/mvSHA1.h"
 //extern unsigned char*  mv_sram_usage_get(int* sram_size_ptr);
-EXPORT_SYMBOL(mvCesaInit);
+EXPORT_SYMBOL(mvSysCesaInit);
+EXPORT_SYMBOL(mvCesaHalInit);
 EXPORT_SYMBOL(mvCesaSessionOpen);
 EXPORT_SYMBOL(mvCesaSessionClose);
 EXPORT_SYMBOL(mvCesaAction);
@@ -156,7 +148,7 @@ EXPORT_SYMBOL(mvSFlashModelGet);
  * SATA
  *************************************************************************************************************/
 #ifdef CONFIG_MV_INCLUDE_INTEG_SATA
-#include <ctrlEnv/sys/mvSysSata.h>
+#include "mvSysSataApi.h"
 //EXPORT_SYMBOL(mvSataWinInit);
 #endif
 
@@ -177,9 +169,10 @@ EXPORT_SYMBOL(asm_memzero);
  *************************************************************************************************************/
 #ifdef CONFIG_MV_INCLUDE_GIG_ETH
 #include "eth/mvEth.h"
-#include "ctrlEnv/sys/mvSysGbe.h"
+#include "mvSysEthApi.h"
 #include "eth-phy/mvEthPhy.h"
-EXPORT_SYMBOL(mvEthInit);
+EXPORT_SYMBOL(mvSysEthInit);
+EXPORT_SYMBOL(mvEthHalInit);
 EXPORT_SYMBOL(mvEthPhyRegRead);
 EXPORT_SYMBOL(mvEthPhyRegWrite);
 
