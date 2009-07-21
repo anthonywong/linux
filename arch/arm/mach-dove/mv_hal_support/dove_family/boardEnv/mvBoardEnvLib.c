@@ -62,16 +62,21 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "boardEnv/mvBoardEnvLib.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
-#include "ctrlEnv/sys/mvCpuIf.h"
 #include "cpu/mvCpu.h"
 #include "cntmr/mvCntmr.h"
 #include "gpp/mvGpp.h"
+#include "gpp/mvGppRegs.h"
 #include "twsi/mvTwsi.h"
-#include "pex/mvPex.h"
+#include "pci-if/mvPciIf.h"
+#include "pci-if/pex/mvPex.h"
 #include "device/mvDevice.h"
-
+#include "ctrlEnv/sys/mvCpuIf.h"
+#include "mvSysHwConfig.h"
 
 /* defines  */
 /* #define MV_DEBUG */
@@ -114,7 +119,7 @@ MV_U32 tClkRate   = -1;
 *******************************************************************************/
 MV_VOID mvBoardEnvInit(MV_VOID)
 {
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	if (!((boardId >= BOARD_ID_BASE)&&(boardId < MV_MAX_BOARD_ID)))
 	{
@@ -294,7 +299,7 @@ MV_32 mvBoardPhyAddrGet(MV_U32 ethPortNum)
 *******************************************************************************/
 MV_BOARD_MAC_SPEED      mvBoardMacSpeedGet(MV_U32 ethPortNum)
 {
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	if (!((boardId >= BOARD_ID_BASE)&&(boardId < MV_MAX_BOARD_ID)))
 	{
@@ -471,7 +476,7 @@ MV_BOOL mvBoardSpecInitGet(MV_U32* regOff, MV_U32* data)
 MV_U32 mvBoardTclkGet(MV_VOID)
 {
 #if defined(TCLK_AUTO_DETECT)
-	MV_U32 tmpTClkRate = 166666667;
+	MV_U32 tmpTClkRate = MV_BOARD_TCLK_166MHZ;
 
         tmpTClkRate = MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0);
         tmpTClkRate &= MSAR_TCLCK_MASK;
@@ -480,6 +485,9 @@ MV_U32 mvBoardTclkGet(MV_VOID)
         {
         case MSAR_TCLCK_166:
                 tmpTClkRate = MV_BOARD_TCLK_166MHZ;
+                break;
+	case MSAR_TCLCK_125:
+                tmpTClkRate = MV_BOARD_TCLK_125MHZ;
                 break;
         }
 	return tmpTClkRate;
@@ -590,10 +598,9 @@ MV_U32 mvBoardDebugLedNumGet(MV_U32 boardId)
 }
 
 /*******************************************************************************
-* mvBoardDebugLeg - Set the board debug Leds
+* mvBoardDebugLed - Set the board debug Leds
 *
 * DESCRIPTION: turn on/off status leds.
-* 	       Note: assume MPP leds are part of group 0 only.
 *
 * INPUT:
 *       hexNum - Number to be displied in hex by Leds.
@@ -607,32 +614,46 @@ MV_U32 mvBoardDebugLedNumGet(MV_U32 boardId)
 *******************************************************************************/
 MV_VOID mvBoardDebugLed(MV_U32 hexNum)
 {
-    MV_U32 val = 0,totalMask, currentBitMask = 1,i;
-    MV_U32 boardId= mvBoardIdGet();
+    MV_U32 valLow = 0, valHigh = 0, totalMaskLow = 0, totalMaskHigh = 0, currentBitMask = 1, i = 0;
+    MV_U32 boardId = mvBoardIdGet();
 
-    totalMask = (1 << BOARD_INFO(boardId)->activeLedsNumber) -1;
-    hexNum &= totalMask;
-    totalMask = 0;
+    hexNum &= (1 << BOARD_INFO(boardId)->activeLedsNumber) - 1;
 
     for (i = 0 ; i < BOARD_INFO(boardId)->activeLedsNumber ; i++)
     {
-	if (hexNum & currentBitMask)
+	if (BOARD_INFO(boardId)->pLedGppPin[i] <= 31)
 	{
-	    val |= (1 << BOARD_INFO(boardId)->pLedGppPin[i]);
+	    if (hexNum & currentBitMask)
+	    {
+	    	valLow |= (1 << BOARD_INFO(boardId)->pLedGppPin[i]);
+	    }
+
+	    totalMaskLow |= (1 << BOARD_INFO(boardId)->pLedGppPin[i]);
+
+	    currentBitMask = (currentBitMask << 1);
 	}
+        else
+        {
+            if (hexNum & currentBitMask)
+            {
+       	        valHigh |= (1 << (BOARD_INFO(boardId)->pLedGppPin[i] - 32));
+	    }
 
-	totalMask |= (1 << BOARD_INFO(boardId)->pLedGppPin[i]);
+	    totalMaskHigh |= (1 << (BOARD_INFO(boardId)->pLedGppPin[i] - 32));
 
-	currentBitMask = (currentBitMask << 1);
+	    currentBitMask = (currentBitMask << 1);
+        }
     }
 
     if (BOARD_INFO(boardId)->ledsPolarity)
     {
-	mvGppValueSet(0, totalMask, val);
+	mvGppValueSet(0, totalMaskLow, valLow);
+	mvGppValueSet(1, totalMaskHigh, valHigh);
     }
     else
     {
-	mvGppValueSet(0, totalMask, ~val);
+	mvGppValueSet(0, totalMaskLow, ~valLow);
+	mvGppValueSet(1, totalMaskHigh, ~valHigh);
     }
 }
 
@@ -848,11 +869,11 @@ MV_32 mvBoardGpioIntMaskLowGet(MV_VOID)
 	{
 		mvOsPrintf("mvBoardGpioIntMaskGet:Board unknown.\n");
 		return MV_ERROR;
-
 	}
 
 	return BOARD_INFO(boardId)->intsGppMaskLow;
 }
+
 MV_32 mvBoardGpioIntMaskHighGet(MV_VOID)
 {
 	MV_U32 boardId;
@@ -863,7 +884,6 @@ MV_32 mvBoardGpioIntMaskHighGet(MV_VOID)
 	{
 		mvOsPrintf("mvBoardGpioIntMaskGet:Board unknown.\n");
 		return MV_ERROR;
-
 	}
 
 	return BOARD_INFO(boardId)->intsGppMaskHigh;
@@ -899,7 +919,6 @@ MV_32 mvBoardMppGet(MV_U32 mppGroupNum)
 	{
 		mvOsPrintf("mvBoardMppGet:Board unknown.\n");
 		return MV_ERROR;
-
 	}
 
 	return BOARD_INFO(boardId)->pBoardMppConfigValue[0].mppGroup[mppGroupNum];
@@ -1001,7 +1020,6 @@ MV_BOARD_MPP_TYPE_CLASS mvBoardMppGroupTypeGet(MV_BOARD_MPP_GROUP_CLASS mppGroup
 	{
 		mvOsPrintf("mvBoardMppGet:Board unknown.\n");
 		return MV_ERROR;
-
 	}
 	
 	if (mppGroupClass == MV_BOARD_MPP_GROUP_1)
@@ -1041,8 +1059,8 @@ MV_VOID mvBoardMppGroupTypeSet(MV_BOARD_MPP_GROUP_CLASS mppGroupClass,
 		BOARD_INFO(boardId)->pBoardMppTypeValue[0].boardMppGroup1 = mppGroupType;
 	else
 		BOARD_INFO(boardId)->pBoardMppTypeValue[0].boardMppGroup2 = mppGroupType;
-
 }
+
 
 /* Board devices API managments */
 
@@ -1072,7 +1090,6 @@ MV_32 mvBoardGetDevicesNumber(MV_BOARD_DEV_CLASS devClass)
 	{
 		mvOsPrintf("mvBoardGetDeviceNumber:Board unknown.\n");
 		return 0xFFFFFFFF;
-
 	}
 
 	for (devNum = START_DEV_CS; devNum < BOARD_INFO(boardId)->numBoardDeviceIf; devNum++)
@@ -1171,7 +1188,7 @@ MV_32 mvBoardGetDeviceBusWidth(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 MV_32 mvBoardGetDeviceWidth(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 {
 	MV_DEV_CS_INFO* devEntry;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	if (!((boardId >= BOARD_ID_BASE)&&(boardId < MV_MAX_BOARD_ID)))
 	{
@@ -1184,7 +1201,6 @@ MV_32 mvBoardGetDeviceWidth(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 		return devEntry->devWidth;
 
 	return MV_ERROR;
-
 }
 
 /*******************************************************************************
@@ -1246,8 +1262,8 @@ MV_32 mvBoardGetDeviceWinSize(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 *******************************************************************************/
 static MV_DEV_CS_INFO*  boardGetDevEntry(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 {
-	MV_U32	foundIndex=0,devIndex;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32	foundIndex = 0, devIndex;
+	MV_U32	boardId = mvBoardIdGet();
 
 	if (!((boardId >= BOARD_ID_BASE)&&(boardId < MV_MAX_BOARD_ID)))
 	{
@@ -1281,7 +1297,7 @@ static MV_DEV_CS_INFO*  boardGetDevEntry(MV_32 devNum, MV_BOARD_DEV_CLASS devCla
 MV_U32 boardGetDevCSNum(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 {
 	MV_DEV_CS_INFO* devEntry;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	if (!((boardId >= BOARD_ID_BASE)&&(boardId < MV_MAX_BOARD_ID)))
 	{
@@ -1290,7 +1306,6 @@ MV_U32 boardGetDevCSNum(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 
 	}
 
-
 	devEntry = boardGetDevEntry(devNum,devClass);
 	if (devEntry != NULL)
 		return devEntry->deviceCS;
@@ -1298,6 +1313,82 @@ MV_U32 boardGetDevCSNum(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 	return 0xFFFFFFFF;
 
 }
+
+
+
+/*******************************************************************************
+* mvBoardChanNumGet -
+*
+* DESCRIPTION:
+*
+* INPUT:
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_U8		mvBoardTwsiChanNumGet(MV_U8 unit, MV_BOARD_TWSI_CLASS twsiClass)
+{
+#warning "not yet implemented"
+	return -1;
+}
+
+
+/*******************************************************************************
+* mvBoardTwsiAddrTypeGet -
+*
+* DESCRIPTION:
+*
+* INPUT:
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_U8		mvBoardTwsiAddrTypeGet(MV_U8 unit, MV_BOARD_TWSI_CLASS twsiClass)
+{
+	int i;
+	MV_U32 boardId = mvBoardIdGet();
+
+	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
+		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == twsiClass)
+			return BOARD_INFO(boardId)->pBoardTwsiDev[i].twsiDevAddrType;
+	return (MV_ERROR);
+}
+
+
+/*******************************************************************************
+* mvBoardTwsiAddrGet -
+*
+* DESCRIPTION:
+*
+* INPUT:
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_U8		mvBoardTwsiAddrGet(MV_U8 unit, MV_BOARD_TWSI_CLASS twsiClass)
+{
+	int i;
+	MV_U32 boardId = mvBoardIdGet();
+
+	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
+		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == twsiClass)
+			return BOARD_INFO(boardId)->pBoardTwsiDev[i].twsiDevAddr;
+	return (0xFF);
+}
+
+
 
 /*******************************************************************************
 * mvBoardRtcTwsiAddrTypeGet -
@@ -1313,15 +1404,9 @@ MV_U32 boardGetDevCSNum(MV_32 devNum, MV_BOARD_DEV_CLASS devClass)
 *
 *
 *******************************************************************************/
-MV_U8 mvBoardRtcTwsiAddrTypeGet()
+MV_U8 mvBoardRtcTwsiAddrTypeGet(void)
 {
-	int i;
-	MV_U32 boardId= mvBoardIdGet();
-
-	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
-		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_TWSI_RTC)
-			return BOARD_INFO(boardId)->pBoardTwsiDev[i].twsiDevAddrType;
-	return (MV_ERROR);
+	return mvBoardTwsiAddrTypeGet(0, BOARD_TWSI_RTC);
 }
 
 /*******************************************************************************
@@ -1338,15 +1423,29 @@ MV_U8 mvBoardRtcTwsiAddrTypeGet()
 *
 *
 *******************************************************************************/
-MV_U8 mvBoardRtcTwsiAddrGet()
+MV_U8 mvBoardRtcTwsiAddrGet(void)
 {
-	int i;
-	MV_U32 boardId= mvBoardIdGet();
+	return mvBoardTwsiAddrGet(0, BOARD_TWSI_RTC);
+}
 
-	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
-		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_TWSI_RTC)
-			return BOARD_INFO(boardId)->pBoardTwsiDev[i].twsiDevAddr;
-	return (0xFF);
+
+/*******************************************************************************
+* mvBoardA2DTwsiChanNumGet -
+*
+* DESCRIPTION:
+*
+* INPUT:
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_U8		mvBoardA2DTwsiChanNumGet(MV_U8 unit)
+{
+	return mvBoardTwsiChanNumGet(unit, BOARD_TWSI_AUDIO_DEC);
 }
 
 /*******************************************************************************
@@ -1365,13 +1464,7 @@ MV_U8 mvBoardRtcTwsiAddrGet()
 *******************************************************************************/
 MV_U8 mvBoardA2DTwsiAddrTypeGet(MV_U8 unit)
 {
-	int i;
-	MV_U32 boardId = mvBoardIdGet();
-
-	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
-		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_TWSI_AUDIO_DEC)
-			return BOARD_INFO(boardId)->pBoardTwsiDev[i].twsiDevAddrType;
-	return (MV_ERROR);
+	return mvBoardTwsiAddrTypeGet(unit, BOARD_TWSI_AUDIO_DEC);
 }
 
 /*******************************************************************************
@@ -1390,14 +1483,74 @@ MV_U8 mvBoardA2DTwsiAddrTypeGet(MV_U8 unit)
 *******************************************************************************/
 MV_U8 mvBoardA2DTwsiAddrGet(MV_U8 unit)
 {
-	int i;
-	MV_U32 boardId= mvBoardIdGet();
-
-	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
-		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_TWSI_AUDIO_DEC)
-			return BOARD_INFO(boardId)->pBoardTwsiDev[i].twsiDevAddr;
-	return (0xFF);
+	return mvBoardTwsiAddrGet(unit, BOARD_TWSI_AUDIO_DEC);
 }
+
+
+
+/*******************************************************************************
+* mvBoardCamTwsiChanNumGet -
+*
+* DESCRIPTION:
+*
+* INPUT:
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_U8		mvBoardCamTwsiChanNumGet(MV_U8 unit)
+{
+	return mvBoardTwsiChanNumGet(unit, BOARD_TWSI_CAM);
+}
+
+
+
+/*******************************************************************************
+* mvBoardCamTwsiAddrTypeGet -
+*
+* DESCRIPTION:
+*
+* INPUT:
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_U8 mvBoardCamTwsiAddrTypeGet(MV_U8 unit)
+{
+	return mvBoardTwsiAddrTypeGet(unit, BOARD_TWSI_CAM);
+}
+
+/*******************************************************************************
+* mvBoardCamTwsiAddrGet -
+*
+* DESCRIPTION:
+*
+* INPUT:
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_U8 mvBoardCamTwsiAddrGet(MV_U8 unit)
+{
+	return mvBoardTwsiAddrGet(unit, BOARD_TWSI_CAM);
+}
+
+
+
+
+
 
 /*******************************************************************************
 * mvBoardTwsiExpAddrTypeGet -
@@ -1417,7 +1570,7 @@ MV_U8 mvBoardTwsiExpAddrTypeGet(MV_U32 index)
 {
 	int i;
 	MV_U32 indexFound = 0;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
 		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_DEV_TWSI_EXP)
@@ -1449,7 +1602,7 @@ MV_U8 mvBoardTwsiExpAddrGet(MV_U32 index)
 {
 	int i;
 	MV_U32 indexFound = 0;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
 		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_DEV_TWSI_EXP)
@@ -1482,7 +1635,7 @@ MV_U8 mvBoardTwsiSatRAddrTypeGet(MV_U32 index)
 {
 	int i;
 	MV_U32 indexFound = 0;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
 		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_DEV_TWSI_SATR)
@@ -1514,7 +1667,7 @@ MV_U8 mvBoardTwsiSatRAddrGet(MV_U32 index)
 {
 	int i;
 	MV_U32 indexFound = 0;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	for (i = 0; i < BOARD_INFO(boardId)->numBoardTwsiDev; i++)
 		if (BOARD_INFO(boardId)->pBoardTwsiDev[i].devClass == BOARD_DEV_TWSI_SATR)
@@ -1542,12 +1695,11 @@ MV_U8 mvBoardTwsiSatRAddrGet(MV_U32 index)
 *
 *
 *******************************************************************************/
-/*  */
 MV_32 mvBoardNandWidthGet(void)
 {
 	MV_U32 devNum;
 	MV_U32 devWidth;
-	MV_U32 boardId= mvBoardIdGet();
+	MV_U32 boardId = mvBoardIdGet();
 
 	for (devNum = START_DEV_CS; devNum < BOARD_INFO(boardId)->numBoardDeviceIf; devNum++)
 	{
@@ -1586,12 +1738,14 @@ MV_U32 mvBoardIdGet(MV_VOID)
 
 	if(gBoardId == -1)
         {
-		#if defined(DB_88F6781)
+		#if defined(DB_88F6781Z0)
 		tmpBoardId = DB_88F6781_BP_ID;
 		#elif defined(RD_88F6781)
 		tmpBoardId = RD_88F6781_ID;
 		#elif defined(RD_88F6781_AVNG)
 		tmpBoardId = RD_88F6781_AVNG_ID;
+		#elif defined(DB_88F6781Y0)
+		tmpBoardId =  DB_88F6781Y0_BP_ID;
 		#endif
 		gBoardId = tmpBoardId;
 	}
@@ -1624,7 +1778,7 @@ MV_BOARD_MODULE_ID_CLASS mvBoarModuleTypeGet(MV_BOARD_MPP_GROUP_CLASS devClass)
 	/* TWSI init */    	
 	slave.type = ADDR7_BIT;
 	slave.address = 0;
-	mvTwsiInit(TWSI_SPEED, mvBoardTclkGet(), &slave, 0);
+	mvTwsiInit(MV_BOARD_DIMM_I2C_CHANNEL, TWSI_SPEED, mvBoardTclkGet(), &slave, 0);
 
 	/* Read MPP module ID */
     	DB(mvOsPrintf("Board: Read MPP module ID\n"));
@@ -1636,9 +1790,7 @@ MV_BOARD_MODULE_ID_CLASS mvBoarModuleTypeGet(MV_BOARD_MPP_GROUP_CLASS devClass)
     	twsiSlave.offset = 0;
     	twsiSlave.moreThen256 = MV_FALSE;
 
-
-
-    	if( MV_OK != mvTwsiRead (&twsiSlave, &data, 1) )
+    	if( MV_OK != mvTwsiRead (MV_BOARD_DIMM_I2C_CHANNEL, &twsiSlave, &data, 1) )
     	{
     		DB(mvOsPrintf("Board: Read MPP module ID fail\n"));
         	return MV_ERROR;
@@ -1646,99 +1798,6 @@ MV_BOARD_MODULE_ID_CLASS mvBoarModuleTypeGet(MV_BOARD_MPP_GROUP_CLASS devClass)
     	DB(mvOsPrintf("Board: Read MPP module ID succeded\n"));
 	
 	return data;
-}
-
-/*******************************************************************************
-* mvBoarTwsiSatRGet - 
-*
-* DESCRIPTION:
-*
-* INPUT:
-*		device num - one of three devices
-*		reg num - 0 or 1
-*
-* OUTPUT:
-*		None.
-*
-* RETURN:
-*		reg value
-*
-*******************************************************************************/
-MV_U8 mvBoarTwsiSatRGet(MV_U8 devNum, MV_U8 regNum)
-{
-    	MV_TWSI_SLAVE twsiSlave;
-	MV_TWSI_ADDR slave;
-    	MV_U8 data;
-	
-	/* TWSI init */    	
-	slave.type = ADDR7_BIT;
-	slave.address = 0;
-	mvTwsiInit(TWSI_SPEED, mvBoardTclkGet(), &slave, 0);
-
-    	/* Read MPP module ID */
-    	DB(mvOsPrintf("Board: Read S@R device read\n"));
-    	twsiSlave.slaveAddr.address = mvBoardTwsiSatRAddrGet(devNum);
-    	twsiSlave.slaveAddr.type = mvBoardTwsiSatRAddrTypeGet(devNum);
-    	twsiSlave.validOffset = MV_TRUE;
-	/* Use offset as command */
-    	twsiSlave.offset = regNum;
-    	twsiSlave.moreThen256 = MV_FALSE;
-
-    	if( MV_OK != mvTwsiRead (&twsiSlave, &data, 1) )
-    	{
-    		DB(mvOsPrintf("Board: Read S@R fail\n"));
-        	return MV_ERROR;
-    	}
-    	DB(mvOsPrintf("Board: Read S@R succeded\n"));
-	
-	return data;
-}
-
-/*******************************************************************************
-* mvBoarTwsiSatRSet - 
-*
-* DESCRIPTION:
-*
-* INPUT:
-*		devNum - one of three devices
-*		regNum - 0 or 1
-*		regVal - value
-*
-*
-* OUTPUT:
-*		None.
-*
-* RETURN:
-*		reg value
-*
-*******************************************************************************/
-MV_STATUS mvBoarTwsiSatRSet(MV_U8 devNum, MV_U8 regNum, MV_U8 regVal)
-{
-    	MV_TWSI_SLAVE twsiSlave;
-	MV_TWSI_ADDR slave;
-	
-	/* TWSI init */    	
-	slave.type = ADDR7_BIT;
-	slave.address = 0;
-	mvTwsiInit(TWSI_SPEED, mvBoardTclkGet(), &slave, 0);
-
-    	/* Read MPP module ID */
-    	twsiSlave.slaveAddr.address = mvBoardTwsiSatRAddrGet(devNum);
-    	twsiSlave.slaveAddr.type = mvBoardTwsiSatRAddrTypeGet(devNum);
-    	twsiSlave.validOffset = MV_TRUE;
-    	DB(mvOsPrintf("Board: Write S@R device addr %x, type %x, data %x\n", twsiSlave.slaveAddr.address,\
-								twsiSlave.slaveAddr.type, regVal));
-	/* Use offset as command */
-    	twsiSlave.offset = regNum;
-    	twsiSlave.moreThen256 = MV_FALSE;
-    	if( MV_OK != mvTwsiWrite (&twsiSlave, &regVal, 1) )
-    	{
-    		DB(mvOsPrintf("Board: Write S@R fail\n"));
-        	return MV_ERROR;
-    	}
-    	DB(mvOsPrintf("Board: Write S@R succeded\n"));
-	
-	return MV_OK;
 }
 
 /*******************************************************************************
@@ -1764,10 +1823,37 @@ MV_32 mvBoardSlicGpioPinGet(MV_U32 slicNum)
 	{
 	case DB_88F6781_BP_ID:
 	case RD_88F6781_ID:
+	case RD_88F6781_AVNG_ID:
+	case DB_88F6781Y0_BP_ID:
 	default:
 		return MV_ERROR;
 		break;
 
 	}
 }
+
+
+/*******************************************************************************
+* mvBoardDdrTypeGet -
+*
+* DESCRIPTION: identify DDR DIMM type (DDR2/DDR3) based on sample at reset.
+*
+* INPUT: none.
+*
+* OUTPUT:
+*       1 - DDR3, 0 - DDR2.
+*
+* RETURN:
+*
+*
+*******************************************************************************/
+MV_32 mvBoardDdrTypeGet(void)
+{
+	MV_U32 reg = MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0);
+	if (reg & BIT28)	/* bit 28 determines DDR type: 1 is DDR3, 0 is DDR2 */
+		return 1;
+
+	return 0;
+}
+
 

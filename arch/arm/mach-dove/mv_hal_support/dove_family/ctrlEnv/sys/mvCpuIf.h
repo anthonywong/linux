@@ -70,9 +70,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ctrlEnv/mvCtrlEnvLib.h"
 #include "ctrlEnv/sys/mvCpuIfRegs.h"
 #include "ctrlEnv/sys/mvAhbToMbus.h"
-#include "ddr2/mvDramIf.h"
+#include "ddr/mvDramIf.h"
 #if defined(MV_INCLUDE_PEX)
-#include "pex/mvPex.h"
+#include "pci-if/mvPciIf.h"
+#include "pci-if/pex/mvPex.h"
 #endif
 
 /* defines  */
@@ -103,12 +104,16 @@ MV_U32    mvCpuIfTargetWinBaseHighGet(MV_TARGET target);
 MV_TARGET mvCpuIfTargetOfBaseAddressGet(MV_U32 baseAddress);
 #if defined(MV_INCLUDE_PEX)
 MV_U32    mvCpuIfPexRemap(MV_TARGET pexTarget, MV_ADDR_WIN *pAddrDecWin);
-MV_VOID   mvCpuIfEnablePex(MV_U32 pexIf, MV_PEX_TYPE pexType);
+MV_VOID	  mvCpuIfEnablePex(MV_VOID);
 #endif
 #if defined(MV_INCLUDE_PCI)
 MV_U32    mvCpuIfPciRemap(MV_TARGET pciTarget, MV_ADDR_WIN *pAddrDecWin);
 #endif                                               
 MV_U32 	  mvCpuIfPciIfRemap(MV_TARGET pciTarget, MV_ADDR_WIN *pAddrDecWin);
+
+#ifdef MV_INCLUDE_PMU
+MV_VOID mvCpuIfEnablePmu(void);
+#endif
 
 MV_VOID   mvCpuIfAddDecShow(MV_VOID);
 
