@@ -131,7 +131,7 @@ do {					\
 
 #include "mvDebug.h"
 
-#include "mvSysHwConfig.h"
+#include "mvSysCesaConfig.h"
 #include "boardEnv/mvBoardEnvLib.h"
 #include "ctrlEnv/sys/mvCpuIf.h"
 #include "cntmr/mvCntmr.h"

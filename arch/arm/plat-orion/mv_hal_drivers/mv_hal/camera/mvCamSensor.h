@@ -68,8 +68,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */ 
     
 /* includes */
-#include "mvTypes.h"
-#include "mvVideo.h"
 #ifdef __cplusplus
     extern "C" { 
 #endif
@@ -87,8 +85,8 @@ typedef struct {
 	mvCamSensorInit */
      MV_VOID *I2CClient; /* handler for i2c client, sensor driver pass it
 			    to the mvSensorI2CRead/mvSensorI2CWrite functions */
-     mvSensorI2CRead_t mvSensorI2CRead; 
-     mvSensorI2CWrite_t mvSensorI2CWrite;
+//     mvSensorI2CRead_t mvSensorI2CRead; 
+//     mvSensorI2CWrite_t mvSensorI2CWrite;
      MV_U32	inputClk; /* input clk rate in MHz*/
 
      /* internal fields, upper layer should not access these fields*/
