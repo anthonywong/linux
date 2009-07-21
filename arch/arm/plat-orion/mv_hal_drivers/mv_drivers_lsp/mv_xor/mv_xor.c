@@ -13,6 +13,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/version.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -24,13 +25,14 @@
 #include <asm/mach/time.h>
 #include <asm/uaccess.h>
 #include <linux/proc_fs.h>
+#include <linux/platform_device.h>
 
+#include "mvCommon.h"
 #include "xor/mvXor.h"
-#include "ctrlEnv/sys/mvSysXor.h"
+#include "xor/mvXorRegs.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
 
 #undef DEBUG
-
 
 #ifdef DEBUG
 	#define DPRINTK(s, args...)  printk("MV_XOR: " s, ## args)
@@ -223,7 +225,12 @@ print_xor_regs(int chan)
 							   XOR_UNIT(chan),XOR_CHAN(chan))));
 }
 #ifdef CONFIG_MV_RAID5_XOR_OFFLOAD
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
 int xor_mv(unsigned int src_no, unsigned int bytes, void **bh_ptr)
+#else
+int xor_mv(unsigned int src_no, unsigned int bytes, void **bh_ptr, void *dest_buff)
+#endif
 {
 	void *bptr = NULL;
 	int i;
@@ -240,7 +247,7 @@ int xor_mv(unsigned int src_no, unsigned int bytes, void **bh_ptr)
 	}
         if (xor_engine_initialized == 0)
         {
-            printk(KERN_WARNING" %s: xor engines not initialized yet\n", __func__);
+            DPRINTK(KERN_WARNING " %s: xor engines not initialized yet\n", __func__);
             return bytes;
         }
 
@@ -263,17 +270,24 @@ int xor_mv(unsigned int src_no, unsigned int bytes, void **bh_ptr)
 		DPRINTK("flushing source %d\n", i);
 		bptr = (bh_ptr[i]);
 		/* Buffer 0 is also the destination */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
 		if(i==0)
 			dmac_flush_range(bptr, bptr + bytes);			
 		else
+#endif
 			dmac_clean_range(bptr, bptr + bytes);
                 srcAddr[i] = virt_to_phys(bh_ptr[i]);
 	}
-#if defined(MV_CPU_BE)		
+#if defined(MV_CPU_BE)
 	if (src_no & 1) 
 		srcAddr[src_no] = virt_to_phys(bh_ptr[src_no-1]);
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
 	channel->pDescriptor->phyDestAdd = virt_to_phys(bh_ptr[0]);
+#else
+	dmac_flush_range(dest_buff, dest_buff + bytes);
+	channel->pDescriptor->phyDestAdd = virt_to_phys(dest_buff);
+#endif
         channel->pDescriptor->byteCnt = bytes;
         channel->pDescriptor->phyNextDescPtr = 0;
         channel->pDescriptor->descCommand = (1 << src_no) - 1;
@@ -1013,7 +1027,7 @@ static int xor_read_proc(char *buf, char **start, off_t offset, int len,
 	return len;
 }
 
-int mv_xor_init(void)
+static int mv_xor_probe(struct platform_device *pdev)
 {
     int chan;
 #ifdef CONFIG_ENABLE_XOR_INTERRUPTS
@@ -1045,7 +1059,7 @@ int mv_xor_init(void)
         printk(KERN_WARNING " This device doesn't have XOR engines.\n");    
         return -ENODEV;
     }
-    mvXorInit();
+    mvXorHalInit(XOR_MAX_CHANNELS);
 
     /* pre-alloc XOR descriptors */
     pDescriptors = dma_alloc_coherent(NULL, sizeof(MV_XOR_DESC) * XOR_MAX_CHANNELS,
@@ -1122,14 +1136,24 @@ int mv_xor_init(void)
     return 0;
 }
 
-void mv_xor_exit(void)
+
+static struct platform_driver mv_xor_driver = {
+	.probe		= mv_xor_probe,
+	.driver		= {
+		.name	= "mv_xor_hal"
+	},
+};
+
+
+static int __init mv_xor_init(void)
 {
-    printk(KERN_INFO "XOR acceleration exit\n");
-    return;
+	int rc;
+
+	rc = platform_driver_register(&mv_xor_driver);
+	return rc;
 }
 module_init(mv_xor_init);
-module_exit(mv_xor_exit);
-MODULE_LICENSE(GPL);
 
+MODULE_LICENSE(GPL);
 
 

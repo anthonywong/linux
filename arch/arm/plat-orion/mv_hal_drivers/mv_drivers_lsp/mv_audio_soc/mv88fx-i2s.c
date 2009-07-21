@@ -33,7 +33,7 @@
 #include "mv88fx-pcm.h"
 #include "audio/mvAudioRegs.h"
 #include "audio/mvAudio.h"
-#include "ctrlEnv/sys/mvSysAudio.h"
+#include "mvSysAudioApi.h"
 
 #ifdef CONFIG_MACH_DOVE_RD_AVNG
 #include <linux/gpio.h>
@@ -63,8 +63,9 @@ static int mv88fx_i2_hw_init(void)
 	mv88fx_snd_writel(mv88fx_i2s_info.base,
 		MV_AUDIO_SPDIF_REC_INT_CAUSE_MASK_REG(mv88fx_i2s_info.port), 0);
 
-	if (MV_OK != mvAudioInit(mv88fx_i2s_info.port))
-		return -EIO;
+//	if (MV_OK != mvAudioInit(mv88fx_i2s_info.port))
+//		return -EIO;
+	mvSysAudioInit(mv88fx_i2s_info.port);
 
 	/* Disable all playback/recording */
 	mv88fx_snd_bitreset(mv88fx_i2s_info.base,
