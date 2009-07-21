@@ -73,10 +73,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 
 /* includes */
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "ctrlEnv/mvCtrlEnvAddrDec.h"
-#include "ctrlEnv/sys/mvAhbToMbusRegs.h"
-#include "ddr2/mvDramIfRegs.h"
-#include "pex/mvPexRegs.h"
+#include "ctrlEnv/mvCtrlEnvLib.h"
+#include "mvCpuIf.h"
 
 #define MV_DEBUG
 
@@ -230,6 +232,24 @@ MV_TARGET mvCtrlTargetGet(MV_TARGET_ATTRIB *targetAttrib)
 	return target;
 }
 
+MV_TARGET mvCtrlTargetByWinInfoGet(MV_UNIT_WIN_INFO *unitWinInfo)
+{
+	MV_TARGET target;
+	MV_TARGET x;
+	for (target = SDRAM_CS0; target < MAX_TARGETS ; target ++)
+	{
+		x = MV_CHANGE_BOOT_CS(target);
+		if ((mvTargetDefaultsArray[x].attrib == unitWinInfo->attrib) &&
+			(mvTargetDefaultsArray[MV_CHANGE_BOOT_CS(target)].targetId == unitWinInfo->targetId))
+		{
+			/* found it */
+			break;
+		}
+	}
+
+	return target;
+}
+
 MV_STATUS mvCtrlAddrDecToParams(MV_DEC_WIN *pAddrDecWin, 
                                 MV_DEC_WIN_PARAMS *pWinParam)
 {
@@ -283,5 +303,73 @@ MV_STATUS mvCtrlParamsToAddrDec(MV_DEC_WIN_PARAMS *pWinParam,
     	pAddrDecWin->target = mvCtrlTargetGet(&targetAttrib);
 
     	return MV_OK;
+}
+
+/*******************************************************************************
+* mvCtrlAddrWinMapBuild
+*
+* DESCRIPTION:
+*	Build the windows address decoding table, to be used for initializing
+*	the unit's address decoding windows.
+*
+* INPUT:
+*	pAddrWinMap: An array to hold the address decoding windows parameters.
+*	len: Number of entries in pAddrWinMap.
+*
+* OUTPUT:
+*	pAddrWinMap: Address window information.
+*
+* RETURN:
+*	MV_BAD_PARAM: input array is smaller that needed to store all window
+*	addresses.
+*	MV_ERROR: Otherwise.
+*
+*******************************************************************************/
+MV_STATUS mvCtrlAddrWinMapBuild(MV_UNIT_WIN_INFO *pAddrWinMap, MV_U32 len)
+{
+	MV_CPU_DEC_WIN cpuAddrDecWin;
+	MV_U32	i;
+	MV_TARGET_ATTRIB targetAttrib;
+	MV_STATUS status;
+
+	/* Check size of CPU address win table */
+	if(len <= MAX_TARGETS) {
+		mvOsPrintf("mvCtrlAddrWinMapBuild() - Table size too small.\n");
+		return MV_BAD_PARAM;
+	}
+
+	/* Fill in the pAddrWinMap fields	*/
+	for(i = 0; i < MAX_TARGETS; i++) {
+        	status = mvCpuIfTargetWinGet(i, &cpuAddrDecWin);
+		if(status != MV_OK) {
+			if(status == MV_NO_SUCH) {
+				pAddrWinMap[i].enable = MV_FALSE;
+				continue;
+			} else {
+				mvOsPrintf("mvCtrlAddrWinMapBuild() - mvCpuIfTargetWinGet() failed.\n");
+				return MV_ERROR;
+			}
+		}
+
+		pAddrWinMap[i].addrWin.baseLow = cpuAddrDecWin.addrWin.baseLow;
+		pAddrWinMap[i].addrWin.baseHigh = cpuAddrDecWin.addrWin.baseHigh;
+		pAddrWinMap[i].addrWin.size = cpuAddrDecWin.addrWin.size;
+		pAddrWinMap[i].enable = cpuAddrDecWin.enable;
+
+		if(mvCtrlAttribGet(i, &targetAttrib) != MV_OK) {
+			mvOsPrintf("mvCtrlAddrWinMapBuild() - mvCtrlAttribGet() failed.\n");
+			return MV_ERROR;
+		}
+		pAddrWinMap[i].attrib = targetAttrib.attrib;
+		pAddrWinMap[i].targetId = targetAttrib.targetId;
+	}
+	pAddrWinMap[i].addrWin.baseLow = TBL_TERM;
+	pAddrWinMap[i].addrWin.baseHigh = TBL_TERM;
+	pAddrWinMap[i].addrWin.size = TBL_TERM;
+	pAddrWinMap[i].enable = TBL_TERM;
+	pAddrWinMap[i].attrib = TBL_TERM;
+	pAddrWinMap[i].targetId = TBL_TERM;
+
+	return MV_OK;
 }
 
