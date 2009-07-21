@@ -62,9 +62,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
-#include "mvOs.h"
-#include "mv802_3.h"
 #include "mvCommon.h"
+#include "mvOs.h"
 
 
 /*******************************************************************************
@@ -272,6 +271,90 @@ MV_U32 mvLog2(MV_U32	num)
 		result++;
 	}
 	return result;
+}
+
+/*******************************************************************************
+* mvWinOverlapTest
+*
+* DESCRIPTION:
+*       This function checks the given two address windows for overlaping.
+*
+* INPUT:
+*       pAddrWin1 - Address window 1.
+*       pAddrWin2 - Address window 2.
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*       MV_TRUE if address window overlaps, MV_FALSE otherwise.
+*
+*******************************************************************************/
+MV_STATUS mvWinOverlapTest(MV_ADDR_WIN *pAddrWin1, MV_ADDR_WIN *pAddrWin2)
+{
+    MV_U32 winBase1, winBase2;
+    MV_U32 winTop1, winTop2;
+    
+    /* check if we have overflow than 4G*/
+    if (((0xffffffff - pAddrWin1->baseLow) < pAddrWin1->size-1)||
+       ((0xffffffff - pAddrWin2->baseLow) < pAddrWin2->size-1))
+    {
+	return MV_TRUE;
+    }
+
+    winBase1 = pAddrWin1->baseLow;
+    winBase2 = pAddrWin2->baseLow;
+    winTop1  = winBase1 + pAddrWin1->size-1;
+    winTop2  = winBase2 + pAddrWin2->size-1;
+
+    
+    if (((winBase1 <= winTop2 ) && ( winTop2 <= winTop1)) ||
+        ((winBase1 <= winBase2) && (winBase2 <= winTop1)))
+    {
+        return MV_TRUE;
+    }
+    else
+    {
+        return MV_FALSE;
+    }
+}
+
+/*******************************************************************************
+* mvWinWithinWinTest
+*
+* DESCRIPTION:
+*       This function checks the given win1 boundries is within win2 boundries.
+*
+* INPUT:
+*       pAddrWin1 - Address window 1.
+*       pAddrWin2 - Address window 2.
+*
+* OUTPUT:
+*       None.
+*
+* RETURN:
+*       MV_TRUE if found win1 inside win2, MV_FALSE otherwise.
+*
+*******************************************************************************/
+MV_STATUS mvWinWithinWinTest(MV_ADDR_WIN *pAddrWin1, MV_ADDR_WIN *pAddrWin2)
+{
+    MV_U32 winBase1, winBase2;
+    MV_U32 winTop1, winTop2;
+    
+    winBase1 = pAddrWin1->baseLow;
+    winBase2 = pAddrWin2->baseLow;
+    winTop1  = winBase1 + pAddrWin1->size -1;
+    winTop2  = winBase2 + pAddrWin2->size -1;
+    
+    if (((winBase1 >= winBase2 ) && ( winBase1 <= winTop2)) ||
+        ((winTop1  >= winBase2) && (winTop1 <= winTop2)))
+    {
+        return MV_TRUE;
+    }
+    else
+    {
+        return MV_FALSE;
+    }
 }
 
 
