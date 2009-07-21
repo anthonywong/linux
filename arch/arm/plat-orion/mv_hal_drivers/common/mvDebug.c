@@ -65,9 +65,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 /* includes */
-#include "mvOs.h"
-#include "mv802_3.h"
 #include "mvCommon.h"
+#include "mvOs.h"
 #include "mvDebug.h"
 
 /* Global variables effect on behave MV_DEBUG_PRINT and MV_DEBUG_CODE macros

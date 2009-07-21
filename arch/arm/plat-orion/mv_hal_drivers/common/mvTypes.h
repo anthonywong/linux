@@ -181,6 +181,14 @@ typedef enum _mvState
     MV_UNDEFINED_STATE
 } MV_STATE;
 
+typedef enum 
+{
+	ETH_MAC_SPEED_10M,
+	ETH_MAC_SPEED_100M,
+	ETH_MAC_SPEED_1000M,
+	ETH_MAC_SPEED_AUTO,
+
+}MV_ETH_MAC_SPEED;
 
 /* This structure describes address space window. Window base can be        */
 /* 64 bit, window size up to 4GB                                            */
@@ -238,6 +246,36 @@ typedef struct
     char        srcIdx;
     MV_U32      fragIP;
 } MV_PKT_INFO;
+
+
+/* This structure describes SoC units address decode window	*/
+typedef struct 
+{
+	MV_ADDR_WIN		addrWin;	/* An address window*/
+	MV_BOOL			enable;		/* Address decode window is enabled/disabled    */
+	MV_U8			attrib;		/* chip select attributes */
+	MV_U8			targetId;	/* Target Id of this MV_TARGET */
+}MV_UNIT_WIN_INFO;
+
+/* This structure describes access rights for Access protection windows     */
+/* that can be found in IDMA, XOR, Ethernet and MPSC units.                 */
+/* Note that the permission enumerator coresponds to its register format.   */
+/* For example, Read only premission is presented as "1" in register field. */
+typedef enum _mvAccessRights
+{
+    	NO_ACCESS_ALLOWED = 0,  /* No access allowed            */
+    	READ_ONLY         = 1,  /* Read only permission         */
+	ACC_RESERVED	  = 2,	/* Reserved access right		*/
+    	FULL_ACCESS       = 3,  /* Read and Write permission    */
+	MAX_ACC_RIGHTS
+}MV_ACCESS_RIGHTS;
+
+typedef struct _mvDecRegs
+{
+    MV_U32 baseReg;
+    MV_U32 baseRegHigh;
+    MV_U32 sizeReg;
+} MV_DEC_REGS;
 
 #endif /* MV_ASMLANGUAGE */
 

@@ -23,8 +23,8 @@
 *******************************************************************************/
 
 /* includes */
+#include "mvCommon.h"
 #include "mvOs.h"
-#include "mvTypes.h"
 #include "mvDebug.h"
 #include "mvStack.h"
 
