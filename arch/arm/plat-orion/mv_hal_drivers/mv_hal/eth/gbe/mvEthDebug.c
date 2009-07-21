@@ -72,15 +72,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 *******************************************************************************/
 
-#include "mvOs.h"
 #include "mvCommon.h"
-#include "mvTypes.h"
-#include "mv802_3.h"
-#include "mvDebug.h"
-#include "ctrlEnv/mvCtrlEnvLib.h"
-#include "eth-phy/mvEthPhy.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysEthConfig.h"
+#include "mvEthRegs.h"
 #include "eth/mvEth.h"
-#include "eth/gbe/mvEthDebug.h"
+#include "mvEthDebug.h"
+#include "mvEthGbe.h"
 
 /* #define mvOsPrintf printf */
 

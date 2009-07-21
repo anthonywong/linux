@@ -62,9 +62,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
-#include "nfc/mvNfcRegs.h"
-#include "nfc/mvNfc.h"
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysNfcConfig.h"
+#include "mvNfcRegs.h"
 #include "pdma/mvPdma.h"
+#include "mvNfc.h"
+
 
 /*************/
 /* Constants */
@@ -110,8 +115,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #define NFC_CMD_BUFF_SIZE		(sizeof(MV_NFC_CMD))
-#define NFC_CMD_BUFF_ADDR		(INTER_REGS_BASE + NFC_COMMAND_BUFF_0_REG)
-#define NFC_DATA_BUFF_ADDR		(INTER_REGS_BASE + NFC_DATA_BUFF_REG)\
+#define NFC_CMD_BUFF_ADDR		(NFC_COMMAND_BUFF_0_REG)
+#define NFC_DATA_BUFF_ADDR		(NFC_DATA_BUFF_REG)\
 
 /**********/
 /* Macros */
@@ -247,14 +252,15 @@ extern MV_U32 mvNfcDbgFlag;
 
 MV_U32 nfc_dbg_read(MV_U32 addr)
 {
-	MV_U32 reg = MV_MEMIO_LE32_READ(INTER_REGS_BASE + (addr));
+	MV_U32 reg = MV_MEMIO_LE32_READ((addr));
 	if (mvNfcDbgFlag) mvOsPrintf("NFC read  0x%08x = %08x\n", addr, reg);
 	return reg;
 }
 
 MV_VOID nfc_dbg_write(MV_U32 addr, MV_U32 val)
 {
-	MV_MEMIO_LE32_WRITE((INTER_REGS_BASE + addr), (val));
+	MV_MEMIO_LE32_WRITE((addr), (val));
+
 	if (mvNfcDbgFlag) mvOsPrintf("NFC write 0x%08x = %08x\n", addr, val);
 }
 
@@ -305,9 +311,8 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	/* Enable spare */
 	ctrl_reg |= NFC_CTRL_SPARE_EN_MASK;
 
-	/* Configure ECC mode */
-	if (nfcInfo->eccMode != MV_NFC_ECC_DISABLE)
-		ctrl_reg |= NFC_CTRL_ECC_EN_MASK;
+	/* make sure ECC is disabled at this point - will be enabled only when issuing certain commands */
+	ctrl_reg &= ~NFC_CTRL_ECC_EN_MASK;
 
 	/* Configure flash interface */
 	if (nfcInfo->ifMode == MV_NFC_IF_1X16)
@@ -487,9 +492,9 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	nfcCtrl->ifMode = nfcInfo->ifMode; 
 	nfcCtrl->currCs = MV_NFC_CS_NONE;
 
-	/*if ((nfcInfo->eccMode != MV_NFC_ECC_DISABLE) && (nfcInfo->eccMode == MV_NFC_ECC_BCH))
-		MV_REG_WRITE(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);*/
-
+	if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
+		MV_REG_WRITE(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
+	
 	return MV_OK;
 }
 
@@ -624,10 +629,10 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 		case MV_NFC_CMD_WRITE_MULTIPLE:
 		case MV_NFC_CMD_WRITE_NAKED:
 		case MV_NFC_CMD_WRITE_LAST_NAKED:
-        case MV_NFC_CMD_WRITE_DISPATCH:
-        case MV_NFC_CMD_EXIT_CACHE_READ:
-        case MV_NFC_CMD_CACHE_READ_SEQ:
-        case MV_NFC_CMD_CACHE_READ_START:
+		case MV_NFC_CMD_WRITE_DISPATCH:
+		case MV_NFC_CMD_EXIT_CACHE_READ:
+		case MV_NFC_CMD_CACHE_READ_SEQ:
+		case MV_NFC_CMD_CACHE_READ_START:
 			if (nfcCtrl->ioMode == MV_NFC_PDMA_ACCESS)
 			{
 				/* Decide read data size based on page size */
@@ -688,10 +693,10 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 			break;
 
 		case MV_NFC_CMD_ERASE:
-        case MV_NFC_CMD_MULTIPLANE_ERASE:
+		case MV_NFC_CMD_MULTIPLANE_ERASE:
 		case MV_NFC_CMD_RESET:
-        case MV_NFC_CMD_WRITE_DISPATCH_START:
-        case MV_NFC_CMD_WRITE_DISPATCH_END:
+		case MV_NFC_CMD_WRITE_DISPATCH_START:
+		case MV_NFC_CMD_WRITE_DISPATCH_END:
 			return MV_BAD_PARAM;
 
 		default:
@@ -735,7 +740,7 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 	MV_PDMA_DESC * dataDescPhysPtr = (MV_PDMA_DESC*)nfcCtrl->dataDescBuff.bufPhysAddr;
 	MV_U32 	xferLen;
 	MV_U32	dataDescCount = 0;
-    MV_U32  nPage;
+	MV_U32  nPage;
 
 	/* Check MAX descriptor count */
 	if (descCnt > MV_NFC_MAX_DESC_CHAIN)
@@ -775,9 +780,20 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 		if (nfcCtrl->readyBypass)
 			cmdb[0] |= NFC_CB0_RDY_BYP_MASK;
 
-		/* Re-enable BCH since it might have been disabled is a READ-Id or STAUS */
-		if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
-			MV_REG_WRITE(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
+		if (nfcCtrl->eccMode != MV_NFC_ECC_DISABLE)
+		{
+			if (	(descInfo[i].cmd == MV_NFC_CMD_READ_ID) || (descInfo[i].cmd == MV_NFC_CMD_READ_STATUS) || 
+				(descInfo[i].cmd == MV_NFC_CMD_ERASE) || (descInfo[i].cmd == MV_NFC_CMD_RESET))
+			{
+				/* disable ECC for these commands */
+				MV_REG_BIT_RESET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
+			}
+			else
+			{
+				/* enable ECC for all other commands */
+				MV_REG_BIT_SET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
+			}
+		}
 			
 		switch (descInfo[i].cmd)
 		{
@@ -1083,7 +1099,7 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 	if (reg & NFC_CTRL_ND_RUN_MASK)
 		return MV_BAD_STATE;
 
-    reg |= NFC_CTRL_ND_RUN_MASK;
+	reg |= NFC_CTRL_ND_RUN_MASK;
 	MV_REG_WRITE(NFC_CONTROL_REG, reg);
 
 	return MV_OK;
@@ -1168,15 +1184,18 @@ MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pa
 	if (nfcCtrl->readyBypass)
 		cmdb[0] |= NFC_CB0_RDY_BYP_MASK;
 
-	if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
+	if (nfcCtrl->eccMode != MV_NFC_ECC_DISABLE)
 	{
-		if ((cmd == MV_NFC_CMD_READ_ID) || (cmd == MV_NFC_CMD_READ_STATUS) || (cmd == MV_NFC_CMD_ERASE) || (cmd == MV_NFC_CMD_RESET))
+		if (	(cmd == MV_NFC_CMD_READ_ID) || (cmd == MV_NFC_CMD_READ_STATUS) || 
+			(cmd == MV_NFC_CMD_ERASE) || (cmd == MV_NFC_CMD_RESET))
 		{
-			MV_REG_WRITE(NFC_ECC_CONTROL_REG, 0x0);
+			/* disable ECC for these commands */
+			MV_REG_BIT_RESET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
 		}
 		else
 		{
-			MV_REG_WRITE(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
+			/* enable ECC for all other commands */
+			MV_REG_BIT_SET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
 		}
 	}
 
@@ -1545,6 +1564,7 @@ MV_STATUS mvNfcIntrEnable(MV_NFC_CTRL *nfcCtrl, MV_U32 intMask, MV_BOOL enable)
 		reg |= msk;
 	else
 		reg &= ~msk;
+
 	MV_REG_WRITE(NFC_CONTROL_REG, reg);
 	
 	return MV_OK;
@@ -1858,27 +1878,30 @@ static MV_STATUS mvNfcReadIdNative(MV_NFC_CHIP_SEL cs, MV_U16 *id)
 	MV_REG_WRITE(NFC_CONTROL_REG, reg);
 
 	/* Wait for Command WRITE request */
-   	if ((errCode = mvDfcWait4Complete(NFC_SR_WRCMDREQ_MASK, 1)) != MV_OK)
+   	if ((errCode = mvDfcWait4Complete(NFC_SR_WRCMDREQ_MASK, 1)) != MV_OK) {
 		return errCode;
+	}
+
 
    	/* Send Command */
 	reg =  NFC_NATIVE_READ_ID_CMD;
 	reg |= (0x1 <<  NFC_CB0_ADDR_CYC_OFFS);
 	reg |= NFC_CB0_CMD_TYPE_READ_ID;
-    cmdb0 = reg;
-    if ((cs == MV_NFC_CS_1) || (cs == MV_NFC_CS_3))
-        cmdb0 |= NFC_CB0_CSEL_MASK;
+	cmdb0 = reg;
+	if ((cs == MV_NFC_CS_1) || (cs == MV_NFC_CS_3))
+        	cmdb0 |= NFC_CB0_CSEL_MASK;
 
-    if ((cs == MV_NFC_CS_2) || (cs == MV_NFC_CS_3))
-        cmdb2 |= NFC_CB2_CS_2_3_SELECT_MASK;
+	if ((cs == MV_NFC_CS_2) || (cs == MV_NFC_CS_3))
+        	cmdb2 |= NFC_CB2_CS_2_3_SELECT_MASK;
 
    	MV_REG_WRITE(NFC_COMMAND_BUFF_0_REG, cmdb0);
    	MV_REG_WRITE(NFC_COMMAND_BUFF_0_REG, 0x0);
    	MV_REG_WRITE(NFC_COMMAND_BUFF_0_REG, cmdb2);
 
 	/* Wait for Data READ request */
-   	if ((errCode = mvDfcWait4Complete(NFC_SR_RDDREQ_MASK, 10)) != MV_OK)
-		return errCode;	
+   	if ((errCode = mvDfcWait4Complete(NFC_SR_RDDREQ_MASK, 10)) != MV_OK) {
+		return errCode;
+	}
 
 	/*  Read the read ID bytes. + read 4 bogus bytes */	
 	*id = (MV_U16)(MV_REG_READ(NFC_DATA_BUFF_REG) & 0xFFFF);

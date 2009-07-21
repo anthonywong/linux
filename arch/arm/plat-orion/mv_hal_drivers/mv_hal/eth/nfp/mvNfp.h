@@ -83,7 +83,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvStack.h"
 #include "mv802_3.h"
 #include "eth/mvEth.h"
-#include "mvSysHwConfig.h"
+#include "mvSysEthConfig.h"
 
 /* defines */
 #define ETH_FP_IFINDEX_MAX     32

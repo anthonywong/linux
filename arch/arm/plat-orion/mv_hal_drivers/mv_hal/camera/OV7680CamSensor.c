@@ -63,9 +63,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
     
 /* includes */
-#include "mvCamSensor.h"
+#include "mvCommon.h"
 #include "mvOs.h"
-    /* defines */
+#include "mvSysCamSensor.h"
+#include "mvCamSensor.h"
+
+/* defines */
 #define OV_MANUFACTURER_IDH	0x7F
 #define OV_MANUFACTURER_IDL	0xA2
 #define OV_7680_PROD_IDH	0x76
@@ -323,11 +326,11 @@ static MV_STATUS sensorRegsWrite(MV_CAM_SENSOR *pCamSensor, sensorReg_t *sensorR
 {
      int i;
      MV_STATUS status;
-     
+
      for(i = 0; i < len; i++)
      {
-	  status = pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, sensorRegs[i].addr, 
-					     sensorRegs[i].value);
+	  status = mvSysCamSensorRegWrite(pCamSensor->I2CClient, sensorRegs[i].addr,
+			  sensorRegs[i].value);
 	  
 	  if(status != MV_OK)
 	  {
@@ -344,7 +347,7 @@ static MV_STATUS isOV7680(MV_CAM_SENSOR *pCamSensor)
      MV_U8	reg;
      MV_STATUS	status;
 
-     status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_MIDH, &reg);
+     status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_MIDH, &reg);
 
      if(status != MV_OK)
 	  return status;
@@ -352,7 +355,7 @@ static MV_STATUS isOV7680(MV_CAM_SENSOR *pCamSensor)
      if(reg != OV_MANUFACTURER_IDH)
 	  return MV_NOT_FOUND;
 
-     status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_MIDL, &reg);
+     status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_MIDL, &reg);
 
      if(status != MV_OK)
 	  return status;
@@ -360,7 +363,7 @@ static MV_STATUS isOV7680(MV_CAM_SENSOR *pCamSensor)
      if(reg != OV_MANUFACTURER_IDL)
 	  return MV_NOT_FOUND;
 
-     status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_PIDH, &reg);
+     status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_PIDH, &reg);
 
      if(status != MV_OK)
 	  return status;
@@ -368,7 +371,7 @@ static MV_STATUS isOV7680(MV_CAM_SENSOR *pCamSensor)
      if(reg != OV_7680_PROD_IDH)
 	  return MV_NOT_FOUND;
 
-     status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_PIDL, &reg);
+     status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_PIDL, &reg);
 
      if(status != MV_OK)
 	  return status;
@@ -381,36 +384,36 @@ static MV_STATUS isOV7680(MV_CAM_SENSOR *pCamSensor)
 
 static MV_STATUS  ovRGB444Set(MV_CAM_SENSOR * pCamSensor)
 {
-     MV_STATUS status =  pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						   OV_REG_12, 0xE);
+     MV_STATUS status =  mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+		     OV_REG_12, 0xE);
      return status;
 }
 
 static MV_STATUS  ovRGB555Set(MV_CAM_SENSOR * pCamSensor)
 {
-     MV_STATUS status =  pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						  OV_REG_12, 0xA);
+     MV_STATUS status =  mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+		     OV_REG_12, 0xA);
      return status;
 }
 
 static MV_STATUS  ovRGB565Set(MV_CAM_SENSOR * pCamSensor)
 {
-     MV_STATUS status =  pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						   OV_REG_12, 0x6);
+     MV_STATUS status = mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+		     OV_REG_12, 0x6);
      return status;
 }
 
 static MV_STATUS ovYUV422Set(MV_CAM_SENSOR * pCamSensor)
 {
-     MV_STATUS status =  pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						      OV_REG_12, 0);
+     MV_STATUS status =  mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+		     OV_REG_12, 0);
      return status;
 }
 
 static MV_STATUS ovRawBayerSet(MV_CAM_SENSOR * pCamSensor)
 {
-     MV_STATUS status =  pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						   OV_REG_12, 0x1);
+     MV_STATUS status = mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+		     OV_REG_12, 0x1);
      return status;
 }
 
@@ -461,8 +464,8 @@ static MV_STATUS configResolution(MV_CAM_SENSOR * pCamSensor, int resIdx)
 
 static MV_STATUS resetSensor(MV_CAM_SENSOR *pCamSensor)
 {
-     MV_STATUS status =  pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						   OV_REG_12, 1 << 7);
+     MV_STATUS status = mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+		     OV_REG_12, 1 << 7);
      mvOsDelay(2);
      return status;
 }
@@ -485,13 +488,13 @@ static MV_STATUS enableSDEFeature(MV_CAM_SENSOR *pCamSensor, MV_U8 OV_SDE_BIT)
 {
      MV_U8 reg;
      MV_STATUS status;
-     status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_SDE, &reg);
+     status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_SDE, &reg);
      if(status != MV_OK)
 	  return MV_ERROR;
      
      reg |= OV_SDE_BIT;
           
-     return pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, OV_REG_SDE, reg);
+     return mvSysCamSensorRegWrite(pCamSensor->I2CClient, OV_REG_SDE, reg);
 }
 /*----------------------------------API---------------------------------------*/
 
@@ -521,8 +524,7 @@ MV_STATUS mvCamSensorInit(MV_CAM_SENSOR *pCamSensor)
      OV7680_INFO *pInfo;
      mvOsOutput("mvCamSensorInit\n");
      
-     if(!pCamSensor || !pCamSensor->mvSensorI2CRead ||
-	!pCamSensor->mvSensorI2CWrite)
+     if(!pCamSensor)
      {
 	  mvOsPrintf("mvCamSensorInit: Bad Input\n");
 	  return MV_BAD_PTR;
@@ -577,7 +579,7 @@ MV_STATUS mvCamSensorReset(MV_CAM_SENSOR *pCamSensor)
 {
      mvOsOutput("mvCamSensorReset\n");
      
-     if(!pCamSensor || !pCamSensor->mvSensorI2CRead || !pCamSensor->mvSensorI2CWrite)
+     if(!pCamSensor)
      {
 	  mvOsPrintf("mvCamSensorReset: Bad Input\n");
 	  return MV_BAD_PTR;
@@ -610,7 +612,7 @@ MV_STATUS mvCamSensorImageFormatSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_FORMAT *
 
      mvOsPrintf("mvCamSensorImageFormatSet\n");
      
-     if(!pCamSensor || !pCamSensor->mvSensorI2CRead || !pCamSensor->mvSensorI2CWrite)
+     if(!pCamSensor)
      {
 	  mvOsPrintf("mvCamSensorImageFormatSet: Bad Input\n");
 	  return MV_BAD_PTR;
@@ -680,6 +682,7 @@ MV_STATUS mvCamSensorImageFormatGet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_FORMAT *
      pFormat->resolution.width = pInfo->resolution->width;
      pFormat->resolution.height = pInfo->resolution->height;
      pFormat->resolution.name = pInfo->resolution->name;
+     return MV_OK;
 }
 
 /*******************************************************************************
@@ -741,7 +744,7 @@ MV_STATUS mvCamSensorTestPatternConfig(MV_CAM_SENSOR *pCamSensor, MV_U32 pattern
 
      mvOsPrintf("mvCamSensorTestPatternConfig\n");
      
-     if(!pCamSensor || !pCamSensor->mvSensorI2CRead || !pCamSensor->mvSensorI2CWrite)
+     if(!pCamSensor)
      {
 	  mvOsPrintf("mvCamSensorTestPatternConfig: Bad Input\n");
 	  return MV_BAD_PTR;
@@ -750,7 +753,7 @@ MV_STATUS mvCamSensorTestPatternConfig(MV_CAM_SENSOR *pCamSensor, MV_U32 pattern
      switch(pattern)
      {
      case 0:
-	  status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_0C, &reg);
+	  status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_0C, &reg);
 	  if(status != MV_OK)
 	       return MV_ERROR;
 	  
@@ -759,10 +762,10 @@ MV_STATUS mvCamSensorTestPatternConfig(MV_CAM_SENSOR *pCamSensor, MV_U32 pattern
 	  else
 	       reg &= ~1;
 	  
-	  status = pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, OV_REG_0C, reg);
+	  status = mvSysCamSensorRegWrite(pCamSensor->I2CClient, OV_REG_0C, reg);
 	  break;
      case 1:
-	  status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_83, &reg);
+	  status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_83, &reg);
 	  if(status != MV_OK)
 	       return MV_ERROR;
 	  
@@ -771,10 +774,10 @@ MV_STATUS mvCamSensorTestPatternConfig(MV_CAM_SENSOR *pCamSensor, MV_U32 pattern
 	  else
 	       reg &= ~1;
 	  
-	  status = pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, OV_REG_83, reg);
+	  status = mvSysCamSensorRegWrite(pCamSensor->I2CClient, OV_REG_83, reg);
 	  break;
      case 2:
-	  status = pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, OV_REG_62, &reg);
+	  status = mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_62, &reg);
  	  if(status != MV_OK)
 	       return MV_ERROR;
 	  
@@ -783,7 +786,7 @@ MV_STATUS mvCamSensorTestPatternConfig(MV_CAM_SENSOR *pCamSensor, MV_U32 pattern
 	  else
 	       reg &= ~((1 << 7) | (1 << 5));
 	  
-	  status = pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, OV_REG_62, reg);
+	  status = mvSysCamSensorRegWrite(pCamSensor->I2CClient, OV_REG_62, reg);
 	  break;
      default:
   	  mvOsPrintf("mvCamSensorTestPatternConfig: unsupported test pattern (%d)\n",
@@ -816,8 +819,7 @@ MV_STATUS mvCamSensorImageParamRangeGet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARA
 {
      MV_STATUS  status = MV_OK;
 
-     if(!pCamSensor || !pCamSensor->mvSensorI2CRead || !pCamSensor->mvSensorI2CWrite ||
-	!min || !max || !step)
+     if(!pCamSensor || !min || !max || !step)
      {
 	  mvOsPrintf("mvCamSensorImageParamRangeGet: Bad Input\n");
 	  return MV_BAD_PTR;
@@ -896,7 +898,7 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
      MV_U8	reg;
      int	sign;
 
-     if(!pCamSensor || !pCamSensor->mvSensorI2CRead || !pCamSensor->mvSensorI2CWrite)
+     if(!pCamSensor)
      {
 	  mvOsPrintf("mvCamSensorImageParamSet: Bad Input\n");
 	  return MV_BAD_PTR;
@@ -928,21 +930,19 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	       sign = 1;
 	  }
 	  
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_BRIGHTNESS, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient, OV_REG_BRIGHTNESS, reg))
 	       break;
 	  
 	  /*set sign*/
-	  if(MV_OK != pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, 
-					       OV_REG_SGNSET, &reg))
+	  if(MV_OK != mvSysCamSensorRegRead(pCamSensor->I2CClient, OV_REG_SGNSET, &reg))
 	       break;
 
 	  reg &= ~1;
 	  if(sign)
 	       reg |= (1 << 3);
 
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_SGNSET, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+				  OV_REG_SGNSET, reg))
 	       break;
 	  status = MV_OK;
 	  break;
@@ -967,21 +967,21 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	       sign = 1;
 	  }
 	  
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_YOFFSET, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+				  OV_REG_YOFFSET, reg))
 	       break;
 	  
 	  /*set sign*/
-	  if(MV_OK != pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, 
-					       OV_REG_SGNSET, &reg))
+	  if(MV_OK != mvSysCamSensorRegRead(pCamSensor->I2CClient,
+				  OV_REG_SGNSET, &reg))
 	       break;
 
 	  reg &= ~1;
 	  if(sign)
 	       reg |= (1 << 2);
 
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_SGNSET, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+				  OV_REG_SGNSET, reg))
 	       break;
 	  status = MV_OK;
 	  break;
@@ -996,12 +996,12 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	       break;
 	  }
 	  reg = value & 0xFF;
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_VSAT, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+				  OV_REG_VSAT, reg))
 	       break;
 	  
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_USAT, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+				  OV_REG_USAT, reg))
 	       break;
 	  status = MV_OK;
 	  break;
@@ -1014,8 +1014,8 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	       break;
 	  }
 
-	  if(MV_OK != pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, 
-					       OV_REG_0C, &reg))
+	  if(MV_OK != mvSysCamSensorRegRead(pCamSensor->I2CClient,
+				  OV_REG_0C, &reg))
 	       break;
 
 	  if(value)
@@ -1023,8 +1023,8 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	  else
 	       reg &= ~(1 << 7);
 	  
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_0C, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+				  OV_REG_0C, reg))
 	       break;
 
 	  status = MV_OK;
@@ -1038,8 +1038,8 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	       break;
 	  }
 
-	  if(MV_OK != pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, 
-					       OV_REG_0C, &reg))
+	  if(MV_OK != mvSysCamSensorRegRead(pCamSensor->I2CClient,
+				  OV_REG_0C, &reg))
 	       break;
 
 	  if(value)
@@ -1047,8 +1047,8 @@ MV_STATUS mvCamSensorImageParamSet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	  else
 	       reg &= ~(1 << 6);
 	  
-	  if(MV_OK != pCamSensor->mvSensorI2CWrite(pCamSensor->I2CClient, 
-						OV_REG_0C, reg))
+	  if(MV_OK != mvSysCamSensorRegWrite(pCamSensor->I2CClient,
+				  OV_REG_0C, reg))
 	       break;
 
 	  status = MV_OK;
@@ -1086,8 +1086,7 @@ MV_STATUS mvCamSensorImageParamGet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
      MV_STATUS  status = MV_OK;
      MV_U8	reg;
 
-     if(!pCamSensor || !pCamSensor->mvSensorI2CRead || !pCamSensor->mvSensorI2CWrite ||
-	!value)
+     if(!pCamSensor || !value)
      {
 	  mvOsPrintf("mvCamSensorImageParamGet: Bad Input\n");
 	  return MV_BAD_PTR;
@@ -1100,8 +1099,8 @@ MV_STATUS mvCamSensorImageParamGet(MV_CAM_SENSOR *pCamSensor, MV_IMAGE_PARAM par
 	  break;
      case MV_IMAGE_PARAM_SATURATION:
 	  status = MV_ERROR;
-	  if(MV_OK != pCamSensor->mvSensorI2CRead(pCamSensor->I2CClient, 
-					       OV_REG_VSAT, &reg))
+	  if(MV_OK != mvSysCamSensorRegRead(pCamSensor->I2CClient,
+				  OV_REG_VSAT, &reg))
 	       break;
 	  
 	  *value = reg;

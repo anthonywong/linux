@@ -139,12 +139,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  ******************************************************************************/
 
-#include "mvCommon.h"
-#include "pdma/mvPdma.h"
 
 #ifdef __cplusplus
 extern "C" { 
 #endif
+
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysNfcConfig.h"
 
 /********************************/
 /* Enums and structures 	*/

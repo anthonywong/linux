@@ -66,8 +66,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCmvCLAudioCodecRegsh
 #define __INCmvCLAudioCodecRegsh
 
-#include "mvTypes.h"
-//#include "mvRegs.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define   CL_AUDIO_CODEC_ID_REG                    0x1
 #define   CL_AUDIO_CODEC_IF_CTRL_REG               0x4
@@ -77,6 +78,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define   CL_AUDIO_CODEC_PGAA_VOL_CTRL_REG         0xa
 #define   CL_AUDIO_CODEC_TONE_CTRL_REG             0x15
 #define   CL_AUDIO_CODEC_VOL_OUTA_CTRL_REG         0x16
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif  /* __INCmvCLAudioCodecRegsh */
