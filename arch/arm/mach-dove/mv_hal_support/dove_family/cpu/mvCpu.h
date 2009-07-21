@@ -71,10 +71,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 
 /* defines */
+#define MASTER_CPU	0
 
-#define CPU_PART_MRVL131      0x131
-#define CPU_PART_ARM926       0x926
-#define CPU_PART_ARM946       0x946
+#define CPU_PART_MRVL131	0x131
+#define CPU_PART_ARM926		0x926
+#define CPU_PART_ARM946		0x946
+#define CPU_PART_MRVL581	0x581
 #define MV_CPU_ARM_CLK_ELM_SIZE	    12
 #define MV_CPU_ARM_CLK_RATIO_OFF    8
 #define MV_CPU_ARM_CLK_DDR_OFF	    4

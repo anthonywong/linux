@@ -65,7 +65,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef __INCmvCtrlEnvAsmh
 #define __INCmvCtrlEnvAsmh
-#include "pex/mvPexRegs.h"
+#include "pci-if/pex/mvPexRegs.h"
 
 #define PXDAVI_DEV_ID_OFFS_AS           #PXDAVI_DEV_ID_OFFS
 #define PXCCARI_REVID_MASK_AS           #PXCCARI_REVID_MASK
