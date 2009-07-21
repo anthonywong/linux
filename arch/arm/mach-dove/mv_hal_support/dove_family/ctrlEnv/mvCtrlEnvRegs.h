@@ -69,6 +69,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif /* __cplusplus */
 
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+
 /* CV Support */
 #define PEX0_MEM0 	PEX0_MEM
 #define PEX1_MEM1 	PEX1_MEM
@@ -84,15 +86,15 @@ extern "C" {
 
 /* Power Managment Control */ 
 
-#define POWER_MNG_CTRL_REG			0x2011C
+#define POWER_MNG_CTRL_REG			(MV_CPUIF_REGS_BASE + 0x11C)
 
 /* Software Reset Control Register */
-#define SW_RESET_CTRL_REG			0xD0030
+#define SW_RESET_CTRL_REG			(MV_MISC_REGS_BASE + 0x030)
 
 #define SRC_GBE_SW_RESET_BIT			2
 
 /* Clock Gating Control Register */
-#define CLOCK_GATING_CTRL_REG			0xD0038
+#define CLOCK_GATING_CTRL_REG			(MV_MISC_REGS_BASE + 0x038)
 
 #define CGC_USBENCLOCK_OFFS(port)		(0 + (port))
 #define CGC_USBENCLOCK_MASK(port)		(1 << CGC_USBENCLOCK_OFFS(port))
@@ -155,16 +157,17 @@ extern "C" {
 #define CGC_XORENCLOCK_DIS(port)		(0 << CGC_XORENCLOCK_OFFS(port))
 
 /* Controler environment registers offsets */
-#define MPP_CONTROL_REG0			0xD0200
-#define MPP_CONTROL_REG1			0xD0204
-#define MPP_CONTROL_REG2			0xD0208
-#define MPP_CONTROL_REG3			0xD020C
-#define MPP_GENERAL_CONTROL_REG			0xD0210
-#define MPP_SAMPLE_AT_RESET_REG0		0xD0214
-#define MPP_SAMPLE_AT_RESET_REG1		0xD0218
-#define MPP_AUDIO_UNIT_CONTROL_REG		0xD0230
-#define MPP_SSCG_CONFIG_REG			0xD02B4
-#define MPP_PEX_CONTROL_REG			0xD02E0
+#define MPP_CONTROL_REG0			(MV_MISC_REGS_BASE + 0x200)
+#define MPP_CONTROL_REG1			(MV_MISC_REGS_BASE + 0x204)
+#define MPP_CONTROL_REG2			(MV_MISC_REGS_BASE + 0x208)
+#define MPP_CONTROL_REG3			(MV_MISC_REGS_BASE + 0x20C)
+#define MPP_GENERAL_CONTROL_REG			(MV_MISC_REGS_BASE + 0x210)
+#define MPP_SAMPLE_AT_RESET_REG0		(MV_MISC_REGS_BASE + 0x214)
+#define MPP_SAMPLE_AT_RESET_REG1		(MV_MISC_REGS_BASE + 0x218)
+#define MPP_AUDIO_UNIT_CONTROL_REG		(MV_MISC_REGS_BASE + 0x230)
+#define MPP_SSCG_CONFIG_REG			(MV_MISC_REGS_BASE + 0x2B4)
+#define MPP_PEX_CONTROL_REG			(MV_MISC_REGS_BASE + 0x2E0)
+#define MPP_GENERAL_CONFIG_REG			(MV_MISC_REGS_BASE + 0x1803C)
 
 #define MSAR_BOOT_MODE_OFFS                     0
 #define MSAR_BOOT_MODE_MASK                     (0x1F << MSAR_BOOT_MODE_OFFS)
@@ -184,7 +187,9 @@ extern "C" {
 #define MSAR_BOOT_NAND_9			(0xD << MSAR_BOOT_MODE_OFFS)
 #define MSAR_BOOT_UART0				(0xE << MSAR_BOOT_MODE_OFFS)
 #define MSAR_BOOT_UART1				(0xF << MSAR_BOOT_MODE_OFFS)
-/* 0x10 till 0x13 are reserved */
+#define MSAR_BOOT_DEBUG_UART0			(0x10 << MSAR_BOOT_MODE_OFFS)
+#define MSAR_BOOT_DEBUG_UART1			(0x11 << MSAR_BOOT_MODE_OFFS)
+/* 0x12 till 0x13 are reserved */
 #define MSAR_BOOT_NAND_10			(0x14 << MSAR_BOOT_MODE_OFFS)
 #define MSAR_BOOT_NAND_11			(0x15 << MSAR_BOOT_MODE_OFFS)
 #define MSAR_BOOT_NAND_12			(0x16 << MSAR_BOOT_MODE_OFFS)
@@ -213,12 +218,15 @@ extern "C" {
 #define MSAR_L2CLCK_RTIO_MASK			(0x7 << MSAR_L2CLCK_RTIO_OFFS)
 
 #ifndef MV_ASMLANGUAGE
-/* CPU clock for 6781. 0->Resereved */
+
+#ifdef CONFIG_DOVE_REV_Z0
+
+/* CPU clock for 6781Z0. 0->Resereved */
 #define MV_CPU_CLCK_TBL { 	0,		0, 		0, 		1200000000,	\
 			     	1067000000, 	933000000,	800000000,	667000000,	\
 			     	533000000, 	0,		0,		0,		\
 			     	0,		0,		0,		0}
-/* DDR clock RATIO for 6781. {0,0}->Reserved */
+/* DDR clock RATIO for 6781Z0. {0,0}->Reserved */
 #define MV_DDR_CLCK_RTIO_TBL	{\
 	{1, 1}, {3, 2}, {2, 1}, {5, 2}, \
 	{3, 1}, {7, 2}, {4, 1}, {9, 2}, \
@@ -226,27 +234,38 @@ extern "C" {
 	{7, 1}, {15, 2}, {8, 1}, {10, 1} \
 }
 
-/* L2 clock RATIO for 6781. {0,0}->Reserved */
+/* L2 clock RATIO for 6781Z0. {0,0}->Reserved */
 #define MV_L2_CLCK_RTIO_TBL	{\
 	{0, 0}, {3, 2}, {2, 1}, {5, 2}, \
 	{3, 1}, {7, 2}, {4, 1}, {0, 0} \
 }
 
+#else /* CONFIG_DOVE_REV_Y0 */
+
+/* CPU clock for 6781Y0. 0->Resereved */
+#define MV_CPU_CLCK_TBL { 	0,		0, 		0, 		0,		\
+			     	0,		1000000000, 	933000000,	933000000,	\
+				800000000,     	800000000, 	800000000,	1067000000,	\
+				667000000,	533000000,	400000000,	333000000	}
+
+/* DDR clock RATIO for 6781Y0. {0,0}->Reserved */
+#define MV_DDR_CLCK_RTIO_TBL	{\
+	{1, 1}, {0, 0}, {2, 1}, {0, 0}, \
+	{3, 1}, {0, 0}, {4, 1}, {0, 0}, \
+	{5, 1}, {0, 0}, {6, 1}, {0, 0}, \
+	{7, 1}, {0, 0}, {8, 1}, {10, 1} \
+}
+
+/* L2 clock RATIO for 6781Y0. {0,0}->Reserved */
+#define MV_L2_CLCK_RTIO_TBL	{\
+	{1, 1}, {0, 0}, {2, 1}, {0, 0}, \
+	{3, 1}, {0, 0}, {4, 1}, {0, 0} \
+}
+
+#endif /* CONFIG_DOVE_REV_Z0 */
+
+
 /* These macros help units to identify a target Mbus Arbiter group */
-#define MV_TARGET_IS_DRAM(target)   \
-                            ((target >= SDRAM_CS0) && (target <= SDRAM_CS3))
-
-#define MV_TARGET_IS_PEX0(target)   \
-                            ((target >= PEX0_MEM) && (target <= PEX0_IO))
-
-#define MV_TARGET_IS_PEX1(target)   \
-                            ((target >= PEX1_MEM) && (target <= PEX1_IO))
-
-#define MV_TARGET_IS_PEX(target) (MV_TARGET_IS_PEX0(target) || MV_TARGET_IS_PEX1(target))
-
-#define MV_TARGET_IS_DEVICE(target) \
-                            ((target >= DEVICE_CS0) && (target <= DEVICE_CS3))
-
 #define MV_PCI_DRAM_BAR_TO_DRAM_TARGET(bar)   0
 
 #define	MV_TARGET_IS_AS_BOOT(target) ((target) == (sampleAtResetTargetArray[((MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0)\
@@ -262,97 +281,53 @@ extern "C" {
 
 #define BOOT_TARGETS_NAME_ARRAY {       \
     SPI0,          	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
+    BOOT_ROM_CS, 	\
     TBL_TERM,         	\
 }
 
 
 /* For old competability */
-#define SPI_CS			SPI0
-#define DEVICE_CS0		SPI0  
-#define DEVICE_CS1  		SPI1 
-#define DEVICE_CS2  		CRYPT_ENG 
-#define DEVICE_CS3  		DEV_BOOCS
 #define MV_BOOTDEVICE_INDEX   	0
 
-#define START_DEV_CS   		DEV_CS0
-#define DEV_TO_TARGET(dev)	((dev) + DEVICE_CS0)
 
 #define PCI_IF0_MEM0		PEX0_MEM
 #define PCI_IF0_IO		PEX0_IO
 #define PCI_IF1_MEM0		PEX1_MEM
 #define PCI_IF1_IO		PEX1_IO
 
+#define PCI_IO(pciIf)		(PEX0_IO + 2*(pciIf))	
+#define PCI_MEM(pciIf, memNum)	(PEX0_MEM + 2*(pciIf))
 
-/* This enumerator defines the Marvell controller target ID      */ 
-typedef enum _mvTargetId
-{
-    DRAM_TARGET_ID  = 0,    /* Port 0 -> DRAM interface         */
-    DEV_TARGET_ID   = 1,    /* Port 1 -> SPI	 		*/
-    CRYPT_TARGET_ID = 3,    /* Port 3 -> Crypto Engine		*/
-    PEX0_TARGET_ID  = 4,    /* Port 4 -> PCI Express0 		*/
-    PEX1_TARGET_ID  = 8,    /* Port 8 -> PCI Express1 		*/
-    MAX_TARGETS_ID
-} MV_TARGET_ID;
-
-
-/* This enumerator described the possible Controller paripheral targets.    */
-/* Controller peripherals are designated memory/IO address spaces that the  */
-/* controller can access. They are also referred to as "targets".           */
-typedef enum _mvTarget
-{
-    TBL_TERM = -1, 	/* none valid target, used as targets list terminator	*/
-    SDRAM_CS0,     	/* DDR SDRAM Chip Select 0			*/  
-    SDRAM_CS1,     	/* DDR SDRAM Chip Select 1			*/  
-    SDRAM_CS2,     	/* DDR SDRAM Chip Select 2			*/
-    SDRAM_CS3,     	/* DDR SDRAM Chip Select 3			*/
-    PEX0_MEM,		/* PCI Express 0 Memory				*/
-    PEX0_IO,		/* PCI Express 0 IO				*/
-    PEX1_MEM,		/* PCI Express 1 Memory				*/
-    PEX1_IO,		/* PCI Express 1 IO				*/
-    INTER_REGS,     	/* Internal registers                           */  
-    NFLASH_CS,     	/* NFLASH_CS					*/ // liron
-    SPI0,	     	/* SPI0						*/  
-    SPI1,	      	/* SPI1						*/  
-    DEV_BOOCS,     	/* DEV_BOOCS					*/ // liron
-    CRYPT_ENG,      	/* Crypto Engine				*/
-    MAX_TARGETS
-
-} MV_TARGET;
-
-#define TARGETS_DEF_ARRAY	{			\
-    {0x00,DRAM_TARGET_ID}, /* DDR_SDRAM */		\
-    {0x00,DRAM_TARGET_ID}, /* DDR_SDRAM */		\
-    {0x00,DRAM_TARGET_ID}, /* DDR_SDRAM */		\
-    {0x00,DRAM_TARGET_ID}, /* DDR_SDRAM */		\
-    {0xE8,PEX0_TARGET_ID}, /* PEX0_MEM */		\
-    {0xE0,PEX0_TARGET_ID}, /* PEX0_IO */		\
-    {0xE8,PEX1_TARGET_ID}, /* PEX1_MEM */		\
-    {0xE0,PEX1_TARGET_ID}, /* PEX1_IO */		\
-    {0xFF,	    0xFF}, /* INTER_REGS */		\
-    {0x2F,DEV_TARGET_ID},  /* NFLASH_CS (liron, not in spec) */		\
-    {0xFE,DEV_TARGET_ID},  /* SPI0 */			\
-    {0xFB,DEV_TARGET_ID},  /* SPI1 */			\
-    {0x1E,DEV_TARGET_ID},  /* DEV_BOOCS (liron)*/	\
-    {0x00,CRYPT_TARGET_ID} /* CRYPT_ENG */		\
-}
-
-
-#define TARGETS_NAME_ARRAY	{	\
-    "SDRAM_CS0",    /* DDR_SDRAM CS0 */	\
-    "SDRAM_CS1",    /* DDR_SDRAM CS1 */	\
-    "SDRAM_CS2",    /* DDR_SDRAM CS2 */	\
-    "SDRAM_CS3",    /* DDR_SDRAM CS3 */	\
-    "PEX0_MEM",	    /* PEX0_MEM */	\
-    "PEX0_IO",	    /* PEX0_IO */	\
-    "PEX1_MEM",	    /* PEX1_MEM */	\
-    "PEX1_IO",	    /* PEX1_IO */	\
-    "INTER_REGS",   /* INTER_REGS */	\
-    "NFLASH_CS",    /* NFLASH_CS (liron, not in spec) */	\
-    "SPI0",	    /* SPI0 */		\
-    "SPI1",	    /* SPI1 */		\
-    "DEV_BOOTCS",   /* DEV_BOOCS */	\
-    "CRYPT_ENG"	    /* CRYPT_ENG */	\
-}
 
 #endif /* MV_ASMLANGUAGE */
 
