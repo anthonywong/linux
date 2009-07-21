@@ -71,11 +71,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvCommon.h"
 #include "mvTypes.h"
 #include "mvOs.h"
-#include "boardEnv/mvBoardEnvLib.h"			
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "ctrlEnv/mvCtrlEnvRegs.h"
 #include "ctrlEnv/mvCtrlEnvAddrDec.h"
-
 
 /* typedefs */
 
@@ -101,18 +99,6 @@ typedef enum _mvSwapType
     SWAP_TYPE_MAX	/* Delimiter for this enumerator					*/
 }MV_SWAP_TYPE;
 
-/* This structure describes access rights for Access protection windows     */
-/* that can be found in IDMA, XOR, Ethernet and MPSC units.                 */
-/* Note that the permission enumerator coresponds to its register format.   */
-/* For example, Read only premission is presented as "1" in register field. */
-typedef enum _mvAccessRights
-{
-    	NO_ACCESS_ALLOWED = 0,  /* No access allowed            */
-    	READ_ONLY         = 1,  /* Read only permission         */
-	ACC_RESERVED	  = 2,	/* Reserved access right		*/
-    	FULL_ACCESS       = 3,  /* Read and Write permission    */
-	MAX_ACC_RIGHTS
-}MV_ACCESS_RIGHTS;
 
 
 /* mcspLib.h API list */

@@ -72,7 +72,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define DB_88F6781_BOARD_GPP_INFO_NUM		0xA
 #define DB_88F6781_BOARD_MPP_CONFIG_NUM		0x1
 #define DB_88F6781_BOARD_MPP_GROUP_TYPE_NUM	0x1
-#define DB_88F6781_BOARD_DEVICE_CONFIG_NUM	0x5
+#define DB_88F6781_BOARD_DEVICE_CONFIG_NUM	0x1
 #define DB_88F6781_BOARD_DEBUG_LED_NUM		0x4
 
 MV_U8	db88f6781InfoBoardDebugLedIf[] =
@@ -103,7 +103,7 @@ MV_BOARD_MPP_TYPE_INFO db88f6781InfoBoardMppTypeInfo[] =
 MV_BOARD_GPP_INFO db88f6781InfoBoardGppInfo[] = 
 	/* {{MV_BOARD_GPP_CLASS	devClass, MV_U8	gppPinNum}} */
 	{
-	/*TODO check which is L...*/
+	/* TODO check which is L...*/
 	{BOARD_GPP_TS_BUTTON_C, 14},
 	{BOARD_GPP_TS_BUTTON_U, 15},
 	{BOARD_GPP_TS_BUTTON_R, 18},
@@ -127,11 +127,7 @@ MV_BOARD_MPP_INFO	db88f6781InfoBoardMppConfigValue[] =
 MV_DEV_CS_INFO db88f6781InfoBoardDevCsInfo[] = 
 		/*{deviceCS, params, devType, devWidth}*/			   
 		{
-		 {0, N_A, BOARD_DEV_NAND_FLASH, 8},	/* NAND DEV */
-		 {1, N_A, BOARD_DEV_NAND_FLASH, 8},	/* NAND DEV */
-		 {2, N_A, BOARD_DEV_NAND_FLASH, 8},	/* NAND DEV */
-		 {3, N_A, BOARD_DEV_NAND_FLASH, 8},	/* NAND DEV */
-		 {4, N_A, BOARD_DEV_SPI_FLASH, 8}
+		 {0, N_A, BOARD_DEV_SPI_FLASH, 8}
 		};
 
 
@@ -153,7 +149,7 @@ MV_BOARD_INFO db88f6781Info = {
 	db88f6781InfoBoardGppInfo,
 	DB_88F6781_BOARD_DEBUG_LED_NUM,			/* activeLedsNumber */              
 	db88f6781InfoBoardDebugLedIf,
-	N_A,						/* ledsPolarity */		
+	1,						/* ledsPolarity */		
 	DB_88F6781_OE_LOW,				/* gppOutEnLow */
 	DB_88F6781_OE_HIGH,				/* gppOutEnHigh */
 	DB_88F6781_OE_VAL_LOW,				/* gppOutValLow */
@@ -162,6 +158,95 @@ MV_BOARD_INFO db88f6781Info = {
 	0, 						/* gppPolarityValHigh */
 	NULL						/* pSwitchInfo */
 };
+
+
+#define DB_88F6781Y0_BOARD_PCI_IF_NUM		0x0
+#define DB_88F6781Y0_BOARD_TWSI_DEF_NUM		0x7
+#define DB_88F6781Y0_BOARD_MAC_INFO_NUM		0x1
+#define DB_88F6781Y0_BOARD_GPP_INFO_NUM		0x0
+#define DB_88F6781Y0_BOARD_MPP_CONFIG_NUM	0x1
+#define DB_88F6781Y0_BOARD_MPP_GROUP_TYPE_NUM	0x1
+#define DB_88F6781Y0_BOARD_DEVICE_CONFIG_NUM	0x1
+#define DB_88F6781Y0_BOARD_DEBUG_LED_NUM	0x4
+
+MV_U8	db88f6781Y0InfoBoardDebugLedIf[] =
+	{14,15,62,63};
+
+/* TODO, see if need to add more */
+MV_BOARD_TWSI_INFO	db88f6781Y0InfoBoardTwsiDev[] =
+	/* {{MV_BOARD_DEV_CLASS	devClass, MV_U8	twsiDevAddr, MV_U8 twsiDevAddrType}} */
+	{
+	{BOARD_DEV_TWSI_EXP, 0x20, ADDR7_BIT},
+	{BOARD_DEV_TWSI_EXP, 0x21, ADDR7_BIT},
+	{BOARD_DEV_TWSI_EXP, 0x27, ADDR7_BIT},
+	{BOARD_DEV_TWSI_SATR, 0x4C, ADDR7_BIT}, 
+	{BOARD_DEV_TWSI_SATR, 0x4D, ADDR7_BIT},
+	{BOARD_DEV_TWSI_SATR, 0x4E, ADDR7_BIT},
+	{BOARD_TWSI_BATT_CHARGER, 0x09, ADDR7_BIT}, 
+	};
+
+MV_BOARD_MAC_INFO db88f6781Y0InfoBoardMacInfo[] = 
+	/* {{MV_BOARD_MAC_SPEED	boardMacSpeed, MV_U8 boardEthSmiAddr}} */
+	{
+	{BOARD_MAC_SPEED_AUTO, 0x8}
+	}; 
+
+MV_BOARD_MPP_TYPE_INFO db88f6781Y0InfoBoardMppTypeInfo[] = 
+	/* {{MV_BOARD_MPP_TYPE_CLASS	boardMppGroup1,
+ 		MV_BOARD_MPP_TYPE_CLASS	boardMppGroup2}} */
+	{{MV_BOARD_AUTO, MV_BOARD_AUTO}
+	}; 
+
+MV_BOARD_GPP_INFO db88f6781Y0InfoBoardGppInfo[] = 
+	/* {{MV_BOARD_GPP_CLASS	devClass, MV_U8	gppPinNum}} */
+	{
+	/* TODO */
+	};
+
+MV_BOARD_MPP_INFO	db88f6781Y0InfoBoardMppConfigValue[] = 
+	{{{
+	DB_88F6781Y0_MPP0_7,		
+	DB_88F6781Y0_MPP8_15,		
+	DB_88F6781Y0_MPP16_23	
+	}}};
+
+MV_DEV_CS_INFO db88f6781Y0InfoBoardDevCsInfo[] = 
+		/*{deviceCS, params, devType, devWidth}*/			   
+		{
+		 {0, N_A, BOARD_DEV_SPI_FLASH, 8} 
+		 /* TODO {1, N_A, BOARD_DEV_GPS, 8} */
+		};
+
+
+MV_BOARD_INFO db88f6781Y0Info = {
+	"DB-88F6781Y0-BP",				/* boardName[MAX_BOARD_NAME_LEN] */
+	DB_88F6781Y0_BOARD_MPP_GROUP_TYPE_NUM,		/* numBoardMppGroupType */
+	db88f6781Y0InfoBoardMppTypeInfo,
+	DB_88F6781Y0_BOARD_MPP_CONFIG_NUM,		/* numBoardMppConfig */
+	db88f6781Y0InfoBoardMppConfigValue,
+	0,						/* intsGppMaskLow */
+	0,						/* intsGppMaskHigh */
+	DB_88F6781Y0_BOARD_DEVICE_CONFIG_NUM,		/* numBoardDevIf */
+	db88f6781Y0InfoBoardDevCsInfo,
+	DB_88F6781Y0_BOARD_TWSI_DEF_NUM,		/* numBoardTwsiDev */
+	db88f6781Y0InfoBoardTwsiDev,					
+	DB_88F6781Y0_BOARD_MAC_INFO_NUM,		/* numBoardMacInfo */
+	db88f6781Y0InfoBoardMacInfo,
+	DB_88F6781Y0_BOARD_GPP_INFO_NUM,		/* numBoardGppInfo */
+	db88f6781Y0InfoBoardGppInfo,
+	DB_88F6781Y0_BOARD_DEBUG_LED_NUM,		/* activeLedsNumber */              
+	db88f6781Y0InfoBoardDebugLedIf,
+	1,						/* ledsPolarity */		
+	DB_88F6781Y0_OE_LOW,				/* gppOutEnLow */
+	DB_88F6781Y0_OE_HIGH,				/* gppOutEnHigh */
+	DB_88F6781Y0_OE_VAL_LOW,			/* gppOutValLow */
+	DB_88F6781Y0_OE_VAL_HIGH,			/* gppOutValHigh */
+	0,						/* gppPolarityValLow */
+	0, 						/* gppPolarityValHigh */
+	NULL						/* pSwitchInfo */
+};
+
+
 
 #define RD_88F6781_BOARD_PCI_IF_NUM		0x0
 #define RD_88F6781_BOARD_TWSI_DEF_NUM		0x2
@@ -184,7 +269,7 @@ MV_BOARD_MAC_INFO rd88f6781InfoBoardMacInfo[] =
 MV_BOARD_GPP_INFO rd88f6781InfoBoardGppInfo[] = 
 	/* {{MV_BOARD_GPP_CLASS	devClass, MV_U8	gppPinNum}} */
 	{
-	/*TODO check which is L...*/
+	/* TODO check which is L...*/
 	{BOARD_GPP_TS_BUTTON_C, 12},
 	{BOARD_GPP_TS_BUTTON_U, 13},
 	{BOARD_GPP_TS_BUTTON_R, 14},
@@ -209,7 +294,7 @@ MV_BOARD_MPP_TYPE_INFO rd88f6781InfoBoardMppTypeInfo[] =
 	/* {{MV_BOARD_MPP_TYPE_CLASS	boardMppGroup1,
  		MV_BOARD_MPP_TYPE_CLASS	boardMppGroup2}} */
 	{
-	{MV_BOARD_OTHER, MV_BOARD_OTHER} /*TODO*/
+	{MV_BOARD_OTHER, MV_BOARD_OTHER} /* TODO */
 	}; 
 
 MV_BOARD_MPP_INFO	rd88f6781InfoBoardMppConfigValue[] = 
@@ -231,7 +316,7 @@ MV_DEV_CS_INFO rd88f6781InfoBoardDevCsInfo[] =
 
 
 MV_BOARD_INFO rd88f6781Info = {
-	"RD-88F6781",				/* boardName[MAX_BOARD_NAME_LEN] */
+	"RD-88F6781",					/* boardName[MAX_BOARD_NAME_LEN] */
 	RD_88F6781_BOARD_MPP_GROUP_TYPE_NUM,		/* numBoardMppGroupType */
 	rd88f6781InfoBoardMppTypeInfo,
 	RD_88F6781_BOARD_MPP_CONFIG_NUM,		/* numBoardMppConfig */
@@ -248,7 +333,7 @@ MV_BOARD_INFO rd88f6781Info = {
 	rd88f6781InfoBoardGppInfo,
 	RD_88F6781_BOARD_DEBUG_LED_NUM,			/* activeLedsNumber */              
 	rd88f6781InfoBoardDebugLedIf,
-	N_A,						/* ledsPolarity */		
+	1,						/* ledsPolarity */		
 	RD_88F6781_OE_LOW,				/* gppOutEnLow */
 	RD_88F6781_OE_HIGH,				/* gppOutEnHigh */
 	RD_88F6781_OE_VAL_LOW,				/* gppOutValLow */
@@ -292,7 +377,7 @@ MV_BOARD_MPP_TYPE_INFO rd88f6781AvngInfoBoardMppTypeInfo[] =
 	/* {{MV_BOARD_MPP_TYPE_CLASS	boardMppGroup1,
  		MV_BOARD_MPP_TYPE_CLASS	boardMppGroup2}} */
 	{
-	{MV_BOARD_OTHER, MV_BOARD_OTHER} /*TODO*/
+	{MV_BOARD_OTHER, MV_BOARD_OTHER} /* TODO */
 	}; 
 
 MV_BOARD_MPP_INFO	rd88f6781AvngInfoBoardMppConfigValue[] = 
@@ -327,7 +412,7 @@ MV_BOARD_INFO rd88f6781AvngInfo = {
 	rd88f6781AvngInfoBoardGppInfo,
 	RD_88F6781_AVNG_BOARD_DEBUG_LED_NUM,		/* activeLedsNumber */              
 	rd88f6781AvngInfoBoardDebugLedIf,
-	N_A,						/* ledsPolarity */		
+	1,						/* ledsPolarity */		
 	RD_88F6781_AVNG_OE_LOW,				/* gppOutEnLow */
 	RD_88F6781_AVNG_OE_HIGH,			/* gppOutEnHigh */
 	RD_88F6781_AVNG_OE_VAL_LOW,			/* gppOutValLow */
@@ -342,6 +427,7 @@ MV_BOARD_INFO*	boardInfoTbl[] = 	{
 					 &db88f6781Info,
 					 &rd88f6781Info,
 					 &rd88f6781AvngInfo,
+					 &db88f6781Y0Info,
 					};
 
 

@@ -66,7 +66,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ctrlEnv/mvCtrlEnvLib.h"
 #include "mvSysHwConfig.h"
-#include "boardEnv/mvBoardEnvSpec.h"
+//#include "boardEnv/mvBoardEnvSpec.h"
 
 
 /* DUART stuff for Tclk detection only */
@@ -134,6 +134,7 @@ typedef enum _devBoardClass
 	BOARD_DEV_FPGA,
 	BOARD_DEV_SRAM,
 	BOARD_DEV_SPI_FLASH,
+	BOARD_DEV_GPS,
 	BOARD_DEV_OTHER,
 }MV_BOARD_DEV_CLASS;
 
@@ -144,6 +145,7 @@ typedef enum _devTwsiBoardClass
 	BOARD_DEV_TWSI_SATR,
 	BOARD_TWSI_AUDIO_DEC,
 	BOARD_TWSI_BATT_CHARGER,
+	BOARD_TWSI_CAM,
 	BOARD_TWSI_OTHER
 }MV_BOARD_TWSI_CLASS;
 	
@@ -307,12 +309,24 @@ MV_U32 		mvBoardDebugLedNumGet(MV_U32 boardId);
 MV_VOID     	mvBoardDebugLed(MV_U32 hexNum);
 MV_32      	mvBoardMppGet(MV_U32 mppGroupNum);
 
+
+MV_U8		mvBoardTwsiChanNumGet(MV_U8 unit, MV_BOARD_TWSI_CLASS twsiClass);
+MV_U8		mvBoardTwsiAddrTypeGet(MV_U8 unit, MV_BOARD_TWSI_CLASS twsiClass);
+MV_U8		mvBoardTwsiAddrGet(MV_U8 unit, MV_BOARD_TWSI_CLASS twsiClass);
+
+
 MV_U8		mvBoardRtcTwsiAddrTypeGet(MV_VOID);
 MV_U8		mvBoardRtcTwsiAddrGet(MV_VOID);
 
 MV_U8		mvBoardA2DTwsiChanNumGet(MV_U8 unit);
 MV_U8		mvBoardA2DTwsiAddrTypeGet(MV_U8 unit);
 MV_U8		mvBoardA2DTwsiAddrGet(MV_U8 unit);
+
+MV_U8		mvBoardCamTwsiChanNumGet(MV_U8 unit);
+MV_U8		mvBoardCamTwsiAddrTypeGet(MV_U8 unit);
+MV_U8		mvBoardCamTwsiAddrGet(MV_U8 unit);
+
+
 
 MV_U8 		mvBoardTwsiExpAddrGet(MV_U32 index);
 MV_U8 		mvBoardTwsiExpAddrTypeGet(MV_U32 index);
@@ -348,4 +362,6 @@ MV_32	    mvBoardSDIOGpioPinGet(MV_VOID);
 MV_32	    mvBoarGpioPinNumGet(MV_BOARD_GPP_CLASS class, MV_U32 index);
 
 MV_32 	    mvBoardNandWidthGet(void);
+
+MV_32       mvBoardDdrTypeGet(void);
 #endif /* __INCmvBoardEnvLibh */
