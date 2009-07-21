@@ -83,10 +83,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif /* __cplusplus */
 
-#include "mvCommon.h"
-#include "mvOs.h"
-#include "pdma/mvPdmaRegs.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysPdmaConfig.h"
 
 /* defines and enumerations */
 
@@ -198,6 +196,11 @@ MV_STATUS mvPdmaMemInit(MV_PDMA_CHANNEL *chanHndl,
 MV_U32 mvPdmaCommandRegCalc(MV_PDMA_CHANNEL *chanHndl, 
 				MV_PDMA_TRANSACTION_TYPE transType, 
 				MV_U16 size);
+
+MV_STATUS mvPdmaWinInit(MV_UNIT_WIN_INFO *addrWinMap);
+MV_STATUS mvPdmaWinWrite(MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvPdmaWinRead(MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvPdmaWinEnable(MV_U32 winNum,MV_BOOL enable);
 
 #ifdef MV_PDMA_DEBUG
 

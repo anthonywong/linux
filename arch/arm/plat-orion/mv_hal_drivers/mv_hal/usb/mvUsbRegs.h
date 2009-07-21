@@ -69,27 +69,28 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif /* __cplusplus */
 
+#include "mvSysUsbConfig.h"
 
 /*******************************************/
 /* USB ARC Core Registers                  */
 /*******************************************/
-#define MV_USB_CORE_ID_REG(dev)                 (USB_REG_BASE(dev) + 0x00)
-#define MV_USB_CORE_GENERAL_REG(dev)            (USB_REG_BASE(dev) + 0x04)
-#define MV_USB_CORE_HOST_REG(dev)               (USB_REG_BASE(dev) + 0x08)
-#define MV_USB_CORE_DEVICE_REG(dev)             (USB_REG_BASE(dev) + 0x0C)
-#define MV_USB_CORE_TX_BUF_REG(dev)             (USB_REG_BASE(dev) + 0x10)
-#define MV_USB_CORE_RX_BUF_REG(dev)             (USB_REG_BASE(dev) + 0x14)
-#define MV_USB_CORE_TTTX_BUF_REG(dev)           (USB_REG_BASE(dev) + 0x18)
-#define MV_USB_CORE_TTRX_BUF_REG(dev)           (USB_REG_BASE(dev) + 0x1C)
+#define MV_USB_CORE_ID_REG(dev)                 (MV_USB_REGS_BASE(dev) + 0x00)
+#define MV_USB_CORE_GENERAL_REG(dev)            (MV_USB_REGS_BASE(dev) + 0x04)
+#define MV_USB_CORE_HOST_REG(dev)               (MV_USB_REGS_BASE(dev) + 0x08)
+#define MV_USB_CORE_DEVICE_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x0C)
+#define MV_USB_CORE_TX_BUF_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x10)
+#define MV_USB_CORE_RX_BUF_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x14)
+#define MV_USB_CORE_TTTX_BUF_REG(dev)           (MV_USB_REGS_BASE(dev) + 0x18)
+#define MV_USB_CORE_TTRX_BUF_REG(dev)           (MV_USB_REGS_BASE(dev) + 0x1C)
 
-#define MV_USB_CORE_CAP_LENGTH_REG(dev)         (USB_REG_BASE(dev) + 0x100)
-#define MV_USB_CORE_CAP_HCS_PARAMS_REG(dev)     (USB_REG_BASE(dev) + 0x104)
-#define MV_USB_CORE_CAP_HCC_PARAMS_REG(dev)     (USB_REG_BASE(dev) + 0x108)
+#define MV_USB_CORE_CAP_LENGTH_REG(dev)         (MV_USB_REGS_BASE(dev) + 0x100)
+#define MV_USB_CORE_CAP_HCS_PARAMS_REG(dev)     (MV_USB_REGS_BASE(dev) + 0x104)
+#define MV_USB_CORE_CAP_HCC_PARAMS_REG(dev)     (MV_USB_REGS_BASE(dev) + 0x108)
 
-#define MV_USB_CORE_CAP_DCI_VERSION_REG(dev)    (USB_REG_BASE(dev) + 0x120)
-#define MV_USB_CORE_CAP_DCC_PARAMS_REG(dev)     (USB_REG_BASE(dev) + 0x124)
+#define MV_USB_CORE_CAP_DCI_VERSION_REG(dev)    (MV_USB_REGS_BASE(dev) + 0x120)
+#define MV_USB_CORE_CAP_DCC_PARAMS_REG(dev)     (MV_USB_REGS_BASE(dev) + 0x124)
 
-#define MV_USB_CORE_CMD_REG(dev)                (USB_REG_BASE(dev) + 0x140)
+#define MV_USB_CORE_CMD_REG(dev)                (MV_USB_REGS_BASE(dev) + 0x140)
 
 #define MV_USB_CORE_CMD_RUN_BIT             0
 #define MV_USB_CORE_CMD_RUN_MASK            (1 << MV_USB_CORE_CMD_RUN_BIT)
@@ -97,25 +98,25 @@ extern "C" {
 #define MV_USB_CORE_CMD_RESET_BIT           1
 #define MV_USB_CORE_CMD_RESET_MASK          (1 << MV_USB_CORE_CMD_RESET_BIT)
 
-#define MV_USB_CORE_STATUS_REG(dev)             (USB_REG_BASE(dev) + 0x144)
-#define MV_USB_CORE_INTR_REG(dev)               (USB_REG_BASE(dev) + 0x148)
-#define MV_USB_CORE_FRAME_INDEX_REG(dev)        (USB_REG_BASE(dev) + 0x14C)
+#define MV_USB_CORE_STATUS_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x144)
+#define MV_USB_CORE_INTR_REG(dev)               (MV_USB_REGS_BASE(dev) + 0x148)
+#define MV_USB_CORE_FRAME_INDEX_REG(dev)        (MV_USB_REGS_BASE(dev) + 0x14C)
 
-#define MV_USB_CORE_PERIODIC_LIST_BASE_REG(dev) (USB_REG_BASE(dev) + 0x154)
-#define MV_USB_CORE_DEV_ADDR_REG(dev)           (USB_REG_BASE(dev) + 0x154)
+#define MV_USB_CORE_PERIODIC_LIST_BASE_REG(dev) (MV_USB_REGS_BASE(dev) + 0x154)
+#define MV_USB_CORE_DEV_ADDR_REG(dev)           (MV_USB_REGS_BASE(dev) + 0x154)
 
-#define MV_USB_CORE_ASYNC_LIST_ADDR_REG(dev)    (USB_REG_BASE(dev) + 0x158)
-#define MV_USB_CORE_ENDPOINT_LIST_ADDR_REG(dev) (USB_REG_BASE(dev) + 0x158)
+#define MV_USB_CORE_ASYNC_LIST_ADDR_REG(dev)    (MV_USB_REGS_BASE(dev) + 0x158)
+#define MV_USB_CORE_ENDPOINT_LIST_ADDR_REG(dev) (MV_USB_REGS_BASE(dev) + 0x158)
 
-#define MV_USB_CORE_TT_CTRL_REG(dev)            (USB_REG_BASE(dev) + 0x15C)
-#define MV_USB_CORE_BURST_SIZE_REG(dev)         (USB_REG_BASE(dev) + 0x160)
-#define MV_USB_CORE_TX_FILL_TUNING_REG(dev)     (USB_REG_BASE(dev) + 0x164)
-#define MV_USB_CORE_TX_TT_FILL_TUNING_REG(dev)  (USB_REG_BASE(dev) + 0x168)
-#define MV_USB_CORE_CONFIG_FLAG_REG(dev)        (USB_REG_BASE(dev) + 0x180)
-#define MV_USB_CORE_PORTSC_REG(dev)             (USB_REG_BASE(dev) + 0x184)
-#define MV_USB_CORE_OTGSC_REG(dev)              (USB_REG_BASE(dev) + 0x1A4)
+#define MV_USB_CORE_TT_CTRL_REG(dev)            (MV_USB_REGS_BASE(dev) + 0x15C)
+#define MV_USB_CORE_BURST_SIZE_REG(dev)         (MV_USB_REGS_BASE(dev) + 0x160)
+#define MV_USB_CORE_TX_FILL_TUNING_REG(dev)     (MV_USB_REGS_BASE(dev) + 0x164)
+#define MV_USB_CORE_TX_TT_FILL_TUNING_REG(dev)  (MV_USB_REGS_BASE(dev) + 0x168)
+#define MV_USB_CORE_CONFIG_FLAG_REG(dev)        (MV_USB_REGS_BASE(dev) + 0x180)
+#define MV_USB_CORE_PORTSC_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x184)
+#define MV_USB_CORE_OTGSC_REG(dev)              (MV_USB_REGS_BASE(dev) + 0x1A4)
 
-#define MV_USB_CORE_MODE_REG(dev)               (USB_REG_BASE(dev) + 0x1A8)
+#define MV_USB_CORE_MODE_REG(dev)               (MV_USB_REGS_BASE(dev) + 0x1A8)
 
 #define MV_USB_CORE_MODE_OFFSET                 0
 #define MV_USB_CORE_MODE_MASK                   (3 << MV_USB_CORE_MODE_OFFSET)
@@ -131,22 +132,22 @@ extern "C" {
 #define MV_USB_CORE_STREAM_DISABLE_MASK         (1 << MV_USB_CORE_STREAM_DISABLE_BIT)
 
 
-#define MV_USB_CORE_ENDPT_SETUP_STAT_REG(dev)    (USB_REG_BASE(dev) + 0x1AC)
-#define MV_USB_CORE_ENDPT_PRIME_REG(dev)         (USB_REG_BASE(dev) + 0x1B0)
-#define MV_USB_CORE_ENDPT_FLUSH_REG(dev)         (USB_REG_BASE(dev) + 0x1B4)
-#define MV_USB_CORE_ENDPT_STATUS_REG(dev)        (USB_REG_BASE(dev) + 0x1B8)
-#define MV_USB_CORE_ENDPT_COMPLETE_REG(dev)      (USB_REG_BASE(dev) + 0x1BC)
-#define MV_USB_CORE_ENDPT_CTRL_REG(dev, ep)      (USB_REG_BASE(dev) + 0x1C0 + (ep*4))
+#define MV_USB_CORE_ENDPT_SETUP_STAT_REG(dev)    (MV_USB_REGS_BASE(dev) + 0x1AC)
+#define MV_USB_CORE_ENDPT_PRIME_REG(dev)         (MV_USB_REGS_BASE(dev) + 0x1B0)
+#define MV_USB_CORE_ENDPT_FLUSH_REG(dev)         (MV_USB_REGS_BASE(dev) + 0x1B4)
+#define MV_USB_CORE_ENDPT_STATUS_REG(dev)        (MV_USB_REGS_BASE(dev) + 0x1B8)
+#define MV_USB_CORE_ENDPT_COMPLETE_REG(dev)      (MV_USB_REGS_BASE(dev) + 0x1BC)
+#define MV_USB_CORE_ENDPT_CTRL_REG(dev, ep)      (MV_USB_REGS_BASE(dev) + 0x1C0 + (ep*4))
 
 /*******************************************/
 /* Interrupt Controller Registers          */
 /*******************************************/
-#define USB_CAUSE_REG(dev)                  (USB_REG_BASE(dev) + 0x310)
-#define USB_MASK_REG(dev)                   (USB_REG_BASE(dev) + 0x314)
-#define USB_ERROR_ADDR_REG(dev)             (USB_REG_BASE(dev) + 0x31c)
+#define USB_CAUSE_REG(dev)                  (MV_USB_REGS_BASE(dev) + 0x310)
+#define USB_MASK_REG(dev)                   (MV_USB_REGS_BASE(dev) + 0x314)
+#define USB_ERROR_ADDR_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x31c)
 
-#define MV_USB_BRIDGE_INTR_CAUSE_REG(dev)        (USB_REG_BASE(dev) + 0x310)
-#define MV_USB_BRIDGE_INTR_MASK_REG(dev)         (USB_REG_BASE(dev) + 0x314)
+#define MV_USB_BRIDGE_INTR_CAUSE_REG(dev)        (MV_USB_REGS_BASE(dev) + 0x310)
+#define MV_USB_BRIDGE_INTR_MASK_REG(dev)         (MV_USB_REGS_BASE(dev) + 0x314)
 
 /*******************************************/
 /* USB Bridge Registers                    */
@@ -156,20 +157,20 @@ extern "C" {
 #define MV_USB_ADDR_DECODE_ERROR_BIT        0
 #define MV_USB_ADDR_DECODE_ERROR_MASK       (1<<MV_USB_ADDR_DECODE_ERROR_BIT)
 
-#define MV_USB_BRIDGE_ERROR_ADDR_REG(dev)        (USB_REG_BASE(dev) + 0x31C)
+#define MV_USB_BRIDGE_ERROR_ADDR_REG(dev)        (MV_USB_REGS_BASE(dev) + 0x31C)
 
-#define MV_USB_BRIDGE_CTRL_REG(dev)              (USB_REG_BASE(dev) + 0x300)
+#define MV_USB_BRIDGE_CTRL_REG(dev)              (MV_USB_REGS_BASE(dev) + 0x300)
 #define MV_USB_BRIDGE_CORE_BYTE_SWAP_OFFSET 4
 #define MV_USB_BRIDGE_CORE_BYTE_SWAP_MASK   (1 << MV_USB_BRIDGE_CORE_BYTE_SWAP_OFFSET)
 #define MV_USB_BRIDGE_CORE_BYTE_SWAP_EN     (0 << MV_USB_BRIDGE_CORE_BYTE_SWAP_OFFSET)
 
-#define MV_USB_BRIDGE_IPG_REG(dev)          (USB_REG_BASE(dev) + 0x360)
+#define MV_USB_BRIDGE_IPG_REG(dev)          (MV_USB_REGS_BASE(dev) + 0x360)
 
 /*******************************************/
 /* USB PHY Registers                       */
 /*******************************************/
 
-#define MV_USB_PHY_POWER_CTRL_REG(dev)          (USB_REG_BASE(dev) + 0x400)
+#define MV_USB_PHY_POWER_CTRL_REG(dev)          (MV_USB_REGS_BASE(dev) + 0x400)
 
 #define MV_USB_PHY_POWER_UP_BIT                 0
 #define MV_USB_PHY_POWER_UP_MASK                (1<<MV_USB_PHY_POWER_UP_BIT)
@@ -177,12 +178,47 @@ extern "C" {
 #define MV_USB_PHY_PLL_POWER_UP_BIT             1
 #define MV_USB_PHY_PLL_POWER_UP_MASK            (1<<MV_USB_PHY_PLL_POWER_UP_BIT)
 
-#define MV_USB_PHY_PLL_CTRL_REG(dev)            (USB_REG_BASE(dev) + 0x410)
-#define MV_USB_PHY_TX_CTRL_REG(dev)             (USB_REG_BASE(dev) + 0x420) 
-#define MV_USB_PHY_RX_CTRL_REG(dev)             (USB_REG_BASE(dev) + 0x430) 
-#define MV_USB_PHY_IVREF_CTRL_REG(dev)          (USB_REG_BASE(dev) + 0x440) 
-#define MV_USB_PHY_TEST_GROUP_CTRL_REG_0(dev)   (USB_REG_BASE(dev) + 0x450) 
-#define MV_USB_PHY_TEST_GROUP_CTRL_REG_1(dev)   (USB_REG_BASE(dev) + 0x454) 
+#define MV_USB_PHY_PLL_CTRL_REG(dev)            (MV_USB_REGS_BASE(dev) + 0x410)
+#define MV_USB_PHY_TX_CTRL_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x420) 
+#define MV_USB_PHY_RX_CTRL_REG(dev)             (MV_USB_REGS_BASE(dev) + 0x430) 
+#define MV_USB_PHY_IVREF_CTRL_REG(dev)          (MV_USB_REGS_BASE(dev) + 0x440) 
+#define MV_USB_PHY_TEST_GROUP_CTRL_REG_0(dev)   (MV_USB_REGS_BASE(dev) + 0x450) 
+#define MV_USB_PHY_TEST_GROUP_CTRL_REG_1(dev)   (MV_USB_REGS_BASE(dev) + 0x454) 
+
+
+
+
+/*******************************************/
+/* USB Windows Registers		   */
+/*******************************************/
+#define MV_USB_MAX_ADDR_DECODE_WIN  4
+
+#define MV_USB_WIN_CTRL_REG(dev, win)        (MV_USB_REGS_BASE(dev) + 0x320 + ((win)<<4)) 
+#define MV_USB_WIN_BASE_REG(dev, win)        (MV_USB_REGS_BASE(dev) + 0x324 + ((win)<<4))
+
+/* BITs in Windows 0-3 Control and Base Registers */
+#define MV_USB_WIN_ENABLE_BIT               0
+#define MV_USB_WIN_ENABLE_MASK              (1 << MV_USB_WIN_ENABLE_BIT)
+
+#define MV_USB_WIN_BURST_WR_LIMIT_BIT       1
+#define MV_USB_WIN_BURST_WR_LIMIT_MASK      (1 << MV_USB_WIN_BURST_WR_LIMIT_BIT)
+#define MV_USB_WIN_BURST_WR_NO_LIMIT        (0 << MV_USB_WIN_BURST_WR_LIMIT_BIT)
+#define MV_USB_WIN_BURST_WR_32BIT_LIMIT     (1 << MV_USB_WIN_BURST_WR_LIMIT_BIT)
+
+#define MV_USB_WIN_TARGET_OFFSET            4
+#define MV_USB_WIN_TARGET_MASK              (0xF << MV_USB_WIN_TARGET_OFFSET)
+
+#define MV_USB_WIN_ATTR_OFFSET              8
+#define MV_USB_WIN_ATTR_MASK                (0xFF << MV_USB_WIN_ATTR_OFFSET)
+
+#define MV_USB_WIN_SIZE_OFFSET              16
+#define MV_USB_WIN_SIZE_MASK                (0xFFFF << MV_USB_WIN_SIZE_OFFSET)
+
+#define MV_USB_WIN_BASE_OFFSET              16
+#define MV_USB_WIN_BASE_MASK                (0xFFFF << MV_USB_WIN_BASE_OFFSET)
+
+#define MV_USB_WIN_SIZE_ALIGN		    _64K
+#define MV_USB_BRIDGE_IPG_REG(dev)          (MV_USB_REGS_BASE(dev) + 0x360)
 
 #ifdef __cplusplus
 }

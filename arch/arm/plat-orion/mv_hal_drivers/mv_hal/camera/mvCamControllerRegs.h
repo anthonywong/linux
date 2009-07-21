@@ -64,7 +64,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCMVCamControllerRegsH
 #define __INCMVCamControllerRegsH
 
-#include "ctrlEnv/mvCtrlEnvSpec.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "mvSysCamConfig.h"
 
 #define MV_CAM_Y0_BASE		0x4000
 #define MV_CAM_Y1_BASE		0x4004
@@ -133,6 +137,34 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MV_CAM_TWSI1_WRITE	(1 << 25)
 #define MV_CAM_TWSI1_VALID	(1 << 26)
 #define MV_CAM_TWSI1_ERROR	(1 << 27)
+
+/* Address decoding register.	*/
+#define MV_CAM_SDIO_MAX_ADDR_DECODE_WIN 4
+
+#define MV_CAM_SDIO_WIN_CTRL_REG(win)        (MV_CAM_SDIO_REGS_OFFSET + 0x8030 + ((win)<<4))
+#define MV_CAM_SDIO_WIN_BASE_REG(win)        (MV_CAM_SDIO_REGS_OFFSET + 0x8034 + ((win)<<4))
+
+/* BITs in Windows 0-3 Control and Base Registers */
+#define MV_CAM_SDIO_WIN_ENABLE_BIT               0
+#define MV_CAM_SDIO_WIN_ENABLE_MASK              (1<<MV_CAM_SDIO_WIN_ENABLE_BIT)
+
+#define MV_CAM_SDIO_WIN_TARGET_OFFSET            4
+#define MV_CAM_SDIO_WIN_TARGET_MASK              (0xF<<MV_CAM_SDIO_WIN_TARGET_OFFSET)
+
+#define MV_CAM_SDIO_WIN_ATTR_OFFSET              8
+#define MV_CAM_SDIO_WIN_ATTR_MASK                (0xFF<<MV_CAM_SDIO_WIN_ATTR_OFFSET)
+
+#define MV_CAM_SDIO_WIN_SIZE_OFFSET              16
+#define MV_CAM_SDIO_WIN_SIZE_MASK                (0xFFFF<<MV_CAM_SDIO_WIN_SIZE_OFFSET)
+
+#define MV_CAM_SDIO_WIN_BASE_OFFSET              16
+#define MV_CAM_SDIO_WIN_BASE_MASK                (0xFFFF<<MV_CAM_SDIO_WIN_BASE_OFFSET)
+#define MV_CAM_SDIO_WIN_SIZE_ALIGN              _64K
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCMVCamControllerRegsH */
 

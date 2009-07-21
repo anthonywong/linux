@@ -65,7 +65,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __mvCesaRegs_h__
 #define __mvCesaRegs_h__
 
-#include "mvTypes.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "mvSysCesaConfig.h"
 
 typedef struct
 {
@@ -212,7 +216,7 @@ typedef enum
 /*---------------------------------------------------------------------------*/
 
 /********** Security Accelerator Command Register **************/
-#define MV_CESA_CMD_REG                     (MV_CESA_REG_BASE + 0xE00)
+#define MV_CESA_CMD_REG                     (MV_CESA_REGS_BASE + 0xE00)
 
 #define MV_CESA_CMD_CHAN_ENABLE_BIT         0  
 #define MV_CESA_CMD_CHAN_ENABLE_MASK        (1 << MV_CESA_CMD_CHAN_ENABLE_BIT)
@@ -221,10 +225,10 @@ typedef enum
 #define MV_CESA_CMD_CHAN_DISABLE_MASK       (1 << MV_CESA_CMD_CHAN_DISABLE_BIT)  
 
 /********** Security Accelerator Descriptor Pointers Register **********/
-#define MV_CESA_CHAN_DESC_OFFSET_REG        (MV_CESA_REG_BASE + 0xE04)
+#define MV_CESA_CHAN_DESC_OFFSET_REG        (MV_CESA_REGS_BASE + 0xE04)
 
 /********** Security Accelerator Configuration Register **********/
-#define MV_CESA_CFG_REG                     (MV_CESA_REG_BASE + 0xE08)
+#define MV_CESA_CFG_REG                     (MV_CESA_REGS_BASE + 0xE08)
 
 #define MV_CESA_CFG_STOP_DIGEST_ERR_BIT     0
 #define MV_CESA_CFG_STOP_DIGEST_ERR_MASK    (1 << MV_CESA_CFG_STOP_DIGEST_ERR_BIT)
@@ -239,7 +243,7 @@ typedef enum
 #define MV_CESA_CFG_CHAIN_MODE_MASK         (1 << MV_CESA_CFG_CHAIN_MODE_BIT)
 
 /********** Security Accelerator Status Register ***********/
-#define MV_CESA_STATUS_REG                  (MV_CESA_REG_BASE + 0xE0C)
+#define MV_CESA_STATUS_REG                  (MV_CESA_REGS_BASE + 0xE0C)
 
 #define MV_CESA_STATUS_ACTIVE_BIT           0
 #define MV_CESA_STATUS_ACTIVE_MASK          (1 << MV_CESA_STATUS_ACTIVE_BIT)
@@ -249,10 +253,10 @@ typedef enum
 
 
 /* Cryptographic Engines and Security Accelerator Interrupt Cause Register */
-#define MV_CESA_ISR_CAUSE_REG               (MV_CESA_REG_BASE + 0xE20)
+#define MV_CESA_ISR_CAUSE_REG               (MV_CESA_REGS_BASE + 0xE20)
 
 /* Cryptographic Engines and Security Accelerator Interrupt Mask Register */
-#define MV_CESA_ISR_MASK_REG                (MV_CESA_REG_BASE + 0xE24)
+#define MV_CESA_ISR_MASK_REG                (MV_CESA_REGS_BASE + 0xE24)
 
 #define MV_CESA_CAUSE_AUTH_MASK             (1 << 0)
 #define MV_CESA_CAUSE_DES_MASK              (1 << 1)
@@ -277,18 +281,18 @@ typedef enum
 #define MV_CESA_CAUSE_DMA_CHAIN_PKT_MASK    (1 < MV_CESA_CAUSE_DMA_CHAIN_PKT_BIT)
 
 
-#define MV_CESA_AUTH_DATA_IN_REG            (MV_CESA_REG_BASE + 0xd38)
-#define MV_CESA_AUTH_BIT_COUNT_LOW_REG      (MV_CESA_REG_BASE + 0xd20)
-#define MV_CESA_AUTH_BIT_COUNT_HIGH_REG     (MV_CESA_REG_BASE + 0xd24)
+#define MV_CESA_AUTH_DATA_IN_REG            (MV_CESA_REGS_BASE + 0xd38)
+#define MV_CESA_AUTH_BIT_COUNT_LOW_REG      (MV_CESA_REGS_BASE + 0xd20)
+#define MV_CESA_AUTH_BIT_COUNT_HIGH_REG     (MV_CESA_REGS_BASE + 0xd24)
 
-#define MV_CESA_AUTH_INIT_VAL_DIGEST_REG(i) (MV_CESA_REG_BASE + 0xd00 + (i<<2))
+#define MV_CESA_AUTH_INIT_VAL_DIGEST_REG(i) (MV_CESA_REGS_BASE + 0xd00 + (i<<2))
 
-#define MV_CESA_AUTH_INIT_VAL_DIGEST_A_REG  (MV_CESA_REG_BASE + 0xd00)
-#define MV_CESA_AUTH_INIT_VAL_DIGEST_B_REG  (MV_CESA_REG_BASE + 0xd04)
-#define MV_CESA_AUTH_INIT_VAL_DIGEST_C_REG  (MV_CESA_REG_BASE + 0xd08)
-#define MV_CESA_AUTH_INIT_VAL_DIGEST_D_REG  (MV_CESA_REG_BASE + 0xd0c)
-#define MV_CESA_AUTH_INIT_VAL_DIGEST_E_REG  (MV_CESA_REG_BASE + 0xd10)
-#define MV_CESA_AUTH_COMMAND_REG            (MV_CESA_REG_BASE + 0xd18)
+#define MV_CESA_AUTH_INIT_VAL_DIGEST_A_REG  (MV_CESA_REGS_BASE + 0xd00)
+#define MV_CESA_AUTH_INIT_VAL_DIGEST_B_REG  (MV_CESA_REGS_BASE + 0xd04)
+#define MV_CESA_AUTH_INIT_VAL_DIGEST_C_REG  (MV_CESA_REGS_BASE + 0xd08)
+#define MV_CESA_AUTH_INIT_VAL_DIGEST_D_REG  (MV_CESA_REGS_BASE + 0xd0c)
+#define MV_CESA_AUTH_INIT_VAL_DIGEST_E_REG  (MV_CESA_REGS_BASE + 0xd10)
+#define MV_CESA_AUTH_COMMAND_REG            (MV_CESA_REGS_BASE + 0xd18)
 
 #define MV_CESA_AUTH_ALGORITHM_BIT          0
 #define MV_CESA_AUTH_ALGORITHM_MD5          (0<<AUTH_ALGORITHM_BIT)
@@ -310,7 +314,7 @@ typedef enum
 
 
 /*************** TDMA Control Register ************************************************/
-#define MV_CESA_TDMA_CTRL_REG               (MV_CESA_TDMA_REG_BASE + 0x840)
+#define MV_CESA_TDMA_CTRL_REG               (MV_CESA_TDMA_REGS_BASE + 0x840)
 
 #define MV_CESA_TDMA_BURST_32B              3   
 #define MV_CESA_TDMA_BURST_128B             4   
@@ -343,14 +347,41 @@ typedef enum
 #define MV_CESA_TDMA_CHAN_ACTIVE_MASK       (1<<MV_CESA_TDMA_CHAN_ACTIVE_BIT)
 /*------------------------------------------------------------------------------------*/
 
-#define MV_CESA_TDMA_BYTE_COUNT_REG         (MV_CESA_TDMA_REG_BASE + 0x800)
-#define MV_CESA_TDMA_SRC_ADDR_REG           (MV_CESA_TDMA_REG_BASE + 0x810)
-#define MV_CESA_TDMA_DST_ADDR_REG           (MV_CESA_TDMA_REG_BASE + 0x820)
-#define MV_CESA_TDMA_NEXT_DESC_PTR_REG      (MV_CESA_TDMA_REG_BASE + 0x830)
-#define MV_CESA_TDMA_CURR_DESC_PTR_REG      (MV_CESA_TDMA_REG_BASE + 0x870)
+#define MV_CESA_TDMA_BYTE_COUNT_REG         (MV_CESA_TDMA_REGS_BASE + 0x800)
+#define MV_CESA_TDMA_SRC_ADDR_REG           (MV_CESA_TDMA_REGS_BASE + 0x810)
+#define MV_CESA_TDMA_DST_ADDR_REG           (MV_CESA_TDMA_REGS_BASE + 0x820)
+#define MV_CESA_TDMA_NEXT_DESC_PTR_REG      (MV_CESA_TDMA_REGS_BASE + 0x830)
+#define MV_CESA_TDMA_CURR_DESC_PTR_REG      (MV_CESA_TDMA_REGS_BASE + 0x870)
 
-#define MV_CESA_TDMA_ERROR_CAUSE_REG        (MV_CESA_TDMA_REG_BASE + 0x8C0)
-#define MV_CESA_TDMA_ERROR_MASK_REG         (MV_CESA_TDMA_REG_BASE + 0x8C4)
+#define MV_CESA_TDMA_ERROR_CAUSE_REG        (MV_CESA_TDMA_REGS_BASE + 0x8C0)
+#define MV_CESA_TDMA_ERROR_MASK_REG         (MV_CESA_TDMA_REGS_BASE + 0x8C4)
+
+/*************** Address Decode Register ********************************************/
+
+#define MV_CESA_TDMA_ADDR_DEC_WIN           4
+
+#define MV_CESA_TDMA_BASE_ADDR_REG(win)     (MV_CESA_TDMA_REGS_BASE + 0xa00 + (win<<3))
+
+#define MV_CESA_TDMA_WIN_CTRL_REG(win)      (MV_CESA_TDMA_REGS_BASE + 0xa04 + (win<<3))
+
+#define MV_CESA_TDMA_WIN_ENABLE_BIT         0
+#define MV_CESA_TDMA_WIN_ENABLE_MASK        (1 << MV_CESA_TDMA_WIN_ENABLE_BIT)
+
+#define MV_CESA_TDMA_WIN_TARGET_OFFSET      4 
+#define MV_CESA_TDMA_WIN_TARGET_MASK        (0xf << MV_CESA_TDMA_WIN_TARGET_OFFSET)
+
+#define MV_CESA_TDMA_WIN_ATTR_OFFSET        8 
+#define MV_CESA_TDMA_WIN_ATTR_MASK          (0xff << MV_CESA_TDMA_WIN_ATTR_OFFSET)
+
+#define MV_CESA_TDMA_WIN_SIZE_OFFSET        16
+#define MV_CESA_TDMA_WIN_SIZE_MASK          (0xFFFF << MV_CESA_TDMA_WIN_SIZE_OFFSET)
+
+#define MV_CESA_TDMA_WIN_BASE_OFFSET        16
+#define MV_CESA_TDMA_WIN_BASE_MASK          (0xFFFF << MV_CESA_TDMA_WIN_BASE_OFFSET)
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* __mvCesaRegs_h__ */ 

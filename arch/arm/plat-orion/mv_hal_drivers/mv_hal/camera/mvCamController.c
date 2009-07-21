@@ -65,15 +65,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * Cafe Camera Interface Controller HAL driver
  */
 /* includes */
-
-#include "mvCamController.h"
-#include "mvCamControllerRegs.h"
-#include "boardEnv/mvBoardEnvLib.h"
+#include "mvCommon.h"
+#include "mvOs.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysCamConfig.h"
+#include "mvCamControllerRegs.h"
+#include "mvCamController.h"
+
+static MV_CAMERA_HAL_DATA	cameraHalData;
 
 static MV_STATUS configClockContol(MV_CAM_CONTROLLER *pCam)
 {
-     MV_U32 tclock = mvBoardTclkGet();
+     MV_U32 tclock = cameraHalData.tclk;
      MV_U32 reg = MV_REG_READ(pCam->base + MV_CAM_CLKCTRL);
 
      reg &= ~0xFFFFFFF;
@@ -90,17 +93,7 @@ static MV_STATUS configClockContol(MV_CAM_CONTROLLER *pCam)
      MV_REG_WRITE(pCam->base + MV_CAM_CLKCTRL, reg);
      return MV_OK;
 }
-static MV_U32 mvCamTwsiClkDivGet(void)
-{
-     MV_U32 tclock = mvBoardTclkGet();
-     
-     if (tclock == MV_BOARD_TCLK_166MHZ)
-	  return 414;
-     else
-	  mvOsPrintf("mvCamTwsiClkDivGet: Not supported core clock %d\n",tclock);
-     
-     return 0;
-}
+
 /*---------------------------API----------------------------------------------*/
 /*******************************************************************************
 * mvCamCtrlInit - Initialize the Camera Controller
@@ -122,7 +115,7 @@ static MV_U32 mvCamTwsiClkDivGet(void)
 *    MV_ERROR: failed to initialize the controller
 *    MV_OK otherwise	
 *******************************************************************************/
-MV_STATUS mvCamCtrlInit(MV_CAM_CONTROLLER *pCam)
+MV_STATUS mvCamCtrlInit(MV_CAM_CONTROLLER *pCam, MV_CAMERA_HAL_DATA *halData)
 {
      if(!pCam || !pCam->mvCamFrameCompleted)
      {
@@ -130,7 +123,9 @@ MV_STATUS mvCamCtrlInit(MV_CAM_CONTROLLER *pCam)
 	  return MV_BAD_PTR;
      }
 
-     pCam->base = CAFE_REG_BASE;
+     mvOsMemcpy(&cameraHalData, halData, sizeof(MV_CAMERA_HAL_DATA));
+
+     pCam->base = MV_CAFE_REGS_OFFSET;
 
      /* Confiure CCIC in normal mode */
      MV_REG_BIT_RESET(pCam->base + MV_CAM_CONTROL1, MV_CAM_C1_PWRDWN);
@@ -552,147 +547,3 @@ MV_STATUS mvCamCtrlISR(MV_CAM_CONTROLLER *pCam)
      return MV_OK;
 }
 
-/*******************************************************************************
-* mvCamCtrlI2CRead - Read one byte register through the I2C agent
-*
-* DESCRIPTION:
-*
-* INPUT:
-*       Pointer to Camera Controller Data structure.
-*	id: I2C slave id address
-*	addr: register offset
-*
-* OUTPUT:
-*	Data value
-*
-* RETURN:
-*    MV_ERROR: if the controller was not initialized properly
-*    MV_FAIL: if the TWSI operation failed
-*    MV_OK otherwise
-*******************************************************************************/
-MV_STATUS mvCamCtrlI2CRead(MV_CAM_CONTROLLER *pCam, MV_U8 id, MV_U8 addr,
-			 MV_U8 *value)
-{
-     MV_U32 reg;
-     MV_U32 irqStatus;
-     int i;
-     reg = MV_CAM_TWSI0_EN;
-     reg |= id << 2; /*slave id*/
-     reg |= MV_CAM_TWSI0_RDSTP;
-     reg |= mvCamTwsiClkDivGet() << 10;
-
-     /* clear IRQ status */
-     MV_REG_WRITE(pCam->base + MV_CAM_IRQ_STATUS, MV_CAM_IRQ_TWSI_READ | 
-		  MV_CAM_IRQ_TWSI_ERROR);
-
-     MV_REG_WRITE(pCam->base + MV_CAM_TWSI0, reg);
-     
-     MV_REG_READ(pCam->base + MV_CAM_TWSI1); /*force previous write*/
-     reg = MV_CAM_TWSI1_READ;
-     reg |= addr << 16;
-     MV_REG_WRITE(pCam->base + MV_CAM_TWSI1, reg);
-
-     i = 0;
-     do {
-	  mvOsUDelay(10);
-	  irqStatus = MV_REG_READ(pCam->base + MV_CAM_IRQ_STATUS);
-	  if(i++ > 100000)
-	  {
-	       mvOsPrintf("mvCamCtrlI2CRead: TWSI Read loop Timeout\n");     
-	       return MV_FAIL;
-	  }
-	  if(irqStatus & MV_CAM_IRQ_TWSI_ERROR)
-	  {
-	       mvOsPrintf("mvCamCtrlI2CRead: TWSI Read Error\n");     
-	       return MV_FAIL;
-	  }
-     } while(!(irqStatus & MV_CAM_IRQ_TWSI_READ));
-
-     reg = MV_REG_READ(pCam->base + MV_CAM_TWSI1);
-     
-     if(reg & MV_CAM_TWSI1_ERROR) 
-     {
-	  mvOsPrintf("mvCamCtrlI2CRead: TWSI Read Error\n");     
-	  return MV_FAIL;
-     }
-     if(!(reg & MV_CAM_TWSI1_VALID)) 
-     {
-	  mvOsPrintf("mvCamCtrlI2CRead: TWSI Read Timeout\n");     
-	  return MV_FAIL;
-     }
-     *value = reg;
-     return MV_OK;
-}
-
-/*******************************************************************************
-* mvCamCtrlI2CWrite - Write one byte register through the I2C agent
-*
-* DESCRIPTION:
-*
-* INPUT:
-*       Pointer to Camera Controller Data structure.
-*	id: I2C target id
-*	addr: register offset
-*	data value
-*
-* OUTPUT:
-*
-* RETURN:
-*    MV_ERROR: if the controller was not initialized properly
-*    MV_FAIL: if the TWSI operation failed
-*    MV_OK otherwise
-*******************************************************************************/
-MV_STATUS mvCamCtrlI2CWrite(MV_CAM_CONTROLLER *pCam, MV_U8 id, MV_U8 addr, MV_U8 value)
-{
-     MV_U32 reg;
-     MV_U32 irqStatus;
-     int i;
-
-     reg = MV_CAM_TWSI0_EN;
-     reg |= id << 2; /*slave id*/
-     reg |= MV_CAM_TWSI0_RDSTP;
-     reg |= mvCamTwsiClkDivGet() << 10;
-
-     /* clear IRQ status */
-     MV_REG_WRITE(pCam->base + MV_CAM_IRQ_STATUS, MV_CAM_IRQ_TWSI_WRITE | 
-		  MV_CAM_IRQ_TWSI_ERROR);
-     
-     MV_REG_WRITE(pCam->base + MV_CAM_TWSI0, reg);
-     
-     MV_REG_READ(pCam->base + MV_CAM_TWSI1); /*force previous write*/
-
-     reg = value;
-     reg |= addr << 16;
-     MV_REG_WRITE(pCam->base + MV_CAM_TWSI1, reg);
-
-     i = 0;
-     do {
-	  mvOsUDelay(10);
-	  irqStatus = MV_REG_READ(pCam->base + MV_CAM_IRQ_STATUS);
-	  if(i++ > 100000)
-	  {
-	       mvOsPrintf("mvCamCtrlI2CWrite: TWSI Write loop Timeout\n");     
-	       return MV_FAIL;
-	  }
-	  if(irqStatus & MV_CAM_IRQ_TWSI_ERROR)
-	  {
-	       mvOsPrintf("mvCamCtrlI2CWrite: TWSI Write Error\n");     
-	       return MV_FAIL;
-	  }
-     } while(!(irqStatus & MV_CAM_IRQ_TWSI_WRITE));
-
-     reg = MV_REG_READ(pCam->base + MV_CAM_TWSI1);
-     
-     if(reg & MV_CAM_TWSI1_ERROR) 
-     {
-	  mvOsPrintf("mvCamCtrlI2CWrite: TWSI Write Error\n");     
-	  return MV_FAIL;
-     }
-     if(!(reg & MV_CAM_TWSI1_WRITE)) 
-     {
-	  mvOsPrintf("mvCamCtrlI2CWrite: TWSI Write Timeout\n");     
-	  return MV_FAIL;
-     }
-
-     return MV_OK;
-}
