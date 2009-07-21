@@ -24,6 +24,7 @@ COMMON_DIR        = $(PLAT_PATH)/common
 OSSERV_DIR        = $(PLAT_PATH)/linux_oss
 LSP_DIR           = $(SRC_PATH)/mv_hal_support/
 CONFIG_DIR        = $(LSP_DIR)/config
+HAL_SYS_DIR	  = $(LSP_DIR)/mv_hal_sys
 
 # HALs
 HAL_ETHPHY_DIR    = $(HAL_DIR)/eth-phy
@@ -46,7 +47,7 @@ HAL_TWSI_ARCH_DIR = $(SOC_TWSI_DIR)/Arch$(CPU_ARCH)
 HAL_UART_DIR      = $(HAL_DIR)/uart
 HAL_ETH_DIR       = $(HAL_DIR)/eth/gbe
 HAL_ETH_NFP_DIR	  = $(HAL_DIR)/eth/nfp
-HAL_DDRMC_DIR	  = $(HAL_DIR)/ddrmc
+HAL_DDRMC_DIR	  = $(HAL_DIR)/ddr/ddrmc
 
 ifeq ($(CONFIG_MV_INCLUDE_PEX),y)
 HAL_PEX_DIR       = $(HAL_DIR)/pex
@@ -96,7 +97,7 @@ LSP_PATH_I      = $(TOPDIR)/arch/arm/mach-dove
 PLAT_PATH_I	= $(TOPDIR)/arch/arm/plat-orion/mv_hal_drivers
 
 HAL_PATH        = -I$(HAL_DIR) -I$(PLAT_PATH_I)/$(HAL_DIR) -I$(PLAT_PATH_I)/$(HAL_SATA_DIR)
-DOVE_FAM_PATH  = 	  -I$(LSP_PATH_I)/$(DOVE_FAM_DIR)
+DOVE_FAM_PATH  =  -I$(LSP_PATH_I)/$(DOVE_FAM_DIR)
 QD_PATH         = -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include  -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/msApi 	\
                   -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/driver -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/platform
                      
@@ -105,14 +106,15 @@ COMMON_PATH   	= -I$(PLAT_PATH_I)/$(COMMON_DIR)
 OSSERV_PATH     = -I$(PLAT_PATH_I)/$(OSSERV_DIR)
 LSP_PATH        = -I$(LSP_PATH_I)/$(LSP_DIR)
 CONFIG_PATH     = -I$(LSP_PATH_I)/$(CONFIG_DIR)
+HAL_SYS_PATH    = -I$(LSP_PATH_I)/$(HAL_SYS_DIR)
 
 EXTRA_INCLUDE  	= $(OSSERV_PATH) $(COMMON_PATH) $(HAL_PATH)  $(DOVE_FAM_PATH) \
-                  $(LSP_PATH) $(CONFIG_PATH)
+                  $(LSP_PATH) $(CONFIG_PATH) $(HAL_SYS_PATH)
 
 ###################################################################################################
 # defines
 ###################################################################################################
-MV_DEFINE = -DMV_LINUX -DMV_CPU_$(ENDIAN) -DMV_$(CPU_ARCH) -DMV_AUDIO_SKIP_WIN_DECODING
+MV_DEFINE = -DMV_LINUX -DMV_CPU_$(ENDIAN) -DMV_$(CPU_ARCH)
 
 EXTRA_CFLAGS 	+= $(EXTRA_INCLUDE) $(MV_DEFINE)
 
