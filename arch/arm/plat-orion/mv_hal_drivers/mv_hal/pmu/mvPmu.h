@@ -65,9 +65,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCMVpmuh
 #define __INCMVpmuh
 
-#include "ddrmc/mvDramIf.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "mvCommon.h"
-#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysPmuConfig.h"
 
 /********************/
 /* SRAM definitions */
@@ -208,5 +212,10 @@ MV_VOID   mvPmuMcIdleIntMaskSet		(MV_BOOL hiIntEnable, MV_BOOL lowIntEnable);
 MV_U32 	  mvPmuMcIdleTimeGet		(void);
 MV_VOID   mvPmuMcIdleIntStatGet		(MV_BOOL *hiIntStat, MV_BOOL *lowIntStat);
 #endif
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCMVpmuh */

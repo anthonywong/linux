@@ -62,10 +62,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
-#include "pmu/mvSram.h"
-#include "pmu/mvPmuRegs.h"
-#include "ddrmc/mvDramIf.h"
+#include "mvCommon.h"
+#include "mvOs.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysPmuConfig.h"
+#include "mvPmuRegs.h"
+#include "mvPmu.h"
+#include "mvSram.h"
+#include "ddr/mvDramIf.h"
 
 /* Constants */
 #define PMU_MAX_DESCR_CNT		7		
