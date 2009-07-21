@@ -48,8 +48,8 @@ disclaimer.
 #include "mvStack.h"
 #include "mvSysHwConfig.h"
 #include "eth/mvEth.h"
+#include "eth/gbe/mvEthGbe.h"
 #include "eth-phy/mvEthPhy.h"
-#include "ctrlEnv/sys/mvSysGbe.h"
 #include "dbg-trace.h"
 
 #if defined(CONFIG_MV_ETH_TSO)

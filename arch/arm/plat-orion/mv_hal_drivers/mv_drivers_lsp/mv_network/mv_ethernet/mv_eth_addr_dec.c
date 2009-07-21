@@ -29,6 +29,7 @@ disclaimer.
 
 
 #include "mvCommon.h"  /* Should be included before mvSysHwConfig */
+#include "mvOs.h"
 #include <linux/kernel.h>
 #include <linux/version.h>
 #include <linux/platform_device.h>
@@ -36,7 +37,6 @@ disclaimer.
 
 #include "eth/mvEth.h"
 #include "eth-phy/mvEthPhy.h"
-#include "ctrlEnv/sys/mvSysGbe.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
 
