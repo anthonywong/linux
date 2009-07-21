@@ -62,11 +62,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
+#include "mvCommon.h"
 #include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysAc97Config.h"
 #include "mvAc97Regs.h"
 #include "mvAc97.h"
-#include "mvCommon.h"
-#include "ctrlEnv/mvCtrlEnvSpec.h"
 
 #define AC97_READ_WRITE_MAX_RETRY	100
 
@@ -647,7 +648,7 @@ MV_STATUS mvAc97PdmaFifoAccessRegAddr(MV_AC97_FIFO_TYPE fifoType, MV_U32 *addr)
 		return MV_ERROR;
 	}
 
-	*addr = regAddr + INTER_REGS_BASE;
+	*addr = regAddr;
 
 	return MV_OK;
 }

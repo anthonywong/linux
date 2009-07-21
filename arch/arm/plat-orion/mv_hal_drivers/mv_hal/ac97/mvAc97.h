@@ -64,9 +64,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCMVAc97H
 #define __INCMVAc97H
 
-#include "mvCommon.h"
-#include "ac97/mvAc97Regs.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysAc97Config.h"
 /********************************/
 /* Enums and structures 	*/
 /********************************/
@@ -324,5 +327,11 @@ MV_STATUS mvAc97CodecRegRead(MV_AC97_CODEC_ID codecId, MV_U16 regAddr,MV_U16 *da
 *	MV_FAIL	- Otherwise.
 *******************************************************************************/
 MV_STATUS mvAc97CodecRegWrite(MV_AC97_CODEC_ID codecId, MV_U16 regAddr,MV_U16 data);
+
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCMVAc97H */

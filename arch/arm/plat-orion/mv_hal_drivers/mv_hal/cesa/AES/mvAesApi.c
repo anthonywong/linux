@@ -6,6 +6,8 @@
  *
  * This code is placed in the public domain.
  */
+
+#include "mvCommon.h"
 #include "mvOs.h"
 
 #include "mvAes.h"
