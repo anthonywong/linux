@@ -41,7 +41,9 @@ disclaimer.
 #include <linux/random.h>
 #include <asm/scatterlist.h>
 #include <linux/spinlock.h>
-#include "ctrlEnv/sys/mvSysCesa.h"
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "mvSysCesaApi.h"
 #include "cesa/mvCesa.h" /* moved here before cryptodev.h due to include dependencies */
 #include <cryptodev.h>
 #include <uio.h>
@@ -55,7 +57,7 @@ disclaimer.
 #include "cesa/mvCesaRegs.h"
 #include "cesa/AES/mvAes.h"
 #include "cesa/mvLru.h"
-
+#include "mvKW_HAL_glue.h"
 
 #undef RT_DEBUG
 #ifdef RT_DEBUG
@@ -80,8 +82,6 @@ static int debug = 0;
 #endif
 
 extern int cesaReqResources;
-extern u32 mv_crypto_base_get(void);
-u32 mv_crypto_irq_get(void);
 /* support for spliting action into 2 actions */
 #define CESA_OCF_SPLIT
 
@@ -1157,8 +1157,8 @@ cesa_ocf_init(void)
 	}
 #endif
 
-	if( MV_OK != mvCesaInit(CESA_OCF_MAX_SES*5, CESA_Q_SIZE, (char *)mv_crypto_base_get(),
-				NULL) ) {
+	if( MV_OK != mvSysCesaInit(CESA_OCF_MAX_SES*5, CESA_Q_SIZE, (char *)mv_crypto_base_get(),
+			mv_crypto_phys_base_get(), NULL) ) {
             	printk("%s,%d: mvCesaInit Failed. \n", __FILE__, __LINE__);
 		return EINVAL;
 	}
