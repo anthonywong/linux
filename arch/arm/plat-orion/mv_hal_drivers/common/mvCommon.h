@@ -68,6 +68,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define __INCmvCommonh
 
 #include "mvTypes.h"
+#include "mvDeviceId.h"
+#ifndef MV_ASMLANGUAGE
+#include "mv802_3.h"
+#include "mvVideo.h"
+#endif
 
 /* Swap tool */
 
@@ -211,6 +216,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define _266MHz     266666667
 #define _300MHz     300000000
 
+
+/* Supported clocks */
+#define MV_BOARD_TCLK_100MHZ	100000000   
+#define MV_BOARD_TCLK_125MHZ	125000000	
+#define MV_BOARD_TCLK_133MHZ	133333333   
+#define MV_BOARD_TCLK_150MHZ	150000000  
+#define MV_BOARD_TCLK_166MHZ	166666667   
+#define MV_BOARD_TCLK_200MHZ	200000000   
+
 /* For better address window table readability */
 #define EN			MV_TRUE
 #define DIS			MV_FALSE
@@ -306,6 +320,9 @@ MV_STATUS mvMacHexToStr(MV_U8* macHex, char* macStr);
 void        mvSizePrint(MV_U32);
 
 MV_U32 mvLog2(MV_U32 num);
+
+MV_STATUS mvWinOverlapTest(MV_ADDR_WIN *pAddrWin1, MV_ADDR_WIN *pAddrWin2);
+MV_STATUS mvWinWithinWinTest(MV_ADDR_WIN *pAddrWin1, MV_ADDR_WIN *pAddrWin2);
 
 #endif /* MV_ASMLANGUAGE */
 

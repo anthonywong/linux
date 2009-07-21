@@ -176,5 +176,8 @@ extern "C" {
 #define MV_6781_Z1_ID          		((MV_6781_DEV_ID << 16) | MV_6781_Z1_REV)
 #define MV_6781_Z1_NAME         	"88F6781 Z1"
 
+#define MV_6781_Y0_REV         		0x2
+#define MV_6781_Y0_ID          		((MV_6781_DEV_ID << 16) | MV_6781_Y0_REV)
+#define MV_6781_Y0_NAME         	"88F6781 Y0"
 
 #endif /* __INCmvDeviceIdh */
