@@ -278,7 +278,9 @@ static struct gpio_mouse_platform_data ltact_dove_data = {
                         .bright = -1,
                         .bmiddle = -1
                 } 
-        }
+        },
+	.use_activity_irq = 1,
+	.activity_gpio = 57,
 };
 
 static struct gpio_keys_button gpio_buttons[] = {
@@ -583,7 +585,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
         { -1 },
 };
 
-static struct dove_mpp_mode dove_db_right_tact_mpp_modes[] __initdata = {
+static struct dove_mpp_mode dove_db_tact_int_mpp_modes[] __initdata = {
 	{ 57, MPP_GPIO_AUDIO1 }, /* use this mpp for the tact irq line */
 };
 
@@ -646,8 +648,8 @@ static void __init dove_db_init(void)
 
 	dove_mpp_conf(dove_db_mpp_modes);
 	
-	if ((front_panel) && (right_tact))
-		dove_mpp_conf(dove_db_right_tact_mpp_modes);
+	if ((front_panel) && (left_tact || right_tact))
+		dove_mpp_conf(dove_db_tact_int_mpp_modes);
 
 
         /* the (SW1) button is for use as a "wakeup" button */
