@@ -19,6 +19,7 @@
 
 #include <mach/pm.h>
 #include <mach/hardware.h>
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 #include <audio/mvAudioRegs.h>
 #include "clock.h"
 
@@ -30,7 +31,9 @@ void ds_clks_disable_all(int include_pci0, int include_pci1)
 	ctrl &= ~(CLOCK_GATING_USB0_MASK |
 		  CLOCK_GATING_USB1_MASK |
 		  CLOCK_GATING_GBE_MASK  | CLOCK_GATING_GIGA_PHY_MASK | 
+#ifndef CONFIG_MV_HAL_DRIVERS_SUPPORT
 		  CLOCK_GATING_SATA_MASK |
+#endif
 		  /* CLOCK_GATING_PCIE0_MASK | */
 		  /* CLOCK_GATING_PCIE1_MASK | */
 		  CLOCK_GATING_SDIO0_MASK |
@@ -42,7 +45,9 @@ void ds_clks_disable_all(int include_pci0, int include_pci1)
 		  /* CLOCK_GATING_CRYPTO_MASK |*/
 		  CLOCK_GATING_AC97_MASK |
 		  /* CLOCK_GATING_PDMA_MASK |*/
+#ifndef CONFIG_MV_HAL_DRIVERS_SUPPORT
 		  CLOCK_GATING_XOR0_MASK |
+#endif
 		  CLOCK_GATING_XOR1_MASK
 		);
 
