@@ -60,9 +60,9 @@ obj-$(CONFIG_MV_INCLUDE_CESA) 	+= $(HAL_CESA_DIR)/mvCesa.o \
 
 feroceon-$(CONFIG_MV_CESA_TEST) 	+= $(HAL_CESA_DIR)/mvCesaTest.o
 obj-$(CONFIG_MV_INCLUDE_AUDIO) 	+= $(HAL_AUDIO_DIR)/mvAudio.o \
-					 $(HAL_AUDIO_DIR)/dac/mvCLAudioCodec.o \
-					../../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_audio/i2c-dummy.o	
-#					$(SOC_SYS_DIR)/mvSysAudio.o\
+#		$(SOC_SYS_DIR)/mvSysAudio.o\
+#		 $(HAL_AUDIO_DIR)/dac/mvCLAudioCodec.o \
+#		../../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_audio/i2c-dummy.o	
 
 AFLAGS_mvPmu_asm.o := $(EXTRA_INCLUDE) $(MV_DEFINE)
 obj-$(CONFIG_MV_INCLUDE_PMU) 	+= $(HAL_PMU_DIR)/mvPmu.o \
