@@ -43,8 +43,10 @@ disclaimer.
 #include "dbg-trace.h"
 #include "mvSysHwConfig.h"
 #include "eth/mvEth.h"
+#include "eth/gbe/mvEthGbe.h"
 #include "eth-phy/mvEthPhy.h"
-#include "ctrlEnv/sys/mvSysGbe.h"
+#include "eth-phy/mvEthPhyRegs.h"
+#include "mvKW_HAL_glue.h"
 
 #include "mv_netdev.h"
 
