@@ -61,7 +61,7 @@ static int __init dovedb_init(void)
 {
 	int ret;
 
-	if (!machine_is_dove_db())
+	if (!machine_is_dove_db() && !machine_is_dove_db_z0())
 		return -ENODEV;
 
 	dovedb_snd_device = platform_device_alloc("soc-audio", 0);
