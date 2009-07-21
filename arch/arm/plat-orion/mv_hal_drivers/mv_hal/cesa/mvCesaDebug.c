@@ -62,14 +62,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
+#include "mvCommon.h"
 #include "mvOs.h"
 #include "mvDebug.h"
 
 #include "cesa/mvMD5.h"
 #include "cesa/mvSHA1.h"
 
-#include "cesa/mvCesa.h"
 #include "cesa/mvCesaRegs.h"
+#include "cesa/mvCesa.h"
 #include "cesa/AES/mvAes.h"
 
 static const char*   mvCesaDebugStateStr(MV_CESA_STATE state)

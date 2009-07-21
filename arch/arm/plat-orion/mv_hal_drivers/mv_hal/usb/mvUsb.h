@@ -69,13 +69,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif /* __cplusplus */
 
-/* includes */
-#include "usb/mvUsbRegs.h"
-#include "mvCommon.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysUsbConfig.h"
+
+typedef struct {
+	MV_U16		ctrlModel;
+	MV_U8		ctrlRev;
+} MV_USB_HAL_DATA;
 
 /* Functions */
-MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost);
+MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost, MV_USB_HAL_DATA *halData);
 MV_U32      mvUsbGetCapRegAddr(int devNo);
 void        mvUsbDevResetComplete(int devNo);
 
@@ -90,6 +93,10 @@ void        mvUsbPowerUp(int port);
 
 void        mvUsbRegs(int dev);
 void        mvUsbCoreRegs(int dev, MV_BOOL isHost);
+
+MV_STATUS   mvUsbWinInit(MV_U32 dev, MV_UNIT_WIN_INFO *addrWinMap);
+MV_STATUS   mvUsbWinRead(int dev, MV_U32 winNum, MV_UNIT_WIN_INFO *pDecWin);
+MV_STATUS   mvUsbWinWrite(int dev, MV_U32 winNum, MV_UNIT_WIN_INFO *pDecWin);
 
 #ifdef __cplusplus
 }

@@ -69,7 +69,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif /* __cplusplus */
 
-#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysGppConfig.h"
 
 #define    MV_GPP0  BIT0
 #define    MV_GPP1  BIT1
@@ -107,20 +107,21 @@ extern "C" {
 
 /* registers offsets */
 
-#define GPP_DATA_OUT_REG(grp)			(GPP_REG_BASE(grp) + 0x00)
-#define GPP_DATA_OUT_EN_REG(grp)		(GPP_REG_BASE(grp) + 0x04)
-#define GPP_BLINK_EN_REG(grp)			(GPP_REG_BASE(grp) + 0x08)
-#define GPP_DATA_IN_POL_REG(grp)		(GPP_REG_BASE(grp) + 0x0C)
-#define GPP_DATA_IN_REG(grp)			(GPP_REG_BASE(grp) + 0x10)
-#define GPP_INT_CAUSE_REG(grp)			(GPP_REG_BASE(grp) + 0x14)
-#define GPP_INT_MASK_REG(grp)			(GPP_REG_BASE(grp) + 0x18)
-#define GPP_INT_LVL_REG(grp)			(GPP_REG_BASE(grp) + 0x1C)
+#define GPP_DATA_OUT_REG(grp)			(MV_GPP_REGS_BASE(grp) + 0x00)
+#define GPP_DATA_OUT_REG_0			(MV_GPP_REGS_BASE_0 + 0x00)	/* Used in .S files */
+#define GPP_DATA_OUT_EN_REG(grp)		(MV_GPP_REGS_BASE(grp) + 0x04)
+#define GPP_BLINK_EN_REG(grp)			(MV_GPP_REGS_BASE(grp) + 0x08)
+#define GPP_DATA_IN_POL_REG(grp)		(MV_GPP_REGS_BASE(grp) + 0x0C)
+#define GPP_DATA_IN_REG(grp)			(MV_GPP_REGS_BASE(grp) + 0x10)
+#define GPP_INT_CAUSE_REG(grp)			(MV_GPP_REGS_BASE(grp) + 0x14)
+#define GPP_INT_MASK_REG(grp)			(MV_GPP_REGS_BASE(grp) + 0x18)
+#define GPP_INT_LVL_REG(grp)			(MV_GPP_REGS_BASE(grp) + 0x1C)
 
-#define GPP_FUNC_SELECT_REG			(GPP_REG_BASE(0) + 0x40)
+#define GPP_FUNC_SELECT_REG			(MV_GPP_REGS_BASE(0) + 0x40)
 
 /* Relevant for MV78XX0 */
-#define GPP_DATA_OUT_SET_REG			(GPP_REG_BASE(0) + 0x20)
-#define GPP_DATA_OUT_CLEAR_REG			(GPP_REG_BASE(0) + 0x24)
+#define GPP_DATA_OUT_SET_REG			(MV_GPP_REGS_BASE(0) + 0x20)
+#define GPP_DATA_OUT_CLEAR_REG			(MV_GPP_REGS_BASE(0) + 0x24)
 
 #ifdef __cplusplus
 }
