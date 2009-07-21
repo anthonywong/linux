@@ -79,9 +79,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCmvIdmah
 #define __INCmvIdmah
 
-#include "mvCommon.h"
-#include "mvOs.h"
-#include "idma/mvIdmaRegs.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 
 /* defines  */
@@ -114,6 +115,10 @@ MV_STATE  mvDmaStateGet(MV_U32 chan);
 MV_STATUS mvDmaCommandSet(MV_U32 chan, MV_COMMAND command);
 
 MV_VOID mvIdmaRegs(MV_U32 chan);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __INCmvIdmah */
 

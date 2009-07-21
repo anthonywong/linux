@@ -64,6 +64,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __MV_ETH_DEBUG_H__
 #define __MV_ETH_DEBUG_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #if 0
 /*
  ** Externs
@@ -142,5 +146,9 @@ void    ethMcastAdd(int port, char* macStr, int queue);
 void    ethPortMcast(int port);
 void    mvEthPortShow(void* pHndl);
 void    mvEthQueuesShow(void* pHndl, int rxQueue, int txQueue, int mode);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -77,18 +77,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __mvEth_h__
 #define __mvEth_h__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* includes */
-#include "mvTypes.h"
-#include "mv802_3.h"
-#include "ctrlEnv/mvCtrlEnvLib.h"
-#include "ctrlEnv/mvCtrlEnvAddrDec.h"
-#include "eth/gbe/mvEthRegs.h"
-#include "mvSysHwConfig.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysEthConfig.h"
+#include "gbe/mvEthRegs.h"
 
 /* defines  */
 
 #define MV_ETH_EXTRA_FRAGS_NUM      2
 
+typedef struct
+{
+	MV_U32		maxPortNum;
+	MV_U32		cpuPclk;
+	MV_U32		tclk;
+#ifdef ETH_DESCR_IN_SRAM
+	MV_U32		sramSize;
+#endif
+
+	struct {
+		MV_BOOL			powerOn;
+		MV_32			phyAddr;
+		MV_BOOL			isSgmii;
+		MV_ETH_MAC_SPEED	macSpeed;
+	} portData [MV_ETH_MAX_PORTS];
+}MV_ETH_HAL_DATA;
 
 typedef enum
 {
@@ -174,7 +191,7 @@ typedef enum
 
 
 /* ethernet.h API list */
-void        mvEthHalInit(void);
+void        mvEthHalInit(MV_ETH_HAL_DATA *halData);
 void        mvEthMemAttrGet(MV_BOOL* pIsSram, MV_BOOL* pIsSwCoher);
 
 /* Port Initalization routines */
@@ -241,6 +258,12 @@ int        mvEthPhyAddrGet(void* pPortHandle);
 /* Power management routines */
 void        mvEthPortPowerDown(int port);
 void        mvEthPortPowerUp(int port);
+
+
+MV_STATUS mvEthWinInit (MV_U32 port, MV_UNIT_WIN_INFO *addrWinMap);
+MV_STATUS mvEthWinWrite(MV_U32 port, MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvEthWinRead(MV_U32 port, MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvEthWinEnable(MV_U32 port, MV_U32 winNum, MV_BOOL enable);
 
 /******************** ETH PRIVATE ************************/
 
@@ -349,7 +372,12 @@ typedef struct _ethPortCtrl
 
 #endif /* ETH_DESCR_UNCACHED */
 
-#include "eth/gbe/mvEthGbe.h"
+//#include "eth/gbe/mvEthGbe.h"
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __mvEth_h__ */
 

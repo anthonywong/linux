@@ -77,6 +77,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __mvEthGbe_h__
 #define __mvEthGbe_h__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern MV_BOOL         ethDescInSram;
 extern MV_BOOL         ethDescSwCoher;
 extern ETH_PORT_CTRL*  ethPortCtrl[];
@@ -744,6 +748,10 @@ static INLINE MV_STATUS   mvEthPortRxDone(void* pEthPortHndl, int rxQueue, MV_PK
 
     return MV_OK;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* __mvEthGbe_h__ */
