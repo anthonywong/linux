@@ -1197,7 +1197,7 @@ void __init dove_gpu_init(void)
 }
 
 
-
+#ifndef CONFIG_DOVE_REV_Z0
 /*****************************************************************************
  * SSP
  ****************************************************************************/
@@ -1254,7 +1254,7 @@ void __init dove_ssp_init(struct dove_ssp_platform_data *pdata)
 	dove_ssp_pdev.dev.platform_data = pdata;
 	platform_device_register(&dove_ssp_pdev);
 }
-
+#endif
 
 
 /*****************************************************************************
