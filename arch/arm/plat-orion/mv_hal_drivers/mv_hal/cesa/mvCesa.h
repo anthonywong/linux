@@ -74,23 +74,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __mvCesa_h__
 #define __mvCesa_h__
 
-#include "mvOs.h"
-#include "mvCommon.h"
-#include "mvDebug.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysCesaConfig.h"
+#include "mvCesaRegs.h"
 
-#include "cesa/mvMD5.h"
-#include "cesa/mvSHA1.h"
+typedef struct {
+	MV_U16		ctrlModel;	/* Controller Model 	*/
+	MV_U8		ctrlRev;	/* Controller Revision	*/
+}MV_CESA_HAL_DATA;
 
-#include "cesa/mvCesa.h"
-#include "cesa/AES/mvAes.h"
-#include "mvSysHwConfig.h"
-
-#ifdef MV_INCLUDE_IDMA
-#include "idma/mvIdma.h"
-#include "idma/mvIdmaRegs.h"
-#else
+#ifndef MV_INCLUDE_IDMA
 /* Redefine MV_DMA_DESC structure */
 typedef struct _mvDmaDesc
 {
@@ -103,8 +100,6 @@ typedef struct _mvDmaDesc
                             /* otherwise it should be NULL.                 */
 }MV_DMA_DESC;
 #endif /* MV_INCLUDE_IDMA */
-
-#include "cesa/mvCesaRegs.h"
 
 #define MV_CESA_AUTH_BLOCK_SIZE         64 /* bytes */
 
@@ -182,8 +177,9 @@ typedef struct
 } MV_CESA_COMMAND;
 
 
-
-MV_STATUS   mvCesaHalInit (int numOfSession, int queueDepth, char* pSramBase, MV_U32 cryptEngBase, void *osHandle);
+MV_STATUS mvCesaHalInit (int numOfSession, int queueDepth, char* pSramBase, MV_U32 cryptEngBase,
+		void *osHandle, MV_CESA_HAL_DATA *halData);
+MV_STATUS   mvCesaTdmaWinInit (MV_UNIT_WIN_INFO *addrWinMap);
 MV_STATUS   mvCesaFinish (void);
 MV_STATUS   mvCesaSessionOpen(MV_CESA_OPEN_SESSION *pSession, short* pSid);
 MV_STATUS   mvCesaSessionClose(short sid);
@@ -397,6 +393,9 @@ void        mvCesaDebugSramSA(MV_CESA_SRAM_SA* pSramSA, int mode);
 void        mvCesaDebugCmd(MV_CESA_COMMAND* pCmd,  int mode);
 void        mvCesaDebugDescriptor(MV_CESA_DESC* pDesc);
 
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif /* __mvCesa_h__ */
