@@ -69,13 +69,13 @@ config MV_DDRMMC
 
 endmenu
 
-#menu "Soc DMA accelerations"
+menu "Soc DMA accelerations"
 
-#source arch/arm/plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_xor/Kconfig
+source arch/arm/plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_xor/Kconfig
 
 #source arch/arm/plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_dma/Kconfig
 
-#endmenu
+endmenu
 
 menu "SoC Networking support"
 depends on MV_INCLUDE_GIG_ETH
