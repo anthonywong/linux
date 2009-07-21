@@ -68,7 +68,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 /* includes */
-#include "mvTypes.h"
 
 /* Defines */
 #define MV_MAX_ETH_DATA     1500
