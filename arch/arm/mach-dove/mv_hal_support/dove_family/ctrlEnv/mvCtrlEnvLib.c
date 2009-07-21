@@ -67,34 +67,37 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvCommon.h"
 #include "mvCtrlEnvLib.h"
 #include "ctrlEnv/sys/mvCpuIf.h"
+#include "gpp/mvGpp.h"
 
 #if defined(MV_INCLUDE_PEX)
-#include "pex/mvPex.h"
-#include "ctrlEnv/sys/mvSysPex.h"
+#include "pci-if/mvPciIf.h"
+#include "pci-if/pex/mvPex.h"
+#include "pci-if/pex/mvPexRegs.h"
+#include "mvSysPexApi.h"
 #endif
 
 #if defined(MV_INCLUDE_GIG_ETH)
-#include "ctrlEnv/sys/mvSysGbe.h"
+#include "mvSysEthApi.h"
 #endif
 
 #if defined(MV_INCLUDE_XOR)
-#include "ctrlEnv/sys/mvSysXor.h"
+#include "mvSysXorApi.h"
 #endif
 
 #if defined(MV_INCLUDE_SATA)
-#include "ctrlEnv/sys/mvSysSata.h"
+#include "mvSysSataApi.h"
 #endif
 
 #if defined(MV_INCLUDE_USB)
-#include "ctrlEnv/sys/mvSysUsb.h"
+#include "mvSysUsbApi.h"
 #endif
 
 #if defined(MV_INCLUDE_AUDIO)
-#include "ctrlEnv/sys/mvSysAudio.h"
+#include "mvSysAudioApi.h"
 #endif
 
-#if defined(MV_INCLUDE_AUDIO)
-#include "ctrlEnv/sys/mvSysPdma.h"
+#if defined(MV_INCLUDE_PDMA)
+#include "mvSysPdmaApi.h"
 #endif
 
 
@@ -130,6 +133,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 MV_STATUS mvCtrlEnvInit(MV_VOID)
 {
     	MV_U32 mppGroup;
+	MV_U32 reg = 0;
 
 	/* Read MPP group from board level and assign to MPP register */
 	for (mppGroup = 0; mppGroup <= MV_6781_MPP_MAX_GROUP; mppGroup++)
@@ -137,8 +141,13 @@ MV_STATUS mvCtrlEnvInit(MV_VOID)
 		MV_REG_WRITE(mvCtrlMppRegGet(mppGroup), mvBoardMppGet(mppGroup));
 	}
 	/* Initialize MPPs from High GPIO */
-#ifdef CONFIG_MACH_DOVE_RD_AVNG
+#if defined(RD_88F6781_AVNG)
 	mvGppFunctionSelectSet(0x18);
+#elif defined(DB_88F6781Y0)
+	mvGppFunctionSelectSet(0x10); /* Note: See also Table 6 in Spec if we want to set SSP */
+	reg = MV_REG_READ(MPP_GENERAL_CONFIG_REG);
+	reg &= ~(BIT0 | BIT1); /* NF_IO[15:8] dedicated for NAND */
+	MV_REG_WRITE(MPP_GENERAL_CONFIG_REG, reg); 
 #else
 	mvGppFunctionSelectSet(0);
 #endif
@@ -394,7 +403,7 @@ MV_U16 mvCtrlModelGet(MV_VOID)
 	if (pexPower == MV_FALSE)
 		mvCtrlPwrClckSet(PEX_UNIT_ID, 0, MV_FALSE);
 #endif
-	return ((devId & PXDAVI_VEN_ID_MASK) >> PXDAVI_VEN_ID_OFFS);
+	return ((devId & PXDAVI_DEV_ID_MASK) >> PXDAVI_DEV_ID_OFFS);
 }
 /*******************************************************************************
 * mvCtrlRevGet - Get Marvell controller device revision number
@@ -506,6 +515,9 @@ MV_STATUS mvCtrlModelRevNameGet(char *pNameBuff)
                 break;
         case MV_6781_Z1_ID:
                 mvOsSPrintf (pNameBuff, "%s",MV_6781_Z1_NAME); 
+                break;
+        case MV_6781_Y0_ID:
+                mvOsSPrintf (pNameBuff, "%s",MV_6781_Y0_NAME); 
                 break;
         default:
                 mvCtrlNameGet(pNameBuff);
