@@ -67,27 +67,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef MV_ASMLANGUAGE
 #include "ctrlEnv/mvCtrlEnvLib.h"
-/* This enumerator describes the Marvell controller possible devices that   */
-/* can be connected to its device interface.                                */
-typedef enum _mvDevice
-{
-#if defined(MV_INCLUDE_DEVICE_CS0)
-	DEV_CS0 = 0,    /* Device connected to dev CS[0]    */
-#endif
-#if defined(MV_INCLUDE_DEVICE_CS1)
-	DEV_CS1 = 1,        /* Device connected to dev CS[1]    */
-#endif
-#if defined(MV_INCLUDE_DEVICE_CS2)
-	DEV_CS2 = 2,        /* Device connected to dev CS[2]    */
-#endif
-#if defined(MV_INCLUDE_DEVICE_CS3)
-	DEV_CS3 = 3,        /* Device connected to dev CS[2]    */
-#endif
-#if defined(MV_INCLUDE_DEVICE_CS4)
-	DEV_CS4 = 4,        /* Device connected to BOOT dev    */
-#endif
-	MV_DEV_MAX_CS = MV_DEVICE_MAX_CS
-}MV_DEVICE;
 
  
 #endif /* MV_ASMLANGUAGE */
