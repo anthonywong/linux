@@ -65,9 +65,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCMVsramh
 #define __INCMVsramh
 
-#include "mvCommon.h"
-#include "mvOs.h"
-#include "ddrmc/mvDramIf.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define PMU_SRAM_SIZE		0x800
 #define PMU_SRAM_BASE		0xD00DC000
@@ -93,5 +94,10 @@ MV_VOID 	mvPmuSramDeepIdle(MV_U32 ddrSelfRefresh);
 MV_VOID 	mvPmuSramStandby(MV_VOID);
 MV_STATUS 	mvPmuSramDeepIdleResumePrep(MV_VOID);
 MV_STATUS 	mvPmuSramStandbyResumePrep(MV_U32 ddrFreq);
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCMVsramh */
