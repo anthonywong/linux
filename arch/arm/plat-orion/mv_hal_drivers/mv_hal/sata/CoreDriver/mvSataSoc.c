@@ -62,7 +62,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "mvSataSoc.h"
+#include "mvRegs.h"
 
 /* Calculate the base address of the registers for a SATA channel */
 static MV_U32 edmaRegOffst[8] = {0x22000, 0x24000, 0x26000, 0x28000,
@@ -72,7 +76,7 @@ static MV_U32 edmaRegOffst[8] = {0x22000, 0x24000, 0x26000, 0x28000,
 MV_BOOL mvSataPhyShutdown(MV_U8 port)
 {
     MV_U32      regVal;
-    MV_U32      adapterIoBaseAddress = SATA_REG_BASE - 0x20000;
+    MV_U32      adapterIoBaseAddress = MV_SATA_REGS_OFFSET - 0x20000;
 
         regVal = MV_REG_READ (adapterIoBaseAddress +
                                     getEdmaRegOffset (port) +
@@ -92,7 +96,7 @@ MV_BOOL mvSataPhyShutdown(MV_U8 port)
 }
 MV_BOOL mvSataPhyPowerOn(MV_U8 port)
 {
-    MV_U32      adapterIoBaseAddress = SATA_REG_BASE - 0x20000;
+    MV_U32      adapterIoBaseAddress = MV_SATA_REGS_OFFSET - 0x20000;
 
         MV_U32 regVal = MV_REG_READ (adapterIoBaseAddress +
                                     getEdmaRegOffset (port) +

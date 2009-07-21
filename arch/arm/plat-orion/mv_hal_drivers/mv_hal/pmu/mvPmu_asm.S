@@ -64,8 +64,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define MV_ASMLANGUAGE
 
+#include "mvCommon.h"
 #include "mvOs_asm.h"
+#include "mvSysPmuConfig.h"
 #include "pmu/mvPmuRegs.h"
+
 
 
 #ifndef ENTRY
