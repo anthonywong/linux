@@ -78,14 +78,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCMVxorh
 #define __INCMVxorh
 
-#include "mvCommon.h"
-#include "mvOs.h"
-#include "xor/mvXorRegs.h"
-#include "ctrlEnv/mvCtrlEnvSpec.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysXorConfig.h"
 
 /* typedefs */
 
@@ -198,14 +196,6 @@ typedef enum _mvXorOverrideTarget
 
 #define XOR_MAX_OVERRIDE_WIN	4	/* Maximum address override windows		*/
 
-#define XOR_OVERRIDE_CTRL_REG(chan)   (XOR_UNIT_BASE(XOR_UNIT(chan))+(0x2A0 + ((XOR_CHAN(chan)) * 4)))
-/* XOR Engine [0..1] Address Override Control Register (XExAOCR) */
-#define XEXAOCR_OVR_EN_OFFS(target)         (3 * target)
-#define XEXAOCR_OVR_EN_MASK(target)         (1 << (XEXAOCR_OVR_EN_OFFS(target)))
-#define XEXAOCR_OVR_PTR_OFFS(target)        ((3 * target) + 1)
-#define XEXAOCR_OVR_PTR_MASK(target)        (3 << (XEXAOCR_OVR_PTR_OFFS(target)))
-#define XEXAOCR_OVR_BAR(winNum,target)      (winNum << (XEXAOCR_OVR_PTR_OFFS(target)))
-
 /* for controllers that have two XOR units, then chans 2 & 3 will be mapped*/
 /* to channels 0 & 1 of unit 1 */
 #define XOR_UNIT(chan)	((chan) >> 1)
@@ -222,6 +212,14 @@ MV_STATE    mvXorStateGet(MV_U32 chan);
 MV_STATUS   mvXorCommandSet(MV_U32 chan, MV_COMMAND command);
 MV_STATUS   mvXorOverrideSet(MV_U32 chan, MV_XOR_OVERRIDE_TARGET target, 
                              MV_U32 winNum, MV_BOOL enable);
+
+MV_STATUS mvXorWinInit (MV_UNIT_WIN_INFO *addrWinMap);
+MV_STATUS mvXorTargetWinWrite(MV_U32 unit, MV_U32 winNum,MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvXorTargetWinRead(MV_U32 unit,MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvXorTargetWinEnable(MV_U32 unit,MV_U32 winNum, MV_BOOL enable);
+MV_STATUS mvXorProtWinSet (MV_U32 unit,MV_U32 chan, MV_U32 winNum, MV_BOOL access, 
+                           MV_BOOL write);
+MV_STATUS mvXorPciRemap(MV_U32 unit,MV_U32 winNum, MV_U32 addrHigh);
 
 #ifdef __cplusplus
 }

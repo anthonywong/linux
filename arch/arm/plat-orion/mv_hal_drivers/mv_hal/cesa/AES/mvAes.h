@@ -24,6 +24,13 @@ IMPLEMENTATION SPECIFIC INFORMATION.
 	Standard include files
 */
 
+#ifndef __mvAes_h__
+#define __mvAes_h__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "mvOs.h"
 
 
@@ -59,4 +66,8 @@ int     aesBlockEncrypt128(MV_U8 mode, MV_U8 *IV, MV_U8 *expandedKey, int  keyLe
 int     aesBlockDecrypt128(MV_U8 mode, MV_U8 *IV, MV_U8 *expandedKey, int  keyLen, 
                     MV_U32 *plain, int numBlocks, MV_U32 *cipher);
 
+#ifdef __cplusplus
+}
+#endif
 
+#endif

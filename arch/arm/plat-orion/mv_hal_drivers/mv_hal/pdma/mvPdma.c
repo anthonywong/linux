@@ -78,7 +78,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 *******************************************************************************/
 
-#include "pdma/mvPdma.h"
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysPdmaConfig.h"
+#include "mvPdmaRegs.h"
+#include "mvPdma.h"
+
 
 /* defines  */
 #define MV_CHANNEL_TAKEN	1
@@ -88,14 +94,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern MV_U32 mvNfcDbgFlag;
 MV_U32 pdma_dbg_read(MV_U32 addr)
 {
-	MV_U32 reg = MV_MEMIO_LE32_READ(INTER_REGS_BASE + (addr));
+	MV_U32 reg = MV_MEMIO_LE32_READ((addr));
 	if (mvNfcDbgFlag) mvOsPrintf("PDMA read  0x%08x = %08x\n", addr, reg);
 	return reg;
 }
 
 MV_VOID pdma_dbg_write(MV_U32 addr, MV_U32 val)
 {
-	MV_MEMIO_LE32_WRITE((INTER_REGS_BASE + addr), (val));
+	MV_MEMIO_LE32_WRITE((addr), (val));
 	if (mvNfcDbgFlag) mvOsPrintf("PDMA write 0x%08x = %08x\n", addr, val);
 }
 
@@ -103,9 +109,9 @@ MV_VOID pdma_dbg_bitset(MV_U32 offset, MV_U32 bitMask)
 {
 	MV_U32 reg1, reg2;
 
-	reg1 = (MV_MEMIO32_READ(INTER_REGS_BASE + offset));
+	reg1 = (MV_MEMIO32_READ(offset));
 	reg2 = (reg1 | MV_32BIT_LE_FAST(bitMask));
-	MV_MEMIO32_WRITE((INTER_REGS_BASE + offset), reg2);
+	MV_MEMIO32_WRITE((offset), reg2);
 	if (mvNfcDbgFlag) mvOsPrintf("PDMA bitset 0x%08x = %08x (old = %08x)\n", offset, reg2, reg1);
 }
 
@@ -155,7 +161,7 @@ MV_STATUS mvPdmaHalInit(MV_U8 pdmaNumChannels)
 	mvPdmaNumChannels = pdmaNumChannels;
 
 	for (chan = 0; chan < pdmaNumChannels; chan++) {
-		MV_REG_WRITE((PDMA_REG_BASE + chanMapRequestOffsetTable[chan]), 0);
+		MV_REG_WRITE((MV_PDMA_REGS_BASE + chanMapRequestOffsetTable[chan]), 0);
 		/* Note: do not write to PDMA_DESC_ADDR_REG, it changes the state of the channel to initialized */
 		MV_REG_WRITE(PDMA_SRC_ADDR_REG(chan), 0);
 		MV_REG_WRITE(PDMA_DST_ADDR_REG(chan), 0);
@@ -285,7 +291,7 @@ MV_STATUS mvPdmaChanAlloc(MV_PDMA_PERIPH_TYPE chanType,
 	/* This is required only for peripheral to memory or memory to peripheral channels, */
 	/* but not needed for memory to memory channels */
 	if (chanType != MV_PDMA_MEMORY) {
-		MV_REG_WRITE((PDMA_REG_BASE + chanMapRequestOffsetTable[chanHndl->chanNumber]), 
+		MV_REG_WRITE((MV_PDMA_REGS_BASE + chanMapRequestOffsetTable[chanHndl->chanNumber]), 
 				((chanHndl->chanNumber & DRCMR_CHLNUM_MASK) | DRCMR_MAPVLD_BIT));
 
 	}
@@ -773,8 +779,8 @@ MV_VOID mvPdmaChanRegsPrint(MV_PDMA_CHANNEL *chanHndl)
 	mvOsPrintf("\t PDMA Channel #%d Registers:\n", chanHndl->chanNumber);
 
 	mvOsPrintf("PDMA_REQUEST_CHAN_MAP_REG             : 0x%X = 0x%08x\n", 
-                (PDMA_REG_BASE + chanMapRequestOffsetTable[chanHndl->chanNumber]), 
-                MV_REG_READ((PDMA_REG_BASE + chanMapRequestOffsetTable[chanHndl->chanNumber])));
+                (MV_PDMA_REGS_BASE + chanMapRequestOffsetTable[chanHndl->chanNumber]), 
+                MV_REG_READ((MV_PDMA_REGS_BASE + chanMapRequestOffsetTable[chanHndl->chanNumber])));
 
 	mvOsPrintf("PDMA_DESC_ADDR_REG               : 0x%X = 0x%08x\n", 
                 PDMA_DESC_ADDR_REG(chanHndl->chanNumber), 

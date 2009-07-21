@@ -69,21 +69,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif /* __cplusplus */
 
-#define PDMA_CHAN_MAP_REG_BASE			(PDMA_REG_BASE + 0x100)
-#define PDMA_DESC_REG_BASE			(PDMA_REG_BASE + 0x200)
+#include "mvSysPdmaConfig.h"
+
+#define PDMA_CHAN_MAP_REG_BASE			(MV_PDMA_REGS_BASE + 0x100)
+#define PDMA_DESC_REG_BASE			(MV_PDMA_REGS_BASE + 0x200)
 /* PDMA channel registers */
-#define PDMA_CTRL_STATUS_REG(chan)		(PDMA_REG_BASE + ((chan) * 0x4))
+#define PDMA_CTRL_STATUS_REG(chan)		(MV_PDMA_REGS_BASE + ((chan) * 0x4))
 #define PDMA_REQUEST_CHAN_MAP_REG(chan)		(PDMA_CHAN_MAP_REG_BASE + ((chan) * 0x4))
 #define PDMA_DESC_ADDR_REG(chan)		(PDMA_DESC_REG_BASE + ((chan) * 0x10))
 #define PDMA_SRC_ADDR_REG(chan)			(PDMA_DESC_REG_BASE + 0x4 + ((chan) * 0x10))
 #define PDMA_DST_ADDR_REG(chan)			(PDMA_DESC_REG_BASE + 0x8 + ((chan) * 0x10))
 #define PDMA_COMMAND_REG(chan)			(PDMA_DESC_REG_BASE + 0xC + ((chan) * 0x10))
 
+/* PDMA Address Decoding Base and Control Registers */ 
+#define PDMA_WINDOW_BASE_REG(winNum)		(MV_PDMA_REGS_BASE + 0x4000 + ((winNum) << 3))
+#define PDMA_WINDOW_CONTROL_REG(winNum)		(MV_PDMA_REGS_BASE + 0x4004 + ((winNum) << 3))
+
 /* PDMA Alignment Register */
-#define PDMA_ALIGNMENT_REG			(PDMA_REG_BASE + 0xA0)
+#define PDMA_ALIGNMENT_REG			(MV_PDMA_REGS_BASE + 0xA0)
 
 /* PDMA Interrupt Register */
-#define PDMA_INTR_CAUSE_REG			(PDMA_REG_BASE + 0xF0)
+#define PDMA_INTR_CAUSE_REG			(MV_PDMA_REGS_BASE + 0xF0)
 
 /* PDMA register fields */
 
@@ -159,6 +165,26 @@ extern "C" {
 						DCSR_ENDINTR	| \
 						DCSR_STARTINTR	| \
 						DCSR_BUSERRINTR
+
+/* General PDMA */
+#define PDMA_MAX_ADDR_DEC_WIN		4	/* Maximum address decode windows */
+
+ 
+/* PDMA Window Base Register */
+#define PDMA_WIN_BASE_OFFS		16	/* Base address */
+#define PDMA_WIN_BASE_MASK		(0xFFFF << PDMA_WIN_BASE_OFFS)
+
+/* PDMA Window Control Register */
+#define PDMA_WIN_EN			BIT0	/* Window enable */
+#define PDMA_WIN_WRBL			BIT1	/* Write to crossbar burst limit */	
+#define PDMA_WIN_TARGET_OFFS		4	/* The target interface associated with window */		
+#define PDMA_WIN_TARGET_MASK		(0xF << PDMA_WIN_TARGET_OFFS)
+#define PDMA_WIN_ATTR_OFFS		8	/* The target attributes associated with window */
+#define PDMA_WIN_ATTR_MASK		(0xFF << PDMA_WIN_ATTR_OFFS)
+#define PDMA_WIN_SIZE_OFFS		16	/* Window size */
+#define PDMA_WIN_SIZE_MASK		(0xFFFF << PDMA_WIN_SIZE_OFFS)
+
+#define PDMA_WIN_SIZE_GRANULARITY	0x10000
 
 #ifdef __cplusplus
 }

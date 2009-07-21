@@ -65,11 +65,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCETHPHYH
 #define __INCETHPHYH
 
-#include "mvCommon.h"
-#include "mvOs.h"
-#include "mvEthPhyRegs.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysEthPhyConfig.h"
 
+typedef struct {
+	MV_U32		phyAddr[MV_ETH_MAX_PORTS];
+	MV_BOOL		boardSpecInit;		/* Special board phy init */
+	MV_U32		specRegOff;		/* Board specific register offset,
+						   Valid if boardSpecInit == TRUE */
+	MV_U32		specData;		/* Board specific data to write,
+						   Valid if boardSpecInit == TRUE */
+}MV_ETHPHY_HAL_DATA;
+
+MV_STATUS 	mvEthPhyHalInit(MV_ETHPHY_HAL_DATA *halData);
 MV_STATUS	mvEthPhyRegRead(MV_U32 phyAddr, MV_U32 regOffs, MV_U16 *data);
 MV_STATUS 	mvEthPhyRegWrite(MV_U32 phyAddr, MV_U32 regOffs, MV_U16 data);
 MV_STATUS 	mvEthPhyReset(MV_U32 phyAddr, int timeout);
@@ -89,5 +101,9 @@ MV_VOID		mvEthE1011PhyBasicInit(MV_U32 ethPortNum);
 MV_VOID 	mvEthSgmiiToCopperPhyBasicInit(MV_U32 ethPortNum);
 MV_VOID		mvEth1145PhyBasicInit(MV_U32 ethPortNum);
 MV_VOID		mvEth1121PhyBasicInit(MV_U32 ethPortNum);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* #ifndef __INCETHPHYH */

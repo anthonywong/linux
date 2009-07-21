@@ -63,17 +63,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
 #ifndef __INCmvCamControllerh
 #define __INCmvCamControllerh
+
 #ifdef __cplusplus
     extern "C" { 
 #endif
 
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysCamConfig.h"
 /*
  * API for the Camera Interface Controller HAL driver
  */
-/* includes */
-#include "mvTypes.h"
-#include "mvVideo.h"
 
+typedef struct {
+	MV_U32		tclk;
+}MV_CAMERA_HAL_DATA;
 
 /* callback function to acknowledge frame completion, takes buffer index */ 
     typedef MV_VOID (* mvCamFrameComplete_t) (MV_VOID *, MV_U32 bufIdx);
@@ -123,7 +126,7 @@ typedef struct {
 *    MV_ERROR: failed to initialize the controller
 *    MV_OK otherwise	
 *******************************************************************************/
-MV_STATUS mvCamCtrlInit(MV_CAM_CONTROLLER *pCam);
+MV_STATUS mvCamCtrlInit(MV_CAM_CONTROLLER *pCam, MV_CAMERA_HAL_DATA *halData);
 
 /*******************************************************************************
 * mvCamCtrlPowerUp - Power up the Camera Controller and the Sensor
@@ -358,6 +361,12 @@ MV_STATUS mvCamCtrlI2CRead(MV_CAM_CONTROLLER *pCam, MV_U8 id, MV_U8 addr,
 *    MV_OK otherwise
 *******************************************************************************/
 MV_STATUS mvCamCtrlI2CWrite(MV_CAM_CONTROLLER *pCam, MV_U8 id, MV_U8 addr, MV_U8 value);
+
+
+MV_STATUS mvCamSDIOWinInit(MV_UNIT_WIN_INFO *addrWinMap);
+MV_STATUS mvCamSDIOWinRead(MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvCamSDIOWinWrite(MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+
 #ifdef __cplusplus
     }
 #endif

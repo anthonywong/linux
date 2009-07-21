@@ -65,7 +65,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __mvMD5_h__
 #define __mvMD5_h__
 
-#include "mvMD5.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MV_MD5_MAC_LEN 16
  
@@ -89,5 +91,9 @@ void mvHmacMd5(unsigned char const* text, int text_len,
                   unsigned char const* key, int key_len,
                   unsigned char* digest);
   
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __mvMD5_h__ */
