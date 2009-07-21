@@ -96,6 +96,9 @@ static void orion_pcie_setup_wins(void __iomem *base,
 	u32 size;
 	int i;
 
+	if (dram == NULL)
+		return;
+
 	/*
 	 * First, disable and clear BARs and windows.
 	 */
