@@ -372,6 +372,19 @@ extern int reg_arry_index;
           MV_32BIT_LE_FAST(~bitMask))))
 #endif
 
+/* Assembly functions */
+
+/*
+** MV_ASM_READ_CPU_EXTRA_FEATURES
+** Read Marvell extra features register.
+*/
+#define MV_ASM_READ_EXTRA_FEATURES(x) __asm__ volatile("mrc  p15, 1, %0, c15, c1, 0" : "=r" (x));
+
+/*
+** MV_ASM_WAIT_FOR_INTERRUPT
+** Wait for interrupt.
+*/
+#define MV_ASM_WAIT_FOR_INTERRUPT      __asm__ volatile("mcr  p15, 0, r0, c7, c0, 4");
 
 
 /* ARM architecture APIs */
