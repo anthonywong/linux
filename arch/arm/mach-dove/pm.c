@@ -24,7 +24,9 @@
 #include "mvOs.h"
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
+#include "gpp/mvGppRegs.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "ctrlEnv/sys/mvCpuIfRegs.h"
 #include "common.h"
 #include "mpp.h"
 #include <asm/cpu-single.h>
@@ -212,10 +214,10 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			printk("Set CPU Frequency to TURBO");			
 
 			local_irq_save(ints);
-			mc = MV_REG_READ(0x20214);
-			MV_REG_WRITE(0x20214, (mc | 0x2));	/* enable PMU interrupts if not already enabled */
+			mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, (mc | 0x2));	/* enable PMU interrupts if not already enabled */
 			stat = mvPmuCpuFreqScale (CPU_CLOCK_TURBO);
-			MV_REG_WRITE(0x20214, mc);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc);
 			local_irq_restore(ints);			
 
 			if (stat != MV_OK)
@@ -232,10 +234,10 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			printk("Set CPU Frequency to DDR");
 			
 			local_irq_save(ints);
-			mc = MV_REG_READ(0x20214);
-			MV_REG_WRITE(0x20214, (mc | 0x2));
+			mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, (mc | 0x2));
 			stat = mvPmuCpuFreqScale (CPU_CLOCK_SLOW);
-			MV_REG_WRITE(0x20214, mc);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc);
 			local_irq_restore(ints);
 
 			if (stat != MV_OK)
@@ -297,13 +299,13 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 
 		printk("Set New System Frequencies to CPU %dMhz, L2 %dMhz, DDR %dMhz", cpuFreq, l2Freq, ddrFreq);
 		local_irq_save(ints);
-		mc = MV_REG_READ(0x20210);
-		MV_REG_WRITE(0x20214, (mc | 0x2));	/* PMU Interrupt Enable */
+		mc = MV_REG_READ(CPU_MAIN_INT_CAUSE_HIGH_REG);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, (mc | 0x2));	/* PMU Interrupt Enable */
 		if (mvPmuSysFreqScale (ddrFreq, l2Freq, cpuFreq) != MV_OK)
 			printk(">>>>>> FAILED\n");
 		else
 			printk("\n");
-		MV_REG_WRITE(0x20214, mc);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc);
 		local_irq_restore(ints);
 		goto done;
 	}
@@ -311,17 +313,17 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 	str = "deepidle_block";
 	if(!strncmp(buffer+len, str,strlen(str))) {
 		printk("Enter DeepIdle mode ");
-		mc = MV_REG_READ(0x20204);
-		mc2 = MV_REG_READ(0x20214);
+		mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_REG);
+		mc2 = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
 #ifdef CONFIG_DOVE_REV_Z0
-		MV_REG_WRITE(0x20204, 0x100); /* disable all interrupts except UART1 */
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x100); /* disable all interrupts except UART1 */
 #else
-		MV_REG_WRITE(0x20204, 0x80); /* disable all interrupts except UART0 */
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x80); /* disable all interrupts except UART0 */
 #endif
-		MV_REG_WRITE(0x20214, 0x0);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, 0x0);
 		dove_pm_cpuidle_deepidle();
-		MV_REG_WRITE(0x20204, mc);
-		MV_REG_WRITE(0x20214, mc2);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, mc);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc2);
 		goto done;
 	}
 
@@ -347,28 +349,28 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 	str = "wfi_block";
 	if(!strncmp(buffer+len, str,strlen(str))) {
 		printk("Enter WFI mode ");
-		mc = MV_REG_READ(0x20204);
-		mc2 = MV_REG_READ(0x20214);
+		mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_REG);
+		mc2 = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
 #ifdef CONFIG_DOVE_REV_Z0
-		MV_REG_WRITE(0x20204, 0x100); /* disable all interrupts except UART1 */
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x100); /* disable all interrupts except UART1 */
 #else
-		MV_REG_WRITE(0x20204, 0x80); /* disable all interrupts except UART0 */
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x80); /* disable all interrupts except UART0 */
 #endif
-		MV_REG_WRITE(0x20214, 0x0);		
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, 0x0);		
 
 		__asm__ __volatile__("mcr p15, 0, %0, c7, c0, 4\n" : "=r" (dummy));
 
-		MV_REG_WRITE(0x20204, mc);
-		MV_REG_WRITE(0x20214, mc2);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, mc);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc2);
 		goto done;
 	}
 
 	str = "block";
 	if(!strncmp(buffer+len, str,strlen(str))) {
-		mc = MV_REG_READ(0x20204);
-		mc2 = MV_REG_READ(0x20214);
-		MV_REG_WRITE(0x20204, 0x0);
-		MV_REG_WRITE(0x20214, 0x0);
+		mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_REG);
+		mc2 = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x0);
+		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, 0x0);
 		while(1);
 		goto done;
 	}
@@ -386,13 +388,13 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 
 			/* Upscale frequency */
 			local_irq_save(ints);
-			mc = MV_REG_READ(0x20210);
-			MV_REG_WRITE(0x20214, (mc | 0x2));
+			mc = MV_REG_READ(CPU_MAIN_INT_CAUSE_HIGH_REG);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, (mc | 0x2));
 			if (mvPmuCpuFreqScale (CPU_CLOCK_TURBO) != MV_OK)
 				printk(">>>>>> FAILED\n");
 			else
 				printk("\n");
-			MV_REG_WRITE(0x20214, mc);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc);
 			local_irq_restore(ints);
 			goto done;
 		}
@@ -402,13 +404,13 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			printk("Going to low gear (CPU=DDR, V=0.975) ");
 			/* Downscale frequency */
 			local_irq_save(ints);
-			mc = MV_REG_READ(0x20210);
-			MV_REG_WRITE(0x20214, (mc | 0x2));
+			mc = MV_REG_READ(CPU_MAIN_INT_CAUSE_HIGH_REG);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, (mc | 0x2));
 			if (mvPmuCpuFreqScale (CPU_CLOCK_SLOW) != MV_OK)
 				printk(">>>>>> FAILED\n");
 			else
 				printk("\n");
-			MV_REG_WRITE(0x20214, mc);
+			MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc);
 			local_irq_restore(ints);
 
 			/* Downscale Voltage -2.5% */
@@ -511,13 +513,13 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			len += strlen(str);
 			printk("Setting WLAN SC in low power.\n");
 			/* Set level */
-			reg = MV_REG_READ(0xD0400);
+			reg = MV_REG_READ(GPP_DATA_OUT_REG(0));
 			reg &= ~0x10;
-			MV_REG_WRITE(0xD0400, reg);
+			MV_REG_WRITE(GPP_DATA_OUT_REG(0), reg);
 			/* verify pin is output */
-			reg = MV_REG_READ(0xD0404);
+			reg = MV_REG_READ(GPP_DATA_OUT_EN_REG(0));
 			reg &= ~0x10;
-			MV_REG_WRITE(0xD0404, reg);
+			MV_REG_WRITE(GPP_DATA_OUT_EN_REG(0), reg);
 			goto done;
 		}
 		str = "on";
@@ -525,13 +527,13 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			len += strlen(str);
 			printk("Setting WLAN SC out of low power.\n");
 			/* Set level */
-			reg = MV_REG_READ(0xD0400);
+			reg = MV_REG_READ(GPP_DATA_OUT_REG(0));
 			reg |= 0x10;
-			MV_REG_WRITE(0xD0400, reg);
+			MV_REG_WRITE(GPP_DATA_OUT_REG(0), reg);
 			/* verify pin is output */
-			reg = MV_REG_READ(0xD0404);
+			reg = MV_REG_READ(GPP_DATA_OUT_EN_REG(0));
 			reg &= ~0x10;
-			MV_REG_WRITE(0xD0404, reg);
+			MV_REG_WRITE(GPP_DATA_OUT_EN_REG(0), reg);
 			goto done;
 		}
 		goto done;
