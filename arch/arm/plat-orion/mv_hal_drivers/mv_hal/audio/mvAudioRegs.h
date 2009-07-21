@@ -64,87 +64,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCMVAudioRegsH
 #define __INCMVAudioRegsH
 
-#include "ctrlEnv/mvCtrlEnvSpec.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/* Audio source Clocks enum*/
-typedef enum _mvAudioClock
-{
-	AUDIO_DCO_CLK = 0,
-	AUDIO_SPCR_CLK = 2,
-	AUDIO_EXT_CLK = 3
-
-}MV_AUDIO_CLOCK;
-
-typedef enum _mvAudioFreq
-{
-	AUDIO_FREQ_44_1KH = 0,   	/* 11.2896Mhz */
-	AUDIO_FREQ_48KH = 1,     	/* 12.288Mhz */
-	AUDIO_FREQ_96KH =2, 		/* 24.576Mhz */
-	AUDIO_FREQ_LOWER_44_1KH = 3 ,	/*Lower than 11.2896MHz*/
-	AUDIO_FREQ_HIGHER_96KH = 4,	/*Higher than 24.576MHz*/
-	AUDIO_FREQ_OTHER = 7,		/*Other frequency*/
-}MV_AUDIO_FREQ;
-
-
-typedef enum _mvAudioSampleFreq
-{
-	SMAPLE_8KHZ = 0,
-	SMAPLE_16KHZ,
-	SMAPLE_22_05KHZ,
-	SMAPLE_24KHZ,
-	SMAPLE_32KHZ,
-	SMAPLE_44_1KHZ,
-	SMAPLE_48KHZ,
-	SMAPLE_64KHZ,
-	SMAPLE_88KHZ,
-	SMAPLE_96KHZ,
-	SMAPLE_176KHZ,
-	SMAPLE_192KHZ
-}MV_AUDIO_SAMPLE_FREQ;
-
-typedef enum _mvAudioBurstSize
-{
-	AUDIO_32BYTE_BURST = 1,
-	AUDIO_128BYTE_BURST = 2,
-
-}MV_AUDIO_BURST_SIZE;
-
-typedef enum _mvAudioPlaybackMono
-{
-	AUDIO_PLAY_MONO_OFF = 0,
-	AUDIO_PLAY_LEFT_MONO = 1,
-	AUDIO_PLAY_RIGHT_MONO = 2,
-	AUDIO_PLAY_BOTH_MONO = 3,
-	AUDIO_PLAY_OTHER_MONO = 4
-
-}MV_AUDIO_PLAYBACK_MONO;
-
-typedef enum _mvAudioRecordMono
-{
-	AUDIO_REC_LEFT_MONO = 0,
-	AUDIO_REC_RIGHT_MONO = 1,
-
-}MV_AUDIO_RECORD_MONO;
-
-typedef enum _mvAudioSampleSize
-{
-	SAMPLE_32BIT = 0,
-	SAMPLE_24BIT = 1,
-	SAMPLE_20BIT = 2,
-	SAMPLE_16BIT = 3,
-	SAMPLE_16BIT_NON_COMPACT = 7
-
-}MV_AUDIO_SAMPLE_SIZE;
-
-typedef enum _mvAudioI2SJustification
-{
-	LEFT_JUSTIFIED = 0,
-	I2S_JUSTIFIED = 5,
-	RISE_BIT_CLCK_JUSTIFIED =7,
-	RIGHT_JUSTIFIED = 8,
-
-}MV_AUDIO_I2S_JUSTIFICATION;
-
+#include "mvSysAudioConfig.h"
 
 #define APBBCR_SIZE_MAX						0x3FFFFF
 #define APBBCR_SIZE_SHIFT					0x2
@@ -157,12 +81,13 @@ typedef enum _mvAudioI2SJustification
 /********************/
 /* Clocking Control*/
 /*******************/
-#define MV_AUDIO_DCO_CTRL_REG(unit)			(AUDIO_REG_BASE(unit) + 0x1204)
-#define MV_AUDIO_SPCR_DCO_STATUS_REG(unit)		(AUDIO_REG_BASE(unit) + 0x120c)
-#define MV_AUDIO_SAMPLE_CNTR_CTRL_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1220)
-#define MV_AUDIO_PLAYBACK_SAMPLE_CNTR_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1224)
-#define MV_AUDIO_RECORD_SAMPLE_CNTR_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1228)
-#define MV_AUDIO_CLOCK_CTRL_REG(unit)			(AUDIO_REG_BASE(unit) + 0x1230)
+#define MV_AUDIO_PLL_CTRL1_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x1200)
+#define MV_AUDIO_DCO_CTRL_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x1204)
+#define MV_AUDIO_SPCR_DCO_STATUS_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x120c)
+#define MV_AUDIO_SAMPLE_CNTR_CTRL_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1220)
+#define MV_AUDIO_PLAYBACK_SAMPLE_CNTR_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1224)
+#define MV_AUDIO_RECORD_SAMPLE_CNTR_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1228)
+#define MV_AUDIO_CLOCK_CTRL_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x1230)
 
 
 /* MV_AUDIO_DCO_CTRL_REG */
@@ -225,12 +150,12 @@ typedef enum _mvAudioI2SJustification
 /********************/
 /* Interrupts		*/
 /*******************/
-#define MV_AUDIO_ERROR_CAUSE_REG(unit)			(AUDIO_REG_BASE(unit) + 0x1300)
-#define MV_AUDIO_ERROR_MASK_REG(unit)			(AUDIO_REG_BASE(unit) + 0x1304)
-#define MV_AUDIO_INT_CAUSE_REG(unit)			(AUDIO_REG_BASE(unit) + 0x1308)
-#define MV_AUDIO_INT_MASK_REG(unit)			(AUDIO_REG_BASE(unit) + 0x130C)
-#define MV_AUDIO_RECORD_BYTE_CNTR_INT_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1310)
-#define MV_AUDIO_PLAYBACK_BYTE_CNTR_INT_REG(unit)	(AUDIO_REG_BASE(unit) + 0x1314)
+#define MV_AUDIO_ERROR_CAUSE_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x1300)
+#define MV_AUDIO_ERROR_MASK_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x1304)
+#define MV_AUDIO_INT_CAUSE_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x1308)
+#define MV_AUDIO_INT_MASK_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x130C)
+#define MV_AUDIO_RECORD_BYTE_CNTR_INT_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1310)
+#define MV_AUDIO_PLAYBACK_BYTE_CNTR_INT_REG(unit)	(MV_AUDIO_REGS_BASE(unit) + 0x1314)
 
 /* MV_AUDIO_INT_CAUSE_REG*/
 #define AICR_RECORD_BYTES_INT			(0x1 << 13)
@@ -243,23 +168,23 @@ typedef enum _mvAudioI2SJustification
 /* Audio Playback	*/
 /*******************/
 /* General */
-#define MV_AUDIO_PLAYBACK_CTRL_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1100)
-#define MV_AUDIO_PLAYBACK_BUFF_START_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1104)
-#define MV_AUDIO_PLAYBACK_BUFF_SIZE_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1108)
-#define MV_AUDIO_PLAYBACK_BUFF_BYTE_CNTR_REG(unit)	(AUDIO_REG_BASE(unit) + 0x110c)
+#define MV_AUDIO_PLAYBACK_CTRL_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1100)
+#define MV_AUDIO_PLAYBACK_BUFF_START_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1104)
+#define MV_AUDIO_PLAYBACK_BUFF_SIZE_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1108)
+#define MV_AUDIO_PLAYBACK_BUFF_BYTE_CNTR_REG(unit)	(MV_AUDIO_REGS_BASE(unit) + 0x110c)
 
 /*SPDIF */
-#define MV_AUDIO_SPDIF_PLAY_CTRL_REG(unit)		(AUDIO_REG_BASE(unit) + 0x2204)
+#define MV_AUDIO_SPDIF_PLAY_CTRL_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x2204)
 #define MV_AUDIO_SPDIF_PLAY_CH_STATUS_LEFT_REG(unit, ind)	        \
-                                        (AUDIO_REG_BASE(unit) + 0x2280 + (ind << 2))
+                                        (MV_AUDIO_REGS_BASE(unit) + 0x2280 + (ind << 2))
 #define MV_AUDIO_SPDIF_PLAY_CH_STATUS_RIGHT_REG(unit, ind)	    \
-                                        (AUDIO_REG_BASE(unit) + 0x22a0 + (ind << 2))
+                                        (MV_AUDIO_REGS_BASE(unit) + 0x22a0 + (ind << 2))
 #define MV_AUDIO_SPDIF_PLAY_USR_BITS_LEFT_REG(unit, ind)          \
-                                	(AUDIO_REG_BASE(unit) + 0x22c0 + (ind << 2))
+                                	(MV_AUDIO_REGS_BASE(unit) + 0x22c0 + (ind << 2))
 #define MV_AUDIO_SPDIF_PLAY_USR_BITS_RIGHT_REG(unit, ind)              \
-                                        (AUDIO_REG_BASE(unit) + 0x22e0 + (ind << 2))
+                                        (MV_AUDIO_REGS_BASE(unit) + 0x22e0 + (ind << 2))
 /*I2S*/
-#define MV_AUDIO_I2S_PLAY_CTRL_REG(unit)		(AUDIO_REG_BASE(unit) + 0x2508)
+#define MV_AUDIO_I2S_PLAY_CTRL_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x2508)
 
 
 /* MV_AUDIO_PLAYBACK_CTRL_REG */
@@ -333,25 +258,25 @@ typedef enum _mvAudioI2SJustification
 /* Audio Recordnig	*/
 /*******************/
 /* General */
-#define MV_AUDIO_RECORD_CTRL_REG(unit)			(AUDIO_REG_BASE(unit) + 0x1000)
-#define MV_AUDIO_RECORD_START_ADDR_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1004)
-#define MV_AUDIO_RECORD_BUFF_SIZE_REG(unit)		(AUDIO_REG_BASE(unit) + 0x1008)
-#define MV_AUDIO_RECORD_BUF_BYTE_CNTR_REG(unit)		(AUDIO_REG_BASE(unit) + 0x100C)
+#define MV_AUDIO_RECORD_CTRL_REG(unit)			(MV_AUDIO_REGS_BASE(unit) + 0x1000)
+#define MV_AUDIO_RECORD_START_ADDR_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1004)
+#define MV_AUDIO_RECORD_BUFF_SIZE_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x1008)
+#define MV_AUDIO_RECORD_BUF_BYTE_CNTR_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x100C)
 
 /*SPDIF */
-#define MV_AUDIO_SPDIF_REC_GEN_REG(unit)		(AUDIO_REG_BASE(unit) + 0x2004)
-#define MV_AUDIO_SPDIF_REC_INT_CAUSE_MASK_REG(unit)	(AUDIO_REG_BASE(unit) + 0x2008)
+#define MV_AUDIO_SPDIF_REC_GEN_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x2004)
+#define MV_AUDIO_SPDIF_REC_INT_CAUSE_MASK_REG(unit)	(MV_AUDIO_REGS_BASE(unit) + 0x2008)
 #define MV_AUDIO_SPDIF_REC_CH_STATUS_LEFT_REG(unit, ind)                  \
-		                                (AUDIO_REG_BASE(unit) + 0x2180 + ((ind) << 2))
+		                                (MV_AUDIO_REGS_BASE(unit) + 0x2180 + ((ind) << 2))
 #define MV_AUDIO_SPDIF_REC_CH_STATUS_RIGHT_REG(unit, ind)                 \
-                                        	(AUDIO_REG_BASE(unit) + 0x21a0 + ((ind) << 2))
+                                        	(MV_AUDIO_REGS_BASE(unit) + 0x21a0 + ((ind) << 2))
 #define MV_AUDIO_SPDIF_REC_USR_BITS_LEFT_REG(unit, ind)                   \
-                                    		(AUDIO_REG_BASE(unit) + 0x21c0 + ((ind) << 2))
+                                    		(MV_AUDIO_REGS_BASE(unit) + 0x21c0 + ((ind) << 2))
 #define MV_AUDIO_SPDIF_REC_USR_BITS_RIGHT_REG(unit, ind)                  \
-                                        	(AUDIO_REG_BASE(unit) + 0x21e0 + ((ind) << 2))
+                                        	(MV_AUDIO_REGS_BASE(unit) + 0x21e0 + ((ind) << 2))
 
 /*I2S*/
-#define MV_AUDIO_I2S_REC_CTRL_REG(unit)		(AUDIO_REG_BASE(unit) + 0x2408)
+#define MV_AUDIO_I2S_REC_CTRL_REG(unit)		(MV_AUDIO_REGS_BASE(unit) + 0x2408)
 
 
 /* MV_AUDIO_RECORD_CTRL_REG*/
@@ -403,6 +328,44 @@ typedef enum _mvAudioI2SJustification
 
 #define AIRCR_I2S_SAMPLE_SIZE_OFFS		30
 #define AIRCR_I2S_SAMPLE_SIZE_MASK		(0x3 << AIRCR_I2S_SAMPLE_SIZE_OFFS)
+
+/* 
+** Address decoding related.
+*/
+
+#define MV_AUDIO_MAX_ADDR_DECODE_WIN 		2
+#define MV_AUDIO_RECORD_WIN_NUM			0
+#define MV_AUDIO_PLAYBACK_WIN_NUM		1
+
+#define MV_AUDIO_WIN_CTRL_REG(unit, win)	(MV_AUDIO_REGS_BASE(unit) + 0xA04 + ((win)<<3))
+#define MV_AUDIO_WIN_BASE_REG(unit, win)	(MV_AUDIO_REGS_BASE(unit) + 0xA00 + ((win)<<3))
+
+#define MV_AUDIO_RECORD_WIN_CTRL_REG(unit)	MV_AUDIO_WIN_CTRL_REG(unit, MV_AUDIO_RECORD_WIN_NUM)
+#define MV_AUDIO_RECORD_WIN_BASE_REG(unit)	MV_AUDIO_WIN_BASE_REG(unit, MV_AUDIO_RECORD_WIN_NUM)
+#define MV_AUDIO_PLAYBACK_WIN_CTRL_REG(unit)	MV_AUDIO_WIN_CTRL_REG(unit, MV_AUDIO_PLAYBACK_WIN_NUM)
+#define MV_AUDIO_PLAYBACK_WIN_BASE_REG(unit)	MV_AUDIO_WIN_BASE_REG(unit, MV_AUDIO_PLAYBACK_WIN_NUM)
+
+
+/* BITs in Windows 0-3 Control and Base Registers */
+#define MV_AUDIO_WIN_ENABLE_BIT               0
+#define MV_AUDIO_WIN_ENABLE_MASK              (1<<MV_AUDIO_WIN_ENABLE_BIT)
+
+#define MV_AUDIO_WIN_TARGET_OFFSET            4
+#define MV_AUDIO_WIN_TARGET_MASK              (0xF<<MV_AUDIO_WIN_TARGET_OFFSET)
+
+#define MV_AUDIO_WIN_ATTR_OFFSET              8
+#define MV_AUDIO_WIN_ATTR_MASK                (0xFF<<MV_AUDIO_WIN_ATTR_OFFSET)
+
+#define MV_AUDIO_WIN_SIZE_OFFSET              16
+#define MV_AUDIO_WIN_SIZE_MASK                (0xFFFF<<MV_AUDIO_WIN_SIZE_OFFSET)
+
+#define MV_AUDIO_WIN_BASE_OFFSET              16
+#define MV_AUDIO_WIN_BASE_MASK                (0xFFFF<<MV_AUDIO_WIN_BASE_OFFSET)
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCMVAudioRegsH */
 
