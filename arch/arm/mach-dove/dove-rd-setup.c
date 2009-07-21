@@ -197,6 +197,7 @@ void __init dove_battery_init(void)
 	platform_device_register_simple("bq2084-battery", 0, NULL, 0);
 }
 
+#ifdef CONFIG_PM
 /*****************************************************************************
  * POWER MANAGEMENT
  ****************************************************************************/
@@ -241,6 +242,7 @@ static int __init dove_rd_pm_init(void)
 }
 
 __initcall(dove_rd_pm_init);
+#endif
 
 /*****************************************************************************
  * Board Init
