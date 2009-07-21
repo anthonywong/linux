@@ -436,38 +436,21 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if ((card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
 	    (host->caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA))) {
 		unsigned ext_csd_bit, bus_width;
-		int temp_caps = host->caps & (MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA);
 
-		do {
-			if (temp_caps & MMC_CAP_8_BIT_DATA) {
-				ext_csd_bit = EXT_CSD_BUS_WIDTH_8;
-				bus_width = MMC_BUS_WIDTH_8;
-			} else {
-				ext_csd_bit = EXT_CSD_BUS_WIDTH_4;
-				bus_width = MMC_BUS_WIDTH_4;
-			}
-			
-			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					 EXT_CSD_BUS_WIDTH, ext_csd_bit);
-			mmc_set_bus_width(card->host, bus_width);
-			if (mmc_test_bus_width (card, 1<<bus_width))
-				break;
-				
-			if (bus_width == MMC_BUS_WIDTH_8)
-				temp_caps &= ~MMC_CAP_8_BIT_DATA;
-			else
-				temp_caps &= ~MMC_CAP_4_BIT_DATA;
-				
-			if (temp_caps == 0) {
-				ext_csd_bit = EXT_CSD_BUS_WIDTH_1;
-				bus_width = MMC_BUS_WIDTH_1;
-			}
-		} while (temp_caps);
-		
+		if (host->caps & MMC_CAP_8_BIT_DATA) {
+			ext_csd_bit = EXT_CSD_BUS_WIDTH_8;
+			bus_width = MMC_BUS_WIDTH_8;
+		} else {
+			ext_csd_bit = EXT_CSD_BUS_WIDTH_4;
+			bus_width = MMC_BUS_WIDTH_4;
+		}
+
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_BUS_WIDTH, ext_csd_bit);
+
 		if (err)
 			goto free_card;
+
 		mmc_set_bus_width(card->host, bus_width);
 	}
 
