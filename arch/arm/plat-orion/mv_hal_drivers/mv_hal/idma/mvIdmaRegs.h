@@ -65,6 +65,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCmvIdmaSpech
 #define __INCmvIdmaSpech
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* defines */
 
@@ -204,6 +207,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define IESR_ERR_TYPE_OFFS			0
 #define IESR_ERR_TYPE_MASK			(0x1f << IESR_ERR_TYPE_OFFS)
 
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif	/* __INCmvIdmaSpech */
