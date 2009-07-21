@@ -62,8 +62,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysXorConfig.h"
+#include "mvXorRegs.h"
+#include "mvXor.h"
 
-#include "xor/mvXor.h"
 /* defines  */
 #ifdef MV_DEBUG
 	#define DB(x)	x

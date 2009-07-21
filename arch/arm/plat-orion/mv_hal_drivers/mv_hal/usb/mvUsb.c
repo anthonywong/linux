@@ -62,22 +62,18 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
-
+#include "mvCommon.h"
 #include "mvOs.h"
-#include "mvDebug.h"
-#include "mvDeviceId.h"
-#include "usb/mvUsb.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysUsbConfig.h"
+#include "mvUsbRegs.h"
+#include "mvUsb.h"
 
-/* ronen should be cleaned */
-#include "cpu/mvCpu.h"
-#include "ctrlEnv/sys/mvCpuIf.h"
-#include "boardEnv/mvBoardEnvLib.h"
-#include "gpp/mvGpp.h"
-
+static MV_USB_HAL_DATA	usbHalData;
 
 MV_U32  mvUsbGetCapRegAddr(int devNo)
 {
-    return (INTER_REGS_BASE | MV_USB_CORE_CAP_LENGTH_REG(devNo));
+    return (MV_USB_CORE_CAP_LENGTH_REG(devNo));
 }
 
 #ifdef MV_USB_VOLTAGE_FIX
@@ -528,7 +524,7 @@ static void    mvUsbPhy90nmInit(int dev)
     regVal = MV_REG_READ(MV_USB_PHY_TX_CTRL_REG(dev));
 
     /* bit[21]	(TX_BLK_EN) = 0 for B0 only */
-    if( (mvCtrlModelGet() == MV_6183_DEV_ID))
+    if( (usbHalData.ctrlModel == MV_6183_DEV_ID))
     	regVal &= ~(0x1 << 21);
 
 
@@ -544,7 +540,7 @@ static void    mvUsbPhy90nmInit(int dev)
     regVal &= ~(0xf << 3);
     regVal |= (0x8 << 3);
 
-    if( (mvCtrlModelGet() == MV_6183_DEV_ID))
+    if( (usbHalData.ctrlModel == MV_6183_DEV_ID))
     {
 	regVal &= ~(0x7);
 	regVal |= (0x4);
@@ -583,7 +579,7 @@ static void    mvUsbPhy90nmInit(int dev)
     regVal &= ~(0x3 << 6);
 
     /* bits[11]	SQ_CM_SEL = 0x1 for 6183 B0 only */
-    if( (mvCtrlModelGet() == MV_6183_DEV_ID))
+    if( (usbHalData.ctrlModel == MV_6183_DEV_ID))
 	regVal |= (0x1 << 11);
 
     /* bit[24]	    REG_TEST_SUSPENDM	= 0x1 */
@@ -625,7 +621,7 @@ static void    mvUsbPhyInit(int dev)
     /******* USB PHY Tx Control Register Register 0x420 *******/
     regVal = MV_REG_READ(MV_USB_PHY_TX_CTRL_REG(dev));
 
-    if( (mvCtrlModelGet() == MV_5181_DEV_ID) && (mvCtrlRevGet() <= MV_5181_A1_REV) )
+    if( (usbHalData.ctrlModel == MV_5181_DEV_ID) && (usbHalData.ctrlRev <= MV_5181_A1_REV) )
     {
         /* For OrionI A1/A0 rev:  Bit[21] = 0 (TXDATA_BLOCK_EN  = 0). */
         regVal &= ~(1 << 21);
@@ -644,7 +640,7 @@ static void    mvUsbPhyInit(int dev)
      *      64560, 64660, 6082, 5181, 5182, etc = 0x4
      *      5281                                = 0x3
      */
-    if(mvCtrlModelGet() == MV_5281_DEV_ID)
+    if(usbHalData.ctrlModel == MV_5281_DEV_ID)
     {
         regVal &= ~(0x7 << 0);
         regVal |= (0x3 << 0);
@@ -661,8 +657,8 @@ static void    mvUsbPhyInit(int dev)
      *
      */
     regVal &= ~(0xf << 3);
-    if( (mvCtrlModelGet() == MV64560_DEV_ID) ||
-        (mvCtrlModelGet() == MV64660_DEV_ID))
+    if( (usbHalData.ctrlModel == MV64560_DEV_ID) ||
+        (usbHalData.ctrlModel == MV64660_DEV_ID))
     {
         regVal |= (0xA << 3);
     }
@@ -681,11 +677,11 @@ static void    mvUsbPhyInit(int dev)
     /* 88F5181-A0/A1/B0 = 11, 88F5281-A0 = 10, all other 00 */
     /* 64660-A0 = 10 */
     regVal &= ~(0x3 << 8);
-    if( (mvCtrlModelGet() == MV_5181_DEV_ID) && (mvCtrlRevGet() <= MV_5181_B0_REV) )
+    if( (usbHalData.ctrlModel == MV_5181_DEV_ID) && (usbHalData.ctrlRev <= MV_5181_B0_REV) )
     {
         regVal |= (0x3 << 8);
     }
-    else if(mvCtrlModelGet() == MV64660_DEV_ID)
+    else if(usbHalData.ctrlModel == MV64660_DEV_ID)
     {
         regVal |= (0x2 << 8);
     }
@@ -704,8 +700,8 @@ static void    mvUsbPhyInit(int dev)
      *      5181, 5182, 5281, 6082, etc = 0x0
      */
     regVal &= ~(0xf << 4);
-    if( (mvCtrlModelGet() == MV64560_DEV_ID) ||
-        (mvCtrlModelGet() == MV64660_DEV_ID))
+    if( (usbHalData.ctrlModel == MV64560_DEV_ID) ||
+        (usbHalData.ctrlModel == MV64660_DEV_ID))
     {
         regVal |= (0x1 << 4);
     }
@@ -726,8 +722,8 @@ static void    mvUsbPhyInit(int dev)
 
 
     /* <VPLLCAL> bits[17:16] = 0x1 */
-    if( (mvCtrlModelGet() == MV64560_DEV_ID) ||
-        (mvCtrlModelGet() == MV64660_DEV_ID))
+    if( (usbHalData.ctrlModel == MV64560_DEV_ID) ||
+        (usbHalData.ctrlModel == MV64660_DEV_ID))
     {
         regVal &= ~(0x3 << 16);
         regVal |= (0x1 << 16);
@@ -752,8 +748,8 @@ static void    mvUsbPhyInit(int dev)
     regVal &= ~(1 << 15);
 
     /* <REG_FIFO_OVUF_SEL> bit[17] = 0x1 */
-    if( (mvCtrlModelGet() == MV64560_DEV_ID) ||
-        (mvCtrlModelGet() == MV64660_DEV_ID))
+    if( (usbHalData.ctrlModel == MV64560_DEV_ID) ||
+        (usbHalData.ctrlModel == MV64660_DEV_ID))
     {
         regVal |= (1 << 17);
     }
@@ -777,9 +773,11 @@ static void    mvUsbPhyInit(int dev)
 * RETURN:
 *       MV_ERROR if setting fail.
 *******************************************************************************/
-MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost)
+MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost, MV_USB_HAL_DATA *halData)
 {
     MV_U32          regVal;
+
+    mvOsMemcpy(&usbHalData, halData, sizeof(MV_USB_HAL_DATA));
 
     /* Clear Interrupt Cause and Mask registers */
     MV_REG_WRITE(MV_USB_BRIDGE_INTR_CAUSE_REG(dev), 0);
@@ -791,7 +789,7 @@ MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost)
     while( MV_REG_READ(MV_USB_CORE_CMD_REG(dev)) & MV_USB_CORE_CMD_RESET_MASK);
 
     /* Clear bit 4 in USB bridge control register for enableing core byte swap */
-    if((mvCtrlModelGet() == MV64560_DEV_ID) || (mvCtrlModelGet() == MV64660_DEV_ID))
+    if((usbHalData.ctrlModel == MV64560_DEV_ID) || (usbHalData.ctrlModel == MV64660_DEV_ID))
     {
         MV_REG_WRITE(MV_USB_BRIDGE_CTRL_REG(dev),(MV_REG_READ(MV_USB_BRIDGE_CTRL_REG(dev))
                            & ~MV_USB_BRIDGE_CORE_BYTE_SWAP_MASK));
@@ -806,16 +804,16 @@ MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost)
      * Orion1-NAS A1 (id=0x5182, rev=1) and before
      * Orion2 B0 (id=0x5281, rev=1) and before
      */
-    if( ((mvCtrlModelGet() == MV_5181_DEV_ID) &&
-         ((mvCtrlRevGet() <= MV_5181_B1_REV) || (mvCtrlRevGet() == MV_5181L_A0_REV))) ||
-        ((mvCtrlModelGet() == MV_5182_DEV_ID) &&
-         (mvCtrlRevGet() <= MV_5182_A1_REV)) ||
-        ((mvCtrlModelGet() == MV_5180_DEV_ID) &&
-         (mvCtrlRevGet() <= MV_5180N_B1_REV)) )
+    if( ((usbHalData.ctrlModel == MV_5181_DEV_ID) &&
+         ((usbHalData.ctrlRev <= MV_5181_B1_REV) || (usbHalData.ctrlRev == MV_5181L_A0_REV))) ||
+        ((usbHalData.ctrlModel == MV_5182_DEV_ID) &&
+         (usbHalData.ctrlRev <= MV_5182_A1_REV)) ||
+        ((usbHalData.ctrlModel == MV_5180_DEV_ID) &&
+         (usbHalData.ctrlRev <= MV_5180N_B1_REV)) )
     {
         /* Do nothing */
     }
-    else if (mvCtrlModelGet() == MV_6781_DEV_ID)
+    else if (usbHalData.ctrlModel == MV_6781_DEV_ID)
     {
         /* Change value of new register 0x360 */
         regVal = MV_REG_READ(MV_USB_BRIDGE_IPG_REG(dev));
@@ -847,25 +845,25 @@ MV_STATUS   mvUsbHalInit(int dev, MV_BOOL isHost)
     }
 
     /********* Update USB PHY configuration **********/
-    if(	(mvCtrlModelGet() == MV_78100_DEV_ID) || 
-	    (mvCtrlModelGet() == MV_78200_DEV_ID))
+    if(	(usbHalData.ctrlModel == MV_78100_DEV_ID) || 
+	    (usbHalData.ctrlModel == MV_78200_DEV_ID))
     {
         mvUsbPhy65nmNewInit(dev);
     }
-    else if((mvCtrlModelGet() == MV_6281_DEV_ID) ||
-	        (mvCtrlModelGet() == MV_6192_DEV_ID) ||
-	        (mvCtrlModelGet() == MV_6180_DEV_ID) || 
-	        (mvCtrlModelGet() == MV_78XX0_DEV_ID) )
+    else if((usbHalData.ctrlModel == MV_6281_DEV_ID) ||
+	        (usbHalData.ctrlModel == MV_6192_DEV_ID) ||
+	        (usbHalData.ctrlModel == MV_6180_DEV_ID) || 
+	        (usbHalData.ctrlModel == MV_78XX0_DEV_ID) )
     {
         mvUsbPhy65nmInit(dev);
     }
-    else if( mvCtrlModelGet() == MV_6183_DEV_ID )
+    else if( usbHalData.ctrlModel == MV_6183_DEV_ID )
     {
         mvUsbPhy90nmInit(dev);
     }
-    else if (mvCtrlModelGet() == MV_6781_DEV_ID)
+    else if (usbHalData.ctrlModel == MV_6781_DEV_ID)
     {
-	if ( (mvCtrlRevGet() == MV_6781_Z0_REV) || (mvCtrlRevGet() == MV_6781_Z1_REV) )
+	if ( (usbHalData.ctrlRev == MV_6781_Z0_REV) || (usbHalData.ctrlRev == MV_6781_Z1_REV) )
 		mvUsbPhy6781Init(dev);
 	else
 		mvUsbPhy6781Y0Init(dev);

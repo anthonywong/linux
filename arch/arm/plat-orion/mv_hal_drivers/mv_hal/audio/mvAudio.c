@@ -61,10 +61,25 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
+
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysAudioConfig.h"
+#include "mvAudioRegs.h"
 #include "mvAudio.h"
-#include "ctrlEnv/sys/mvSysAudio.h"
+
+//#define MV_AUDIO_SKIP_WIN_DECODING
 
 static MV_U32 audioBurstBytesNumGet(MV_AUDIO_BURST_SIZE burst);
+
+
+static MV_AUDIO_HAL_DATA	audioHalData[MV_AUDIO_MAX_UNITS];
+#ifndef MV_AUDIO_SKIP_WIN_DECODING
+static MV_UNIT_WIN_INFO 	audioAddrDecWinMap[MAX_TARGETS + 1];
+static MV_STATUS mvAudioReplaceAddrWin(MV_U32 unit, MV_U32 winId, MV_U32 buffPhysAddr,
+		MV_U32 buffSize);
+#endif 
 
 /*******************************************************************************
 * mvAudioHalInit - Initialize the Audio subsystem
@@ -79,25 +94,26 @@ static MV_U32 audioBurstBytesNumGet(MV_AUDIO_BURST_SIZE burst);
 *       None
 *
 *******************************************************************************/
-MV_VOID mvAudioHalInit(MV_U8 unit)
+MV_VOID mvAudioHalInit(MV_U8 unit, MV_AUDIO_HAL_DATA *halData)
 {
 	int timeout;
-    
-	MV_REG_BIT_RESET(AUDIO_REG_BASE(unit) + 0x1200,0x333FF8);
-	MV_REG_BIT_SET(AUDIO_REG_BASE(unit) + 0x1200,0x111D18);
-	
+
+	MV_REG_BIT_RESET(MV_AUDIO_PLL_CTRL1_REG(unit),0x333FF8);
+	MV_REG_BIT_SET(MV_AUDIO_PLL_CTRL1_REG(unit),0x111D18);
+
 	/*MV_REG_BIT_RESET(0x10074,0xC018000);
 	  MV_REG_BIT_SET(0x10074,0x4008000);*/
 	
 	timeout = 10000000;
 	while(timeout--);
     
-	MV_REG_BIT_RESET(AUDIO_REG_BASE(unit) + 0x1200,0x333FF8);
-	MV_REG_BIT_SET(AUDIO_REG_BASE(unit) + 0x1200,0x111D18);
-	
+	MV_REG_BIT_RESET(MV_AUDIO_PLL_CTRL1_REG(unit),0x333FF8);
+	MV_REG_BIT_SET(MV_AUDIO_PLL_CTRL1_REG(unit),0x111D18);
+
+	mvOsMemcpy(&audioHalData[unit], halData, sizeof(MV_AUDIO_HAL_DATA));
 	/*MV_REG_BIT_RESET(0x10074,0xC018000);
 	  MV_REG_BIT_SET(0x10074,0x4008000);*/
-	
+
 }
 
 
@@ -204,12 +220,6 @@ MV_VOID mvAudioSpcrCtrlGet(int unit, MV_AUDIO_FREQ_DATA *spcrCtrl)
 *******************************************************************************/
 MV_STATUS mvAudioPlaybackControlSet(int unit, MV_AUDIO_PLAYBACK_CTRL *ctrl)
 {
-#ifndef MV_AUDIO_SKIP_WIN_DECODING
-	MV_AUDIO_DEC_WIN audioWin;
-	MV_CPU_DEC_WIN  cpuWin;
-	MV_ADDR_WIN   bufAddrWin;
-	MV_U32 target;
-#endif
 	MV_U32 reg;
 
 	if (ctrl->monoMode >= AUDIO_PLAY_OTHER_MONO)
@@ -264,77 +274,14 @@ MV_STATUS mvAudioPlaybackControlSet(int unit, MV_AUDIO_PLAYBACK_CTRL *ctrl)
 	MV_REG_WRITE(MV_AUDIO_PLAYBACK_CTRL_REG(unit), reg);
 
 #ifndef MV_AUDIO_SKIP_WIN_DECODING
-	/* Get the details of the Playback address window*/
-	if( mvAudioWinGet(unit, MV_AUDIO_PLAYBACK_WIN_NUM, &audioWin) != MV_OK )
+	if(mvAudioReplaceAddrWin(unit, MV_AUDIO_PLAYBACK_WIN_NUM, ctrl->bufferPhyBase,
+				ctrl->bufferSize) != MV_OK)
 	{
-		mvOsPrintf("mvAudioPlaybackControlSet: Error calling mvAudioWinGet on win %d\n",
-				   MV_AUDIO_PLAYBACK_WIN_NUM);
+		mvOsPrintf("mvAudioRecordControlSet: Failed to replace address decoding window.\n");
 		return MV_FAIL;
 	}
-
-	bufAddrWin.baseHigh = 0;
-	bufAddrWin.baseLow = ctrl->bufferPhyBase;
-	bufAddrWin.size = ctrl->bufferSize;
-
-	/* If Playback window is not enabled or buffer address is not within window boundries
-	   then try to set a new value to the Playback window by
-	   Geting the target of where the buffer exist, if the buffer is within the window
-	   of the new target then set the Playback window to that target
-	   else return Fail
-    	*/
-
-	if((audioWin.enable != MV_TRUE) ||
-	  (MV_TRUE != ctrlWinWithinWinTest(&bufAddrWin, &audioWin.addrWin)))
-	{
-		/* Get the target of the buffer that user require*/
-		target = mvCpuIfTargetOfBaseAddressGet(ctrl->bufferPhyBase);
-		if (MAX_TARGETS == target)
-		{
-			mvOsPrintf("mvCpuIfTargetOfBaseAddressGet: Error calling mvAudioWinGet on address 0x%x\n",
-					   ctrl->bufferPhyBase);
-			return MV_FAIL;
-		}
-
-		/* Get the window details of this target*/
-		if (MV_OK != mvCpuIfTargetWinGet(target, &cpuWin))
-		{
-			mvOsPrintf("mvAudioPlaybackControlSet: Error calling mvCpuIfTargetWinGet on target %d\n",
-					   target);
-			return MV_FAIL;
-
-		}
-
-		/* if the address window of the target is enabled and te user buffer is within
-		   that target address window then set the palyback\recording window to the
-		   target window
-
-		*/
-		if((cpuWin.enable == MV_TRUE) &&
-		  (MV_TRUE == ctrlWinWithinWinTest(&bufAddrWin, &cpuWin.addrWin)))
-		{
-			audioWin.addrWin.baseHigh = cpuWin.addrWin.baseHigh;
-			audioWin.addrWin.baseLow = cpuWin.addrWin.baseLow;
-			audioWin.addrWin.size = cpuWin.addrWin.size;
-			audioWin.enable = cpuWin.enable;
-			audioWin.target = target;
-
-
-			if( mvAudioWinSet(unit, MV_AUDIO_PLAYBACK_WIN_NUM, &audioWin ) != MV_OK )
-			{
-				mvOsPrintf("mvAudioPlaybackControlSet: Error calling mvAudioWinGet on win %d\n",
-						   MV_AUDIO_PLAYBACK_WIN_NUM);
-				return MV_FAIL;
-			}
-
-		}
-		else
-		{
-			mvOsPrintf("mvAudioPlaybackControlSet: Error buffer is not within a valid target\n");
-			return MV_FAIL;
-
-		}
-	}
 #endif
+
     	/* Set the interrupt byte count.                            */
     	reg = ctrl->intByteCount & APBCI_BYTE_COUNT_MASK;
     	MV_REG_WRITE(MV_AUDIO_PLAYBACK_BYTE_CNTR_INT_REG(unit), reg);
@@ -609,12 +556,6 @@ MV_VOID mvI2SPlaybackCtrlGet(int unit, MV_I2S_PLAYBACK_CTRL *ctrl)
 /* Audio Recording*/
 MV_STATUS mvAudioRecordControlSet(int unit, MV_AUDIO_RECORD_CTRL *ctrl)
 {
-#ifndef MV_AUDIO_SKIP_WIN_DECODING
-	MV_AUDIO_DEC_WIN audioWin;
-	MV_CPU_DEC_WIN  cpuWin;
-	MV_ADDR_WIN   bufAddrWin;
-	MV_U32 target;
-#endif
 	MV_U32 reg;
 
 	if (ctrl->monoChannel > AUDIO_REC_RIGHT_MONO)
@@ -691,78 +632,16 @@ MV_STATUS mvAudioRecordControlSet(int unit, MV_AUDIO_RECORD_CTRL *ctrl)
 		MV_REG_BIT_RESET (MV_AUDIO_RECORD_CTRL_REG(unit), 
 				ARCR_RECORD_MONO_MASK);
 	}
+
 #ifndef MV_AUDIO_SKIP_WIN_DECODING
-	/* Get the details of the Record address window*/
-	if( mvAudioWinGet(unit, MV_AUDIO_RECORD_WIN_NUM, &audioWin ) != MV_OK )
+	if(mvAudioReplaceAddrWin(unit, MV_AUDIO_RECORD_WIN_NUM, ctrl->bufferPhyBase,
+				ctrl->bufferSize) != MV_OK)
 	{
-		mvOsPrintf("mvAudioRecordControlSet: Error calling mvAudioWinGet on win %d\n",
-				   MV_AUDIO_RECORD_WIN_NUM);
+		mvOsPrintf("mvAudioRecordControlSet: Failed to replace address decoding window.\n");
 		return MV_FAIL;
 	}
-
-	bufAddrWin.baseHigh = 0;
-	bufAddrWin.baseLow = ctrl->bufferPhyBase;
-	bufAddrWin.size = ctrl->bufferSize;
-
-	/* If Record window is not enabled or buffer address is not within window boundries
-	   then try to set a new value to the Record window by
-	   Geting the target of where the buffer exist, if the buffer is within the window
-	   of the new target then set the Record window to that target
-	   else return Fail
-    */
-
-	if((audioWin.enable != MV_TRUE) ||
-	  (MV_TRUE != ctrlWinWithinWinTest(&bufAddrWin, &audioWin.addrWin)))
-	{
-		/* Get the target of the buffer that user require*/
-		target = mvCpuIfTargetOfBaseAddressGet(ctrl->bufferPhyBase);
-		if (MAX_TARGETS == target)
-		{
-			mvOsPrintf("mvAudioRecordControlSet: Error calling mvAudioWinGet on address 0x%x\n",
-					   ctrl->bufferPhyBase);
-			return MV_FAIL;
-		}
-
-		/* Get the window details of this target*/
-		if (MV_OK != mvCpuIfTargetWinGet(target, &cpuWin))
-		{
-			mvOsPrintf("mvAudioRecordControlSet: Error calling mvCpuIfTargetWinGet on target %d\n",
-					   target);
-			return MV_FAIL;
-
-		}
-
-		/* if the address window of the target is enabled and te user buffer is within
-		   that target address window then set the palyback\recording window to the
-		   target window
-
-		*/
-		if((cpuWin.enable == MV_TRUE) &&
-		  (MV_TRUE == ctrlWinWithinWinTest(&bufAddrWin, &cpuWin.addrWin)))
-		{
-
-			audioWin.addrWin.baseHigh = cpuWin.addrWin.baseHigh;
-			audioWin.addrWin.baseLow = cpuWin.addrWin.baseLow;
-			audioWin.addrWin.size = cpuWin.addrWin.size;
-			audioWin.enable = cpuWin.enable;
-			audioWin.target = target;
-
-			if( mvAudioWinSet(unit, MV_AUDIO_RECORD_WIN_NUM, &audioWin ) != MV_OK )
-			{
-				mvOsPrintf("mvAudioRecordControlSet: Error calling mvAudioWinGet on win %d\n",
-						   MV_AUDIO_RECORD_WIN_NUM);
-				return MV_FAIL;
-			}
-
-		}
-		else
-		{
-			mvOsPrintf("mvAudioRecordControlSet: Error buffer is not within a valid target\n");
-			return MV_FAIL;
-
-		}
-	}
 #endif
+
     	/* Set the interrupt byte count.                            */
     	reg = ctrl->intByteCount & ARBCI_BYTE_COUNT_MASK;
     	MV_REG_WRITE(MV_AUDIO_RECORD_BYTE_CNTR_INT_REG(unit), reg);
@@ -864,11 +743,10 @@ MV_VOID mvAudioRecordStatusGet(int unit, MV_AUDIO_RECORD_STATUS *status)
 /* SPDIF Recording Related*/
 MV_STATUS	mvSPDIFRecordTclockSet(int unit)
 {
-	MV_U32 tclock = mvBoardTclkGet();
+	MV_U32 tclock = audioHalData[unit].tclk;
 	MV_U32 reg = MV_REG_READ(MV_AUDIO_SPDIF_REC_GEN_REG(unit));
 
 	reg &= ~ASRGR_CORE_CLK_FREQ_MASK;
-
 	switch (tclock)
 	{
 	case MV_BOARD_TCLK_133MHZ:
@@ -1053,3 +931,125 @@ static MV_U32 audioBurstBytesNumGet(MV_AUDIO_BURST_SIZE burst)
 	}
 }
 
+#ifndef MV_AUDIO_SKIP_WIN_DECODING
+/*******************************************************************************
+* mvAudioReplaceAddrWin
+*
+* DESCRIPTION:
+*	This function is used to replace the address decoding windows of the
+*	recording / playback engines, in case the address given by the user is
+*	not within the configured window.
+*
+* INPUT:
+*       unit:  Audio unit ID.
+*	winId: Playback or Recording window.
+*	buffPhysAddr: The physical address of the buffer to be configured.
+*	buffSize: Size of buffPhysAddr.
+*
+* OUTPUT:
+*	None.
+*
+* RETURN:
+*       MV_OK on success,
+*	MV_FAIL otherwise.
+*
+*******************************************************************************/
+static MV_STATUS mvAudioReplaceAddrWin(MV_U32 unit, MV_U32 winId, MV_U32 buffPhysAddr,
+		MV_U32 buffSize)
+{
+	MV_UNIT_WIN_INFO audioWin;
+	MV_UNIT_WIN_INFO *winInfo;
+	MV_ADDR_WIN   bufAddrWin;
+	MV_U32 target, i;
+
+	/* Get the details of the Record address window*/
+	if( mvAudioWinRead(unit, winId, &audioWin ) != MV_OK )
+	{
+		mvOsPrintf("mvAudioRecordControlSet: Error calling mvAudioWinGet on win %d\n",
+				unit);
+		return MV_FAIL;
+	}
+
+	bufAddrWin.baseHigh = 0;
+	bufAddrWin.baseLow = buffPhysAddr;
+	bufAddrWin.size = buffSize;
+
+	/* If Record window is not enabled or buffer address is not within window boundries
+	   then try to set a new value to the Record window by
+	   Geting the target of where the buffer exist, if the buffer is within the window
+	   of the new target then set the Record window to that target
+	   else return Fail
+    	*/
+	if((audioWin.enable != MV_TRUE) ||
+	  (MV_TRUE != mvWinWithinWinTest(&bufAddrWin, &audioWin.addrWin)))
+	{
+		/* Look for the target containing the phyBaseAddr */
+		for(i = 0; i < MAX_TARGETS; i++) {
+			winInfo = &audioAddrDecWinMap[i];
+
+			if((buffPhysAddr >= winInfo->addrWin.baseLow) &&
+				(buffPhysAddr < winInfo->addrWin.baseLow + winInfo->addrWin.size))
+					break;
+		}
+
+		/* Get the target of the buffer that user require*/
+		target = i;
+		if (MAX_TARGETS == target)
+		{
+			mvOsPrintf("mvAudioReplaceAddrWin: Address not found in any of the targets 0x%x\n",
+					   buffPhysAddr);
+			return MV_FAIL;
+		}
+
+		/* if the address window of the target is enabled and the user buffer is within
+		   that target address window then set the palyback\recording window to the
+		   target window
+		*/
+		if((winInfo->enable == MV_TRUE) &&
+		  (MV_TRUE == mvWinWithinWinTest(&bufAddrWin, &winInfo->addrWin)))
+		{
+			if( mvAudioWinWrite(unit, winId, winInfo) != MV_OK )
+			{
+				mvOsPrintf("mvAudioReplaceAddrWin: Error calling mvAudioWinWrite on win %d\n",
+						   winId);
+				return MV_FAIL;
+			}
+
+		}
+		else
+		{
+			mvOsPrintf("mvAudioReplaceAddrWin: Error buffer is not within a valid target\n");
+			return MV_FAIL;
+
+		}
+	}
+
+	return MV_OK;
+}
+
+/*******************************************************************************
+* mvAudioSetAddDecMap
+*
+* DESCRIPTION:
+*	This function is called by the audio address decoding configuration
+*	function to initialize the address decoding map of the audio HAL.
+*	This info will be used by the mvAudioReplaceAddrWin() function.
+*
+* INPUT:
+*	pAddrDecWinMap: System's address deocding map.
+*
+* OUTPUT:
+*	None.
+*
+* RETURN:
+*       MV_OK on success,
+*	MV_FAIL otherwise.
+*
+*******************************************************************************/
+MV_STATUS mvAudioSetAddDecMap(MV_UNIT_WIN_INFO *pAddrDecWinMap)
+{
+	mvOsMemcpy(audioAddrDecWinMap, pAddrDecWinMap, sizeof(audioAddrDecWinMap));
+	return MV_OK;
+}
+
+#endif

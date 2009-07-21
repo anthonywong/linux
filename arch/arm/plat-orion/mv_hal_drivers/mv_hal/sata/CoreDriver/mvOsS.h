@@ -65,7 +65,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCmvOsSh
 #define __INCmvOsSh
 
-#include "mvSysHwConfig.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* Includes */
 #include "mvOs.h"
 
@@ -86,5 +89,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvOsSata.h"
 
 #endif
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCmvOsSh */

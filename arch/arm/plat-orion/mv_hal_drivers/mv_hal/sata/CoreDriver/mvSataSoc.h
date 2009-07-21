@@ -68,9 +68,6 @@ extern "C" /*{*/
 #endif /* __cplusplus */
 
 #include "mvCommon.h"
-#include "mvRegs.h"
-#include "mvOs.h"
-#include "ctrlEnv/mvCtrlEnvSpec.h"
 
 
 MV_BOOL mvSataPhyShutdown(MV_U8 port);

@@ -65,7 +65,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __mvSHA1_h__
 #define __mvSHA1_h__
 
-#include "mvSHA1.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define MV_SHA1_MAC_LEN 20
  
@@ -84,5 +86,9 @@ void mvSHA1Final(MV_U8* digest, MV_SHA1_CTX *context);
 
 void mvSHA1(MV_U8 const *buf, unsigned int len, MV_U8* digest);
   
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __mvSHA1_h__ */

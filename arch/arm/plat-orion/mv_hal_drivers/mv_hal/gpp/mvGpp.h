@@ -65,10 +65,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCmvGppH
 #define __INCmvGppH
 
-#include "mvCommon.h"
-#include "mvOs.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "ctrlEnv/mvCtrlEnvSpec.h"
-#include "gpp/mvGppRegs.h"
+#include "mvSysGppConfig.h"
 
 /* These macros describes the GPP type. Each of the GPPs pins can        	*/
 /* be assigned to act as a general purpose input or output pin.             */
@@ -114,6 +116,10 @@ MV_U32 mvGppValueGet(MV_U32 group, MV_U32 mask);
 MV_STATUS mvGppValueSet (MV_U32 group, MV_U32 mask, MV_U32 value);
 
 MV_STATUS mvGppFunctionSelectSet(MV_U32 value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* #ifndef __INCmvGppH */ 
 

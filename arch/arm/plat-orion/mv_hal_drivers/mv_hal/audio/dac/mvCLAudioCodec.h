@@ -66,10 +66,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCmvCLAudioCodech
 #define __INCmvCLAudioCodech
 
-#include "mvTypes.h"
-#include "twsi/mvTwsi.h"
-#include "ctrlEnv/mvCtrlEnvSpec.h"
-#include "boardEnv/mvBoardEnvSpec.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define  MV_CL_AUDIO_CODEC_CHIP_ID   0x1B
 #define  MV_CL_AUDIO_CODEC_REV_ID    0x1
@@ -98,13 +98,13 @@ typedef enum _mvADCMode
 /* Cirrus Logic device structure */
 typedef struct _mvAudioCodecDev
 {
-    /* MUST be set by user!!!   */
-	MV_TWSI_SLAVE             twsiSlave;
-	MV_U8		chanNum;
-    MV_DAC_DIGITAL_IF_FORMAT  DACDigitalIFFormat;
-    MV_ADC_MODE               ADCMode;
+	/* MUST be set by user!!!   */
+	MV_VOID				*codecHandle;
+	MV_U8				chanNum;
+	MV_DAC_DIGITAL_IF_FORMAT  	DACDigitalIFFormat;
+	MV_ADC_MODE               	ADCMode;
 
-    /* Set by driver */
+	/* Set by driver */
 	MV_U8  nChipID;
 	MV_U8  nRevID;
 
@@ -134,6 +134,10 @@ MV_VOID mvCLAudioCodecRegSet(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset, MV_U
 MV_U8   mvCLAudioCodecRegGet(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset);
 MV_VOID mvCLAudioCodecRegBitsSet(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset, MV_U8 nBits);
 MV_VOID mvCLAudioCodecRegBitsReset(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset, MV_U8 nBits);
+
+#ifdef __cplusplus
+}
+#endif
 
 
 #endif  /* __INCmvCLAudioCodech */
