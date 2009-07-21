@@ -45,6 +45,7 @@
 #include <plat/mv_eth.h>
 #include <plat/time.h>
 #include <plat/mv_xor.h>
+#include <ctrlEnv/mvCtrlEnvRegs.h>
 #ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
 #endif
@@ -71,9 +72,18 @@ static unsigned int vpro_size = UIO_DOVE_VPRO_MEM_SIZE;
 static unsigned int dove_gpu_memory_start;
 static unsigned int gpu_size = DOVE_GPU_MEM_SIZE;
 
+int useHalDrivers = 0;
+#ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
+static int __init useHalDrivers_setup(char *__unused)
+{
+     useHalDrivers = 1;
+     return 1;
+}
+__setup("useHalDrivers", useHalDrivers_setup);
+#endif
 
 #ifdef CONFIG_MV_INCLUDE_USB
-extern u32   mvUsbHalInit(int dev, int isHost);
+#include "mvSysUsbApi.h"
 /* Required to get the configuration string from the Kernel Command Line */
 static char *usb0Mode = "host";
 static char *usb1Mode = "host";
@@ -358,12 +368,16 @@ void __init dove_ehci0_init(void)
 
 	if (strcmp(usb0Mode, "host") == 0) {
 		printk("Initializing USB0 Host\n");
-		//mvUsbHalInit(0, 1);
+		if (useHalDrivers) {
+			dove_ehci_data.dram = NULL;
+			dove_ehci_data.phy_version = EHCI_PHY_NA;
+			mvSysUsbInit(0, 1);
+		}
 	}
 	else {
 		printk("Initializing USB0 Device\n");
 		dove_ehci0.name = usb_dev_name;
-		mvUsbHalInit(0, 0);
+		mvSysUsbInit(0, 0);
 	}
 	platform_device_register(&dove_ehci0);
 #endif
@@ -401,12 +415,16 @@ void __init dove_ehci1_init(void)
 #ifdef CONFIG_MV_INCLUDE_USB
 	if (strcmp(usb1Mode, "host") == 0) {
 		printk("Initializing USB1 Host\n");
-		//mvUsbHalInit(1, 1);
+		if (useHalDrivers) {
+			dove_ehci_data.dram = NULL;
+			dove_ehci_data.phy_version = EHCI_PHY_NA;
+			mvSysUsbInit(1, 1);
+		}
 	}
 	else {
 		printk("Initializing USB1 Device\n");
 		dove_ehci1.name = usb_dev_name;
-		mvUsbHalInit(1, 0);
+		mvSysUsbInit(1, 0);
 	}
 
 	platform_device_register(&dove_ehci1);
@@ -453,7 +471,8 @@ void __init dove_mv_eth_init(void)
 {
 	dove_eth.dev.platform_data = &dove_eth_data;
 	platform_device_register(&dove_eth);
-	platform_device_register(&dove_eth_addr_dec);
+	if(!useHalDrivers)
+		platform_device_register(&dove_eth_addr_dec);
 }
 #endif
 #if 1
@@ -569,8 +588,14 @@ static struct platform_device dove_sata = {
 
 void __init dove_sata_init(struct mv_sata_platform_data *sata_data)
 {
-	sata_data->dram = &dove_mbus_dram_info;
+	if (useHalDrivers) {
+		sata_data->dram = NULL;
+		dove_sata.name = "sata_mv_hal";
+	} else
+		sata_data->dram = &dove_mbus_dram_info;
+
 	dove_sata.dev.platform_data = sata_data;
+
 	platform_device_register(&dove_sata);
 }
 
@@ -1376,20 +1401,24 @@ static struct platform_device dove_xor01_channel = {
 
 void __init dove_xor0_init(void)
 {
-	platform_device_register(&dove_xor0_shared);
+	if(useHalDrivers) {
+		platform_device_register_simple("mv_xor_hal", -1, NULL, 0);
+	} else {
+		platform_device_register(&dove_xor0_shared);
 
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
-	dma_cap_set(DMA_MEMCPY, dove_xor00_data.cap_mask);
-	dma_cap_set(DMA_XOR, dove_xor00_data.cap_mask);
-	platform_device_register(&dove_xor00_channel);
+		/*
+		 * two engines can't do memset simultaneously, this limitation
+		 * satisfied by removing memset support from one of the engines.
+		 */
+		dma_cap_set(DMA_MEMCPY, dove_xor00_data.cap_mask);
+		dma_cap_set(DMA_XOR, dove_xor00_data.cap_mask);
+		platform_device_register(&dove_xor00_channel);
 
-	dma_cap_set(DMA_MEMCPY, dove_xor01_data.cap_mask);
-	dma_cap_set(DMA_MEMSET, dove_xor01_data.cap_mask);
-	dma_cap_set(DMA_XOR, dove_xor01_data.cap_mask);
-	platform_device_register(&dove_xor01_channel);
+		dma_cap_set(DMA_MEMCPY, dove_xor01_data.cap_mask);
+		dma_cap_set(DMA_MEMSET, dove_xor01_data.cap_mask);
+		dma_cap_set(DMA_XOR, dove_xor01_data.cap_mask);
+		platform_device_register(&dove_xor01_channel);
+	}
 }
 
 /*****************************************************************************
@@ -1475,6 +1504,8 @@ static struct platform_device dove_xor11_channel = {
 
 void __init dove_xor1_init(void)
 {
+	if(useHalDrivers)
+		dove_xor_shared_data.dram = NULL;
 	platform_device_register(&dove_xor1_shared);
 
 	/*
