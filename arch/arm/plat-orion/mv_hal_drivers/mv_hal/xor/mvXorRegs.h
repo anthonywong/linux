@@ -68,35 +68,36 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" {
 #endif
 
+#include "mvSysXorConfig.h"
 /* defines */
 
 /* XOR Engine Control Register Map */
-#define XOR_CHANNEL_ARBITER_REG(unit)       (XOR_UNIT_BASE(unit))
-#define XOR_CONFIG_REG(unit,chan)           (XOR_UNIT_BASE(unit)+(0x10 + ((chan) * 4)))
-#define XOR_ACTIVATION_REG(unit,chan)       (XOR_UNIT_BASE(unit)+(0x20 + ((chan) * 4)))
+#define XOR_CHANNEL_ARBITER_REG(unit)       (MV_XOR_REGS_BASE(unit))
+#define XOR_CONFIG_REG(unit,chan)           (MV_XOR_REGS_BASE(unit)+(0x10 + ((chan) * 4)))
+#define XOR_ACTIVATION_REG(unit,chan)       (MV_XOR_REGS_BASE(unit)+(0x20 + ((chan) * 4)))
                                                                 
 /* XOR Engine Interrupt Register Map */                         
-#define XOR_CAUSE_REG(unit)                 (XOR_UNIT_BASE(unit)+(0x30))             
-#define XOR_MASK_REG(unit)           	    (XOR_UNIT_BASE(unit)+(0x40))             
-#define XOR_ERROR_CAUSE_REG(unit)           (XOR_UNIT_BASE(unit)+(0x50))             
-#define XOR_ERROR_ADDR_REG(unit)            (XOR_UNIT_BASE(unit)+(0x60))             
+#define XOR_CAUSE_REG(unit)                 (MV_XOR_REGS_BASE(unit)+(0x30))             
+#define XOR_MASK_REG(unit)           	    (MV_XOR_REGS_BASE(unit)+(0x40))             
+#define XOR_ERROR_CAUSE_REG(unit)           (MV_XOR_REGS_BASE(unit)+(0x50))             
+#define XOR_ERROR_ADDR_REG(unit)            (MV_XOR_REGS_BASE(unit)+(0x60))             
                                                                 
 /* XOR Engine Descriptor Register Map */                        
-#define XOR_NEXT_DESC_PTR_REG(unit,chan)    (XOR_UNIT_BASE(unit)+(0x200 + ((chan) * 4)))
-#define XOR_CURR_DESC_PTR_REG(unit,chan)    (XOR_UNIT_BASE(unit)+(0x210 + ((chan) * 4)))
-#define XOR_BYTE_COUNT_REG(unit,chan)       (XOR_UNIT_BASE(unit)+(0x220 + ((chan) * 4)))
+#define XOR_NEXT_DESC_PTR_REG(unit,chan)    (MV_XOR_REGS_BASE(unit)+(0x200 + ((chan) * 4)))
+#define XOR_CURR_DESC_PTR_REG(unit,chan)    (MV_XOR_REGS_BASE(unit)+(0x210 + ((chan) * 4)))
+#define XOR_BYTE_COUNT_REG(unit,chan)       (MV_XOR_REGS_BASE(unit)+(0x220 + ((chan) * 4)))
                                                                 
 /* XOR Engine ECC/MemInit Register Map */
-#define XOR_DST_PTR_REG(unit,chan)          (XOR_UNIT_BASE(unit)+(0x2B0 + ((chan) * 4)))
-#define XOR_BLOCK_SIZE_REG(unit,chan)       (XOR_UNIT_BASE(unit)+(0x2C0 + ((chan) * 4)))
-#define XOR_TIMER_MODE_CTRL_REG(unit)       (XOR_UNIT_BASE(unit)+(0x2D0))
-#define XOR_TIMER_MODE_INIT_VAL_REG(unit)   (XOR_UNIT_BASE(unit)+(0x2D4))
-#define XOR_TIMER_MODE_CURR_VAL_REG(unit)   (XOR_UNIT_BASE(unit)+(0x2D8))
-#define XOR_INIT_VAL_LOW_REG(unit)          (XOR_UNIT_BASE(unit)+(0x2E0))
-#define XOR_INIT_VAL_HIGH_REG(unit)         (XOR_UNIT_BASE(unit)+(0x2E4))
+#define XOR_DST_PTR_REG(unit,chan)          (MV_XOR_REGS_BASE(unit)+(0x2B0 + ((chan) * 4)))
+#define XOR_BLOCK_SIZE_REG(unit,chan)       (MV_XOR_REGS_BASE(unit)+(0x2C0 + ((chan) * 4)))
+#define XOR_TIMER_MODE_CTRL_REG(unit)       (MV_XOR_REGS_BASE(unit)+(0x2D0))
+#define XOR_TIMER_MODE_INIT_VAL_REG(unit)   (MV_XOR_REGS_BASE(unit)+(0x2D4))
+#define XOR_TIMER_MODE_CURR_VAL_REG(unit)   (MV_XOR_REGS_BASE(unit)+(0x2D8))
+#define XOR_INIT_VAL_LOW_REG(unit)          (MV_XOR_REGS_BASE(unit)+(0x2E0))
+#define XOR_INIT_VAL_HIGH_REG(unit)         (MV_XOR_REGS_BASE(unit)+(0x2E4))
 
 /* XOR Engine Debug Register Map */
-#define XOR_DEBUG_REG(unit)                 (XOR_UNIT_BASE(unit)+(0x70))
+#define XOR_DEBUG_REG(unit)                 (MV_XOR_REGS_BASE(unit)+(0x70))
 
 
 /* XOR register fileds */
@@ -216,6 +217,57 @@ extern "C" {
 #define XEDBR_PARITY_ERR_INSR_MASK          (1 << XEDBR_PARITY_ERR_INSR_OFFS)
 #define XEDBR_XBAR_ERR_INSR_OFFS            (1)
 #define XEDBR_XBAR_ERR_INSR_MASK            (1 << XEDBR_XBAR_ERR_INSR_OFFS)
+
+
+/* XOR Engine address decode registers.	*/
+
+#define XOR_MAX_ADDR_DEC_WIN	8	/* Maximum address decode windows		*/
+#define XOR_MAX_REMAP_WIN       4	/* Maximum address arbiter windows		*/
+
+/* XOR Engine Address Decoding Register Map */                  
+#define XOR_WINDOW_CTRL_REG(unit,chan)     (MV_XOR_REGS_BASE(unit)+(0x240 + ((chan) * 4)))
+#define XOR_BASE_ADDR_REG(unit,winNum)     (MV_XOR_REGS_BASE(unit)+(0x250 + ((winNum) * 4)))
+#define XOR_SIZE_MASK_REG(unit,winNum)     (MV_XOR_REGS_BASE(unit)+(0x270 + ((winNum) * 4)))
+#define XOR_HIGH_ADDR_REMAP_REG(unit,winNum) (MV_XOR_REGS_BASE(unit)+(0x290 + ((winNum) * 4)))
+
+/* XOR Engine [0..1] Window Control Registers (XExWCR) */
+#define XEXWCR_WIN_EN_OFFS(winNum)          (winNum)
+#define XEXWCR_WIN_EN_MASK(winNum)          (1 << (XEXWCR_WIN_EN_OFFS(winNum)))
+#define XEXWCR_WIN_EN_ENABLE(winNum)        (1 << (XEXWCR_WIN_EN_OFFS(winNum)))
+#define XEXWCR_WIN_EN_DISABLE(winNum)       (0 << (XEXWCR_WIN_EN_OFFS(winNum)))
+
+#define XEXWCR_WIN_ACC_OFFS(winNum)         ((2 * winNum) + 16)
+#define XEXWCR_WIN_ACC_MASK(winNum)         (3 << (XEXWCR_WIN_ACC_OFFS(winNum)))
+#define XEXWCR_WIN_ACC_NO_ACC(winNum)       (0 << (XEXWCR_WIN_ACC_OFFS(winNum)))
+#define XEXWCR_WIN_ACC_RO(winNum)           (1 << (XEXWCR_WIN_ACC_OFFS(winNum)))
+#define XEXWCR_WIN_ACC_RW(winNum)           (3 << (XEXWCR_WIN_ACC_OFFS(winNum)))
+
+/* XOR Engine Base Address Registers (XEBARx) */
+#define XEBARX_TARGET_OFFS                  (0)
+#define XEBARX_TARGET_MASK                  (0xF << XEBARX_TARGET_OFFS)
+#define XEBARX_ATTR_OFFS                    (8)
+#define XEBARX_ATTR_MASK                    (0xFF << XEBARX_ATTR_OFFS)
+#define XEBARX_BASE_OFFS                    (16)
+#define XEBARX_BASE_MASK                    (0xFFFF << XEBARX_BASE_OFFS)
+
+
+/* XOR Engine Size Mask Registers (XESMRx) */
+#define XESMRX_SIZE_MASK_OFFS               (16)
+#define XESMRX_SIZE_MASK_MASK               (0xFFFF << XESMRX_SIZE_MASK_OFFS)
+#define XOR_WIN_SIZE_ALIGN		    _64K
+
+/* XOR Engine High Address Remap Register (XEHARRx1) */
+#define XEHARRX_REMAP_OFFS                  (0)
+#define XEHARRX_REMAP_MASK                  (0xFFFFFFFF << XEHARRX_REMAP_OFFS)
+
+
+#define XOR_OVERRIDE_CTRL_REG(chan)   (MV_XOR_REGS_BASE(XOR_UNIT(chan))+(0x2A0 + ((XOR_CHAN(chan)) * 4)))
+/* XOR Engine [0..1] Address Override Control Register (XExAOCR) */
+#define XEXAOCR_OVR_EN_OFFS(target)         (3 * target)
+#define XEXAOCR_OVR_EN_MASK(target)         (1 << (XEXAOCR_OVR_EN_OFFS(target)))
+#define XEXAOCR_OVR_PTR_OFFS(target)        ((3 * target) + 1)
+#define XEXAOCR_OVR_PTR_MASK(target)        (3 << (XEXAOCR_OVR_PTR_OFFS(target)))
+#define XEXAOCR_OVR_BAR(winNum,target)      (winNum << (XEXAOCR_OVR_PTR_OFFS(target)))
 
 
 #ifdef __cplusplus

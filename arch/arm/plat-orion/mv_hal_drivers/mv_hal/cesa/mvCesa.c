@@ -62,9 +62,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
-#include "cesa/mvCesa.h"
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysCesaConfig.h"
+#include "mvCesaRegs.h"
 
-#include "ctrlEnv/mvCtrlEnvLib.h"
+#ifdef MV_INCLUDE_IDMA
+#include "idma/mvIdma.h"
+#include "idma/mvIdmaRegs.h"
+#endif
+
+#include "mvCesa.h"
+#include "mvMD5.h"
+#include "mvSHA1.h"
+#include "AES/mvAes.h"
+
+
 #undef CESA_DEBUG
 
 
@@ -92,6 +106,7 @@ MV_CESA_SRAM_MAP*       cesaSramVirtPtr = NULL;
 MV_U32                  cesaCryptEngBase = 0;
 void			*cesaOsHandle = NULL;
 
+static MV_CESA_HAL_DATA	cesaHalData;
 
 static INLINE MV_U8*  mvCesaSramAddrGet(void)
 {
@@ -209,6 +224,7 @@ static INLINE void mvCesaReqProcessStart(MV_CESA_REQ* pReq)
 *       pSramBase       - virtual address of Sram
 *	osHandle	- A handle used by the OS to allocate memory for the 
 *			  module (Passed to the OS Services layer)
+*	halData		- CESA HAL system information.
 *
 * RETURN:
 *       MV_OK           - Success
@@ -219,7 +235,7 @@ static INLINE void mvCesaReqProcessStart(MV_CESA_REQ* pReq)
 *
 *******************************************************************************/
 MV_STATUS mvCesaHalInit (int numOfSession, int queueDepth, char* pSramBase, MV_U32 cryptEngBase,
-			 void *osHandle)
+			 void *osHandle, MV_CESA_HAL_DATA *halData)
 {
     int     i, req;
     MV_U32  descOffsetReg, configReg;
@@ -397,6 +413,7 @@ MV_STATUS mvCesaHalInit (int numOfSession, int queueDepth, char* pSramBase, MV_U
     MV_REG_WRITE( MV_CESA_CFG_REG, configReg);
     mvCesaDebugStatsClear();
 
+    mvOsMemcpy(&cesaHalData, halData, sizeof(MV_CESA_HAL_DATA));
     return MV_OK;
 }
 
@@ -1585,9 +1602,9 @@ static MV_STATUS   mvCesaFragReqProcess(MV_CESA_REQ* pReq, MV_U8 frag)
                  *  - MV88F5181L when total macLength more that 16 Kbytes ||
                  *  - total macLength more that 64 Kbytes
                  */
-                if( (mvCtrlModelGet() == MV_5182_DEV_ID) ||
-                    ( (mvCtrlModelGet() == MV_5181_DEV_ID) &&
-                      (mvCtrlRevGet() >= MV_5181L_A0_REV)  &&
+                if( (cesaHalData.ctrlModel == MV_5182_DEV_ID) ||
+                    ( (cesaHalData.ctrlModel == MV_5181_DEV_ID) &&
+                      (cesaHalData.ctrlRev >= MV_5181L_A0_REV)  &&
                       (pCmd->macLength >= (1 << 14)) ) )
                 {
                     return MV_TERMINATE;
@@ -1604,7 +1621,7 @@ static MV_STATUS   mvCesaFragReqProcess(MV_CESA_REQ* pReq, MV_U8 frag)
         else
         {
             /* WA for MV88F5182 SHA1 and MD5 fragmentation mode */
-            if( (mvCtrlModelGet() == MV_5182_DEV_ID) &&
+            if( (cesaHalData.ctrlModel == MV_5182_DEV_ID) &&
                 (((pSA->config & MV_CESA_MAC_MODE_MASK) ==
                     (MV_CESA_MAC_MD5 << MV_CESA_MAC_MODE_OFFSET)) ||
                 ((pSA->config & MV_CESA_MAC_MODE_MASK) ==
@@ -2838,9 +2855,9 @@ static MV_STATUS   mvCesaFragParamCheck(MV_CESA_SA* pSA, MV_CESA_COMMAND *pCmd)
         ((pSA->config & MV_CESA_OPERATION_MASK) ==
             (MV_CESA_CRYPTO_THEN_MAC << MV_CESA_OPERATION_OFFSET)) )
     {
-        if( (mvCtrlModelGet() == MV_5182_DEV_ID) ||
-            ( (mvCtrlModelGet() == MV_5181_DEV_ID) &&
-              (mvCtrlRevGet() >= MV_5181L_A0_REV)  &&
+        if( (cesaHalData.ctrlModel == MV_5182_DEV_ID) ||
+            ( (cesaHalData.ctrlModel == MV_5181_DEV_ID) &&
+              (cesaHalData.ctrlRev >= MV_5181L_A0_REV)  &&
               (pCmd->macLength >= (1 << 14)) ) )
         {
             return MV_NOT_ALLOWED;

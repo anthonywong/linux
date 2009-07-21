@@ -91,20 +91,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 *******************************************************************************/
 /* includes */
-#include "mvTypes.h"
-#include "mv802_3.h"
-#include "mvDebug.h"
 #include "mvCommon.h"
 #include "mvOs.h"
-#include "ctrlEnv/mvCtrlEnvLib.h"
-#include "eth-phy/mvEthPhy.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysEthConfig.h"
+#include "mvEthRegs.h"
 #include "eth/mvEth.h"
-#include "eth/gbe/mvEthGbe.h"
-#include "cpu/mvCpu.h"
-
-#ifdef INCLUDE_SYNC_BARR
-#include "sys/mvCpuIf.h"
-#endif
+#include "mvEthGbe.h"
 
 #ifdef MV_RT_DEBUG
 #   define ETH_DEBUG
@@ -114,6 +107,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* locals */
 MV_BOOL         ethDescInSram;
 MV_BOOL         ethDescSwCoher;
+MV_ETH_HAL_DATA	ethHalData;
 
 /* This array holds the control structure of each port */
 ETH_PORT_CTRL* ethPortCtrl[MV_ETH_MAX_PORTS];
@@ -159,9 +153,11 @@ static void mvEthPortSgmiiConfig(int port);
 *
 * NOTE: this function is called once in the boot process.
 *******************************************************************************/
-void    mvEthHalInit(void)
+void    mvEthHalInit(MV_ETH_HAL_DATA *halData)
 {
     int port;
+
+    mvOsMemcpy(&ethHalData, halData, sizeof(MV_ETH_HAL_DATA));
 
     /* Init static data structures */
     for (port=0; port<MV_ETH_MAX_PORTS; port++)
@@ -169,9 +165,10 @@ void    mvEthHalInit(void)
         ethPortCtrl[port] = NULL;
     }
     /* Power down all existing ports */
-    for(port=0; port<mvCtrlEthMaxPortGet(); port++)
+    for(port=0; port<ethHalData.maxPortNum; port++)
     {
-
+	if(ethHalData.portData[port].powerOn == MV_FALSE)
+		continue;
 #ifdef CONFIG_MV78200
 	/* Skip ports mapped to another CPU*/
 	if (MV_FALSE == mvSocUnitIsMappedToThisCpu(GIGA0+port))
@@ -180,11 +177,6 @@ void    mvEthHalInit(void)
 	}		
 #endif
 
-#if 0
-	/* Dove: Assuming ports are not powered down because they were powered up first thing in mv_eth_probe */
-	/* Skip power down ports */
-	if (MV_FALSE == mvCtrlPwrClckGet(ETH_GIG_UNIT_ID, port)) continue;
-#endif
 
         /* Disable Giga Ethernet Unit interrupts */
         MV_REG_WRITE(ETH_UNIT_INTR_MASK_REG(port), 0);
@@ -236,7 +228,7 @@ void   mvEthMemAttrGet(MV_BOOL* pIsSram, MV_BOOL* pIsSwCoher)
 #endif
 
 #if defined(ETH_DESCR_IN_SRAM)
-    if( mvCtrlSramSizeGet() > 0)
+    if( ethHalData.sramSize > 0)
     {
         isSram = MV_TRUE;
         #if (INTEG_SRAM_COHER == MV_CACHE_COHER_SW) 
@@ -287,7 +279,7 @@ void*   mvEthPortInit(int portNo, MV_ETH_PORT_INIT *pEthPortInit)
     ETH_PORT_CTRL*  pPortCtrl;
 
     /* Check validity of parameters */
-    if( (portNo >= (int)mvCtrlEthMaxPortGet()) || 
+    if( (portNo >= (int)ethHalData.maxPortNum) || 
         (pEthPortInit->rxDefQ   >= MV_ETH_RX_Q_NUM)  ||
         (pEthPortInit->maxRxPktSize < 1518) )
     {
@@ -335,7 +327,7 @@ void*   mvEthPortInit(int portNo, MV_ETH_PORT_INIT *pEthPortInit)
     mvEthPortDisable(pPortCtrl);
 
     /* Set the board information regarding PHY address */
-    mvEthPhyAddrSet(pPortCtrl, mvBoardPhyAddrGet(portNo) );
+    mvEthPhyAddrSet(pPortCtrl, ethHalData.portData[portNo].phyAddr );
 
     /* Create all requested RX queues */
     for(queue=0; queue<MV_ETH_RX_Q_NUM; queue++)
@@ -468,7 +460,7 @@ MV_STATUS   mvEthDefaultsSet(void* pPortHndl)
     ETH_QUEUE_CTRL*     pQueueCtrl;
     MV_U32              txPrio;
     MV_U32              portCfgReg, portCfgExtReg, portSerialCtrlReg, portSerialCtrl1Reg, portSdmaCfgReg;
-    MV_BOARD_MAC_SPEED  boardMacCfg;
+    MV_ETH_MAC_SPEED  	boardMacCfg;
 
     ethPortNo = pPortCtrl->portNo;
 
@@ -483,13 +475,13 @@ MV_STATUS   mvEthDefaultsSet(void* pPortHndl)
     portCfgReg  =   PORT_CONFIG_VALUE;
     portCfgExtReg  =  PORT_CONFIG_EXTEND_VALUE;
 
-    boardMacCfg = mvBoardMacSpeedGet(ethPortNo);
+    boardMacCfg = ethHalData.portData[ethPortNo].macSpeed;
 
-    if(boardMacCfg == BOARD_MAC_SPEED_100M)
+    if(boardMacCfg == ETH_MAC_SPEED_100M)
     {
         portSerialCtrlReg = PORT_SERIAL_CONTROL_100MB_FORCE_VALUE;
     }
-    else if(boardMacCfg == BOARD_MAC_SPEED_1000M)
+    else if(boardMacCfg == ETH_MAC_SPEED_1000M)
     {
         portSerialCtrlReg = PORT_SERIAL_CONTROL_1000MB_FORCE_VALUE;
     }
@@ -541,7 +533,7 @@ MV_STATUS   mvEthDefaultsSet(void* pPortHndl)
     }
     else
     {
-        MV_REG_WRITE(ETH_TXQ_CMD_1_REG(ethPortNo), 0)
+        MV_REG_WRITE(ETH_TXQ_CMD_1_REG(ethPortNo), 0);
     }
 #endif /* (MV_ETH_VERSION >= 4) */
 
@@ -791,7 +783,7 @@ MV_STATUS   mvEthPortDown(void* pEthPortHndl)
     MV_REG_WRITE(ETH_PORT_SERIAL_CTRL_REG(ethPortNum), regData);
 */
     /* Wait about 2500 tclk cycles */
-    uDelay = (PORT_DISABLE_WAIT_TCLOCKS/(mvBoardTclkGet()/1000000));
+    uDelay = (PORT_DISABLE_WAIT_TCLOCKS/(ethHalData.tclk/1000000));
     mvOsUDelay(uDelay);
 
     pPortCtrl->portState = MV_PAUSED;
@@ -876,7 +868,7 @@ MV_STATUS   mvEthPortDisable(void* pEthPortHndl)
     MV_REG_WRITE(ETH_PORT_SERIAL_CTRL_REG(ethPortNum), regData);
 
     /* Wait about 2500 tclk cycles */
-    mvDelay = (PORT_DISABLE_WAIT_TCLOCKS*(mvCpuPclkGet()/mvBoardTclkGet()));
+    mvDelay = (PORT_DISABLE_WAIT_TCLOCKS*(ethHalData.cpuPclk/ethHalData.tclk));
     for(mvDelay; mvDelay>0; mvDelay--);
 
     pPortCtrl->portState = MV_IDLE;
@@ -1057,7 +1049,7 @@ static MV_U32 mvEthMruGet(MV_U32 maxRxPktSize)
 MV_U32    mvEthRxCoalSet (void* pPortHndl, MV_U32 uSec) 
 {
     ETH_PORT_CTRL*  pPortCtrl = (ETH_PORT_CTRL*)pPortHndl;
-    MV_U32          coal = ((uSec * (mvBoardTclkGet() / 1000000)) / 64);
+    MV_U32          coal = ((uSec * (ethHalData.tclk / 1000000)) / 64);
     MV_U32          portSdmaCfgReg;
 
     portSdmaCfgReg =  MV_REG_READ(ETH_SDMA_CONFIG_REG(pPortCtrl->portNo));
@@ -1104,7 +1096,7 @@ MV_U32    mvEthRxCoalSet (void* pPortHndl, MV_U32 uSec)
 MV_U32    mvEthTxCoalSet(void* pPortHndl, MV_U32 uSec) 
 {
     ETH_PORT_CTRL*  pPortCtrl = (ETH_PORT_CTRL*)pPortHndl;
-    MV_U32          coal = ((uSec * (mvBoardTclkGet() / 1000000)) / 64);
+    MV_U32          coal = ((uSec * (ethHalData.tclk / 1000000)) / 64);
     MV_U32          regVal;
 
     regVal = MV_REG_READ(ETH_TX_FIFO_URGENT_THRESH_REG(pPortCtrl->portNo));
@@ -1152,7 +1144,7 @@ MV_STATUS   mvEthCoalGet(void* pPortHndl, MV_U32* pRxCoal, MV_U32* pTxCoal)
     regVal = MV_REG_READ (ETH_TX_FIFO_URGENT_THRESH_REG(pPortCtrl->portNo));
     coal = ((regVal & ETH_TX_INTR_COAL_ALL_MASK) >> ETH_TX_INTR_COAL_OFFSET);
 
-    usec = (coal * 64) / (mvBoardTclkGet() / 1000000);
+    usec = (coal * 64) / (ethHalData.tclk / 1000000);
     if(pTxCoal != NULL)
         *pTxCoal = usec;
 
@@ -1168,7 +1160,7 @@ MV_STATUS   mvEthCoalGet(void* pPortHndl, MV_U32* pRxCoal, MV_U32* pTxCoal)
     }
 #endif /* MV_ETH_VERSION >= 2 */
 
-    usec = (coal * 64) / (mvBoardTclkGet() / 1000000);
+    usec = (coal * 64) / (ethHalData.tclk / 1000000);
     if(pRxCoal != NULL)
         *pRxCoal = usec;
 
@@ -2219,7 +2211,7 @@ MV_STATUS   mvEthSpeedDuplexSet(void* pPortHandle, MV_ETH_PORT_SPEED speed,
     int             port = pPortCtrl->portNo;
     MV_U32      portSerialCtrlReg;
     
-    if( (port < 0) || (port >= (int)mvCtrlEthMaxPortGet()) )
+    if( (port < 0) || (port >= (int)ethHalData.maxPortNum) )
         return MV_OUT_OF_RANGE;
 
     pPortCtrl = ethPortCtrl[port];
@@ -2311,7 +2303,7 @@ MV_STATUS   mvEthFlowCtrlSet(void* pPortHandle, MV_ETH_PORT_FC flowControl)
     int             port = pPortCtrl->portNo;
     MV_U32      portSerialCtrlReg;
     
-    if( (port < 0) || (port >= (int)mvCtrlEthMaxPortGet() ) )
+    if( (port < 0) || (port >= (int)ethHalData.maxPortNum ) )
         return MV_OUT_OF_RANGE;
 
     pPortCtrl = ethPortCtrl[port];
@@ -2375,7 +2367,7 @@ MV_STATUS mvEthHeaderModeSet(void* pPortHandle, MV_ETH_HEADER_MODE headerMode)
     MV_U32			mvHeaderReg;
     MV_U32          numRxQ = MV_ETH_RX_Q_NUM;
     
-    if((port < 0) || (port >= mvCtrlEthMaxPortGet()))
+    if((port < 0) || (port >= ethHalData.maxPortNum))
         return MV_OUT_OF_RANGE;
 
     pPortCtrl = ethPortCtrl[port];
@@ -2454,7 +2446,7 @@ MV_STATUS    mvEthEjpModeSet(void* pPortHandle, int mode)
     ETH_PORT_CTRL*  pPortCtrl = (ETH_PORT_CTRL*)pPortHandle;
     int             port = pPortCtrl->portNo;
     
-    if((port < 0) || (port >= mvCtrlEthMaxPortGet()))
+    if((port < 0) || (port >= ethHalData.maxPortNum))
         return MV_OUT_OF_RANGE;
 
     pPortCtrl = ethPortCtrl[port];
@@ -2904,7 +2896,7 @@ void mvEthPortPowerUp(int port)
     /* MAC Cause register should be cleared */
     MV_REG_WRITE(ETH_UNIT_INTR_CAUSE_REG(port), 0);
 
-	if (mvBoardIsPortInSgmii(port))
+	if (ethHalData.portData[port].isSgmii)
     mvEthPortSgmiiConfig(port);
 
     /* Cancel Port Reset */

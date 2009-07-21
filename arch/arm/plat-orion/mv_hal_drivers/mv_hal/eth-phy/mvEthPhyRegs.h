@@ -65,16 +65,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef __INCethphyregsh
 #define __INCethphyregsh
 
-#include "ctrlEnv/mvCtrlEnvSpec.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "mvSysEthConfig.h"
 
 /* defines */
 #define ETH_PHY_TIMEOUT		    10000
 
+#define ETH_PHY_ADDRESS_REG(port)	(MV_ETH_REGS_BASE(port) + 0x000)
+
 /* registers offsetes defines */
 #ifdef MV_88W8660
-#define ETH_PHY_SMI_REG			(MV_ETH_REG_BASE(0) + 0x6010)
+#define ETH_PHY_SMI_REG			(MV_ETH_REGS_BASE(0) + 0x6010)
 #else
-#define ETH_PHY_SMI_REG			(MV_ETH_REG_BASE(0) + 0x004)
+#define ETH_PHY_SMI_REG			(MV_ETH_REGS_BASE(0) + 0x004)
 #endif
 
 /* SMI register fields (ETH_PHY_SMI_REG) */
@@ -163,5 +169,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* ETH_PHY_SPEC_STATUS_REG bits */
 #define ETH_PHY_LED_ACT_LNK_DV              0x4109
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif /* __INCethphyregsh */

@@ -62,8 +62,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 *******************************************************************************/
 
+#include "mvCommon.h"
+#include "mvOs.h"
 #include "mvCLAudioCodec.h"
 #include "mvCLAudioCodecRegs.h"
+#include "mvSysAudioDac.h"
 
 /*******************************************************************************
 * mvCLAudioCodecInit - Initizlize the Cirrus Logic device
@@ -390,17 +393,21 @@ MV_U8    mvCLAudioCodecBassGet(MV_AUDIO_CODEC_DEV *pCodecDev)
 MV_VOID mvCLAudioCodecRegSet(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset,
                              MV_U8 nData)
 {
-    if(NULL == pCodecDev)
-    {
-        mvOsPrintf("%s: Error - pCodecDev = NULL!\n",__FUNCTION__);
-        return;
-    }
-    pCodecDev->twsiSlave.offset = nOffset;
-    if(mvTwsiWrite(pCodecDev->chanNum, &pCodecDev->twsiSlave,&nData,1) != MV_OK)
-    {
-        mvOsPrintf("%s: Error while writing register!\n",__FUNCTION__);
-        return;
-    }
+	MV_U32	offset, data;
+	
+	if(NULL == pCodecDev)
+	{
+		mvOsPrintf("%s: Error - pCodecDev = NULL!\n",__FUNCTION__);
+		return;
+	}
+	
+	offset = nOffset;
+	data = nData;
+	if(mvSysAudioCodecRegWrite(pCodecDev->codecHandle, offset, data) != MV_OK) {
+		mvOsPrintf("%s: Error while writing register!\n",__FUNCTION__);
+		return;
+	}
+	
 }
 
 /*******************************************************************************
@@ -419,20 +426,21 @@ MV_VOID mvCLAudioCodecRegSet(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset,
 *******************************************************************************/
 MV_U8   mvCLAudioCodecRegGet(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset)
 {
-    MV_U8   nData;
+	MV_U32	offset, data;
 
-    if(NULL == pCodecDev)
-    {
-        mvOsPrintf("%s: Error - pCodecDev = NULL!\n",__FUNCTION__);
-        return 0;
-    }
-    pCodecDev->twsiSlave.offset = nOffset;
-    if(mvTwsiRead(pCodecDev->chanNum, &pCodecDev->twsiSlave,&nData,1) != MV_OK)
-    {
-        mvOsPrintf("%s: Error while reading register!\n",__FUNCTION__);
-        return 0;
-    }
-    return nData;
+	if(NULL == pCodecDev)
+	{
+		mvOsPrintf("%s: Error - pCodecDev = NULL!\n",__FUNCTION__);
+		return 0;
+	}
+   	
+	offset = nOffset;
+	if(mvSysAudioCodecRegRead(pCodecDev->codecHandle, offset, &data) != MV_OK) {
+		mvOsPrintf("%s: Error while reading register!\n",__FUNCTION__);
+		return 0;
+	}
+
+	return (MV_U8)data;
 }
 
 /*******************************************************************************
@@ -461,7 +469,6 @@ MV_VOID mvCLAudioCodecRegBitsSet(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffset,
         return;
     }
 
-    pCodecDev->twsiSlave.offset = nOffset;
     nData = mvCLAudioCodecRegGet(pCodecDev,nOffset);
     nData |= nBits;
     mvCLAudioCodecRegSet(pCodecDev,nOffset,nData);
@@ -493,7 +500,6 @@ MV_VOID   mvCLAudioCodecRegBitsReset(MV_AUDIO_CODEC_DEV *pCodecDev, MV_U8  nOffs
         return;
     }
 
-    pCodecDev->twsiSlave.offset = nOffset;
     nData = mvCLAudioCodecRegGet(pCodecDev,nOffset);
     nData &= ~nBits;
     mvCLAudioCodecRegSet(pCodecDev,nOffset,nData);

@@ -78,7 +78,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
 *******************************************************************************/
 
-#include "idma/mvIdma.h"
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "mvSysIdmaConfig.h"
+#include "mvIdmaRegs.h"
+#include "mvIdma.h"
+
+#error "This HAL was not adatped to the new HAL arch, and thus cannot be compiled."
 
 /* defines  */
 #ifdef MV_DEBUG

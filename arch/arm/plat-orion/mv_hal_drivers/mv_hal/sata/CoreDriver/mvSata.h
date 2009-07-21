@@ -81,6 +81,7 @@ extern "C" /*{*/
 /* Includes */
 #include "mvOsS.h"
 #include "mvRegs.h"
+#include "ctrlEnv/mvCtrlEnvSpec.h"
 
 /* Definitions */
 #define MV_CORE_DRIVER_LOG_ID                   0
@@ -767,6 +768,12 @@ MV_BOOLEAN mvSataEnableIoGranularity(MV_SATA_ADAPTER *pAdapter,
 #endif
 MV_BOOLEAN mvSata60X1B2CheckDevError(MV_SATA_ADAPTER *pAdapter,
                                        MV_U8 channelIndex);
+
+
+MV_STATUS mvSataWinInit(MV_UNIT_WIN_INFO *addrWinMap);
+MV_STATUS mvSataWinRead(MV_U32 dev, MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+MV_STATUS mvSataWinWrite(MV_U32 dev, MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
+
 #ifdef __cplusplus
 
 /*}*/
