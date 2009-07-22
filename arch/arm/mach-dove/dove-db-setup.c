@@ -330,7 +330,7 @@ static struct gpio_keys_platform_data gpio_key_info = {
 
 static struct platform_device keys_gpio = {
 	.name	= "gpio-keys",
-	.id	= -1,
+	.id	= 1,
 	.dev	= {
 		.platform_data	= &gpio_key_info,
 	},
