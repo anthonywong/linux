@@ -207,7 +207,7 @@ static struct tsc2005_platform_data ts_info = {
 	.y_plate_ohms		= 250,
 };
 
-struct spi_board_info __initdata dove_db_spi_devs[] = {
+struct spi_board_info __initdata dove_db_spi_ts_dev[] = {
 	{
 		.modalias  		= "tsc2005",
 		.irq			= DOVE_DB_TS_PEN_IRQ,
@@ -711,7 +711,9 @@ static void __init dove_db_init(void)
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
 	spi_register_board_info(dove_db_spi_flash_info,
 				ARRAY_SIZE(dove_db_spi_flash_info));
-	spi_register_board_info(dove_db_spi_devs, ARRAY_SIZE(dove_db_spi_devs));
+	if (front_panel)
+		spi_register_board_info(dove_db_spi_ts_dev, 
+					ARRAY_SIZE(dove_db_spi_ts_dev));
 }
 
 MACHINE_START(DOVE_DB, "Marvell DB-MV88F6781-BP Development Board")
