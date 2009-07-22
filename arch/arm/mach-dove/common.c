@@ -25,6 +25,8 @@
 #include <linux/spi/mv_spi.h>
 #include <linux/gpio_mouse.h>
 #include <linux/dove_sdhci.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <asm/timex.h>
@@ -1492,39 +1494,31 @@ void __init dove_xor1_init(void)
 /*****************************************************************************
  * General
  ****************************************************************************/
-#ifdef  CONFIG_PM
-static irqreturn_t
-dove_wake_interrupt(int irq, void *ignored)
-{
-     return IRQ_HANDLED;
-}
-#endif
+static struct gpio_keys_button gpio_standby_button = {
+	.code			= KEY_SUSPEND,
+	.desc			= "standby",
+	.type			= EV_PWR,
+	.wakeup			= 1,
+};
+
+static struct gpio_keys_platform_data gpio_standby_data = {
+	.buttons  = &gpio_standby_button,
+	.nbuttons = 1,
+};
+
+static struct platform_device gpio_standby_keys = {
+	.name = "gpio-keys",
+	.dev  = {
+		.platform_data = &gpio_standby_data,
+	},
+	.id   = 0,
+};
 
 void __init dove_wakeup_button_setup(int gpio)
 {
 	orion_gpio_set_valid(gpio, 1);
-	if (gpio_request(gpio, "wakeup") == 0) {
-		int ret = 0;
-		
-		gpio_direction_input(gpio);
-		set_irq_type(gpio_to_irq(gpio), IRQ_TYPE_EDGE_RISING);
-#ifdef  CONFIG_PM
-		/* share the IRQ in case someone wants to use the
-		 * button for more than wakeup from system sleep.
-		 */
-		ret = request_irq(gpio_to_irq(gpio),
-				  &dove_wake_interrupt,
-				  IRQF_SHARED, "standby_wakeup",
-				  &dove_wake_interrupt);
-		if (ret != 0) {
-			gpio_free(gpio);
-			printk(KERN_ERR "dove: no wakeup irq, %d?\n",
-			       ret);
-		} else
-		     enable_irq_wake(gpio_to_irq(gpio));
-#endif
-        } else
-		printk(KERN_ERR "dove: failed to config wakeup button\n");
+	gpio_standby_button.gpio = gpio;
+	platform_device_register(&gpio_standby_keys);
 }
 
 /*
