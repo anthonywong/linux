@@ -84,6 +84,10 @@ ENTRY(cpu_v7_do_idle)
 #else
 	wfi
 #endif
+#ifdef CONFIG_DOVE_REV_Y0
+	mcr     p15, 0, r1, c7, c5, 4           @ Prefetch Flush - ISB
+	mcr	p15, 0, r1, c7, c10, 4		@ Sync Data barrier
+#endif
 	mov	pc, lr
 ENDPROC(cpu_v7_do_idle)
 
