@@ -295,6 +295,7 @@ config ARCH_MXC
 	#select GENERIC_GPIO
 	#select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
+	select ARCH_MXC_CANONICAL
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
