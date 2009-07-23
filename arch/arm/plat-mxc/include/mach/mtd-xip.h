@@ -11,7 +11,7 @@
  *
  */
 
-#include <mach/mxc_timer.h>
+#include <mach/timer.h>
 
 #ifndef __ARCH_IMX_MTD_XIP_H__
 #define __ARCH_IMX_MTD_XIP_H__

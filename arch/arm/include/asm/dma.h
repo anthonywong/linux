@@ -2,6 +2,9 @@
 #define __ASM_ARM_DMA_H
 
 #include <asm/memory.h>
+#include <asm/system.h>
+#include <asm/scatterlist.h>
+#include <mach/dma.h>
 
 /*
  * This is the maximum virtual address which can be DMA'd from.

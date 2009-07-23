@@ -35,7 +35,7 @@ config W1_MASTER_DS2482
 	  will be called ds2482.
 
 config W1_MASTER_MXC
-	tristate "Freescale MXC 1-wire busmaster"
+	tristate "Freescale MXC driver for 1-wire"
 	depends on W1 && ARCH_MXC
 	help
 	  Say Y here to enable MXC 1-wire host

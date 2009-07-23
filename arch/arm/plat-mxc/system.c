@@ -38,6 +38,8 @@
 #define WDOG_WCR_ENABLE		(1 << 2)
 #endif
 
+#ifndef CONFIG_ARCH_MXC_CANONICAL
+
 /*
  * Reset the system. It is called by machine_restart().
  */
@@ -65,3 +67,6 @@ void arch_reset(char mode, const char *cmd)
 	/* we'll take a jump through zero as a poor second */
 	cpu_reset(0);
 }
+
+#endif /* CONFIG_ARCH_MXC_CANONICAL */
+
