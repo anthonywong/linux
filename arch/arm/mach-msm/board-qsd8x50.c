@@ -67,6 +67,8 @@
 #include <linux/usb/android.h>
 #endif
 
+#include "smd_private.h"
+
 #define TOUCHPAD_SUSPEND 	34
 #define TOUCHPAD_IRQ 		38
 
@@ -75,6 +77,7 @@
 #define SMEM_SPINLOCK_I2C	"S:6"
 
 #define MSM_PMEM_ADSP_SIZE	0x1C00000
+
 #define MSM_PMEM_GPU1_SIZE	0x800000
 #define MSM_FB_SIZE             0x500000
 #define MSM_AUDIO_SIZE		0x80000
