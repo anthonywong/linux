@@ -17,6 +17,8 @@
  *
  */
 
+#warning "-------------  drivers/mmc/host/mxcmm.c"
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
@@ -628,6 +630,7 @@ static void mxcmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->cmdat &= ~CMD_DAT_CONT_BUS_WIDTH_4;
 
 	if (host->power_mode != ios->power_mode) {
+			host->pdata->setpower(mmc_dev(mmc), ios->vdd);
 		if (host->pdata && host->pdata->setpower)
 			host->pdata->setpower(mmc_dev(mmc), ios->vdd);
 		host->power_mode = ios->power_mode;
