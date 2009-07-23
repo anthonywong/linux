@@ -1874,8 +1874,13 @@ config 68360_ENET
 	  the Motorola 68360 processor.
 
 config FEC
+<<<<<<< HEAD:drivers/net/Kconfig
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
 	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35
+=======
+	bool "FEC ethernet controller (of ColdFire CPUs)"
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX51
+>>>>>>> 1a6d96b... UBUNTU: ARM:mx51 Add SoC and board support for mx51 platforms:drivers/net/Kconfig
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.

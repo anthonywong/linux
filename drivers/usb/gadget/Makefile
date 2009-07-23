@@ -27,6 +27,7 @@ obj-$(CONFIG_USB_FSL_QE)	+= fsl_qe_udc.o
 obj-$(CONFIG_USB_CI13XXX)	+= ci13xxx_udc.o
 obj-$(CONFIG_USB_S3C_HSOTG)	+= s3c-hsotg.o
 obj-$(CONFIG_USB_LANGWELL)	+= langwell_udc.o
+obj-$(CONFIG_USB_ARC)		+= arcotg_udc.o
 
 #
 # USB gadget drivers
@@ -36,7 +37,11 @@ g_audio-objs			:= audio.o
 g_ether-objs			:= ether.o
 g_serial-objs			:= serial.o
 g_midi-objs			:= gmidi.o
+ifeq ($(CONFIG_ARCH_MXC_CANONICAL),y)
+gadgetfs-objs			:= arm_mxc_ubuntu_inode.o
+else
 gadgetfs-objs			:= inode.o
+endif
 g_file_storage-objs		:= file_storage.o
 g_printer-objs			:= printer.o
 g_cdc-objs			:= cdc2.o
