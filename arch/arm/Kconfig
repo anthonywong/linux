@@ -1293,6 +1293,7 @@ config CPU_FREQ_PXA
 config CPU_FREQ_IMX
 	 tristate "CPUfreq driver for i.MX CPUs"
 	 depends on ARCH_MXC && CPU_FREQ && REGULATOR
+	 default y
 	 help
 	   This enables the CPUfreq driver for i.MX CPUs.
 
