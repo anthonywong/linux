@@ -59,6 +59,10 @@
 
 static struct clock_event_device clockevent_mxc;
 static enum clock_event_mode clockevent_mode = CLOCK_EVT_MODE_UNUSED;
+#ifdef CONFIG_ARCH_MXC_CANONICAL
+/* clock source for the timer */
+static struct clk *timer_clk;
+#endif /* CONFIG_ARCH_MXC_CANONICAL */
 
 static void __iomem *timer_base;
 
@@ -281,11 +285,21 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 	return 0;
 }
 
+#ifdef CONFIG_ARCH_MXC_CANONICAL
+void __init mxc_timer_init(const char *clk_timer)
+{
+	timer_clk = clk_get(NULL, clk_timer);
+	if (!timer_clk) {
+		printk(KERN_ERR"Cannot determine timer clock. Giving up.\n");
+		return;
+	}
+#else
 void __init mxc_timer_init(struct clk *timer_clk)
 {
 	uint32_t tctl_val;
 	int irq;
 
+#endif /* CONFIG_ARCH_MXC_CANONICAL */
 	clk_enable(timer_clk);
 
 	if (cpu_is_mx1()) {

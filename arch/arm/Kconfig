@@ -298,6 +298,12 @@ config ARCH_MXC
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
+config ARCH_MXC_CANONICAL
+       bool "Ubuntu - Enable Freescale code that touches common paths"
+       depends on ARCH_MXC
+       help
+	 Choose this option to enable all common ARM arch code for Freescale in Ubun
+
 config ARCH_STMP3XXX
 	bool "Freescale STMP3xxx"
 	select CPU_ARM926T
@@ -1241,7 +1247,7 @@ endmenu
 
 menu "CPU Power Management"
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_PXA || ARCH_S3C64XX)
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA || ARCH_S3C64XX || ARCH_MXC)
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1275,6 +1281,18 @@ config CPU_FREQ_PXA
 config CPU_FREQ_S3C64XX
 	bool "CPUfreq support for Samsung S3C64XX CPUs"
 	depends on CPU_FREQ && CPU_S3C6410
+
+config CPU_FREQ_PXA
+	bool
+	depends on CPU_FREQ && ARCH_PXA && PXA25x
+	default y
+	select CPU_FREQ_DEFAULT_GOV_USERSPACE
+
+config CPU_FREQ_IMX
+	 tristate "CPUfreq driver for i.MX CPUs"
+	 depends on ARCH_MXC && CPU_FREQ && REGULATOR
+	 help
+	   This enables the CPUfreq driver for i.MX CPUs.
 
 endif
 
@@ -1476,6 +1494,10 @@ source "drivers/regulator/Kconfig"
 source "drivers/uio/Kconfig"
 
 source "drivers/staging/Kconfig"
+
+if ARCH_MXC
+source "drivers/mxc/Kconfig"
+endif
 
 endmenu
 
