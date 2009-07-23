@@ -174,6 +174,9 @@
 /* Qualcomm MSM SoCs */
 #define PORT_MSM	88
 
+/* Freescale Semiconductor MXC fmaily */
+#define PORT_MXC        89
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>
