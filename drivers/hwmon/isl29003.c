@@ -267,6 +267,7 @@ static int isl29003_i2c_probe(struct i2c_client *client,
 	struct isl29003_data *data;
 	struct regulator *vdd_reg;
 	struct mxc_lightsensor_platform_data *ls_data;
+	struct device *dev = &client->dev;
 
 	ls_data = (struct mxc_lightsensor_platform_data *)
 	    (client->dev).platform_data;
@@ -291,12 +292,13 @@ static int isl29003_i2c_probe(struct i2c_client *client,
 	isl29003_client = client;
 	data = kzalloc(sizeof(struct isl29003_data), GFP_KERNEL);
 	if (data == NULL) {
+		dev_err(dev, "failed to create our state\n");
 		err = -ENOMEM;
 		goto exit1;
 	}
 
-	i2c_set_clientdata(client, data);
 	data->client = client;
+	i2c_set_clientdata(client, data);
 
 	data->param.width = ISL29003_WIDTH_DEFAULT;
 	data->param.gain = ISL29003_GAIN_DEFAULT;
@@ -338,9 +340,8 @@ exit1:
 	return err;
 }
 
-static int isl29003_i2c_remove(struct i2c_client *client)
+static int __devexit isl29003_i2c_remove(struct i2c_client *client)
 {
-	int err;
 	struct isl29003_data *data = i2c_get_clientdata(client);
 
 	if (data->vdd_reg) {
@@ -350,10 +351,8 @@ static int isl29003_i2c_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	device_remove_file(&client->dev, &sensor_dev_attr_enable.dev_attr);
 	device_remove_file(&client->dev, &sensor_dev_attr_lux.dev_attr);
-	err = i2c_detach_client(client);
-	if (err)
-		return err;
-	kfree(client);
+
+	kfree(data);
 	return 0;
 }
 
@@ -409,10 +408,11 @@ MODULE_DEVICE_TABLE(i2c, isl29003_id);
 
 static struct i2c_driver isl29003_driver = {
 	.driver = {
+		   .owner = THIS_MODULE,
 		   .name = "isl29003",
 		   },
 	.probe = isl29003_i2c_probe,
-	.remove = isl29003_i2c_remove,
+	.remove = __devexit_p(isl29003_i2c_remove),
 	.suspend = isl29003_suspend,
 	.resume = isl29003_resume,
 	.id_table = isl29003_id,
