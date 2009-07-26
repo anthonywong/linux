@@ -287,6 +287,8 @@ static int check_surface(struct fb_info *fi,
 	    dfli->surface.viewPortInfo.zoomYSize != new_info->zoomYSize)) {
 		var->xres = new_info->srcWidth;
 		var->yres = new_info->srcHeight;
+		var->xres_virtual = new_info->srcWidth;
+		var->yres_virtual = new_info->srcHeight;
 		dfli->surface.viewPortInfo = *new_info;
 		dovefb_set_pix_fmt(var, dfli->pix_fmt);
 		changed = 1;
