@@ -700,6 +700,7 @@ static int dovefb_enable_lcd0(struct platform_device *pdev)
 
 	return 0;
 }
+#include <video/dovefb_gpio.h>
 
 static int __init dovefb_probe(struct platform_device *pdev)
 {
@@ -741,6 +742,11 @@ static int __init dovefb_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto failed;
 	}
+
+	/*
+	* initialize lcd gpio access interface
+	*/
+	dovefb_save_regbase(info->reg_base, pdev->id);
 
 	if (dovefb_init_layer(pdev, DOVEFB_GFX_PLANE, info, res)) {
 		printk(KERN_ERR "dovefb_init_layer() for GFX layer failed.\n");
