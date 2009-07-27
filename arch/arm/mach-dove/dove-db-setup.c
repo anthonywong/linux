@@ -481,8 +481,8 @@ static u64 nfc_dmamask = DMA_BIT_MASK(32);
 static struct dove_nand_platform_data dove_db_nfc_data = {
 	.nfc_width	= 8,
 	.use_dma	= 1,
-	.use_ecc	= 1,
-	.use_bch	= 1,
+	.use_ecc	= 0,
+	.use_bch	= 0,
 	.parts = partition_dove,
 	.nr_parts = ARRAY_SIZE(partition_dove)
 };
@@ -527,6 +527,9 @@ static struct platform_device dove_nfc = {
 static void __init dove_db_nfc_init(void)
 {
 	dove_db_nfc_data.tclk = dove_tclk_get();
+	if(useHalDrivers)
+		dove_nfc.name = "dove-nand-hal";
+
 	platform_device_register(&dove_nfc);
 }
 
@@ -675,8 +678,11 @@ static void __init dove_db_init(void)
 	dove_ac97_setup();
 
 	dove_rtc_init();
-	pxa_init_dma_wins(&dove_mbus_dram_info);
-	pxa_init_dma(16);
+
+	if(!useHalDrivers) {
+		pxa_init_dma_wins(&dove_mbus_dram_info);
+		pxa_init_dma(16);
+	}
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
