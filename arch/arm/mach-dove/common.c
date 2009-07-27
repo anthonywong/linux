@@ -1278,8 +1278,10 @@ static struct platform_device dove_ssp_pdev = {
 
 void __init dove_ssp_init(struct dove_ssp_platform_data *pdata)
 {
-	dove_ssp_pdev.dev.platform_data = pdata;
-	platform_device_register(&dove_ssp_pdev);
+	if(!useHalDrivers) {
+		dove_ssp_pdev.dev.platform_data = pdata;
+		platform_device_register(&dove_ssp_pdev);
+	}
 }
 #endif
 
@@ -1624,7 +1626,8 @@ void __init dove_ac97_setup(void)
 		return;
 	}
 
-	platform_device_register(&dove_device_ac97);
+	if(!useHalDrivers)
+		platform_device_register(&dove_device_ac97);
 }
 
 void __init dove_config_arbitration(void)
