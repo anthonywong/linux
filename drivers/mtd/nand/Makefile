@@ -1,6 +1,7 @@
 #
 # linux/drivers/nand/Makefile
 #
+include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 obj-$(CONFIG_MTD_NAND)			+= nand.o nand_ecc.o
 obj-$(CONFIG_MTD_NAND_IDS)		+= nand_ids.o
@@ -41,5 +42,6 @@ obj-$(CONFIG_MTD_NAND_MXC)		+= mxc_nand.o
 obj-$(CONFIG_MTD_NAND_SOCRATES)		+= socrates_nand.o
 obj-$(CONFIG_MTD_NAND_TXX9NDFMC)	+= txx9ndfmc.o
 obj-$(CONFIG_MTD_NAND_DOVE)		+= dove_nand.o
+obj-$(CONFIG_MTD_NAND_HAL_DOVE)		+= dove_nand_hal.o
 
 nand-objs := nand_base.o nand_bbt.o
