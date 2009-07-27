@@ -13,7 +13,7 @@
 # DISCLAIMED.  The GPL License provides additional details about this warranty 
 # disclaimer.
 #*******************************************************************************/
-include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 # Objects list
 COMMON_OBJS	= $(COMMON_DIR)/mvDebug.o $(COMMON_DIR)/mvCommon.o $(COMMON_DIR)/mvStack.o
