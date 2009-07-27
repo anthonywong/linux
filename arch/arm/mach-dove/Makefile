@@ -16,7 +16,7 @@ obj-$(CONFIG_MV_INCLUDE_MPP_SYSFS)	+= avng_mpp.o
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 obj-$(CONFIG_PROC_FS)		+= dump_cp15_regs.o
 
-include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 obj-y           += mv_hal_support/
 obj-y           += ../plat-orion/mv_hal_drivers/
