@@ -20,6 +20,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/interrupt.h>
