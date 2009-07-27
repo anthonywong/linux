@@ -3,14 +3,14 @@
 #
 
 ifeq ($(CONFIG_ARCH_DOVE),y)
-include $(TOPDIR)/include/config/auto.conf
-include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+include $(srctree)/include/config/auto.conf
+include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 else
 #include $(MV_RULES_PATH)/mvRules.mk
 endif
 
 ifeq ($(CONFIG_MV_CESA_OCF),y)
-EXTRA_CFLAGS    += -I$(TOPDIR)/crypto/ocf
+EXTRA_CFLAGS    += -I$(srctree)/crypto/ocf
 endif
 
 obj-$(CONFIG_MV_CESA_TOOL) += cesa_dev.o
