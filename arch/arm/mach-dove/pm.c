@@ -623,6 +623,7 @@ static struct kobj_attribute ebook_attr =
  */
 void cpu_do_idle_enabled(void) {
 	cpu_do_idle();
+	local_irq_enable();
 }
 
 /*
