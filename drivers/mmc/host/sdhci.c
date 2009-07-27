@@ -93,7 +93,7 @@ static void sdhci_dumpregs(struct sdhci_host *host)
 		       readl(host->ioaddr + SDHCI_ADMA_ERROR),
 		       readl(host->ioaddr + SDHCI_ADMA_ADDRESS));
 
-	sdhci_sdio_gpio_irq_dump(host);
+//	sdhci_sdio_gpio_irq_dump(host);
 	printk(KERN_DEBUG DRIVER_NAME ": ===========================================\n");
 }
 
