@@ -617,7 +617,7 @@ static void pxa3xx_nand_data_dma_irq(int channel, void *data)
 
 	dcsr = DCSR(channel);
 	DCSR(channel) = dcsr;
-
+printk(KERN_INFO "pxa3xx_nand_data_dma_irq (0x%x).\n", dcsr);
 	if (dcsr & DCSR_BUSERR) {
 		info->retcode = ERR_DMABUSERR;
 		complete(&info->cmd_complete);
