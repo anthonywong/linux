@@ -59,12 +59,6 @@ static void gpio_keys_timer(unsigned long _data)
 	schedule_work(&data->work);
 }
 
-static void gpio_check_button_work(struct work_struct *work)
-{
-	struct gpio_button_data *bdata = container_of(work, struct gpio_button_data, tq);
-	gpio_keys_report_event(bdata);
-}
-
 static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 {
 	struct gpio_button_data *bdata = dev_id;
@@ -89,7 +83,7 @@ static irqreturn_t gpio_keys_shared_isr(int irq, void *dev_id)
 	for (i = 0; i < ddata->nbuttons; i++) {
 		struct gpio_button_data *bdata = &ddata->data[i];
 
-		schedule_work (&bdata->tq);
+		schedule_work (&bdata->work);
 	}
 	return IRQ_HANDLED;
 }
@@ -141,7 +135,6 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 			    gpio_keys_timer, (unsigned long)bdata);
 		INIT_WORK(&bdata->work, gpio_keys_report_event);
 
-		INIT_WORK (&bdata->tq, gpio_check_button_work);
 		error = gpio_request(button->gpio, button->desc ?: "gpio_keys");
 		if (error < 0) {
 			pr_err("gpio-keys: failed to request GPIO %d,"
