@@ -107,7 +107,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define NFC_RW_LP_NO_ECC_DATA_LEN	2112
 #define NFC_RW_LP_HMNG_ECC_DATA_LEN	2088
-#define NFC_RW_LP_BCH_ECC_DATA_LEN	2080
+#define NFC_RW_LP_BCH_ECC_DATA_LEN	2088
 
 #define NFC_RW_LP_G_NO_ECC_DATA_LEN	2112
 #define NFC_RW_LP_G_HMNG_ECC_DATA_LEN	2088
@@ -115,8 +115,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #define NFC_CMD_BUFF_SIZE		(sizeof(MV_NFC_CMD))
-#define NFC_CMD_BUFF_ADDR		(NFC_COMMAND_BUFF_0_REG)
-#define NFC_DATA_BUFF_ADDR		(NFC_DATA_BUFF_REG)\
+#define NFC_CMD_BUFF_ADDR		(NFC_COMMAND_BUFF_0_REG_4PDMA)
+#define NFC_DATA_BUFF_ADDR		(NFC_DATA_BUFF_REG_4PDMA)
 
 /**********/
 /* Macros */
@@ -259,7 +259,7 @@ MV_U32 nfc_dbg_read(MV_U32 addr)
 
 MV_VOID nfc_dbg_write(MV_U32 addr, MV_U32 val)
 {
-	MV_MEMIO_LE32_WRITE((addr), (val));
+	MV_MEMIO_LE32_WRITE((INTER_REGS_BASE | addr), (val));
 
 	if (mvNfcDbgFlag) mvOsPrintf("NFC write 0x%08x = %08x\n", addr, val);
 }
@@ -476,7 +476,8 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 		nfcCtrl->dataDescBuff.dataSize = (MV_PDMA_DESC_SIZE * MV_NFC_MAX_DESC_CHAIN);
 	
 		/* Allocate Data DMA channel */
-		if (mvPdmaChanAlloc(MV_PDMA_NAND_DATA, 0, &nfcCtrl->dataChanHndl) != MV_OK)
+		if (mvPdmaChanAlloc(MV_PDMA_NAND_DATA, (1 << 23) | (1 << 28) | (1 < 29), 
+					&nfcCtrl->dataChanHndl) != MV_OK)
 			return MV_NO_RESOURCE;
 
 		/* Allocate Command DMA channel */
@@ -491,6 +492,7 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	nfcCtrl->eccMode = nfcInfo->eccMode; 
 	nfcCtrl->ifMode = nfcInfo->ifMode; 
 	nfcCtrl->currCs = MV_NFC_CS_NONE;
+	nfcCtrl->regsPhysAddr = nfcInfo->regsPhysAddr;
 
 	if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
 		MV_REG_WRITE(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
@@ -706,7 +708,6 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 
 	return MV_OK;
 }
-
 /*******************************************************************************
 * mvNfcCommandIssue
 *
@@ -1012,7 +1013,7 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 		/* Fill Command Descriptor */
 		cmdDescVirtPtr[i].physDescPtr = 0x1;
 		cmdDescVirtPtr[i].physSrcAddr = (MV_U32)&cmdPhysPtr[i];
-		cmdDescVirtPtr[i].physDestAddr = NFC_CMD_BUFF_ADDR;
+		cmdDescVirtPtr[i].physDestAddr = nfcCtrl->regsPhysAddr + NFC_CMD_BUFF_ADDR;
 		cmdDescVirtPtr[i].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->cmdChanHndl, MV_PDMA_MEM_TO_PERIPH, NFC_CMD_BUFF_SIZE);;
 
 		/* Check if data dma need to be operated for this command */
@@ -1037,14 +1038,14 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
                     (descInfo[i].cmd == MV_NFC_CMD_READ_LAST_NAKED) ||
                     (descInfo[i].cmd == MV_NFC_CMD_READ_DISPATCH))
                 {
-                    dataDescVirtPtr[dataDescCount].physSrcAddr = NFC_DATA_BUFF_ADDR;
+                    dataDescVirtPtr[dataDescCount].physSrcAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
                     dataDescVirtPtr[dataDescCount].physDestAddr = descInfo[i].physAddr + nPage*xferLen;
                     dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_PERIPH_TO_MEM, xferLen);                   
                 }
                 else /* Write */
                 {
                     dataDescVirtPtr[dataDescCount].physSrcAddr = descInfo[i].physAddr + nPage*xferLen;
-                    dataDescVirtPtr[dataDescCount].physDestAddr = NFC_DATA_BUFF_ADDR;
+                    dataDescVirtPtr[dataDescCount].physDestAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
                     dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_MEM_TO_PERIPH, xferLen);                   
                 }
 
@@ -1104,7 +1105,6 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 
 	return MV_OK;
 }
-
 
 /*******************************************************************************
 * mvNfcCommandIssue
@@ -1413,10 +1413,9 @@ MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pa
 	{
 		/* operate the DMA */
 		if (mvPdmaChanTransfer(&nfcCtrl->cmdChanHndl, MV_PDMA_MEM_TO_PERIPH, 
-				nfcCtrl->cmdBuff.bufPhysAddr, NFC_CMD_BUFF_ADDR, 
+				nfcCtrl->cmdBuff.bufPhysAddr, nfcCtrl->regsPhysAddr + NFC_CMD_BUFF_ADDR, 
 				NFC_CMD_BUFF_SIZE, 0) != MV_OK)
 			return MV_HW_ERROR;
-				
 	}
 	else /* PIO mode */
 	{
@@ -1455,7 +1454,7 @@ MV_U32 mvNfcStatusGet(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *value)
 	MV_U32 reg, ret;
 	
 	if((reg = MV_REG_READ(NFC_STATUS_REG)) == 0)
-        return 0;
+	        return 0;
 
 	if (value)
 		*value = ((reg & NFC_SR_ERR_CNT_MASK) >> NFC_SR_ERR_CNT_OFFS);
@@ -1561,9 +1560,9 @@ MV_STATUS mvNfcIntrEnable(MV_NFC_CTRL *nfcCtrl, MV_U32 intMask, MV_BOOL enable)
 
 	reg = MV_REG_READ(NFC_CONTROL_REG);
 	if (enable)
-		reg |= msk;
-	else
 		reg &= ~msk;
+	else
+		reg |= msk;
 
 	MV_REG_WRITE(NFC_CONTROL_REG, reg);
 	
@@ -1624,7 +1623,8 @@ MV_STATUS mvNfcReadWrite(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *virt
 			{
 				/* operate the DMA */
 				if (mvPdmaChanTransfer(&nfcCtrl->dataChanHndl, MV_PDMA_PERIPH_TO_MEM, 
-						NFC_DATA_BUFF_ADDR, physBuffAddr, data_len, 0) != MV_OK)
+						nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR,
+						physBuffAddr, data_len, 0) != MV_OK)
 					return MV_HW_ERROR;
 			}
 			else /* PIO mode */
@@ -1648,7 +1648,8 @@ MV_STATUS mvNfcReadWrite(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *virt
 			{
 				/* operate the DMA */
 				if (mvPdmaChanTransfer(&nfcCtrl->dataChanHndl, MV_PDMA_MEM_TO_PERIPH, 
-						physBuffAddr, NFC_DATA_BUFF_ADDR, data_len, 0) != MV_OK)
+						physBuffAddr, nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR,
+						data_len, 0) != MV_OK)
 					return MV_HW_ERROR;
 			}
 			else /* PIO mode */
@@ -1807,6 +1808,35 @@ MV_STATUS mvNfcFlashBlockSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size)
 		*size = ((flashDeviceInfo[nfcCtrl->flashIdx].pgSz << 1) * flashDeviceInfo[nfcCtrl->flashIdx].pgPrBlk);
 	else
 		*size = (flashDeviceInfo[nfcCtrl->flashIdx].pgSz * flashDeviceInfo[nfcCtrl->flashIdx].pgPrBlk);
+
+	return MV_OK;
+}
+
+
+/*******************************************************************************
+* mvNfcFlashIdGet
+*
+* DESCRIPTION:
+*       Retrieve the flash device ID.
+*
+* INPUT:
+*	nfcCtrl  - Nand control structure.
+*
+* OUTPUT:
+*	flashId - Flash ID.
+*
+* RETURN:
+*	MV_NOT_FOUND - Bad flash index.
+*******************************************************************************/
+MV_STATUS mvNfcFlashIdGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *flashId)
+{
+        if (nfcCtrl->flashIdx >= (sizeof(flashDeviceInfo)/sizeof(MV_NFC_FLASH_INFO)))
+		return MV_NOT_FOUND;
+
+	if(flashId == NULL)
+		return MV_BAD_PTR;
+
+	*flashId = flashDeviceInfo[nfcCtrl->flashIdx].id;
 
 	return MV_OK;
 }
