@@ -233,6 +233,7 @@ typedef struct {
 	MV_U32			tclk;
 	MV_BOOL			readyBypass;
 	MV_VOID *		osHandle;
+	MV_U32			regsPhysAddr;
 }MV_NFC_INFO;
 
 
@@ -301,6 +302,7 @@ typedef struct {
 	MV_BUF_INFO	cmdBuff;
 	MV_BUF_INFO	cmdDescBuff;
 	MV_BUF_INFO	dataDescBuff;
+	MV_U32		regsPhysAddr;
 }MV_NFC_CTRL;
 
 typedef struct {
@@ -337,6 +339,7 @@ MV_STATUS mvNfcFlashPageSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
 MV_STATUS mvNfcFlashBlockSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
 MV_STATUS mvNfcDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *data_len);
 MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 * data_len);
+MV_STATUS mvNfcFlashIdGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *flashId);
 
 
 #ifdef __cplusplus
