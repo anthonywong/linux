@@ -3,8 +3,8 @@
 #
 
 ifdef CONFIG_MV_HAL_RULES_PATH
-include $(TOPDIR)/include/config/auto.conf
-include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+include $(srctree)/include/config/auto.conf
+include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 endif
 
 obj-$(CONFIG_SND_DOVE_SOC_MRVL_AUDIO) += snd-mv88fx-soc.o
