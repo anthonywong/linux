@@ -200,8 +200,13 @@
 #define v7wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | \
 			 TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | TLB_V7_UIS_ASID)
 #else
+#if defined(CONFIG_CACHE_TAUROS2) && !defined(CONFIG_MRV_PTE_IN_L2)
+#define v7wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | TLB_L2CLEAN_FR |\
+			 TLB_V6_U_FULL | TLB_V6_U_PAGE | TLB_V6_U_ASID)
+#else
 #define v7wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BTB | \
 			 TLB_V6_U_FULL | TLB_V6_U_PAGE | TLB_V6_U_ASID)
+#endif /* CONFIG_CACHE_TAUROS2 && .. */
 #endif
 
 #ifdef CONFIG_CPU_TLB_V7
