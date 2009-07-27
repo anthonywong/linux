@@ -87,8 +87,8 @@ SOC_SYS_DIR	    = $(OSSERV_DIR)/ctrlEnv/sys
 # Include path
 ###################################################################################################
 
-LSP_PATH_I      = $(TOPDIR)/arch/arm/mach-kirkwood
-PLAT_PATH_I	= $(TOPDIR)/arch/arm/plat-orion/mv_hal_drivers
+LSP_PATH_I      = $(srctree)/arch/arm/mach-kirkwood
+PLAT_PATH_I	= $(srctree)/arch/arm/plat-orion/mv_hal_drivers
 
 HAL_PATH        = -I$(PLAT_PATH_I)/$(HAL_DIR) -I$(PLAT_PATH_I)/$(HAL_SATA_DIR)
 KW_FAM_PATH  = 	  -I$(LSP_PATH_I)/$(KW_FAM_DIR)
