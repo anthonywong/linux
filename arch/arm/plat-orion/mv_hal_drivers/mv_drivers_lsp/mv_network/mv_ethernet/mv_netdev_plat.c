@@ -377,8 +377,7 @@ static INLINE mv_eth_priv* eth_skb_reusable(struct sk_buff *skb)
 static INLINE void  eth_skb_reset(struct sk_buff *skb)
 {
     /* Taken from __kfree_skb() */
-    dst_release(skb->dst);
-    skb->dst = NULL;
+    skb_dst_drop(skb);
 
 #ifdef CONFIG_XFRM
     secpath_put(skb->sp);
@@ -883,7 +882,7 @@ static INLINE int eth_rx(struct net_device *dev, unsigned int work_to_do, int qu
         if(out_dev != NULL)
         {
             /* Send to external net_device */
-            out_dev->hard_start_xmit(skb, out_dev);
+            out_dev->netdev_ops->ndo_start_xmit(skb, out_dev);
         }
         else
         {
