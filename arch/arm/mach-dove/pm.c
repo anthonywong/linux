@@ -38,8 +38,6 @@
  * This should be replaced by the PMU flag register
  */
 static suspend_state_t dove_target_pm_state = PM_SUSPEND_ON;
-static void cpu_do_idle_enabled(void);
-static void cpu_do_idle_disabled(void);
 
 /* manage generic interface for list of registers to save & restore */
 static LIST_HEAD(registers_list);
@@ -245,46 +243,6 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			else
 				printk("\n");
 						
-			goto done;
-		}
-		goto done;
-	}
-
-	str = "idle ";
-	if(!strncmp(buffer+len, str,strlen(str))) {
-		len += strlen(str);
-		str = "deep";
-		if(!strncmp(buffer+len, str,strlen(str))) {
-			len += strlen(str);
-			printk("Use Deep Idle for OS IDLE.\n");
-			pm_idle = dove_pm_cpuidle_deepidle;
-			goto done;
-		}
-		str = "wfill";
-		if(!strncmp(buffer+len, str,strlen(str))) {
-			len += strlen(str);
-			printk("Use WFI with L1 and L2 low leakage for OS IDLE.\n");
-			pm_idle = cpu_do_idle_enabled;
-			reg = MV_REG_READ(PMU_CTRL_REG);
-			reg &= ~PMU_CTRL_L2_LOWLEAK_EN_MASK;
-			MV_REG_WRITE(PMU_CTRL_REG, reg);
-			goto done;
-		}
-		str = "wfi";
-		if(!strncmp(buffer+len, str,strlen(str))) {
-			len += strlen(str);
-			printk("Use WFI for OS IDLE.\n");
-			pm_idle = cpu_do_idle_enabled;
-			reg = MV_REG_READ(PMU_CTRL_REG);
-			reg |= PMU_CTRL_L2_LOWLEAK_EN_MASK;
-			MV_REG_WRITE(PMU_CTRL_REG, reg);
-			goto done;
-		}
-		str = "none";
-		if(!strncmp(buffer+len, str,strlen(str))) {
-			len += strlen(str);
-			printk("Don't use WFI for OS IDLE.\n");	
-			pm_idle = cpu_do_idle_disabled;
 			goto done;
 		}
 		goto done;
@@ -570,7 +528,6 @@ int pmu_proc_read(char* page, char** start, off_t off, int count,int* eof,
 	len += sprintf(page+len,"   standby\n");
 	len += sprintf(page+len,"   deepidle_block\n");
 	len += sprintf(page+len,"   wfi_block\n");
-	len += sprintf(page+len,"   idle <wfi|wfiwll|none>\n");
 	len += sprintf(page+len,"   dvfs <hi|lo>\n");
 	len += sprintf(page+len,"   gpu <on|off>\n");
 	len += sprintf(page+len,"   vpu <on|off>\n");
@@ -619,22 +576,6 @@ static struct kobj_attribute ebook_attr =
 	__ATTR(ebook, 0644, ebook_show, ebook_store);
 
 /*
- * Idle routine in normal operation
- */
-void cpu_do_idle_enabled(void) {
-	cpu_do_idle();
-	local_irq_enable();
-}
-
-/*
- * This routine replaces the default_idle() routine during the PM state changes,
- * to avoid calling the WFI instruction.
- */
-void cpu_do_idle_disabled(void) {
-	local_irq_enable();
-}
-
-/*
  * Enter the Dove DEEP IDLE mode (power off CPU only)
  */
 void dove_deepidle(void)
@@ -642,7 +583,7 @@ void dove_deepidle(void)
 	MV_U32 reg;
 
 	pr_debug("dove_deepidle: Entering Dove DEEP IDLE mode.\n");
-
+	
 	/* Put on the Led on MPP7 */
 	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
 	reg &= ~PMU_SIG_7_SLCT_CTRL_MASK;
@@ -698,8 +639,8 @@ void dove_standby(void)
 	vfp_save();
 #endif
 
-	/* Suspend the CPU only */
-	mvPmuStandby();
+	/* Suspend the CPU only */	
+	mvPmuStandby();	
 	cpu_init();
 
 #if defined(CONFIG_VFP)
@@ -766,7 +707,6 @@ EXPORT_SYMBOL(dove_io_core_lost_power);
 static int dove_pm_prepare(void)
 {
 	pr_debug("PM DEBUG: Preparing to enter PM state.\n");
-	pm_idle = cpu_do_idle_disabled;
 	return 0;
 }
 
@@ -792,12 +732,10 @@ static int dove_pm_enter(suspend_state_t state)
 
 /*
  * This is called when the system has just left a sleep state, right after
- * the nonboot CPUs have been enabled pm_idle = dove_pand before devices are resumed (it is
- * executed with IRQs enabled
+ * the nonboot CPUs have been enabled.
  */
 static void dove_pm_finish(void)
 {
-	pm_idle = cpu_do_idle_enabled;
 }
 
 /*
@@ -833,7 +771,6 @@ void dove_pm_register (void)
 
 	printk(KERN_NOTICE "Power Management for Marvell Dove.\n");
 
-	pm_idle = cpu_do_idle_enabled;
 	suspend_set_ops(&dove_pm_ops);
 
 	/* Create EBook control file in sysfs */
