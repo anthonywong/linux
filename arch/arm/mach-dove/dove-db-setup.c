@@ -597,6 +597,8 @@ static struct dove_mpp_mode dove_db_tact_int_mpp_modes[] __initdata = {
 static int __init dove_db_pm_init(void)
 {
 	MV_PMU_INFO pmuInitInfo;	
+	if (!machine_is_dove_db())
+		return 0;
 
 	pmuInitInfo.deepIdleStatus = MV_FALSE; 			/* Disable L2 retention */
 	pmuInitInfo.cpuPwrGoodEn = MV_FALSE;			/* Don't wait for external power good signal */
