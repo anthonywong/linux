@@ -224,6 +224,12 @@ typedef enum {
  * 	readyBypass	Whether to wait for the RnB sugnal to be deasserted after
  *			waiting the tR or skip it and move directly to the next step.
  * 	osHandle	OS specific handle used for allocating command buffer
+ *	regsPhysAddr	Physical address of internal registers (used in DMA
+ *			mode only)
+ *	dataPdmaIntMask Interrupt mask for PDMA data channel (used in DMA mode
+ *			only).
+ *	cmdPdmaIntMask	Interrupt mask for PDMA command channel (used in DMA
+ *			mode only). 
  */
 typedef struct {
 	MV_NFC_IO_MODE 		ioMode;
@@ -234,6 +240,8 @@ typedef struct {
 	MV_BOOL			readyBypass;
 	MV_VOID *		osHandle;
 	MV_U32			regsPhysAddr;
+	MV_U32			dataPdmaIntMask;
+	MV_U32			cmdPdmaIntMask;	
 }MV_NFC_INFO;
 
 
@@ -284,6 +292,12 @@ typedef enum {
  *	dataChanHndl	Pointer to the data DMA channel
  *	cmdChanHndl	Pointer to the command DMA Channel
  *	cmdBuff		Command buffer information (used in DMA only)
+ *	regsPhysAddr	Physical address of internal registers (used in DMA
+ *			mode only)
+ *	dataPdmaIntMask Interrupt mask for PDMA data channel (used in DMA mode
+ *			only).
+ *	cmdPdmaIntMask	Interrupt mask for PDMA command channel (used in DMA
+ *			mode only).
  */
 typedef struct {
 	MV_U32		flashIdx;
@@ -303,6 +317,8 @@ typedef struct {
 	MV_BUF_INFO	cmdDescBuff;
 	MV_BUF_INFO	dataDescBuff;
 	MV_U32		regsPhysAddr;
+	MV_U32		dataPdmaIntMask;
+	MV_U32		cmdPdmaIntMask;
 }MV_NFC_CTRL;
 
 typedef struct {
