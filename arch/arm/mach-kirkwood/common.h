@@ -40,15 +40,11 @@ void kirkwood_pcie_init(void);
 void kirkwood_sata_init(struct mv_sata_platform_data *sata_data);
 void kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data);
 void kirkwood_spi_init(void);
-void kirkwood_i2c_init(void);
 void kirkwood_uart0_init(void);
 void kirkwood_uart1_init(void);
 void kirkwood_nand_init(struct mtd_partition *parts, int nr_parts, int delay);
 
 extern int kirkwood_tclk;
-void kirkwood_xor0_init(void);
-void kirkwood_xor1_init(void);
-void kirkwood_i2c_init(void);
 void kirkwood_i2s_init(void);
 void kirkwood_eth0_init(void);
 extern struct sys_timer kirkwood_timer;
