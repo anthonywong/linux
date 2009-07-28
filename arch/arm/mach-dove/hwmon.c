@@ -36,8 +36,15 @@
 #define DOVE_OVERCOOL_TEMP	10		/* degrees */
 #define	DOVE_OVERCOOL_DELAY	0x700
 
+#if 0
+/* Case Temperature */
 #define DOVE_TSEN_TEMP2RAW(x)	((3043800 - (17294 * x)) / 10000)
 #define DOVE_TSEN_RAW2TEMP(x)	((3043800 - (10000 * x)) / 17294)
+#endif
+
+/* Junction Temperature */
+#define DOVE_TSEN_TEMP2RAW(x)	((231470 - (1000 * x)) / 715)
+#define DOVE_TSEN_RAW2TEMP(x)	((231470 - (715 * x)) / 1000)
 
 static struct device *hwmon_dev;
 
