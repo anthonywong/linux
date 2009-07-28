@@ -27,18 +27,16 @@
 #include "mvCommon.h"
 #include "mvOs.h"
 #include "pdma/mvPdma.h"
+#include "pdma/mvPdmaRegs.h"
 #include "nfc/mvNfc.h"
 #include "nfc/mvNfcRegs.h"
-//#include "pdma/mvPdmaRegs.h"
 
 int do_dbg = 0;
-#define MY_DBG(x) 
-//if(do_dbg) printk x
+#define MY_DBG(x) if(do_dbg) printk x
 
 #define	CHIP_DELAY_TIMEOUT	(20 * HZ/10)
 
 #define NFC_SR_MASK		(0xfff)
-#define NFC_SR_CMDD_MASK	(NFC_SR_CS0_CMDD_MASK)
 #define NFC_SR_BBD_MASK		(NFC_SR_CS0_BBD_MASK)
 
 /* error code and state */
@@ -99,6 +97,7 @@ struct pxa3xx_nand_info {
 	int 			retcode;
 	struct completion 	cmd_complete;
 
+	int			chained_cmd;
 	uint32_t		column;
 	uint32_t		page_addr;
 	MV_NFC_CMD_TYPE		cmd;
@@ -136,11 +135,11 @@ static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 static int handle_data_pio(struct pxa3xx_nand_info *info)
 {
 	int ret, timeout = CHIP_DELAY_TIMEOUT;
-MY_DBG((KERN_INFO "handle_data_pio() - state = %d.\n",info->state));
+	MY_DBG((KERN_INFO "handle_data_pio() - state = %d.\n",info->state));
 	switch (info->state) {
 	case STATE_PIO_WRITING:
 		mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
-		mvNfcIntrEnable(&info->nfcCtrl,  NFC_SR_BBD_MASK | NFC_SR_CMDD_MASK, MV_TRUE);
+		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_CMDD, MV_TRUE);
 
 		ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
 		if (!ret) {
@@ -149,7 +148,7 @@ MY_DBG((KERN_INFO "handle_data_pio() - state = %d.\n",info->state));
 		}
 		break;
 	case STATE_PIO_READING:
-MY_DBG((KERN_INFO "handle_data_pio() - data_size = %d.\n",info->data_size));
+		MY_DBG((KERN_INFO "handle_data_pio() - data_size = %d.\n",info->data_size));
 		mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
 		break;
 	default:
@@ -161,18 +160,30 @@ MY_DBG((KERN_INFO "handle_data_pio() - data_size = %d.\n",info->data_size));
 	info->state = STATE_READY;
 	return 0;
 }
-#if 0
+
 static irqreturn_t pxa3xx_nand_data_dma_irq(int irq, void *data)
 {
 	struct pxa3xx_nand_info *info = data;
-	uint32_t dcsr;
+	uint32_t dcsr, intr;
 	int channel = info->nfcCtrl.dataChanHndl.chanNumber;
 
+	intr = MV_REG_READ(PDMA_INTR_CAUSE_REG);
 	dcsr = MV_REG_READ(PDMA_CTRL_STATUS_REG(channel));
 	MV_REG_WRITE(PDMA_CTRL_STATUS_REG(channel), dcsr);
 
-	printk(KERN_INFO "pxa3xx_nand_data_dma_irq(0x%x) - 1.\n", dcsr);
+	if(info->chained_cmd) {
+		if (dcsr & DCSR_BUSERRINTR) {
+			info->retcode = ERR_DMABUSERR;
+			complete(&info->cmd_complete);
+		}
+		if (info->state == STATE_DMA_READING) {
+			info->state = STATE_READY;
+			complete(&info->cmd_complete);
+		}
+		return IRQ_HANDLED;
+	}
 
+	MY_DBG((KERN_INFO "pxa3xx_nand_data_dma_irq(0x%x, 0x%x) - 1.\n", dcsr, intr));
 	if (dcsr & DCSR_BUSERRINTR) {
 		info->retcode = ERR_DMABUSERR;
 		complete(&info->cmd_complete);
@@ -180,26 +191,14 @@ static irqreturn_t pxa3xx_nand_data_dma_irq(int irq, void *data)
 
 	if (info->state == STATE_DMA_WRITING) {
 		info->state = STATE_DMA_DONE;
-		mvNfcIntrEnable(&info->nfcCtrl,  NFC_SR_BBD_MASK | NFC_SR_CMDD_MASK, MV_TRUE);
+		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY , MV_TRUE);
 	} else {
 		info->state = STATE_READY;
 		complete(&info->cmd_complete);
 	}
+
 	return IRQ_HANDLED;
 }
-
-#warning "Check PDMA interrupt mask bits...................."
-static void set_pdma_intr(struct pxa3xx_nand_info *info, uint32_t int_mask, bool enable)
-{
-	if(enable)
-		MV_REG_BIT_SET(PDMA_CTRL_STATUS_REG(info->nfcCtrl.dataChanHndl.chanNumber),
-				int_mask);
-	else
-		MV_REG_BIT_RESET(PDMA_CTRL_STATUS_REG(info->nfcCtrl.dataChanHndl.chanNumber),
-				int_mask);
-	return;
-}
-#endif
 
 static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 {
@@ -208,46 +207,106 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 
 	status = MV_REG_READ(NFC_STATUS_REG);
 	MY_DBG((KERN_INFO "pxa3xx_nand_irq(0x%x) - 1.\n", status));
-	if (status & (NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK)) {
-		if (status & NFC_SR_UNCERR_MASK)
-			info->retcode = ERR_DBERR;
-		mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK, MV_FALSE);
-
-		if (info->use_dma) {
-			info->state = STATE_DMA_READING;
-			/* Enable NFC interrupts */
-			mvNfcIntrEnable(&info->nfcCtrl,  NFC_SR_BBD_MASK | NFC_SR_CMDD_MASK, MV_TRUE);
-			mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
-		} else {
-			MY_DBG((KERN_INFO "pxa3xx_nand_irq() Reading state.\n"));
-			info->state = STATE_PIO_READING;
+	if(!info->chained_cmd) {
+		if (status & (NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK)) {
+			if (status & NFC_SR_UNCERR_MASK)
+				info->retcode = ERR_DBERR;
+			mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK, MV_FALSE);
+			if (info->use_dma) {
+				info->state = STATE_DMA_READING;
+				mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
+			} else {
+				MY_DBG((KERN_INFO "pxa3xx_nand_irq() Reading state.\n"));
+				info->state = STATE_PIO_READING;
+				complete(&info->cmd_complete);
+			}
+		} else if (status & NFC_SR_WRDREQ_MASK) {
+			mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRDREQ_MASK, MV_FALSE);
+			if (info->use_dma) {
+				info->state = STATE_DMA_WRITING;
+				MY_DBG((KERN_INFO "Calling mvNfcReadWrite().\n"));
+				if(mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, 
+							info->data_buff_phys) != MV_OK)
+					printk(KERN_ERR "mvNfcReadWrite() failed.\n");
+			} else {
+				info->state = STATE_PIO_WRITING;
+				complete(&info->cmd_complete);
+			}
+		} else if (status & (NFC_SR_BBD_MASK | MV_NFC_CS0_CMD_DONE_INT | NFC_SR_RDY0_MASK)) {
+			if (status & NFC_SR_BBD_MASK)
+				info->retcode = ERR_BBERR;
+			mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_CMDD | MV_NFC_STATUS_RDY,
+					MV_FALSE);
+			info->state = STATE_READY;
 			complete(&info->cmd_complete);
 		}
-	} else if (status & NFC_SR_WRDREQ_MASK) {
-		mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRDREQ_MASK, MV_FALSE);
-		if (info->use_dma) {
-			info->state = STATE_DMA_WRITING;
-			/* Enable NFC interrupts */
-			mvNfcIntrEnable(&info->nfcCtrl,  NFC_SR_BBD_MASK | NFC_SR_CMDD_MASK, MV_TRUE);
-			MY_DBG((KERN_INFO "Calling mvNfcReadWrite().\n"));
-			if(mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, 
-						info->data_buff_phys) != MV_OK)
-				printk(KERN_ERR "mvNfcReadWrite() failed.\n");
-		} else {
-			info->state = STATE_PIO_WRITING;
-			complete(&info->cmd_complete);
-		}
-	} else if (status & (NFC_SR_BBD_MASK | NFC_SR_CMDD_MASK)) {
+	} else if (status & (NFC_SR_BBD_MASK | NFC_SR_RDY0_MASK)) {
 		if (status & NFC_SR_BBD_MASK)
 			info->retcode = ERR_BBERR;
-		mvNfcIntrEnable(&info->nfcCtrl,  NFC_SR_BBD_MASK | NFC_SR_CMDD_MASK, MV_FALSE);
-		info->state = STATE_READY;
-		complete(&info->cmd_complete);
+		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY | MV_NFC_STATUS_CMDD, MV_FALSE);
+		if(info->state != STATE_DMA_READING) {
+			info->state = STATE_READY;
+			complete(&info->cmd_complete);
+		}
 	}
-	MV_REG_WRITE(NFC_STATUS_REG, status); //nand_writel(info, NDSR, status);
+	MV_REG_WRITE(NFC_STATUS_REG, status);
 	return IRQ_HANDLED;
 }
+int prevCmd = -1;
+static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info, uint32_t event)
+{
+	uint32_t ndcr;
+	int ret, timeout = CHIP_DELAY_TIMEOUT;
+	MV_STATUS status;
+	MV_NFC_MULTI_CMD descInfo;
 
+	/* Clear all status bits. */
+	MV_REG_WRITE(NFC_STATUS_REG, NFC_SR_MASK);
+
+	mvNfcIntrEnable(&info->nfcCtrl, event, MV_TRUE);
+
+	MY_DBG((KERN_INFO "About to issue command %d - 0x%x.\n", info->cmd, MV_REG_READ(NFC_CONTROL_REG)));
+	if(info->cmd == MV_NFC_CMD_READ_MONOLITHIC)
+		info->state = STATE_DMA_READING;
+	else
+		info->state = STATE_CMD_HANDLE;
+	info->chained_cmd = 1;
+	descInfo.cmd = info->cmd;
+	descInfo.pageAddr = info->page_addr;
+	descInfo.pageCount = 1;
+	descInfo.virtAddr = (MV_U32*)info->data_buff;
+	descInfo.physAddr = info->data_buff_phys;
+	status = mvNfcCommandMultiple(&info->nfcCtrl,&descInfo, 1);
+	if(status != MV_OK) {
+		printk(KERN_ERR "mvNfcCommandMultiple() failed for command %d (%d) - prevCmd = %d.\n",info->cmd, status, prevCmd);
+		goto fail;
+	}
+	MY_DBG((KERN_INFO "After issue command %d - 0x%x.\n", info->cmd, MV_REG_READ(NFC_STATUS_REG)));
+
+	ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
+	if (!ret) {
+		printk(KERN_ERR "command %d execution timed out (0x%x).\n",info->cmd, MV_REG_READ(NFC_STATUS_REG));
+		info->retcode = ERR_SENDCMD;
+		goto fail_stop;
+	}
+	prevCmd = info->cmd;
+	if (info->use_dma == 0 && info->data_size > 0)
+		if (handle_data_pio(info))
+			goto fail_stop;
+
+	mvNfcIntrEnable(&info->nfcCtrl, event | MV_NFC_STATUS_CMDD, MV_FALSE);
+
+//	while(MV_PDMA_CHANNEL_STOPPED != mvPdmaChannelStateGet(&info->nfcCtrl.dataChanHndl));
+
+	return 0;
+
+fail_stop:
+	ndcr = MV_REG_READ(NFC_CONTROL_REG);
+	MV_REG_WRITE(NFC_CONTROL_REG, ndcr & ~NFC_CTRL_ND_RUN_MASK);
+	udelay(10);
+fail:
+	return -ETIMEDOUT;
+}
 
 static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
 {
@@ -257,8 +316,7 @@ static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
 
 	/* Clear all status bits. */
 	MV_REG_WRITE(NFC_STATUS_REG, NFC_SR_MASK);
-
-	mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRCMDREQ_MASK, MV_FALSE);
+ 	mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRCMDREQ_MASK, MV_FALSE);
 	mvNfcIntrEnable(&info->nfcCtrl, event, MV_TRUE);
 
 	MY_DBG((KERN_INFO "About to issue command %d - 0x%x.\n", info->cmd, MV_REG_READ(NFC_CONTROL_REG)));
@@ -267,7 +325,7 @@ static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
 	status = mvNfcCommandIssue(&info->nfcCtrl,info->cmd,
 				   info->page_addr,info->column);
 	if(status != MV_OK) {
-		printk(KERN_ERR "mvNfcCommandIssue() failed for command %d (%d).\n",info->cmd, status);
+		printk(KERN_ERR "mvNfcCommandIssue() failed for command %d (%d), prev %d.\n",info->cmd, status, prevCmd);
 		goto fail;
 	}
 	MY_DBG((KERN_INFO "After issue command %d - 0x%x.\n", info->cmd, MV_REG_READ(NFC_STATUS_REG)));
@@ -279,11 +337,12 @@ static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
 		goto fail_stop;
 	}
 
+	prevCmd = info->cmd;
 	if (info->use_dma == 0 && info->data_size > 0)
 		if (handle_data_pio(info))
 			goto fail_stop;
 
-//	while(MV_PDMA_CHANNEL_STOPPED != mvPdmaChannelStateGet(&info->nfcCtrl.dataChanHndl));
+	mvNfcIntrEnable(&info->nfcCtrl, event | MV_NFC_STATUS_CMDD, MV_FALSE);
 
 	return 0;
 
@@ -320,6 +379,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	info->use_ecc = 0;
 	info->data_size = 0;
 	info->state = STATE_READY;
+	info->chained_cmd = 0;
 	init_completion(&info->cmd_complete);
 
 	switch (command) {
@@ -332,8 +392,8 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = page_addr;
 		if (prepare_read_prog_cmd(info, column, page_addr))
 			break;
-		pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
-
+		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+//		pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
 		/* We only are OOB, so if the data has error, does not matter */
 		if (info->retcode == ERR_DBERR)
 			info->retcode = ERR_NONE;
@@ -350,8 +410,8 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = page_addr;
 		if (prepare_read_prog_cmd(info, column, page_addr))
 			break;
-		pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
-
+		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+//		pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
 		if (info->retcode == ERR_DBERR) {
 			/* for blank page (all 0xff), HW will calculate its ECC as
 			 * 0, which is different from the ECC information within
@@ -380,14 +440,16 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			printk(KERN_ERR "prepare_read_prog_cmd() failed.\n");
 			break;
 		}
-		pxa3xx_nand_do_cmd(info, NFC_SR_WRDREQ_MASK);
+		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY);
+//		pxa3xx_nand_do_cmd(info, NFC_SR_WRDREQ_MASK);
 		break;
 	case NAND_CMD_ERASE1:
 		info->column = 0;
 		info->page_addr = page_addr;
 		info->cmd = MV_NFC_CMD_ERASE;
 		MY_DBG((KERN_INFO "Erasing %d, %d.\n", info->page_addr, info->column));
-		pxa3xx_nand_do_cmd(info, NFC_SR_BBD_MASK | NFC_SR_CMDD_MASK);
+		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
+//		pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_CMDD);
 		break;
 	case NAND_CMD_ERASE2:
 		break;
@@ -402,14 +464,14 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = 0;
 		info->cmd = (command == NAND_CMD_READID) ? 
 			MV_NFC_CMD_READ_ID : MV_NFC_CMD_READ_STATUS;
-		pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK);
-
+		pxa3xx_nand_do_cmd(info,NFC_SR_RDDREQ_MASK);
 		break;
 	case NAND_CMD_RESET:
 		info->column = 0;
 		info->page_addr = 0;
 		info->cmd = MV_NFC_CMD_RESET;
-		ret = pxa3xx_nand_do_cmd(info, NFC_SR_CMDD_MASK);
+		ret = pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_CMDD);
+//		ret = pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_CMDD);
 		if (ret == 0) {
 			int timeout = 2;
 			uint32_t ndcr;
@@ -567,7 +629,7 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info)
 static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 {
 	struct platform_device *pdev = info->pdev;
-//	int ret;
+	int ret;
 
 	if (use_dma == 0) {
 		info->data_buff = kmalloc(MAX_BUFF_SIZE, GFP_KERNEL);
@@ -583,14 +645,12 @@ static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 		return -ENOMEM;
 	}
 
-#if 0
 	ret = request_irq(IRQ_DMA, pxa3xx_nand_data_dma_irq, IRQF_DISABLED,
 			"nand-data", info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request PDMA IRQ\n");
 		return -ENOMEM;
 	}
-#endif
 	return 0;
 }
 
@@ -768,18 +828,16 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	nfcInfo.readyBypass = MV_FALSE;
 	nfcInfo.osHandle = NULL;
 	nfcInfo.regsPhysAddr = info->mmio_phys_base;
+	nfcInfo.dataPdmaIntMask = MV_PDMA_END_OF_RX_INTR_EN | MV_PDMA_END_INTR_EN;
+	nfcInfo.cmdPdmaIntMask = 0x0;
 	if (mvNfcInit(&nfcInfo, &info->nfcCtrl) != MV_OK) {
 		dev_err(&pdev->dev, "mvNfcInit() failed.\n");
 		goto fail_put_clk;
 	}
 
-#if 0
-	/* Clear PDMA interrupts */
-	MV_REG_BIT_SET(PDMA_CTRL_STATUS_REG(info->nfcCtrl.dataChanHndl.chanNumber),
-			DCSR_BUSERRINTR	| DCSR_STARTINTR | DCSR_ENDINTR | 
-			DCSR_STOPINTR);
-#endif
+	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_0);
 	mvNfcIntrEnable(&info->nfcCtrl,  0xFFF, MV_FALSE);
+	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_NONE);
 
 	ret = pxa3xx_nand_init_buff(info);
 	if (ret)
