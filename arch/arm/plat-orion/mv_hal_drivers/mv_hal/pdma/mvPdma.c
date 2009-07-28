@@ -449,12 +449,12 @@ MV_STATUS mvPdmaChanTransfer(MV_PDMA_CHANNEL *chanHndl,
 		/* is determined according to the descriptor, so the		*/
 		/* MV_PDMA_END_INTR_EN and MV_PDMA_START_INTR_EN bits in	*/
 		/* the intrEnMask are irrelevant.				*/
-		regVal = (chanHndl->intrEnMask		& 
-			MV_PDMA_STOP_INTR_EN		& 
-			MV_PDMA_REQ_AFTER_STOP_INTR_EN	& 
-			MV_PDMA_END_OF_RX_INTR_EN	& 
+		regVal = ((chanHndl->intrEnMask		& 
+			(MV_PDMA_STOP_INTR_EN		|
+			MV_PDMA_REQ_AFTER_STOP_INTR_EN	| 
+			MV_PDMA_END_OF_RX_INTR_EN)	& 
 			~DCSR_RUN			& 
-			~DCSR_NODESCFETCH);
+			~DCSR_NODESCFETCH));
 
 		MV_REG_WRITE(PDMA_CTRL_STATUS_REG(chanHndl->chanNumber), regVal);
 		/* set the descriptor address */
@@ -466,10 +466,10 @@ MV_STATUS mvPdmaChanTransfer(MV_PDMA_CHANNEL *chanHndl,
 		/* working in non-descriptor-fetch mode */
 
 		/* clear the DCSR_RUN bit and set the DCSR_NODESCFETCH bit */
-		regVal = ((chanHndl->intrEnMask		& 
-			MV_PDMA_STOP_INTR_EN		& 
-			MV_PDMA_REQ_AFTER_STOP_INTR_EN	& 
-			MV_PDMA_END_OF_RX_INTR_EN	& 
+		regVal = ((chanHndl->intrEnMask		&
+			(MV_PDMA_STOP_INTR_EN		|
+			MV_PDMA_REQ_AFTER_STOP_INTR_EN	|
+			MV_PDMA_END_OF_RX_INTR_EN)	&
 			~DCSR_RUN)			|
 			DCSR_NODESCFETCH);
 
@@ -479,9 +479,8 @@ MV_STATUS mvPdmaChanTransfer(MV_PDMA_CHANNEL *chanHndl,
 		MV_REG_WRITE(PDMA_DST_ADDR_REG(chanHndl->chanNumber), phyDstAddr);
 		/* write command register */
 		regVal = (chanHndl->intrEnMask	& 
-			MV_PDMA_END_INTR_EN	& 
-			MV_PDMA_START_INTR_EN);
-
+			(MV_PDMA_END_INTR_EN |
+			MV_PDMA_START_INTR_EN));
 		if (transType == MV_PDMA_PERIPH_TO_MEM) {
 			regVal &= ~(DCMD_INCSRCADDR | DCMD_FLOWTRG);
 			regVal |= (DCMD_INCTRGADDR | DCMD_FLOWSRC);
@@ -540,8 +539,8 @@ MV_U32 mvPdmaCommandRegCalc(	MV_PDMA_CHANNEL *chanHndl,
 	MV_U32 regVal = 0;
 
 	regVal = (chanHndl->intrEnMask	& 
-		MV_PDMA_END_INTR_EN	& 
-		MV_PDMA_START_INTR_EN);
+		(MV_PDMA_END_INTR_EN	|
+		MV_PDMA_START_INTR_EN));
 
 	if (transType == MV_PDMA_PERIPH_TO_MEM) {
 		regVal &= ~(DCMD_INCSRCADDR | DCMD_FLOWTRG);
@@ -615,9 +614,9 @@ MV_STATUS mvPdmaMemInit(MV_PDMA_CHANNEL *chanHndl,
 
 	/* clear the DCSR_RUN bit and set the DCSR_NODESCFETCH bit	*/
 	regVal = ((chanHndl->intrEnMask		& 
-		MV_PDMA_STOP_INTR_EN		& 
-		MV_PDMA_REQ_AFTER_STOP_INTR_EN	& 
-		MV_PDMA_END_OF_RX_INTR_EN	& 
+		(MV_PDMA_STOP_INTR_EN		|
+		MV_PDMA_REQ_AFTER_STOP_INTR_EN	| 
+		MV_PDMA_END_OF_RX_INTR_EN)	& 
 		~DCSR_RUN)			|
 		DCSR_NODESCFETCH);
 
@@ -627,8 +626,8 @@ MV_STATUS mvPdmaMemInit(MV_PDMA_CHANNEL *chanHndl,
 	MV_REG_WRITE(PDMA_DST_ADDR_REG(chanHndl->chanNumber), phyDstAddr);
 	/* write command register */
 	regVal = (chanHndl->intrEnMask	& 
-		MV_PDMA_END_INTR_EN	& 
-		MV_PDMA_START_INTR_EN);
+		(MV_PDMA_END_INTR_EN	|
+		MV_PDMA_START_INTR_EN));
 
 	regVal &= ~(DCMD_FLOWSRC | DCMD_FLOWTRG | DCMD_INCSRCADDR);
 	regVal |= DCMD_INCTRGADDR;
