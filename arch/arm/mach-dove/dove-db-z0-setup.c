@@ -275,6 +275,9 @@ static int __init dove_db_z0_pm_init(void)
 {
 	MV_PMU_INFO pmuInitInfo;	
 
+	if (!machine_is_dove_db_z0())
+		return 0;
+
 	pmuInitInfo.deepIdleStatus = MV_FALSE; 			/* Disable L2 retention */
 	pmuInitInfo.cpuPwrGoodEn = MV_FALSE;			/* Don't wait for external power good signal */
 	pmuInitInfo.batFltMngDis = MV_FALSE;			/* Keep battery fault enabled */
