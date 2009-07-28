@@ -71,6 +71,7 @@ extern "C" {
 
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "mvSysUsbConfig.h"
+#include "usb/mvUsbRegs.h"
 
 typedef struct {
 	MV_U16		ctrlModel;
