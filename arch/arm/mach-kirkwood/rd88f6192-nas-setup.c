@@ -64,7 +64,6 @@ static void __init rd88f6192_init(void)
 #ifdef CONFIG_MV_ETHERNET
 	kirkwood_eth0_init();
 #endif
-	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6192_sata_data);
 	spi_register_board_info(rd88F6192_spi_slave_info,
 				ARRAY_SIZE(rd88F6192_spi_slave_info));
