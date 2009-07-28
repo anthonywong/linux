@@ -68,7 +68,7 @@ struct mpp_config dove_mpp_table[] =
 	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, MPP_LAST4},
 	 dove_mpp_legacy_config},
 	/* MPP 1 */
-	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, {MPP_LCD, 0xf}, MPP_LAST3},
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, {MPP_PMU, 0}, {MPP_LCD, 0xf}, MPP_LAST3},
 	 dove_mpp_legacy_config},
 	/* MPP 2 */
 	{{{MPP_GPIO, 0}, {MPP_SATA_PRESENCE, 1}, {MPP_PMU, 0}, MPP_LAST4},
