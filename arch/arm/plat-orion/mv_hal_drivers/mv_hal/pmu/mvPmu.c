@@ -126,7 +126,7 @@ MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {
 		{255,0xF0}, {297, 0x7C}, {388, 0x71}, {389, 0x30}, {390, 0x80}, {391, 0x28}, {392, 0x80}, \
 		{393, 0xFF}, {394, 0x08}, {395, 0x49}, {396, 0x39}, {397, 0x20}, {398, 0xA8}, {399, 0x18}, \
             	{400, 0x80}, {401, 0x69}, {402, 0x59}, {403, 0x08}, {404, 0x94}, {405 ,0x41}, {406 ,0x70}, \
-		{407, 0x7D}, {408, 0x94}, {409, 0x40}, {410, 0x94}, {411, 0x42}, {412, 0xFF}};
+		{407, 0x7D}, {408, 0x19}, {409, 0x94}, {410, 0x40}, {411, 0x94}, {412, 0x42}, {413, 0xFF}};
 #endif
 
 /* Save L2 ratio at system power up */
@@ -446,6 +446,11 @@ MV_STATUS mvPmuDeepIdle (MV_BOOL lcdRefresh)
 	/* Jump to the SRAM and execute the DeepIdle routine */
 	mvPmuSramDeepIdle((MV_U32)lcdRefresh);
 
+	/* Reset the DEEP-IDLE bit in the PMU resume status register */
+	reg = MV_REG_READ(PMU_STATUS_REG);
+	reg &= ~PMU_STATUS_DEEPIDLE_MASK;
+	MV_REG_WRITE(PMU_STATUS_REG, reg);
+
 	/* Clear the DeepIdle & Standby Flags in the PMU Status register */
 	/* Otherwise the BootROM will try to resume on the next boot */
 	reg = MV_REG_READ(PMU_STATUS_REG);
@@ -455,7 +460,7 @@ MV_STATUS mvPmuDeepIdle (MV_BOOL lcdRefresh)
 	/* Finally unmask IRQ and FIQ */
 	reg = MV_REG_READ(PMU_CTRL_REG);
 	reg &= ~(PMU_CTRL_MASK_IRQ_MASK | PMU_CTRL_MASK_FIQ_MASK);
-	MV_REG_WRITE(PMU_CTRL_REG, reg);
+	MV_REG_WRITE(PMU_CTRL_REG, reg);	
 
 	return MV_OK;
 }
@@ -567,6 +572,11 @@ MV_STATUS mvPmuStandby (void)
 	/* Jump to thsd SRAM and execute the Standby routine */
 	mvPmuSramStandby();
 
+	/* Reset the STANDBY bit in the PMU resume status register */
+	reg = MV_REG_READ(PMU_STATUS_REG);
+	reg &= ~PMU_STATUS_STANDBY_MASK;
+	MV_REG_WRITE(PMU_STATUS_REG, reg);
+
 	/* Clear the DeepIdle & Standby Flags in the PMU Status register */
 	/* Otherwise the BootROM will try to resume on the next boot */
 	reg = MV_REG_READ(PMU_STATUS_REG);
@@ -582,6 +592,11 @@ MV_STATUS mvPmuStandby (void)
 
 	/* Restore all uCode Fixes */
 	mvPmuCodeFix();
+
+	/* Restore PMU Control on CPU Reset */
+	reg = MV_REG_READ(CPU_CONTROL_REG);
+	reg |= CPU_CTRL_PMU_CPU_RST_EN_MASK;
+	MV_REG_WRITE(CPU_CONTROL_REG, reg);	
 
 	return MV_OK;
 }
