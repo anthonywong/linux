@@ -1,3 +1,10 @@
+linux (2.6.24-24.54netbook02) netbook-common; urgency=low
+
+  [ Steve Conklin ]
+  * Fix NVR
+	
+ -- sconklin <sconklin@canonical.com>  Tue, 28 Jul 2009 14:09:38 +0000
+
 linux (2.6.24-24.54netboot01) netboot-common; urgency=low
 
   [ Andy Whitcroft ]
