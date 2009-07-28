@@ -476,12 +476,11 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 		nfcCtrl->dataDescBuff.dataSize = (MV_PDMA_DESC_SIZE * MV_NFC_MAX_DESC_CHAIN);
 	
 		/* Allocate Data DMA channel */
-		if (mvPdmaChanAlloc(MV_PDMA_NAND_DATA, (1 << 23) | (1 << 28) | (1 < 29), 
-					&nfcCtrl->dataChanHndl) != MV_OK)
+		if (mvPdmaChanAlloc(MV_PDMA_NAND_DATA, nfcInfo->dataPdmaIntMask, &nfcCtrl->dataChanHndl) != MV_OK)
 			return MV_NO_RESOURCE;
 
 		/* Allocate Command DMA channel */
-		if (mvPdmaChanAlloc(MV_PDMA_NAND_COMMAND, 0, &nfcCtrl->cmdChanHndl) != MV_OK)
+		if (mvPdmaChanAlloc(MV_PDMA_NAND_COMMAND, nfcInfo->cmdPdmaIntMask, &nfcCtrl->cmdChanHndl) != MV_OK)
 			return MV_NO_RESOURCE;
 	} 
 
@@ -493,6 +492,8 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	nfcCtrl->ifMode = nfcInfo->ifMode; 
 	nfcCtrl->currCs = MV_NFC_CS_NONE;
 	nfcCtrl->regsPhysAddr = nfcInfo->regsPhysAddr;
+	nfcCtrl->dataPdmaIntMask = nfcInfo->dataPdmaIntMask;
+	nfcCtrl->cmdPdmaIntMask = nfcInfo->cmdPdmaIntMask;
 
 	if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
 		MV_REG_WRITE(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
