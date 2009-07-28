@@ -4,8 +4,13 @@ config  MV88F6281
 	bool
 	default y
 
+config  MV_HAL_DRIVERS
+	bool "Use the Marvell HAL drivers"
+	default n
+
 config  MV_HAL_RULES_PATH
         string "path of the mvRules.mk file for HAL drivers"
+	depends on MV_HAL_DRIVERS
         default "arch/arm/mach-kirkwood/mv_hal_support/mvRules.mk"
         ---help---
 	
