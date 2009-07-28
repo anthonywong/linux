@@ -18,7 +18,6 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/ata_platform.h>
-#include <plat/mvsdmmc-orion.h>
 #include <linux/mv643xx_eth.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -108,13 +107,10 @@ static void __init db88f6281_init(void)
 #ifdef CONFIG_MV_ETHERNET
 	kirkwood_eth0_init();
 #endif
-	kirkwood_rtc_init();
 	kirkwood_sata_init(&db88f6281_sata_data);
 	kirkwood_uart0_init();
 	kirkwood_sdio_init(&db88f6281_mvsdio_data);
 	
-	kirkwood_eth0_init();
-	kirkwood_rtc_init();
 	kirkwood_i2c_init();
 	kirkwood_i2s_init();
 	platform_device_register(&db88f6281_nand_flash);
