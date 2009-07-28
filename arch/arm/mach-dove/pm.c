@@ -631,6 +631,7 @@ void cpu_do_idle_enabled(void) {
  * to avoid calling the WFI instruction.
  */
 void cpu_do_idle_disabled(void) {
+	local_irq_enable();
 }
 
 /*
