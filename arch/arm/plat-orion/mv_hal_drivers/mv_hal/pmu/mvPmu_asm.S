@@ -409,14 +409,22 @@ dix_ddr_active:
 	orr	r3, r3, r4			@ virtual resume address
 
 	/*
+	* DDR Sync workaround
+	*/
+	ldr     r1, dix_ddr_sync_reg
+	ldr     r0, dix_ddr_sync_val
+	str     r0, [r1]
+	ldr	r0, [r1]
+
+	/*
 	 * temporarily map PMU SRAM into the page table so that PA=VA
 	 * otherwise prefetch abort occurs after MMU is turned on
 	 */
 	ldr	r1, dix_virt_offs
 	mov	r1, r1, lsr #20
 	ldr	r0, [r5, r1, lsl #2]		@ use PMU mapping mode
-	bic	r0, r0, #0xFF000000
-	bic	r0, r0, #0x00FF0000
+	bic	r0, r0, #0xFF000000		@ Clear bits 24-31
+	bic	r0, r0, #0x00F00000		@ Clear bits 20-23
 	ldr	r1, dix_phys_offs
 	mov	r1, r1, lsr #20
 	orr	r7, r0, r1, lsl #20		@ temporay mapping
@@ -431,6 +439,8 @@ dix_ddr_active:
 	orr	r7, r0, r6, lsl #20		@ temporay mapping
 	ldr	r9, [r5, r6, lsl #2]		@ save original mapping
 	str     r7, [r5, r6, lsl #2]		@ set temporary mapping	
+	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
+	mcr	p15, 0, r0, c7, c10, 5		@ data memory barrier
 
 	.align 5
 	mcr 	p15, 0, r2, c1, c0, 0		@ restore CP15 - CR
@@ -445,6 +455,11 @@ dix_saved_sp:
 dix_resume_after_mmu:
 	str	r4, [r5, r1, lsl #2]		@ restore original PMU mapping
 	str	r9, [r5, r6, lsl #2]		@ restore original PT mapping
+	/*
+	 * No need for cach flushes since the 2 PT entries are strongly ordered
+	 */
+	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
+	mcr     p15, 0, r0, c7, c10, 5          @ data memory barrier
 	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
 	mov	r13, r8				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
@@ -465,6 +480,10 @@ dix_term_ctrl_addr:
 	.word (PMU_SP_TERM_EN_CTRL_ADDR_PHYS)
 dix_term_mask_addr:
 	.word (PMU_SP_TERM_GPIO_MASK_ADDR_PHYS)
+dix_ddr_sync_reg:
+	.word (0xF1800240)
+dix_ddr_sync_val:
+	.word (0x80000000)
 
 ENTRY(mvPmuSramDeepIdleExitFuncSZ)
 	.word	. - mvPmuSramDeepIdleExitFunc
@@ -606,8 +625,8 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	ldr	r1, sbx_virt_offs
 	mov	r1, r1, lsr #20
 	ldr	r0, [r5, r1, lsl #2]		@ use PMU mapping mode
-	bic	r0, r0, #0xFF000000
-	bic	r0, r0, #0x00FF0000
+	bic	r0, r0, #0xFF000000		@ Clear bits 24-31
+	bic	r0, r0, #0x00F00000		@ Clear bits 20-23
 	ldr	r1, sbx_phys_offs
 	mov	r1, r1, lsr #20
 	orr	r7, r0, r1, lsl #20		@ temporay mapping
