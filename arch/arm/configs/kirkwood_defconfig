@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.30-rc4
-# Mon May  4 11:58:57 2009
+# Linux kernel version: 2.6.30-dove-3.1.0-rc2
+# Tue Jul 28 18:32:10 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -156,6 +156,7 @@ CONFIG_DEFAULT_IOSCHED="cfq"
 # CONFIG_ARCH_IXP4XX is not set
 # CONFIG_ARCH_L7200 is not set
 CONFIG_ARCH_KIRKWOOD=y
+# CONFIG_ARCH_DOVE is not set
 # CONFIG_ARCH_KS8695 is not set
 # CONFIG_ARCH_NS9XXX is not set
 # CONFIG_ARCH_LOKI is not set
@@ -175,6 +176,8 @@ CONFIG_ARCH_KIRKWOOD=y
 # CONFIG_ARCH_OMAP is not set
 # CONFIG_ARCH_MSM is not set
 # CONFIG_ARCH_W90X900 is not set
+CONFIG_MV88F6281=y
+# CONFIG_MV_HAL_DRIVERS is not set
 
 #
 # Marvell Kirkwood Implementations
@@ -185,6 +188,42 @@ CONFIG_MACH_RD88F6281=y
 CONFIG_MACH_MV88F6281GTW_GE=y
 CONFIG_MACH_SHEEVAPLUG=y
 CONFIG_MACH_TS219=y
+
+#
+# Orion SoC options
+#
+CONFIG_MV_INCLUDE_IDMA=y
+CONFIG_MV_INCLUDE_USB=y
+CONFIG_MV_INCLUDE_XOR=y
+CONFIG_MV_INCLUDE_CESA=y
+CONFIG_MV_INCLUDE_GIG_ETH=y
+CONFIG_MV_INCLUDE_AUDIO=y
+CONFIG_MV_INCLUDE_INTEG_SATA=y
+
+#
+# Soc DMA accelerations
+#
+# CONFIG_MV_USE_XOR_ENGINE is not set
+
+#
+# SoC Networking support
+#
+# CONFIG_MV_ETHERNET is not set
+
+#
+# cesa options
+#
+CONFIG_MV_CESA=y
+# CONFIG_MV_CESA_TOOL is not set
+# CONFIG_SCSI_MVSATA is not set
+
+#
+# Marvell Key driver
+#
+# CONFIG_MV_GPIO_KEY is not set
+# CONFIG_MV_TOUCH_KEY is not set
+# CONFIG_MV_TOUCH_SLIDER is not set
+# CONFIG_MV_DBG_TRACE is not set
 CONFIG_PLAT_ORION=y
 
 #
@@ -211,6 +250,7 @@ CONFIG_ARM_THUMB=y
 CONFIG_OUTER_CACHE=y
 CONFIG_CACHE_FEROCEON_L2=y
 # CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH is not set
+# CONFIG_MV_L2_WA_ON is not set
 
 #
 # Bus support
@@ -239,7 +279,7 @@ CONFIG_PREEMPT=y
 CONFIG_HZ=100
 CONFIG_AEABI=y
 # CONFIG_OABI_COMPAT is not set
-CONFIG_ARCH_FLATMEM_HAS_HOLES=y
+# CONFIG_ARCH_HAS_HOLES_MEMORYMODEL is not set
 # CONFIG_ARCH_SPARSEMEM_DEFAULT is not set
 # CONFIG_ARCH_SELECT_MEMORY_MODEL is not set
 # CONFIG_HIGHMEM is not set
@@ -517,6 +557,7 @@ CONFIG_MTD_NAND_IDS=y
 # CONFIG_MTD_NAND_PLATFORM is not set
 # CONFIG_MTD_ALAUDA is not set
 CONFIG_MTD_NAND_ORION=y
+# CONFIG_MTD_NAND_DOVE is not set
 # CONFIG_MTD_ONENAND is not set
 
 #
@@ -543,6 +584,7 @@ CONFIG_BLK_DEV_LOOP=y
 # CONFIG_BLK_DEV_RAM is not set
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
+# CONFIG_MG_DISK is not set
 # CONFIG_MISC_DEVICES is not set
 CONFIG_HAVE_IDE=y
 # CONFIG_IDE is not set
@@ -973,6 +1015,7 @@ CONFIG_I2C_HELPER_AUTO=y
 #
 # CONFIG_I2C_GPIO is not set
 CONFIG_I2C_MV64XXX=y
+# CONFIG_I2C_MV64XXX_PORT_EXPANDER is not set
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_SIMTEC is not set
 
@@ -1003,6 +1046,7 @@ CONFIG_I2C_MV64XXX=y
 # CONFIG_SENSORS_PCA9539 is not set
 # CONFIG_SENSORS_MAX6875 is not set
 # CONFIG_SENSORS_TSL2550 is not set
+# CONFIG_MAX1535 is not set
 # CONFIG_I2C_DEBUG_CORE is not set
 # CONFIG_I2C_DEBUG_ALGO is not set
 # CONFIG_I2C_DEBUG_BUS is not set
@@ -1017,12 +1061,39 @@ CONFIG_SPI_MASTER=y
 # CONFIG_SPI_BITBANG is not set
 # CONFIG_SPI_GPIO is not set
 CONFIG_SPI_ORION=y
+# CONFIG_SPI_MV is not set
 
 #
 # SPI Protocol Masters
 #
 # CONFIG_SPI_SPIDEV is not set
 # CONFIG_SPI_TLE62X0 is not set
+CONFIG_ARCH_REQUIRE_GPIOLIB=y
+CONFIG_GPIOLIB=y
+# CONFIG_DEBUG_GPIO is not set
+# CONFIG_GPIO_SYSFS is not set
+
+#
+# Memory mapped GPIO expanders:
+#
+
+#
+# I2C GPIO expanders:
+#
+# CONFIG_GPIO_MAX732X is not set
+# CONFIG_GPIO_PCA953X is not set
+# CONFIG_GPIO_PCF857X is not set
+
+#
+# PCI GPIO expanders:
+#
+# CONFIG_GPIO_BT8XX is not set
+
+#
+# SPI GPIO expanders:
+#
+# CONFIG_GPIO_MAX7301 is not set
+# CONFIG_GPIO_MCP23S08 is not set
 # CONFIG_W1 is not set
 # CONFIG_POWER_SUPPLY is not set
 # CONFIG_HWMON is not set
@@ -1041,9 +1112,13 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_MFD_CORE is not set
 # CONFIG_MFD_SM501 is not set
+# CONFIG_MFD_ASIC3 is not set
+# CONFIG_HTC_EGPIO is not set
 # CONFIG_HTC_PASIC3 is not set
+# CONFIG_TPS65010 is not set
 # CONFIG_TWL4030_CORE is not set
 # CONFIG_MFD_TMIO is not set
+# CONFIG_MFD_TC6393XB is not set
 # CONFIG_PMIC_DA903X is not set
 # CONFIG_MFD_WM8400 is not set
 # CONFIG_MFD_WM8350_I2C is not set
@@ -1278,6 +1353,7 @@ CONFIG_LEDS_TRIGGERS=y
 CONFIG_LEDS_TRIGGER_TIMER=y
 CONFIG_LEDS_TRIGGER_HEARTBEAT=y
 # CONFIG_LEDS_TRIGGER_BACKLIGHT is not set
+# CONFIG_LEDS_TRIGGER_GPIO is not set
 CONFIG_LEDS_TRIGGER_DEFAULT_ON=y
 
 #
@@ -1608,8 +1684,7 @@ CONFIG_ARM_UNWIND=y
 CONFIG_DEBUG_USER=y
 CONFIG_DEBUG_ERRORS=y
 # CONFIG_DEBUG_STACK_USAGE is not set
-CONFIG_DEBUG_LL=y
-# CONFIG_DEBUG_ICEDCC is not set
+# CONFIG_DEBUG_LL is not set
 
 #
 # Security options
@@ -1715,6 +1790,11 @@ CONFIG_CRYPTO_ARC4=y
 # CONFIG_CRYPTO_ANSI_CPRNG is not set
 CONFIG_CRYPTO_HW=y
 # CONFIG_CRYPTO_DEV_HIFN_795X is not set
+
+#
+# OCF Configuration
+#
+# CONFIG_OCF_OCF is not set
 CONFIG_BINARY_PRINTF=y
 
 #
