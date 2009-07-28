@@ -1,8 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
 # Script to maintain a (target) tree based on the main kernel
 # Author: Amit Kucheria (amit@ubuntu.com)
 # Date: 11/07/08
+
+# Modified for netbook use
+# Andy Whitcroft <apw@canonical.com>
 
 # Modified for netbook-lpia branch
 # Steve Conklin <sconklin@canonical.com>
@@ -20,12 +23,29 @@ remoteTag=${1:?"Usage: $0 <remote-tag to rebase on>"}
 rebasing=".git/rebase-apply"
 
 # Configuration variables
-release="hardy"
-basever="2.6.24"
+release="ubuntu"
+basever=`sed -n '1s/^.*(\(.*\)-.*).*$/\1/p' debian/changelog`
 patchDir=./patches
 # masterTree=git://zinc.ubuntu.com/ubuntu/ubuntu-$release.git
-baseTag="NBK-Ubuntu-$basever-0.0"
-tmpTag="tmplpia"
+
+# Find the base of the tree, and extract branch specific prefix.
+baseCommit=$(git log --pretty=format:'%H %s' \
+	`git merge-base origin/master HEAD`..HEAD | \
+	awk '/UBUNTU: '".*-Ubuntu-$basever-0.0"'$/ { print $1 " " $NF }'
+)
+baseHash="${baseCommit% *}"
+basePrefix="${baseCommit#* }"
+basePrefix="${basePrefix%%-*}"
+
+baseTag="$basePrefix-Ubuntu-$basever-0.0"
+
+if [ "$baseHash" = "" -o "$basePrefix" = "" ]; then
+	echo "$0: base commit not found -- aborting" 1>&2
+	exit 1
+fi
+
+#echo "baseHash<$baseHash> basePrefix<$basePrefix> baseTag<$baseTag>"
+#exit 0
 
 remoteBranch=auto-tmp-remote
 git=`which git`
@@ -41,24 +61,22 @@ if [ ! $? -eq "0" ]; then
 	exit 1;
 fi
 
-echo "\n"
-echo "* Checking out master tree..."
-$git checkout origin/netbook-lpia
-$git reset --hard
-
+##echo "\n"
+##echo "* Checking out master tree..."
+##$git checkout origin/netbook
+##$git reset --hard
 
 echo "\n"
 echo "* Exporting current work as patches..."
-$git format-patch -o $patchDir $baseTag
+$git format-patch -o $patchDir $baseHash
 # Deleting tags is evil...
 #$git tag -l | grep "Ubuntu-2.6.2*" | xargs $git tag -d
 #$git tag -l | grep "Ubuntu-LPIA-2.6.2*" | xargs $git tag -d
-$git tag -d $tmpTag
 
-# Debugging
-mkdir -p .patches
-cp $patchDir/*.patch .patches
-# end Debugging
+### Debugging
+##mkdir -p .patches
+##cp $patchDir/*.patch .patches
+### end Debugging
 
 echo "* Cleaning up patches..."
 # Remove auto-generated patches
@@ -70,8 +88,6 @@ do
 	echo "$i ..."
 	awk '
 		BEGIN						{ on=1 }
-		/Subject:/		{ sub("UBUNTU: 2\\.6\\.",
-					  "UBUNTU: NBK-Ubuntu-2.6.", $0); }
 		/^diff --git a\/debian\/control /		{ on=0; next }
 		/^diff --git a\/debian\/control.stub /		{ on=0; next }
 		/^diff --git a\/debian\/d-i\/kernel-versions /	{ on=0; next }
@@ -95,38 +111,9 @@ $git config --bool ubuntu.flavour-changes-ok true
 $git config --bool ubuntu.allow-non-sauce-commit true
 $git config --bool ubuntu.others-changes-ok true
 
-$git tag -m "Tip of ubuntu git on which we apply patches" $tmpTag
-
-# Tag our base point on the tree.
+# Mark our base point on the tree.
 echo "AUTO #0"
 $git commit --allow-empty -s -m "UBUNTU: $baseTag"
-
-if false; then
-# Move debian/ out of the way
-echo "AUTO #1"
-rm -rf debian-main/
-$git mv debian/ debian-main/
-$git commit -s -m "UBUNTU: AUTO: Move upstream debian/ dir out of the way for a lpia-specific debian/"
-$git status
-
-# Disable all git hooks
-$git config --bool ubuntu.flavour-changes-ok true
-$git config --bool ubuntu.allow-non-sauce-commit true
-$git config --bool ubuntu.others-changes-ok true
-
-# Copy debian-main/ to debian/
-echo "AUTO #2"
-cp -a debian-main/ debian/
-$git add debian/
-$git commit -a -s -m "UBUNTU: AUTO: Create a new debian/"
-$git status
-
-# Disable all git hooks
-$git config --bool ubuntu.flavour-changes-ok true
-$git config --bool ubuntu.allow-non-sauce-commit true
-$git config --bool ubuntu.others-changes-ok true
-
-fi
 
 # Delete upstream ABI, extra arch/flavours
 echo "AUTO #3"
@@ -145,8 +132,9 @@ $git config --bool ubuntu.others-changes-ok true
 # Start new changelog
 echo "AUTO #4"
 $git mv debian/changelog debian/changelog.$release
-DEBEMAIL="Ubuntu Kernel Team <kernel-team@lists.ubuntu.com>" \
-	EDITOR=: dch --create --package linux-lpia --newversion $basever-0.0
+DEBFULLNAME="Ubuntu Kernel Team" \
+DEBEMAIL="kernel-team@lists.ubuntu.com" \
+	EDITOR=: dch --create --package linux --newversion $basever-0.0
 
 # Need to change timestamp else patches fail -- use the timestamp of the first
 # entry from the main changelog.
@@ -170,15 +158,10 @@ if [ -d "$rebasing/" ]; then
     exit 1;
 fi
 
-# Delete tags and recreate them on rebased tree
-#git tag | grep LPIA | xargs git tag -d
-#git tag -f -s -m $baseTag $baseTag $tmpTag
-git tag -d $tmpTag
-
-echo "\n"
+echo ""
 echo "If the final result looks good, then do the following to make it permanent:"
-echo " * Run debian/scripts/misc/retag-branch to retag"
-echo " * git checkout netbook-lpia"
+##echo " * Run debian/scripts/misc/retag-branch to retag"
+echo " * git checkout <original branch>"
 echo " * git reset --hard $remoteBranch"
 echo " * rm -rf patches/"
 
