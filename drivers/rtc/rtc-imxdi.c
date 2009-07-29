@@ -37,6 +37,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/workqueue.h>
+#include <linux/io.h>
 
 /* DryIce Register Definitions */
 
