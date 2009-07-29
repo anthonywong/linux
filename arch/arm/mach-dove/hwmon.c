@@ -31,31 +31,29 @@
 #include <asm/io.h>
 #include "pmu/mvPmuRegs.h"
 
-#define DOVE_OVERHEAT_TEMP	90		/* degrees */
+#define DOVE_OVERHEAT_TEMP	105		/* milidegree Celsius */
 #define DOVE_OVERHEAT_DELAY	0x700
-#define DOVE_OVERCOOL_TEMP	10		/* degrees */
+#define DOVE_OVERCOOL_TEMP	10		/* milidegree Celsius */
 #define	DOVE_OVERCOOL_DELAY	0x700
 
-#if 0
-/* Case Temperature */
-#define DOVE_TSEN_TEMP2RAW(x)	((3043800 - (17294 * x)) / 10000)
-#define DOVE_TSEN_RAW2TEMP(x)	((3043800 - (10000 * x)) / 17294)
-#endif
-
 /* Junction Temperature */
-#define DOVE_TSEN_TEMP2RAW(x)	((231470 - (1000 * x)) / 715)
-#define DOVE_TSEN_RAW2TEMP(x)	((231470 - (715 * x)) / 1000)
+#define DOVE_TSEN_TEMP2RAW(x)  ((231470 - (1000 * x)) / 715) /* in Celsius */
+#define DOVE_TSEN_RAW2TEMP(x)  (231470 - (715 * x))	/* in miliCelsius */
 
+#define LABEL "T-junction"
 static struct device *hwmon_dev;
 
 typedef enum { 
 	SHOW_TEMP, 
 	SHOW_MAX,
 	SHOW_MIN,
-	SHOW_NAME} SHOW;
+	SHOW_NAME,
+	SHOW_TYPE,
+	SHOW_LABEL } SHOW;
 
 
-static int dovetemp_initSensor(void) {
+static int dovetemp_init_sensor(void)
+{
 	u32 reg;
 	u32 i, temp;
 
@@ -111,7 +109,8 @@ static int dovetemp_initSensor(void) {
 	return 0;
 }
 
-static int dovetemp_readTemp(void) {
+static int dovetemp_read_temp(void)
+{
 	u32 reg;
 
 	/* Verify that the temperature is valid */
@@ -159,23 +158,42 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute
 	return sprintf(buf, "%d\n", alarm);
 }
 
+static ssize_t show_info(struct device *dev,
+			 struct device_attribute *devattr, char *buf) {
+	int ret;
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+
+	if (attr->index == SHOW_TYPE)
+		ret = sprintf(buf, "%d\n", 3);
+	else if (attr->index == SHOW_LABEL)
+		ret = sprintf(buf, "%s\n", LABEL);
+	else
+		ret = sprintf(buf, "%d\n", -1);
+	return ret;
+}
+
 static ssize_t show_temp(struct device *dev,
 			 struct device_attribute *devattr, char *buf) {
 	int ret;
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 
 	if (attr->index == SHOW_TEMP)
-		ret = sprintf(buf, "%d\n", dovetemp_readTemp());
+		ret = sprintf(buf, "%d\n", dovetemp_read_temp());
 	else if (attr->index == SHOW_MAX)
-		ret = sprintf(buf, "%d\n", DOVE_OVERHEAT_TEMP);
+		ret = sprintf(buf, "%d\n", DOVE_OVERHEAT_TEMP * 1000);
 	else if (attr->index == SHOW_MIN)
-		ret = sprintf(buf, "%d\n", DOVE_OVERCOOL_TEMP);
+		ret = sprintf(buf, "%d\n", DOVE_OVERCOOL_TEMP * 1000);
 	else
 		ret = sprintf(buf, "%d\n", -1);
 
 	return ret;
 }
 
+/* TODO - Add read/write support in order to support setting max/min */
+static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO, show_info, NULL,
+			  SHOW_TYPE);
+static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_info, NULL,
+			  SHOW_LABEL);
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL,
 			  SHOW_TEMP);
 static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL,
@@ -191,6 +209,8 @@ static struct attribute *dovetemp_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	&sensor_dev_attr_temp1_max.dev_attr.attr,
 	&sensor_dev_attr_temp1_min.dev_attr.attr,
+	&sensor_dev_attr_temp1_type.dev_attr.attr,
+	&sensor_dev_attr_temp1_label.dev_attr.attr,
 	NULL
 };
 
@@ -202,7 +222,7 @@ static int __devinit dovetemp_probe(struct platform_device *pdev)
 {
 	int err;
 
-	err = dovetemp_initSensor();
+	err = dovetemp_init_sensor();
 	if (err)
 		goto exit;
 
