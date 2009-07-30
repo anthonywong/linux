@@ -564,7 +564,7 @@ static int pmic_battery_probe(struct platform_device *pdev)
 		goto charger_failed;
 	}
 	INIT_DELAYED_WORK(&di->monitor_work, mc13892_battery_work);
-	di->monitor_wqueue = create_singlethread_workqueue(pdev->dev.bus_id);
+	di->monitor_wqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
 	if (!di->monitor_wqueue) {
 		retval = -ESRCH;
 		goto workqueue_failed;
