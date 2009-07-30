@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/android_pmem.h>
+#include <linux/pm_qos_params.h>
 
 #include <asm/atomic.h>
 
@@ -34,6 +35,9 @@
 #include "kgsl_ringbuffer.h"
 #include "kgsl_log.h"
 #include "kgsl_drm.h"
+
+/* Specify a very high number -we want maxmium AXI at all times */
+#define PM_QOS_AXI_SPEED 500000
 
 struct kgsl_file_private {
 	struct list_head list;
@@ -718,6 +722,8 @@ static void kgsl_driver_cleanup(void)
 		kgsl_driver.interrupt_num = 0;
 	}
 
+	pm_qos_remove_requirement(PM_QOS_SYSTEM_BUS_FREQ, DRIVER_NAME);
+
 	if (kgsl_driver.grp_pclk) {
 		clk_put(kgsl_driver.grp_pclk);
 		kgsl_driver.grp_pclk = NULL;
@@ -773,6 +779,11 @@ static int __devinit kgsl_platform_probe(struct platform_device *pdev)
 		goto done;
 	}
 	kgsl_driver.imem_clk = clk;
+
+	pm_qos_add_requirement(PM_QOS_SYSTEM_BUS_FREQ, DRIVER_NAME,
+				PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_requirement(PM_QOS_SYSTEM_BUS_FREQ, DRIVER_NAME,
+				PM_QOS_AXI_SPEED);
 
 	/*acquire interrupt */
 	kgsl_driver.interrupt_num = platform_get_irq(pdev, 0);
