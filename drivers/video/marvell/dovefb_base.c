@@ -440,10 +440,7 @@ int __init dovefb_parse_options(char *options, struct dovefb_info *info,
 		return -1;
 	name += strlen(devname);
 
-	if (strstr(name, "edid") != 0)
-		info->edid_en = 1;
-	else
-		info->edid_en = 0;
+	info->edid_en = 0;
 
 	namelen = strlen(name);
 	info->mode_option = options;
@@ -476,6 +473,7 @@ int __init dovefb_parse_options(char *options, struct dovefb_info *info,
 	if (name[0] == '-') {
 		/* This can be either "edid" or the fixed output resolution */
 		if (strncmp("-edid", name, 5) == 0) {
+			info->edid_en = 1;
 			name += 5;
 		}
 
