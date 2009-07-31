@@ -86,7 +86,7 @@ static struct cpu_wp cpu_wp_auto[] = {
 	 .mfd = 2,
 	 .mfn = 1,
 	 .cpu_podf = 0,
-	 .cpu_voltage = 1050000,},
+	 .cpu_voltage = 1100000,},
 	{
 	 .pll_rate = 800000000,
 	 .cpu_rate = 166250000,
@@ -95,7 +95,7 @@ static struct cpu_wp cpu_wp_auto[] = {
 	 .mfd = 2,
 	 .mfn = 1,
 	 .cpu_podf = 4,
-	 .cpu_voltage = 775000,},
+	 .cpu_voltage = 1000000,},
 };
 
 static struct fb_videomode video_modes[] = {
