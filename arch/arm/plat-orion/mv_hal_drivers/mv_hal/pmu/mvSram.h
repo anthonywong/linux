@@ -84,6 +84,8 @@ extern MV_VOID mvPmuSramStandbyEnterFunc(MV_VOID);
 extern MV_U32 mvPmuSramStandbyEnterFuncSZ;
 extern MV_VOID mvPmuSramStandbyExitFunc(MV_VOID);
 extern MV_U32 mvPmuSramStandbyExitFuncSZ;
+extern MV_VOID mvPmuSramCpuDfsFunc(MV_VOID);
+extern MV_U32 mvPmuSramCpuDfsFuncSZ;
 
 
 /* Function APIs */
@@ -94,6 +96,7 @@ MV_VOID 	mvPmuSramDeepIdle(MV_U32 ddrSelfRefresh);
 MV_VOID 	mvPmuSramStandby(MV_VOID);
 MV_STATUS 	mvPmuSramDeepIdleResumePrep(MV_VOID);
 MV_STATUS 	mvPmuSramStandbyResumePrep(MV_U32 ddrFreq);
+MV_VOID 	mvPmuSramCpuDfs(MV_VOID);
 
 #ifdef __cplusplus
 }
