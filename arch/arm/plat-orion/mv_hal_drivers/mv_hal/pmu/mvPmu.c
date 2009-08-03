@@ -136,9 +136,9 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x2}, 	/* DDR:PLL 1:2 */
 #define PMU_DVS_POLL_DLY		10000			/* Poll DVS done count */
 
 /* DVS defaults */
-#define DOVE_PSET_HI			0x0
-#define DOVE_VSET_HI			0x0
-#define DOVE_PSET_LO			0xB
+#define DOVE_PSET_HI			0xF
+#define DOVE_VSET_HI			0x8
+#define DOVE_PSET_LO			0xA
 #define DOVE_VSET_LO			0x8
 #define DOVE_RADDR			0x2
 #define DOVE_SADDR			0x5
