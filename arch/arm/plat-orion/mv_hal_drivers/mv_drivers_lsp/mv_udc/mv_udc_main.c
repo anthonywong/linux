@@ -411,6 +411,10 @@ static void   usbDevResetComplete(int devNo)
 }
 
 extern MV_U32   mvUsbGetCapRegAddr(int devNo);
+MV_U32   OrionmvUsbGetCapRegAddr(int devNo)
+{
+	return mvUsbGetCapRegAddr(devNo) + INTER_REGS_BASE;
+}
 
 
 USB_IMPORT_FUNCS    usbImportFuncs =
@@ -428,7 +432,7 @@ USB_IMPORT_FUNCS    usbImportFuncs =
     mvUsbVirtToPhys,
     NULL,
     NULL,
-    mvUsbGetCapRegAddr,
+    OrionmvUsbGetCapRegAddr,
     usbDevResetComplete
 };
 
