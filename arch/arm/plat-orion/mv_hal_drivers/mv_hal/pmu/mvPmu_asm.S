@@ -668,3 +668,39 @@ sbx_phys_offs:
 
 ENTRY(mvPmuSramStandbyExitFuncSZ)
 	.word	. - mvPmuSramStandbyExitFunc
+
+
+/***************************************************************
+ * mvPmuSramCpuDfsFunc: Change the CPU frequency
+ * Inputs:
+ *    None
+ * Outputs:
+ *    None
+ **************************************************************/
+	.align 5
+ENTRY(mvPmuSramCpuDfsFunc)
+	stmfd	sp!, {r0 - r10, lr}	@ save registers on stack
+
+	/*
+	 * Enter WFI
+	 */
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c0, 4
+
+	/*
+	 * DDR dclk2x to dclk Sync
+	 */
+	ldr     r1, dfs_ddr_sync_reg
+	ldr     r0, dfs_ddr_sync_val
+	str     r0, [r1]
+	ldr	r0, [r1]
+
+	ldmfd	sp!, {r0 - r10, pc}	@ restore regs and return
+
+dfs_ddr_sync_reg:
+	.word (DOVE_NB_REGS_VIRT_BASE + 0x240)
+dfs_ddr_sync_val:
+	.word (0x80000000)
+
+ENTRY(mvPmuSramCpuDfsFuncSZ)
+	.word	. - mvPmuSramCpuDfsFunc
