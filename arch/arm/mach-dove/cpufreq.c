@@ -240,7 +240,7 @@ static int dove_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
         /* Set both HIGH and DDR frequencies */
         dove_freqs[DOVE_CPUFREQ_HIGH].frequency = cpuClk;
-        dove_freqs[DOVE_CPUFREQ_DDR].frequency = ((cpuClk * 10) / ddrRatio);
+        dove_freqs[DOVE_CPUFREQ_DDR].frequency = ((cpuClk / ddrRatio) * 10);
         
         dprintk("Hight frequency: %dHz - Low frequency: %dHz\n", 
                         dove_freqs[DOVE_CPUFREQ_HIGH].frequency,
@@ -285,13 +285,21 @@ static struct cpufreq_driver dove_freq_driver = {
         .attr           = dove_freq_attr,
 };
 
+extern int cpufreq_enable;
+
 static int __init dove_cpufreq_init(void)
 {
+	if (!cpufreq_enable)
+		return 0;
+
         return cpufreq_register_driver(&dove_freq_driver);
 }
 
 static void __exit dove_cpufreq_exit(void)
 {
+	if (!cpufreq_enable)
+		return 0;
+
         cpufreq_unregister_driver(&dove_freq_driver);
 }
 
