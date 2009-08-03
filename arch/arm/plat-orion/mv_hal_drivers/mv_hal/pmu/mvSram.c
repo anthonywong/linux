@@ -96,6 +96,7 @@ static MV_VOID (*_mvPmuSramDeepIdleEnterPtr)(MV_U32 ddrSelfRefresh);
 static MV_VOID (*_mvPmuSramDeepIdleExitPtr)(MV_VOID);
 static MV_VOID (*_mvPmuSramStandbyEnterPtr)(MV_VOID);
 static MV_VOID (*_mvPmuSramStandbyExitPtr)(MV_VOID);
+static MV_VOID (*_mvPmuSramCpuDfsPtr)(MV_VOID);
 
 /* Macros */
 #define PmuSpVirt2Phys(addr)	(((MV_U32)addr - DOVE_SCRATCHPAD_VIRT_BASE) + DOVE_SCRATCHPAD_PHYS_BASE)
@@ -180,6 +181,28 @@ MV_VOID mvPmuSramDdrReconfig(MV_U32 paramcnt)
 
 	return _mvPmuSramDdrReconfigPtr((MV_U32)_mvPmuSramDdrParamPtrInt, paramcnt);
 }	
+
+/*******************************************************************************
+* mvPmuSramCpuDfs - Reconfigure the CPU speed
+*
+* DESCRIPTION:
+*   	This call executes from the SRAM and performs all configurations needed
+*	to change the CPU clock withoiut accessing the DDR
+*
+* INPUT:
+*	None
+* OUTPUT:
+*	None
+* RETURN:
+*	None
+*******************************************************************************/
+MV_VOID mvPmuSramCpuDfs(MV_VOID)
+{
+	if (!_mvPmuSramCpuDfsPtr)
+		panic("Function not yet relocated in SRAM\n");
+
+	return _mvPmuSramCpuDfsPtr();
+}
 
 /*******************************************************************************
 * mvPmuSramDeepIdle - Enter Deep Idle mode
@@ -290,6 +313,11 @@ MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 		return MV_FAIL;
 	if ((_mvPmuSramStandbyExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyExitFunc,
 		mvPmuSramStandbyExitFuncSZ)) == NULL)
+		return MV_FAIL;
+
+	/* Relocate the CPU DFS function */
+	if ((_mvPmuSramCpuDfsPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramCpuDfsFunc,
+		mvPmuSramCpuDfsFuncSZ)) == NULL)
 		return MV_FAIL;
 
 	/* Save the DDR termination GPIO information */
