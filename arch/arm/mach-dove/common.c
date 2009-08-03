@@ -111,6 +111,15 @@ static int __init pm_enable_setup(char *__unused)
 
 __setup("pm_enable", pm_enable_setup);
 
+int cpufreq_enable = 0;
+static int __init cpufreq_enable_setup(char *__unused)
+{
+     cpufreq_enable = 1;
+     return 1;
+}
+
+__setup("cpufreq_enable", cpufreq_enable_setup);
+
 int mv_usb0_cmdline_config(char *s)
 {
     usb0Mode = s;
