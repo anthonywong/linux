@@ -10,6 +10,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
+#include <asm/atomic.h>
 
 #include "dove_vpro_uio_driver.h"
 
@@ -28,6 +29,24 @@ struct vpro_xv_data {
 struct vpro_uio_data {
 	struct uio_info		uio_info;
 };
+
+static atomic_t vpro_available = ATOMIC_INIT(1);
+
+static int vpro_open(struct uio_info *info, struct inode *inode)
+{
+	if (!atomic_dec_and_test(&vpro_available)) {
+		atomic_inc(&vpro_available);
+		return -EBUSY;	/* already open */
+	}
+
+	return 0;
+}
+
+static int vpro_release(struct uio_info *info, struct inode *inode)
+{
+	atomic_inc(&vpro_available); /* release the device */
+	return 0;
+}
 
 static int vpro_mmap(struct uio_info *info, struct vm_area_struct *vma)
 {
@@ -212,7 +231,7 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	vd->uio_info.mem[id].addr = res->start;
 	vd->uio_info.mem[id].size = res->end - res->start + 1;
 	vd->uio_info.mem[id].memtype = UIO_MEM_PHYS;
-printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
+	printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
 			res->start, vd->uio_info.mem[id].size >> 10);
 	/* Get VPRO reserved memory area. */
 #ifndef CONFIG_VPRO_NEW
@@ -274,6 +293,8 @@ printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
 	vd->uio_info.handler = vpro_irqhandler;
 	vd->uio_info.ioctl = vpro_ioctl;
 	vd->uio_info.mmap = vpro_mmap;
+	vd->uio_info.open = vpro_open;
+	vd->uio_info.release = vpro_release;
 
 	// init video buffer queue for vpro xv interface
 	xvd = kzalloc(sizeof(struct vpro_xv_data), GFP_KERNEL);
