@@ -15,7 +15,6 @@
 #include <linux/mbus.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
-//#include <mach/kirkwood.h>
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
 
@@ -26,9 +25,9 @@
  */
 #ifdef CONFIG_DOVE_REV_Z0
 u32 dove_sar2cpu_clk[] = { 0, 0, 0, /* 0x0 -> 0x2 reserved */
-			   1200000000, 1067000000, 933000000, 
-			   800000000, 667000000, 533000000,
-			   400000000, /* 0x9 -> Should be reserved */
+			   1200000, 1067000, 933000,
+			   800000, 667000, 533000,
+			   400000, /* 0x9 -> Should be reserved */
 			   0, 0, 0, 0, 0, 0}; /* 0x10->0x15 reserved */
 /*
  * Following table maps 3 bit reset sample to CPU:L2 ratio.
@@ -65,10 +64,10 @@ u32 dove_sar_cpu2ddr_ratio[] = {10, 	/* 1 : 1 */
 				100};	/* 1 : 10 */
 #else
 u32 dove_sar2cpu_clk[] = { 0, 0, 0, 0, 0, /* 0->4 are reserved */
-			   1000000000, 933000000, 933000000,
-			   800000000, 800000000, 800000000,
-			   1067000000, 667000000, 533000000,
-			   400000000, 333000000};
+			   1000000, 933000, 933000,
+			   800000, 800000, 800000,
+			   1067000, 667000, 533000,
+			   400000, 333000};
 
 /*
  * Following table maps 3 bit reset sample to CPU:L2 ratio.
@@ -174,7 +173,7 @@ static unsigned int dove_cpufreq_get(unsigned int cpu)
         else
                 freq = dove_freqs[DOVE_CPUFREQ_HIGH].frequency;
 
-        dprintk("Current frequency: %dHz\n", freq);
+	dprintk("Current frequency: %dMHz\n", (freq/1000));
 
         return freq;
 }
@@ -201,13 +200,17 @@ static int dove_cpufreq_target(struct cpufreq_policy *policy,
 	freqs.new = dove_freqs[index].frequency;
 	freqs.cpu = policy->cpu;
 
+	/* Check if no change is needed */
+	if (freqs.new == freqs.old)
+		return 0;
+
         cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	ret = dove_set_frequency(index);
 
         cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
-        dprintk("Set frequency: %dHz\n", dove_freqs[index].frequency);
+	dprintk("Set frequency: %dMHz\n", (dove_freqs[index].frequency / 1000));
 
         return ret;
 }
@@ -240,20 +243,20 @@ static int dove_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
         /* Set both HIGH and DDR frequencies */
         dove_freqs[DOVE_CPUFREQ_HIGH].frequency = cpuClk;
-        dove_freqs[DOVE_CPUFREQ_DDR].frequency = ((cpuClk / ddrRatio) * 10);
+	dove_freqs[DOVE_CPUFREQ_DDR].frequency = ((cpuClk * 10) / ddrRatio);
         
-        dprintk("Hight frequency: %dHz - Low frequency: %dHz\n", 
+	dprintk("Hight frequency: %dHz - Low frequency: %dHz\n",
                         dove_freqs[DOVE_CPUFREQ_HIGH].frequency,
                         dove_freqs[DOVE_CPUFREQ_DDR].frequency);
 
 	/* FIXME: How to calibrate ? */
-        policy->cpuinfo.transition_latency = 1000000;
-        policy->cur = cpuClk;
+	policy->cpuinfo.transition_latency = 10000; /* in nano seconds */
+	policy->cur = cpuClk;
 
-        cpufreq_frequency_table_get_attr(dove_freqs, policy->cpu);
+	cpufreq_frequency_table_get_attr(dove_freqs, policy->cpu);
 
-        ret = cpufreq_frequency_table_cpuinfo(policy, dove_freqs);
-	
+	ret = cpufreq_frequency_table_cpuinfo(policy, dove_freqs);
+
 	printk(KERN_INFO "Dove cpuFreq Driver Initialized (%d/%d)\n", 
 		(dove_freqs[DOVE_CPUFREQ_HIGH].frequency / 1000000), 
 		(dove_freqs[DOVE_CPUFREQ_DDR].frequency / 1000000));
