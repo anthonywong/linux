@@ -17,6 +17,7 @@
 #include <plat/pcie.h>
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
+#include "ctrlEnv/mvCtrlEnvRegs.h"
 
 #define dprintk(msg...) cpufreq_debug_printk(CPUFREQ_DEBUG_DRIVER, "dove_cpufreq", msg)
 
@@ -120,7 +121,7 @@ static struct cpufreq_frequency_table dove_freqs[] = {
 /*
  * Power management function: set or unset powersave mode
  */
-
+extern int dvs_enable;
 static inline int dove_set_frequency(enum dove_cpufreq_range freq)
 {
 	unsigned long flags;
@@ -130,12 +131,12 @@ static inline int dove_set_frequency(enum dove_cpufreq_range freq)
 
         if (freq == DOVE_CPUFREQ_DDR) {
 		dprintk("Going to DDR Frequency\n");
-		if (mvPmuCpuSetOP (CPU_CLOCK_SLOW) != MV_OK)
+		if (mvPmuCpuSetOP (CPU_CLOCK_SLOW, (dvs_enable ? MV_TRUE : MV_FALSE)) != MV_OK)
 			ret = -EIO;			
 	}
         else if (freq == DOVE_CPUFREQ_HIGH) {
 		dprintk("Going to HIGH Frequency\n");
-		if (mvPmuCpuSetOP (CPU_CLOCK_TURBO) != MV_OK)
+		if (mvPmuCpuSetOP (CPU_CLOCK_TURBO, (dvs_enable ? MV_TRUE : MV_FALSE)) != MV_OK)
 			ret = -EIO;
 	}
 	else {
@@ -301,7 +302,7 @@ static int __init dove_cpufreq_init(void)
 static void __exit dove_cpufreq_exit(void)
 {
 	if (!cpufreq_enable)
-		return 0;
+		return;
 
         cpufreq_unregister_driver(&dove_freq_driver);
 }
