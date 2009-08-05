@@ -226,7 +226,7 @@ static int ping_mdm_data_cb_register_arg(struct msm_rpc_client *client,
 	arg = (struct ping_mdm_register_data_cb_arg *)data;
 
 	cb_id = msm_rpc_add_cb_func(client, (void *)arg->cb_func);
-	if (cb_id < 0)
+	if ((cb_id < 0) && (cb_id != MSM_RPC_CLIENT_NULL_CB_ID))
 		return cb_id;
 
 	*((uint32_t *)buf) = cpu_to_be32((uint32_t)cb_id);
@@ -260,7 +260,7 @@ static int ping_mdm_data_cb_unregister_arg(struct msm_rpc_client *client,
 	arg = (struct ping_mdm_unregister_data_cb_arg *)data;
 
 	cb_id = msm_rpc_add_cb_func(client, (void *)arg->cb_func);
-	if (cb_id < 0)
+	if ((cb_id < 0) && (cb_id != MSM_RPC_CLIENT_NULL_CB_ID))
 		return cb_id;
 
 	*((uint32_t *)buf) = cpu_to_be32((uint32_t)cb_id);
@@ -381,7 +381,7 @@ static int ping_mdm_register_arg(struct msm_rpc_client *client,
 	arg = (struct ping_mdm_register_arg *)data;
 
 	cb_id = msm_rpc_add_cb_func(client, (void *)arg->cb_func);
-	if (cb_id < 0)
+	if ((cb_id < 0) && (cb_id != MSM_RPC_CLIENT_NULL_CB_ID))
 		return cb_id;
 
 	*((uint32_t *)buf) = cpu_to_be32((uint32_t)cb_id);
@@ -403,7 +403,7 @@ static int ping_mdm_unregister_arg(struct msm_rpc_client *client,
 	arg = (struct ping_mdm_unregister_arg *)data;
 
 	cb_id = msm_rpc_add_cb_func(client, (void *)arg->cb_func);
-	if (cb_id < 0)
+	if ((cb_id < 0) && (cb_id != MSM_RPC_CLIENT_NULL_CB_ID))
 		return cb_id;
 
 	*((uint32_t *)buf) = cpu_to_be32((uint32_t)cb_id);
