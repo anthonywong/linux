@@ -199,7 +199,7 @@ MV_STATUS mvPmuTempSensorCalib  (MV_VOID);
 MV_STATUS mvPmuGpuPowerDown	(MV_BOOL pwrStat);
 MV_STATUS mvPmuVpuPowerDown	(MV_BOOL pwrStat);
 MV_STATUS mvPmuGetCurrentFreq	(MV_PMU_FREQ_INFO * freqs);
-MV_STATUS mvPmuCpuSetOP 	(MV_PMU_CPU_SPEED cpuSpeed);
+MV_STATUS mvPmuCpuSetOP 	(MV_PMU_CPU_SPEED cpuSpeed, MV_BOOL dvsEnable);
 #ifndef CONFIG_DOVE_REV_Z0
 MV_VOID   mvPmuCpuIdleThresholdsSet	(MV_U32 hiThreshold, MV_U32 lowThreshold);
 MV_VOID   mvPmuCpuIdleTimeBaseValueSet	(MV_U32 timeBase);
