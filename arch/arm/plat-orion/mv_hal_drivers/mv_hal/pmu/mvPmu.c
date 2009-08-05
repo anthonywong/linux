@@ -1389,19 +1389,20 @@ MV_STATUS mvPmuGetCurrentFreq(MV_PMU_FREQ_INFO * freqs)
 *
 * INPUT:
 *	cpuSpeed: desired spu speed
+*	dvsEnable:  enable voltage scaling with frequency
 * OUTPUT:
 *       None
 * RETURN:
 *    	MV_OK      : operating point changed successfully
 *******************************************************************************/
-MV_STATUS mvPmuCpuSetOP (MV_PMU_CPU_SPEED cpuSpeed)
+MV_STATUS mvPmuCpuSetOP (MV_PMU_CPU_SPEED cpuSpeed, MV_BOOL dvsEnable)
 {
 	MV_STATUS ret = MV_OK;
-
+	
 	/* based on requested Operating Point set volatge and frequency */
 	switch (cpuSpeed) {
 		case CPU_CLOCK_TURBO:
-			if (mvPmuDvs (DOVE_PSET_HI, DOVE_VSET_HI, DOVE_RADDR, DOVE_SADDR) != MV_OK)
+			if ((dvsEnable) && (mvPmuDvs (DOVE_PSET_HI, DOVE_VSET_HI, DOVE_RADDR, DOVE_SADDR) != MV_OK))
 				ret = MV_FAIL;
 
 			if (mvPmuCpuFreqScale (CPU_CLOCK_TURBO) != MV_OK)
@@ -1412,7 +1413,7 @@ MV_STATUS mvPmuCpuSetOP (MV_PMU_CPU_SPEED cpuSpeed)
 			if (mvPmuCpuFreqScale (CPU_CLOCK_SLOW) != MV_OK)
 				ret = MV_FAIL;
 
-			if (mvPmuDvs (DOVE_PSET_LO, DOVE_VSET_LO, DOVE_RADDR, DOVE_SADDR) != MV_OK)
+			if ((dvsEnable) && (mvPmuDvs (DOVE_PSET_LO, DOVE_VSET_LO, DOVE_RADDR, DOVE_SADDR) != MV_OK))
 				ret = MV_FAIL;
 			break;
 
