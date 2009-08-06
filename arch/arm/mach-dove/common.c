@@ -1341,7 +1341,7 @@ static struct mv_xor_platform_shared_data dove_xor_shared_data = {
 /*****************************************************************************
  * XOR 0
  ****************************************************************************/
-static u64 dove_xor0_dmamask = DMA_32BIT_MASK;
+static u64 dove_xor0_dmamask = DMA_BIT_MASK(32);
 
 static struct resource dove_xor0_shared_resources[] = {
 	{
@@ -1388,7 +1388,7 @@ static struct platform_device dove_xor00_channel = {
 	.resource	= dove_xor00_resources,
 	.dev		= {
 		.dma_mask		= &dove_xor0_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&dove_xor00_data,
 	},
 };
@@ -1414,7 +1414,7 @@ static struct platform_device dove_xor01_channel = {
 	.resource	= dove_xor01_resources,
 	.dev		= {
 		.dma_mask		= &dove_xor0_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&dove_xor01_data,
 	},
 };
@@ -1444,7 +1444,7 @@ void __init dove_xor0_init(void)
 /*****************************************************************************
  * XOR 1
  ****************************************************************************/
-static u64 dove_xor1_dmamask = DMA_32BIT_MASK;
+static u64 dove_xor1_dmamask = DMA_BIT_MASK(32);
 
 static struct resource dove_xor1_shared_resources[] = {
 	{
@@ -1491,7 +1491,7 @@ static struct platform_device dove_xor10_channel = {
 	.resource	= dove_xor10_resources,
 	.dev		= {
 		.dma_mask		= &dove_xor1_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&dove_xor10_data,
 	},
 };
@@ -1517,7 +1517,7 @@ static struct platform_device dove_xor11_channel = {
 	.resource	= dove_xor11_resources,
 	.dev		= {
 		.dma_mask		= &dove_xor1_dmamask,
-		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.coherent_dma_mask	= DMA_BIT_MASK(64),
 		.platform_data		= (void *)&dove_xor11_data,
 	},
 };
