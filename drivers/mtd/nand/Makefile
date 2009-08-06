@@ -1,7 +1,10 @@
 #
 # linux/drivers/nand/Makefile
 #
-include $(TOPDIR)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+ifdef CONFIG_MV_HAL_RULES_PATH
+include $(srctree)/include/config/auto.conf
+include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
+endif
 
 obj-$(CONFIG_MTD_NAND)			+= nand.o nand_ecc.o
 obj-$(CONFIG_MTD_NAND_IDS)		+= nand_ids.o
