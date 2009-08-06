@@ -191,6 +191,16 @@ static void dove_clocks_set_gpu_clock(u32 divider)
 	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 14, 14, 0);
 }
 
+static void dove_clocks_set_vmeta_clock(u32 divider)
+{
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0068, 10, 10, 1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 15, 20,
+			     divider);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 21, 21, 1);
+	udelay(1);
+	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 21, 21, 0);
+}
+
 #ifndef CONFIG_DOVE_REV_Z0
 static void dove_clocks_set_lcd_clock(u32 divider)
 {
@@ -232,6 +242,28 @@ static int gpu_set_clock(struct clk *clk, unsigned long rate)
 	printk(KERN_INFO "Setting gpu clock to %lu (divider: %u)\n",
 	       rate, divider);
 	dove_clocks_set_gpu_clock(divider);
+	return 0;
+}
+
+static unsigned long vmeta_get_clock(struct clk *clk)
+{
+	u32 divider;
+	u32 c;
+
+	divider = dove_clocks_get_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 15, 20);
+	c = dove_clocks_divide(2000, divider);
+
+	return c * 1000000UL;
+}
+
+static int vmeta_set_clock(struct clk *clk, unsigned long rate)
+{
+	u32 divider;
+
+	divider = dove_clocks_divide(2000, rate/1000000);
+	printk(KERN_INFO "Setting vmeta clock to %lu (divider: %u)\n",
+	       rate, divider);
+	dove_clocks_set_vmeta_clock(divider);
 	return 0;
 }
 
@@ -364,11 +396,32 @@ static ssize_t dove_clocks_gpu_store(struct kobject *kobj,
 	return n;
 }
 
+static ssize_t dove_clocks_vmeta_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", vmeta_get_clock(NULL));
+}
+
+static ssize_t dove_clocks_vmeta_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t n)
+{
+	unsigned long value;
+
+	if (sscanf(buf, "%lu", &value) != 1)
+		return -EINVAL;
+	vmeta_set_clock(NULL, value);
+	return n;
+}
+
 static struct kobj_attribute dove_clocks_axi_attr =
 	__ATTR(axi, 0644, dove_clocks_axi_show, dove_clocks_axi_store);
 
 static struct kobj_attribute dove_clocks_gpu_attr =
 	__ATTR(gpu, 0644, dove_clocks_gpu_show, dove_clocks_gpu_store);
+
+static struct kobj_attribute dove_clocks_vmeta_attr =
+	__ATTR(vmeta, 0644, dove_clocks_vmeta_show, dove_clocks_vmeta_store);
 
 static int __init dove_upstream_clocks_sysfs_setup(void)
 {
@@ -379,6 +432,9 @@ static int __init dove_upstream_clocks_sysfs_setup(void)
 		printk(KERN_ERR "%s: sysfs_create_file failed!", __func__);
 	if (sysfs_create_file(&dove_clocks_sysfs.dev.kobj,
 			&dove_clocks_gpu_attr.attr))
+		printk(KERN_ERR "%s: sysfs_create_file failed!", __func__);
+	if (sysfs_create_file(&dove_clocks_sysfs.dev.kobj,
+			&dove_clocks_vmeta_attr.attr))
 		printk(KERN_ERR "%s: sysfs_create_file failed!", __func__);
 
 	return 0;
