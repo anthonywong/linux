@@ -1,7 +1,7 @@
 if PLAT_ORION
 
 menu "Orion SoC options"
-
+depends on MV_HAL_DRIVERS_SUPPORT
 #since the Kconfig parser dispatch all source commands, we call the machines Kconfigs from here and
 #not vice versa because otherwise the plat-feroceon Kconfig will be dispatched twice.     
 
@@ -89,6 +89,7 @@ source arch/arm/plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_cesa/Kconfig
 
 config  SCSI_MVSATA
         tristate "Support for Marvell Sata Adapters"
+	depends on MV_HAL_DRIVERS_SUPPORT
         depends on ( MV_INCLUDE_INTEG_SATA && SCSI ) || ( PCI && SCSI )
         ---help---
           Choosing this option will enable you to use the Marvell Sata
