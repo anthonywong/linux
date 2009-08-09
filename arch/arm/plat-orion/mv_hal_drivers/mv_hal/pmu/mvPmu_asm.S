@@ -729,25 +729,41 @@ ENTRY(mvPmuSramCpuDfsFunc)
 	stmfd	sp!, {r0 - r10, lr}	@ save registers on stack
 
 	/*
+	 * Force DDR in SR Mode
+	 */
+	ldr	r0, dfs_ctrl_reg
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
+	ldr	r2, [r0]
+	orr	r2, r2, r1
+	str	r2, [r0]
+dfs_sr_enter_loop:
+	ldr	r2, [r0]
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
+	beq	dfs_sr_enter_loop
+
+	/*
 	 * Enter WFI
 	 */
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4
 
 	/*
-	 * DDR dclk2x to dclk Sync
+	 * Exit DDR SR Mode
 	 */
-	ldr     r1, dfs_ddr_sync_reg
-	ldr     r0, dfs_ddr_sync_val
-	str     r0, [r1]
-	ldr	r0, [r1]
+	ldr	r0, dfs_ctrl_reg
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
+	ldr	r2, [r0]
+	bic	r2, r2, r1
+	str	r2, [r0]
+dfs_sr_exit_loop:
+	ldr	r2, [r0]
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
+	bne	dfs_sr_exit_loop
 
 	ldmfd	sp!, {r0 - r10, pc}	@ restore regs and return
 
-dfs_ddr_sync_reg:
-	.word (DOVE_NB_REGS_VIRT_BASE + 0x240)
-dfs_ddr_sync_val:
-	.word (0x80000000)
+dfs_ctrl_reg:
+	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 
 ENTRY(mvPmuSramCpuDfsFuncSZ)
 	.word	. - mvPmuSramCpuDfsFunc
