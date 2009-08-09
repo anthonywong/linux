@@ -257,6 +257,11 @@ static int __devexit dovetemp_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int dovetemp_resume(struct platform_device *dev)
+{
+	dovetemp_init_sensor();
+}
+
 static struct platform_driver dovetemp_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
@@ -264,6 +269,7 @@ static struct platform_driver dovetemp_driver = {
 	},
 	.probe = dovetemp_probe,
 	.remove = __devexit_p(dovetemp_remove),
+	.resume = dovetemp_resume,
 };
 
 static int __init dovetemp_init(void)
