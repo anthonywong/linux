@@ -621,6 +621,17 @@ static int __exit orion_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int orion_spi_resume(struct platform_device *pdev)
+{
+	struct spi_master *master;
+	struct orion_spi *spi;
+
+	master = dev_get_drvdata(&pdev->dev);
+	spi = spi_master_get_devdata(master);
+
+	return orion_spi_reset(spi);
+}
+
 MODULE_ALIAS("platform:" DRIVER_NAME);
 
 static struct platform_driver orion_spi_driver = {
@@ -629,6 +640,7 @@ static struct platform_driver orion_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.remove		= __exit_p(orion_spi_remove),
+	.resume		= orion_spi_resume,
 };
 
 static int __init orion_spi_init(void)
