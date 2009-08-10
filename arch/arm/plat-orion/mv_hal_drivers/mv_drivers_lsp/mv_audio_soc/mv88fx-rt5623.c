@@ -335,6 +335,9 @@ static struct platform_driver mv88fx_snd_driver = {
 
 static int __init mv88fx_snd_init(void)
 {
+	if (!machine_is_dove_rd_avng())
+		return -ENODEV;
+
 	mv88fx_snd_debug("");
 	return platform_driver_register(&mv88fx_snd_driver);
 }
