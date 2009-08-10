@@ -478,7 +478,7 @@ static int mv88fx_remove(struct platform_device *pdev)
 }
 
 static struct snd_soc_card dove = {
-	.name = "Dove",
+	.name = "mv_i2s",
 	.platform = &mv88fx_soc_platform,
 	.probe = mv88fx_probe,
 	.remove = mv88fx_remove,
@@ -624,6 +624,9 @@ static struct platform_driver mv88fx_snd_driver = {
 
 static int __init mv88fx_snd_init(void)
 {
+	if (!machine_is_dove_db() && !machine_is_dove_db_z0())
+		return -ENODEV;
+	
 	mv88fx_snd_debug("");
 	return platform_driver_register(&mv88fx_snd_driver);
 }
