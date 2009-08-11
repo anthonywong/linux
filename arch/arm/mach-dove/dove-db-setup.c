@@ -67,6 +67,7 @@ MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
 #endif
 
 extern unsigned int useHalDrivers;
+extern unsigned int useNandHal;
 
 /*
  * LCD input clock.
@@ -475,14 +476,16 @@ static struct mtd_partition partition_dove[] = {
 	  .size		= 4 * SZ_1M },
 	{ .name		= "Root",
 	  .offset	= MTDPART_OFS_APPEND,
-	  .size		= 1019 * SZ_1M },
+	  .size         = MTDPART_SIZ_FULL},
 };
 static u64 nfc_dmamask = DMA_BIT_MASK(32);
 static struct dove_nand_platform_data dove_db_nfc_data = {
-	.nfc_width	= 8,
+	.nfc_width      = 16,
+	.num_devs       = 2,
+	.num_cs         = 1,
 	.use_dma	= 1,
 	.use_ecc	= 1,
-	.use_bch	= 0,
+	.use_bch	= 1,
 	.parts = partition_dove,
 	.nr_parts = ARRAY_SIZE(partition_dove)
 };
@@ -527,7 +530,8 @@ static struct platform_device dove_nfc = {
 static void __init dove_db_nfc_init(void)
 {
 	dove_db_nfc_data.tclk = dove_tclk_get();
-	if(useHalDrivers)
+
+	if(useHalDrivers || useNandHal)
 		dove_nfc.name = "dove-nand-hal";
 
 	platform_device_register(&dove_nfc);
@@ -679,7 +683,7 @@ static void __init dove_db_init(void)
 
 	dove_rtc_init();
 
-	if(!useHalDrivers) {
+	if((!useHalDrivers) && (!useNandHal)) {
 		pxa_init_dma_wins(&dove_mbus_dram_info);
 		pxa_init_dma(16);
 	}
