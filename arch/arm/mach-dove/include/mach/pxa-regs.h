@@ -16,7 +16,10 @@
  * DMA Controller
  */
 #define __DMA(x)	*((volatile u32 *)(DOVE_PDMA_VIRT_BASE + (x)))
+#define __ADDR(x)	(DOVE_PDMA_VIRT_BASE + (x))
 #define __DMA2(x, y)	*((volatile u32 *)(DOVE_PDMA_VIRT_BASE + (x) + (y)))
+#define __ADDR2(x, y)	(DOVE_PDMA_VIRT_BASE + (x) + (y))
+
 #include <asm/hardware/pxa-dma-regs.h>
 
 /*
