@@ -196,6 +196,9 @@ MV_STATUS mvPdmaMemInit(MV_PDMA_CHANNEL *chanHndl,
 MV_U32 mvPdmaCommandRegCalc(MV_PDMA_CHANNEL *chanHndl, 
 				MV_PDMA_TRANSACTION_TYPE transType, 
 				MV_U16 size);
+MV_STATUS mvPdmaCommandIntrEnable( MV_PDMA_CHANNEL *chanHndl,
+				MV_U32 *command);
+MV_STATUS mvPdmaUnitStateStore(MV_U32 *stateData, MV_U32 *len);
 
 MV_STATUS mvPdmaWinInit(MV_UNIT_WIN_INFO *addrWinMap);
 MV_STATUS mvPdmaWinWrite(MV_U32 winNum, MV_UNIT_WIN_INFO *pAddrDecWin);
