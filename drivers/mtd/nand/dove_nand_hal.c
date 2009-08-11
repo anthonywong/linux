@@ -1121,6 +1121,7 @@ static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
 	info->nfcDataLen = 128;
 	mvNfcUnitStateStore(info->nfcUnitData, &info->nfcDataLen);
 
+	clk_disable(info->clk);
 	return 0;
 }
 
