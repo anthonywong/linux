@@ -839,6 +839,14 @@ static int tsc2005_resume(struct spi_device *spi)
 	enable_irq(ts->penirq);
 	spin_unlock_irq(&ts->lock);
 
+	if (tsc2005_spi_setup(ts) != 0) {
+		/* 
+		 * Perform h/w reset of TSC
+		 */
+		printk("tsc2005 resume failed\n");
+		return -1;
+		
+	}
 	return 0;
 }
 
