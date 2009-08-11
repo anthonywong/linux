@@ -72,13 +72,13 @@ static unsigned int vpro_size = UIO_DOVE_VPRO_MEM_SIZE;
 static unsigned int dove_gpu_memory_start;
 static unsigned int gpu_size = DOVE_GPU_MEM_SIZE;
 
-int useNandHal = 0;
-static int __init useNandHal_setup(char *__unused)
+char *useNandHal = NULL;
+static int __init useNandHal_setup(char *s)
 {
-	useNandHal = 1;
+	useNandHal = s;
 	return 1;
 }
-__setup("useNandHal", useNandHal_setup);
+__setup("useNandHal=", useNandHal_setup);
 
 int useHalDrivers = 0;
 #ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
