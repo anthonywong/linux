@@ -538,10 +538,6 @@ MV_U32 mvPdmaCommandRegCalc(	MV_PDMA_CHANNEL *chanHndl,
 {
 	MV_U32 regVal = 0;
 
-	regVal = (chanHndl->intrEnMask	& 
-		(MV_PDMA_END_INTR_EN	|
-		MV_PDMA_START_INTR_EN));
-
 	if (transType == MV_PDMA_PERIPH_TO_MEM) {
 		regVal &= ~(DCMD_INCSRCADDR | DCMD_FLOWTRG);
 		regVal |= (DCMD_INCTRGADDR | DCMD_FLOWSRC);
@@ -561,6 +557,36 @@ MV_U32 mvPdmaCommandRegCalc(	MV_PDMA_CHANNEL *chanHndl,
 
 	return regVal;
 }
+
+
+/*******************************************************************************
+* mvPdmaCommandIntrEnable - Enable interrupts for a given PDMA command.
+* 
+* DESCRIPTION:       
+*       This function enables interrupts for a given PDMA command that was
+*	previously calculated by mvPdmaCommandRegCalc().
+*	The interrupts are enabled according to the intrMask passed to the
+*	mvPdmaChanAlloc() API.
+*
+* INPUT:
+*       chanHndl - handle to a PDMA channel.
+*       command - The command to enable the interrupts for.
+*
+* OUTPUT:
+*       command - The input command including the proper interrupt bits.
+*
+* RETURS:
+*       MV_ERROR on failure.
+*       MV_OK on success.
+*
+*******************************************************************************/
+MV_STATUS mvPdmaCommandIntrEnable( MV_PDMA_CHANNEL *chanHndl,
+				MV_U32 *command)
+{
+	*command |= (chanHndl->intrEnMask & (MV_PDMA_END_INTR_EN | MV_PDMA_START_INTR_EN));
+	return MV_OK;
+}
+
 
 /*******************************************************************************
 * mvPdmaMemInit - Initialize a memory buffer with a given value pattern
@@ -642,6 +668,48 @@ MV_STATUS mvPdmaMemInit(MV_PDMA_CHANNEL *chanHndl,
 	return MV_OK;
 }
 
+/*******************************************************************************
+* mvPdmaUnitStateStore - Store the PDMA Unit state.
+* 
+* DESCRIPTION:       
+*       This function stores the PDMA unit registers before the unit is suspended.
+*	The stored registers are placed into the input buffer which will be used for
+*	the restore operation.
+*
+* INPUT:
+*       regsData	- Buffer to store the unit state registers (Must
+*			  include at least 64 entries)
+*	len		- Number of entries in regsData input buffer.
+*
+* OUTPUT:
+*       regsData	- Unit state registers. The registers are stored in
+*			  pairs of (reg, value).
+*       len		- Number of entries in regsData buffer (Must be even).
+*
+* RETURS:
+*       MV_ERROR on failure.
+*       MV_OK on success.
+*
+*******************************************************************************/
+MV_STATUS mvPdmaUnitStateStore(MV_U32 *stateData, MV_U32 *len)
+{
+	MV_U32 i;
+
+	if((stateData == NULL) || (len == NULL))
+		return MV_BAD_PARAM;
+
+	for(i = 0; i < sizeof(chanMapRequestOffsetTable) / sizeof(MV_U32); i++) {
+		stateData[i * 2] = MV_PDMA_REGS_BASE + chanMapRequestOffsetTable[i];
+		stateData[i * 2 + 1] = MV_REG_READ(MV_PDMA_REGS_BASE + chanMapRequestOffsetTable[i]);
+	}
+
+	stateData[i * 2] = PDMA_ALIGNMENT_REG;
+	stateData[i * 2 + 1] = MV_REG_READ(PDMA_ALIGNMENT_REG);
+	i++;
+
+	*len = i;
+	return MV_OK;
+}
 
 #ifdef MV_PDMA_DEBUG
 /************************************ For Debug *******************************/
