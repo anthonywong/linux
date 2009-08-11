@@ -1124,7 +1124,11 @@ static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 {
 	struct pxa3xx_nand_flash *f = info->flash_info;
 	struct nand_chip *this = &info->nand_chip;
+	struct dove_nand_platform_data *pdata = info->pdev->dev.platform_data;
 
+#ifdef CONFIG_MV_MTD_GANG_SUPPORT
+	this->num_devs = pdata->num_devs;
+#endif
 	this->options = (f->flash_width == 16) ? NAND_BUSWIDTH_16: 0;
 	this->options |= NAND_USE_FLASH_BBT; 
 
