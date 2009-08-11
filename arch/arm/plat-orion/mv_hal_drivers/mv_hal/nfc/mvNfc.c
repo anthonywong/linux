@@ -68,6 +68,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvSysNfcConfig.h"
 #include "mvNfcRegs.h"
 #include "pdma/mvPdma.h"
+#include "pdma/mvPdmaRegs.h"
 #include "mvNfc.h"
 
 
@@ -107,7 +108,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define NFC_RW_LP_NO_ECC_DATA_LEN	2112
 #define NFC_RW_LP_HMNG_ECC_DATA_LEN	2088
-#define NFC_RW_LP_BCH_ECC_DATA_LEN	2088
+#define NFC_RW_LP_BCH_ECC_DATA_LEN	2080
 
 #define NFC_RW_LP_G_NO_ECC_DATA_LEN	2112
 #define NFC_RW_LP_G_HMNG_ECC_DATA_LEN	2088
@@ -153,15 +154,15 @@ typedef struct {
 /* Flash command set */
 typedef struct {
 	MV_U16		read1;
-    MV_U16		exit_cache_read;
-    MV_U16		cache_read_rand;
-    MV_U16		cache_read_seq;
+	MV_U16		exitCacheRead;
+	MV_U16		cacheReadRand;
+	MV_U16		cacheReadSeq;
 	MV_U16		read2;
 	MV_U16		program;
 	MV_U16		read_status;
 	MV_U16		read_id;
 	MV_U16		erase;
-    MV_U16		multiplane_erase;
+	MV_U16		multiplaneErase;
 	MV_U16		reset;
 	MV_U16		lock;
 	MV_U16		unlock;
@@ -207,7 +208,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.pgPrBlk = 128,	/* Pages per block - detected */
 		.pgSz = 2048,	/* Page size */
 		.oobSz = 64,	/* Spare size */ 
-		.blkNum = 4096,	/* Number of blocks/sectors in the flash */
+		.blkNum = 8192,	/* Number of blocks/sectors in the flash */
 		.id = 0xD5EC,	/* Device ID 0xVendor,device */
 		.model = "Samsung 16Gb 8bit",
 	}
@@ -223,24 +224,24 @@ static MV_NFC_FLASH_CMD_SET	flashCmdSet[] = {
 	.program	= 0x1080,
 	.read_status	= 0x0070,
 	.read_id	= 0x0090,
-    .erase		= 0xD060,
-    .multiplane_erase = 0xD160,
+	.erase		= 0xD060,
+	.multiplaneErase = 0xD160,
 	.reset		= 0x00FF,
 	.lock		= 0x002A,
 	.unlock		= 0x2423,
 	.lock_status	= 0x007A,
 	}, 
 	{
-	.read1		= 0x3000,                           
-    .exit_cache_read = 0x003f,             
-    .cache_read_rand = 0x3100,
-    .cache_read_seq = 0x0031,
+	.read1		= 0x3000,
+	.exitCacheRead  = 0x003f,
+	.cacheReadRand  = 0x3100,
+	.cacheReadSeq   = 0x0031,
 	.read2		= 0x0050,
 	.program	= 0x1080,
 	.read_status	= 0x0070,
 	.read_id	= 0x0090,
 	.erase		= 0xD060,
-    .multiplane_erase = 0xD160,
+	.multiplaneErase = 0xD160,
 	.reset		= 0x00FF,
 	.lock		= 0x002A,
 	.unlock		= 0x2423,
@@ -496,7 +497,7 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	nfcCtrl->cmdPdmaIntMask = nfcInfo->cmdPdmaIntMask;
 
 	if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
-		MV_REG_WRITE(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
+		MV_REG_BIT_SET(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
 	
 	return MV_OK;
 }
@@ -645,10 +646,7 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 				}
 				else /* Large Page */
 				{
-					if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
-						*data_len = NFC_RW_LP_BCH_ECC_DATA_LEN;
-					else /* Hamming and No-Ecc */
-						*data_len = NFC_RW_LP_PDMA_DATA_LEN;
+					*data_len = NFC_RW_LP_PDMA_DATA_LEN;
 				}
 			}
 			else /* PIO mode */
@@ -710,7 +708,7 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 	return MV_OK;
 }
 /*******************************************************************************
-* mvNfcCommandIssue
+* mvNfcCommandMultiple
 *
 * DESCRIPTION:
 *       Issue a command to the NAND controller.
@@ -731,7 +729,7 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 *******************************************************************************/
 MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo, MV_U32 descCnt)
 {
-	MV_U32 	reg, i;
+	MV_U32 	reg, i, buff;
 	MV_U32 	errCode = MV_OK;
 	MV_U32  cmdb[4];
 	MV_NFC_CMD * cmdVirtPtr = (MV_NFC_CMD*)nfcCtrl->cmdBuff.bufVirtPtr;
@@ -743,6 +741,7 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 	MV_U32 	xferLen;
 	MV_U32	dataDescCount = 0;
 	MV_U32  nPage;
+	MV_U32	timeout = 10000;
 
 	/* Check MAX descriptor count */
 	if (descCnt > MV_NFC_MAX_DESC_CHAIN)
@@ -756,14 +755,31 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 	if (nfcCtrl->currCs == MV_NFC_CS_NONE)
 		return MV_FAIL; 			
 
+	/* Start the whole command chain through setting the ND_RUN */
+   	/* Setting ND_RUN bit to start the new transaction - verify that controller in idle state */
+	while(timeout > 0) {
+		reg = MV_REG_READ(NFC_CONTROL_REG);
+		if (!(reg & NFC_CTRL_ND_RUN_MASK))
+			break;
+		timeout--;
+	}
+	if(timeout == 0)
+		return MV_BAD_STATE;
+
 	for (i=0; i<descCnt; i++)
 	{
-		if ((descInfo[i].cmd != MV_NFC_CMD_ERASE) && (descInfo[i].cmd != MV_NFC_CMD_RESET))
+		if ((descInfo[i].cmd != MV_NFC_CMD_ERASE) && 
+			(descInfo[i].cmd != MV_NFC_CMD_MULTIPLANE_ERASE) &&
+			(descInfo[i].cmd != MV_NFC_CMD_RESET) && 
+			(descInfo[i].cmd != MV_NFC_CMD_EXIT_CACHE_READ) &&
+			(descInfo[i].cmd != MV_NFC_CMD_CACHE_READ_START) &&
+			(descInfo[i].cmd != MV_NFC_CMD_READ_DISPATCH) &&
+			(descInfo[i].cmd != MV_NFC_CMD_WRITE_DISPATCH_START) &&
+			(descInfo[i].cmd != MV_NFC_CMD_WRITE_DISPATCH_END))
 		{
 			/* Get transfer data length for this command type */
 			if ((errCode = mvNfcTransferDataLength(nfcCtrl, descInfo[i].cmd, &xferLen)) != MV_OK)
 				return errCode;
-
 		}
 
 		cmdb[0] = 0;
@@ -796,21 +812,21 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 				MV_REG_BIT_SET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
 			}
 		}
-			
+
 		switch (descInfo[i].cmd)
 		{
 			case MV_NFC_CMD_READ_ID:
 			case MV_NFC_CMD_READ_STATUS:
 				return MV_BAD_PARAM;
 
-            case MV_NFC_CMD_ERASE:
-            case MV_NFC_CMD_MULTIPLANE_ERASE:
+			case MV_NFC_CMD_ERASE:
+			case MV_NFC_CMD_MULTIPLANE_ERASE:
 
-                if(descInfo[i].cmd == MV_NFC_CMD_ERASE)
-                   cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].erase & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-                if(descInfo[i].cmd == MV_NFC_CMD_MULTIPLANE_ERASE)
-                   cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].multiplane_erase & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-
+				if(descInfo[i].cmd == MV_NFC_CMD_ERASE)
+					cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].erase & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+				if(descInfo[i].cmd == MV_NFC_CMD_MULTIPLANE_ERASE)
+					cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].multiplaneErase & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+				
 				cmdb[0] |= ((NFC_ERASE_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
 				cmdb[0] |= NFC_CB0_DBC_MASK;
 				cmdb[0] |= NFC_CB0_CMD_TYPE_ERASE;
@@ -819,60 +835,59 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 
 			case MV_NFC_CMD_RESET:
 				cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].reset & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-			    cmdb[0] |= NFC_CB0_CMD_TYPE_RESET;
+				cmdb[0] |= NFC_CB0_CMD_TYPE_RESET;
 				break;
 
+			case MV_NFC_CMD_CACHE_READ_SEQ:
+				cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cacheReadSeq & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+				break;
 
-        case MV_NFC_CMD_CACHE_READ_SEQ:
-            cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cache_read_seq & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-            break;
+			case MV_NFC_CMD_CACHE_READ_RAND:
+				cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cacheReadRand & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+				if (flashDeviceInfo[nfcCtrl->flashIdx].pgSz < MV_NFC_2KB_PAGE)
+				{
+					cmdb[1] |= ((descInfo[i].pageAddr << NFC_SP_PG_OFFS) & NFC_SP_PG_MASK);
+					if (descInfo[i].pageAddr & ~NFC_SP_PG_MASK)
+						cmdb[0] |= ((NFC_SP_BIG_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+					else
+						cmdb[0] |= ((NFC_SP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+				}
+				else
+				{
+					cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+					cmdb[0] |= NFC_CB0_DBC_MASK;
+					cmdb[1] |= ((descInfo[i].pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
+					cmdb[2] |= (descInfo[i].pageAddr >> (32 - NFC_LP_PG_OFFS));
+				}
+				cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
+				break;
 
-        case MV_NFC_CMD_CACHE_READ_RAND:
-            cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cache_read_rand & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-            if (flashDeviceInfo[nfcCtrl->flashIdx].pgSz < MV_NFC_2KB_PAGE)
-            {
-                cmdb[1] |= ((descInfo[i].pageAddr << NFC_SP_PG_OFFS) & NFC_SP_PG_MASK);
-                if (descInfo[i].pageAddr & ~NFC_SP_PG_MASK)
-                    cmdb[0] |= ((NFC_SP_BIG_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-                else
-                    cmdb[0] |= ((NFC_SP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-            }
-            else
-            {
-                cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-                cmdb[0] |= NFC_CB0_DBC_MASK;
-                cmdb[1] |= ((descInfo[i].pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
-                cmdb[2] |= (descInfo[i].pageAddr >> (32 - NFC_LP_PG_OFFS));
-            }
-            cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
-            break;
+			case MV_NFC_CMD_EXIT_CACHE_READ:
+				cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].exitCacheRead & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+				break;
 
-        case MV_NFC_CMD_EXIT_CACHE_READ:
-            cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].exit_cache_read & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-            break;
+			case MV_NFC_CMD_CACHE_READ_START:
+				cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].read1 & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+				if (flashDeviceInfo[nfcCtrl->flashIdx].pgSz < MV_NFC_2KB_PAGE)
+				{
+					cmdb[1] |= ((descInfo[i].pageAddr << NFC_SP_PG_OFFS) & NFC_SP_PG_MASK);
+					if (descInfo[i].pageAddr & ~NFC_SP_PG_MASK)
+						cmdb[0] |= ((NFC_SP_BIG_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+					else
+						cmdb[0] |= ((NFC_SP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+				}
+				else
+				{
+					cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+					cmdb[0] |= NFC_CB0_DBC_MASK;
+					cmdb[1] |= ((descInfo[i].pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
+					cmdb[2] |= (descInfo[i].pageAddr >> (32 - NFC_LP_PG_OFFS));
+				}
+				cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
+				cmdb[0] |= NFC_CB0_LEN_OVRD_MASK;
+				break;
 
-        case MV_NFC_CMD_CACHE_READ_START:
-            cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].read1 & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-            if (flashDeviceInfo[nfcCtrl->flashIdx].pgSz < MV_NFC_2KB_PAGE)
-            {
-                cmdb[1] |= ((descInfo[i].pageAddr << NFC_SP_PG_OFFS) & NFC_SP_PG_MASK);
-                if (descInfo[i].pageAddr & ~NFC_SP_PG_MASK)
-                    cmdb[0] |= ((NFC_SP_BIG_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-                else
-                    cmdb[0] |= ((NFC_SP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-            }
-            else
-            {
-                cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-                cmdb[0] |= NFC_CB0_DBC_MASK;
-                cmdb[1] |= ((descInfo[i].pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
-                cmdb[2] |= (descInfo[i].pageAddr >> (32 - NFC_LP_PG_OFFS));
-            }
-            cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
-            cmdb[0] |= NFC_CB0_LEN_OVRD_MASK;
-            break;
-
-          	case MV_NFC_CMD_READ_MONOLITHIC: /* Read a single 512B or 2KB page */
+			case MV_NFC_CMD_READ_MONOLITHIC: /* Read a single 512B or 2KB page */
 			case MV_NFC_CMD_READ_MULTIPLE:
 			case MV_NFC_CMD_READ_NAKED:
 			case MV_NFC_CMD_READ_LAST_NAKED:
@@ -894,7 +909,7 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 					cmdb[2] |= (descInfo[i].pageAddr >> (32 - NFC_LP_PG_OFFS));
 				}
 				cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
-		
+
 				/* Check for extended command syntax */
 				switch (descInfo[i].cmd)
 				{
@@ -997,7 +1012,7 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 		/* update page count */
 		cmdb[2] |= (((descInfo[i].pageCount - 1) << NFC_PG_CNT_OFFS) & NFC_PG_CNT_MASK);
 
-		/* Fill Comamnd data */
+		/* Fill Command data */
 		cmdVirtPtr[i].cmdb0 = cmdb[0];
 		cmdVirtPtr[i].cmdb1 = cmdb[1];
 		cmdVirtPtr[i].cmdb2 = cmdb[2];
@@ -1015,52 +1030,81 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 		cmdDescVirtPtr[i].physDescPtr = 0x1;
 		cmdDescVirtPtr[i].physSrcAddr = (MV_U32)&cmdPhysPtr[i];
 		cmdDescVirtPtr[i].physDestAddr = nfcCtrl->regsPhysAddr + NFC_CMD_BUFF_ADDR;
-		cmdDescVirtPtr[i].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->cmdChanHndl, MV_PDMA_MEM_TO_PERIPH, NFC_CMD_BUFF_SIZE);;
+		cmdDescVirtPtr[i].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->cmdChanHndl, MV_PDMA_MEM_TO_PERIPH, NFC_CMD_BUFF_SIZE);
 
 		/* Check if data dma need to be operated for this command */
 		if ((descInfo[i].cmd != MV_NFC_CMD_ERASE) && 
-            (descInfo[i].cmd != MV_NFC_CMD_RESET) && 
-            (descInfo[i].cmd != MV_NFC_CMD_MULTIPLANE_ERASE))
+			(descInfo[i].cmd != MV_NFC_CMD_MULTIPLANE_ERASE) &&
+			(descInfo[i].cmd != MV_NFC_CMD_RESET) && 
+			(descInfo[i].cmd != MV_NFC_CMD_EXIT_CACHE_READ) &&
+			(descInfo[i].cmd != MV_NFC_CMD_CACHE_READ_START) &&
+			(descInfo[i].cmd != MV_NFC_CMD_READ_DISPATCH) &&
+			(descInfo[i].cmd != MV_NFC_CMD_WRITE_DISPATCH_START) &&
+			(descInfo[i].cmd != MV_NFC_CMD_WRITE_DISPATCH_END))
 		{
+			for(nPage = 0; nPage < descInfo[i].pageCount; nPage++)
+			{
+				if (dataDescCount != 0)
+					dataDescVirtPtr[dataDescCount-1].physDescPtr = (MV_U32)&dataDescPhysPtr[dataDescCount];
+				/* Fill Data Descriptor */
+				if ((descInfo[i].cmd == MV_NFC_CMD_READ_MONOLITHIC) ||
+						(descInfo[i].cmd == MV_NFC_CMD_READ_MULTIPLE) ||
+						(descInfo[i].cmd == MV_NFC_CMD_CACHE_READ_SEQ) ||
+						(descInfo[i].cmd == MV_NFC_CMD_EXIT_CACHE_READ) ||
+						(descInfo[i].cmd == MV_NFC_CMD_CACHE_READ_RAND) ||
+						(descInfo[i].cmd == MV_NFC_CMD_READ_NAKED) ||
+						(descInfo[i].cmd == MV_NFC_CMD_READ_LAST_NAKED) ||
+						(descInfo[i].cmd == MV_NFC_CMD_READ_DISPATCH))
+				{
+					if(descInfo[i].numSgBuffs == 1) {
+						/* A single buffer, use physAddr */
+						dataDescVirtPtr[dataDescCount].physSrcAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
+						dataDescVirtPtr[dataDescCount].physDestAddr = descInfo[i].physAddr + nPage*xferLen;
+						dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_PERIPH_TO_MEM, xferLen);
+					} else {
+						/* Scatter-gather operation, use sgBuffAdd */
+						for(buff = 0; buff < descInfo[i].numSgBuffs; buff++) {
+							if (buff != 0)
+								dataDescVirtPtr[dataDescCount-1].physDescPtr = (MV_U32)&dataDescPhysPtr[dataDescCount];
+							dataDescVirtPtr[dataDescCount].physSrcAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
+							dataDescVirtPtr[dataDescCount].physDestAddr = descInfo[i].sgBuffAddr[buff];
+							dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_PERIPH_TO_MEM,  descInfo[i].sgBuffSize[buff]);
+							dataDescCount++;
+						}
+						dataDescCount--;
+					}
+				}
+				else /* Write */
+				{
+					if(descInfo[i].numSgBuffs == 1) {
+						/* A single buffer, use physAddr */
+						dataDescVirtPtr[dataDescCount].physSrcAddr = descInfo[i].physAddr + nPage*xferLen;
+						dataDescVirtPtr[dataDescCount].physDestAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
+						dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_MEM_TO_PERIPH, xferLen);
+					} else {
+						/* Scatter-gather operation, use sgBuffAdd */
+						for(buff = 0; buff < descInfo[i].numSgBuffs; buff++) {
+							if (buff != 0)
+								dataDescVirtPtr[dataDescCount-1].physDescPtr = (MV_U32)&dataDescPhysPtr[dataDescCount];
+							dataDescVirtPtr[dataDescCount].physSrcAddr = descInfo[i].sgBuffAddr[buff];
+							dataDescVirtPtr[dataDescCount].physDestAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
+							dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_MEM_TO_PERIPH, descInfo[i].sgBuffSize[buff]);
+							dataDescCount++;
+						}
+						dataDescCount--;
+					}
+				}
 
-
-            for(nPage = 0; nPage < descInfo[i].pageCount; nPage++)
-            {
-                if (dataDescCount != 0)
-                    dataDescVirtPtr[dataDescCount-1].physDescPtr = (MV_U32)&dataDescPhysPtr[dataDescCount];
-
-                /* Fill Data Descriptor */
-                if ((descInfo[i].cmd == MV_NFC_CMD_READ_MONOLITHIC) ||
-                    (descInfo[i].cmd == MV_NFC_CMD_READ_MULTIPLE) ||
-                    (descInfo[i].cmd == MV_NFC_CMD_CACHE_READ_SEQ) ||
-                    (descInfo[i].cmd == MV_NFC_CMD_EXIT_CACHE_READ) ||
-                    (descInfo[i].cmd == MV_NFC_CMD_CACHE_READ_RAND) ||
-                    (descInfo[i].cmd == MV_NFC_CMD_READ_NAKED) ||
-                    (descInfo[i].cmd == MV_NFC_CMD_READ_LAST_NAKED) ||
-                    (descInfo[i].cmd == MV_NFC_CMD_READ_DISPATCH))
-                {
-                    dataDescVirtPtr[dataDescCount].physSrcAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
-                    dataDescVirtPtr[dataDescCount].physDestAddr = descInfo[i].physAddr + nPage*xferLen;
-                    dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_PERIPH_TO_MEM, xferLen);                   
-                }
-                else /* Write */
-                {
-                    dataDescVirtPtr[dataDescCount].physSrcAddr = descInfo[i].physAddr + nPage*xferLen;
-                    dataDescVirtPtr[dataDescCount].physDestAddr = nfcCtrl->regsPhysAddr + NFC_DATA_BUFF_ADDR;
-                    dataDescVirtPtr[dataDescCount].commandValue = mvPdmaCommandRegCalc(&nfcCtrl->dataChanHndl, MV_PDMA_MEM_TO_PERIPH, xferLen);                   
-                }
-
-                dataDescVirtPtr[dataDescCount].physDescPtr = 0x1;							
-                dataDescCount++;
-
-                if(dataDescCount > MV_NFC_MAX_DESC_CHAIN)
-                {
-                    return MV_OUT_OF_RANGE;
-                }
-            }
+				dataDescVirtPtr[dataDescCount].physDescPtr = 0x1;
+				dataDescCount++;
+				
+				if(dataDescCount > MV_NFC_MAX_DESC_CHAIN)
+				{
+					return MV_OUT_OF_RANGE;
+				}
+			}
 		}
-	};
-
+	}
 
 
 #if 0
@@ -1075,30 +1119,47 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 #endif
 	if (dataDescCount)
 	{
+		/* enable interrupts in the last data descriptor. */
+		mvPdmaCommandIntrEnable(&nfcCtrl->dataChanHndl,
+				&(dataDescVirtPtr[dataDescCount - 1].commandValue));
 		/* operate the data DMA */
 		if (mvPdmaChanTransfer(&nfcCtrl->dataChanHndl, MV_PDMA_PERIPH_TO_MEM, 
 					0,0,0, (MV_U32)dataDescPhysPtr) != MV_OK)
 			return MV_HW_ERROR;
 	}
 #if 0
-	printf("cmdDescPhysPtr  = %08x\n", (MV_U32)cmdDescPhysPtr);
-	printf("    physDescPtr  = %08x\n", cmdDescPhysPtr[0].physDescPtr);
-	printf("    physSrcAddr  = %08x\n", cmdDescPhysPtr[0].physSrcAddr);
-	printf("    physDestAddr = %08x\n", cmdDescPhysPtr[0].physDestAddr);
-	printf("    commandValue = %08x\n", cmdDescPhysPtr[0].commandValue);
+	for(nPage = 0; nPage < descCnt; nPage++)
+		printk(KERN_INFO "cmd %d - 0x%08x, 0x%08x, 0x%08x 0x%08x.\n", nPage, 
+				cmdVirtPtr[nPage].cmdb0, cmdVirtPtr[nPage].cmdb1,
+				cmdVirtPtr[nPage].cmdb2, cmdVirtPtr[nPage].cmdb3);
+#endif
+#if 0
+	for(nPage = 0; nPage < descCnt; nPage++) {
+		mvOsPrintf("cmdDescPhysPtr  = %08x\n", (MV_U32)cmdDescPhysPtr);
+		mvOsPrintf("    physDescPtr  = %08x\n", cmdDescVirtPtr[nPage].physDescPtr);
+		mvOsPrintf("    physSrcAddr  = %08x\n", cmdDescVirtPtr[nPage].physSrcAddr);
+		mvOsPrintf("    physDestAddr = %08x\n", cmdDescVirtPtr[nPage].physDestAddr);
+		mvOsPrintf("    commandValue = %08x\n", cmdDescVirtPtr[nPage].commandValue);
+	}
 #endif
 	/* operate the command DMA */
 	if (mvPdmaChanTransfer(&nfcCtrl->cmdChanHndl, MV_PDMA_MEM_TO_PERIPH, 
 			0, 0, 0, (MV_U32)cmdDescPhysPtr) != MV_OK)
-		return MV_HW_ERROR;	
+		return MV_HW_ERROR;
 
 	/* Clear all old events on the status register */
 	reg = MV_REG_READ(NFC_STATUS_REG);
 	MV_REG_WRITE(NFC_STATUS_REG, reg);
 
    	/* Start the whole command chain through setting the ND_RUN */
-	reg = MV_REG_READ(NFC_CONTROL_REG);
-	if (reg & NFC_CTRL_ND_RUN_MASK)
+   	/* Setting ND_RUN bit to start the new transaction - verify that controller in idle state */
+	while(timeout > 0) {
+		reg = MV_REG_READ(NFC_CONTROL_REG);
+		if (!(reg & NFC_CTRL_ND_RUN_MASK))
+			break;
+		timeout--;
+	}
+	if(timeout == 0)
 		return MV_BAD_STATE;
 
 	reg |= NFC_CTRL_ND_RUN_MASK;
@@ -1192,11 +1253,15 @@ MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pa
 		{
 			/* disable ECC for these commands */
 			MV_REG_BIT_RESET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
+			if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
+				MV_REG_BIT_RESET(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
 		}
 		else
 		{
 			/* enable ECC for all other commands */
 			MV_REG_BIT_SET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
+			if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
+				MV_REG_BIT_SET(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
 		}
 	}
 
@@ -1227,12 +1292,12 @@ MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pa
 			cmdb[0] |= NFC_CB0_CMD_TYPE_RESET;
 			break;
 
-        case MV_NFC_CMD_CACHE_READ_SEQ:
-            cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cache_read_seq & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-            break;
+		case MV_NFC_CMD_CACHE_READ_SEQ:
+			cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cacheReadSeq & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+			break;
 
-        case MV_NFC_CMD_CACHE_READ_RAND:
-            cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cache_read_rand & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+		case MV_NFC_CMD_CACHE_READ_RAND:
+			cmdb[0] = (flashCmdSet[nfcCtrl->cmdsetIdx].cacheReadRand & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
 			if (flashDeviceInfo[nfcCtrl->flashIdx].pgSz < MV_NFC_2KB_PAGE)
 			{
 				if (pageAddr & ~NFC_SP_PG_MASK)
@@ -1252,32 +1317,32 @@ MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pa
 				cmdb[2] |= (pageAddr >> (32 - NFC_LP_PG_OFFS));
 			}
 			cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
-            break;
+			break;
 
-        case MV_NFC_CMD_EXIT_CACHE_READ:
-            cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].exit_cache_read & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-            break;
+		case MV_NFC_CMD_EXIT_CACHE_READ:
+			cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].exitCacheRead & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+			break;
 
-        case MV_NFC_CMD_CACHE_READ_START:
-            cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].read1 & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
-            if (flashDeviceInfo[nfcCtrl->flashIdx].pgSz < MV_NFC_2KB_PAGE)
-            {
-                cmdb[1] |= ((pageAddr << NFC_SP_PG_OFFS) & NFC_SP_PG_MASK);
-                if (pageAddr & ~NFC_SP_PG_MASK)
-                    cmdb[0] |= ((NFC_SP_BIG_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-                else
-                    cmdb[0] |= ((NFC_SP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-            }
-            else
-            {
-                cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-                cmdb[0] |= NFC_CB0_DBC_MASK;
-                cmdb[1] |= ((pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
-                cmdb[2] |= (pageAddr >> (32 - NFC_LP_PG_OFFS));
-            }
-            cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
-            cmdb[0] |= NFC_CB0_LEN_OVRD_MASK;
-            break;
+		case MV_NFC_CMD_CACHE_READ_START:
+			cmdb[0] |= (flashCmdSet[nfcCtrl->cmdsetIdx].read1 & (NFC_CB0_CMD1_MASK | NFC_CB0_CMD2_MASK));
+			if (flashDeviceInfo[nfcCtrl->flashIdx].pgSz < MV_NFC_2KB_PAGE)
+			{
+				cmdb[1] |= ((pageAddr << NFC_SP_PG_OFFS) & NFC_SP_PG_MASK);
+				if (pageAddr & ~NFC_SP_PG_MASK)
+					cmdb[0] |= ((NFC_SP_BIG_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+				else
+					cmdb[0] |= ((NFC_SP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+			}
+			else
+			{
+				cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
+				cmdb[0] |= NFC_CB0_DBC_MASK;
+				cmdb[1] |= ((pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
+				cmdb[2] |= (pageAddr >> (32 - NFC_LP_PG_OFFS));
+			}
+			cmdb[0] |= NFC_CB0_CMD_TYPE_READ;
+			cmdb[0] |= NFC_CB0_LEN_OVRD_MASK;
+			break;
 
 		case MV_NFC_CMD_READ_MONOLITHIC: /* Read a single 512B or 2KB page */
 		case MV_NFC_CMD_READ_MULTIPLE:
@@ -1453,7 +1518,7 @@ MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pa
 MV_U32 mvNfcStatusGet(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *value)
 {
 	MV_U32 reg, ret;
-	
+
 	if((reg = MV_REG_READ(NFC_STATUS_REG)) == 0)
 	        return 0;
 
@@ -1556,7 +1621,7 @@ MV_STATUS mvNfcIntrEnable(MV_NFC_CTRL *nfcCtrl, MV_U32 intMask, MV_BOOL enable)
 		if (intMask & MV_NFC_STATUS_PAGED)
 			msk |= NFC_SR_CS1_PAGED_MASK;
 		if (intMask & MV_NFC_STATUS_RDY)
-			msk |= NFC_SR_RDY1_MASK;
+			msk |= NFC_SR_RDY0_MASK;
 	}
 
 	reg = MV_REG_READ(NFC_CONTROL_REG);
@@ -1566,7 +1631,7 @@ MV_STATUS mvNfcIntrEnable(MV_NFC_CTRL *nfcCtrl, MV_U32 intMask, MV_BOOL enable)
 		reg |= msk;
 
 	MV_REG_WRITE(NFC_CONTROL_REG, reg);
-	
+
 	return MV_OK;
 }
 
@@ -1813,6 +1878,33 @@ MV_STATUS mvNfcFlashBlockSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size)
 	return MV_OK;
 }
 
+/*******************************************************************************
+* mvNfcFlashBlockNumGet
+*
+* DESCRIPTION:
+*       Retrieve the number of logical blocks of a given flash.
+*
+* INPUT:
+*	nfcCtrl  - Nand control structure.
+*
+* OUTPUT:
+*	numBlocks - Flash number of blocks.
+*
+* RETURN:
+*	MV_NOT_FOUND - Bad flash index.
+*******************************************************************************/
+MV_STATUS mvNfcFlashBlockNumGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *numBlocks)
+{
+        if (nfcCtrl->flashIdx >= (sizeof(flashDeviceInfo)/sizeof(MV_NFC_FLASH_INFO)))
+		return MV_NOT_FOUND;
+	if(numBlocks == NULL)
+		return MV_BAD_PTR;
+	
+	*numBlocks = flashDeviceInfo[nfcCtrl->flashIdx].blkNum;
+
+	return MV_OK;
+}
+
 
 /*******************************************************************************
 * mvNfcFlashIdGet
@@ -1841,6 +1933,55 @@ MV_STATUS mvNfcFlashIdGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *flashId)
 
 	return MV_OK;
 }
+
+/*******************************************************************************
+* mvNfcUnitStateStore - Store the NFC Unit state.
+* 
+* DESCRIPTION:       
+*       This function stores the NFC unit registers before the unit is suspended.
+*	The stored registers are placed into the input buffer which will be used for
+*	the restore operation.
+*
+* INPUT:
+*       regsData	- Buffer to store the unit state registers (Must
+*			  include at least 64 entries)
+*	len		- Number of entries in regsData input buffer.
+*
+* OUTPUT:
+*       regsData	- Unit state registers. The registers are stored in
+*			  pairs of (reg, value).
+*       len		- Number of entries in regsData buffer (Must be even).
+*
+* RETURS:
+*       MV_ERROR on failure.
+*       MV_OK on success.
+*
+*******************************************************************************/
+MV_STATUS mvNfcUnitStateStore(MV_U32 *stateData, MV_U32 *len)
+{
+	MV_U32 i;
+
+	if((stateData == NULL) || (len == NULL))
+		return MV_BAD_PARAM;
+
+	i = 0;
+
+	stateData[i++] = NFC_CONTROL_REG;
+	stateData[i++] = MV_REG_READ(NFC_CONTROL_REG);
+
+	stateData[i++] = NFC_TIMING_0_REG;
+	stateData[i++] = MV_REG_READ(NFC_TIMING_0_REG);
+
+	stateData[i++] = NFC_TIMING_1_REG;
+	stateData[i++] = MV_REG_READ(NFC_TIMING_1_REG);
+
+	stateData[i++] = NFC_ECC_CONTROL_REG;
+	stateData[i++] = MV_REG_READ(NFC_ECC_CONTROL_REG);
+	*len = i;
+
+	return MV_OK;
+}
+
 
 /*******************************************************************************
 * mvDfcWait4Complete
