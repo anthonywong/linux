@@ -389,7 +389,9 @@ struct nand_chip {
 
 	int		chip_delay;
 	unsigned int	options;
-
+#ifdef CONFIG_MV_MTD_GANG_SUPPORT
+	unsigned int	num_devs;
+#endif
 	int		page_shift;
 	int		phys_erase_shift;
 	int		bbt_erase_shift;
