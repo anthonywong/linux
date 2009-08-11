@@ -181,6 +181,7 @@ static const u8 tsc2005_read_reg[] = {
  * Driver Data Structure 
  */
 struct tsc2005 {
+	char			phys[32];
 /* 
  * An SPI & an Input driver 
  */
@@ -720,7 +721,12 @@ static int __devinit tsc2005_probe(struct spi_device *spi)
 	 */
 	input_set_abs_params(input_dev, ABS_PRESSURE, 100, 15000, 0, 0);
 
+	snprintf(ts->phys, sizeof(ts->phys),
+		 "%s/input0", dev_name(&spi->dev));
+
 	input_dev->name = "TI TSC2005 TouchScreen Controller";
+	input_dev->phys = ts->phys;
+	input_dev->dev.parent = &spi->dev;
 	err = input_register_device(input_dev);
 	if (err) {
 		goto err_free_mem;
