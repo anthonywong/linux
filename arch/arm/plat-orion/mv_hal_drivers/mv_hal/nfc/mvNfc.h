@@ -183,6 +183,10 @@ extern "C" {
 #define MV_NFC_CS0_CMD_DONE_INT		0x100
 #define MV_NFC_DEVICE_READY_INT		0x800
 
+
+/* Max number of buffers chunks for as single read / write operation */
+#define MV_NFC_RW_MAX_BUFF_NUM		8
+
 /* ECC mode options.			*/
 typedef enum {
 	MV_NFC_ECC_HAMMING,
@@ -249,13 +253,13 @@ typedef enum {
 	MV_NFC_CMD_READ_ID,
 	MV_NFC_CMD_READ_STATUS,
 	MV_NFC_CMD_ERASE,
-    MV_NFC_CMD_MULTIPLANE_ERASE,
+	MV_NFC_CMD_MULTIPLANE_ERASE,
 	MV_NFC_CMD_RESET,
 
-    MV_NFC_CMD_CACHE_READ_SEQ,
-    MV_NFC_CMD_CACHE_READ_RAND,
-    MV_NFC_CMD_EXIT_CACHE_READ,
-    MV_NFC_CMD_CACHE_READ_START,
+	MV_NFC_CMD_CACHE_READ_SEQ,
+	MV_NFC_CMD_CACHE_READ_RAND,
+	MV_NFC_CMD_EXIT_CACHE_READ,
+	MV_NFC_CMD_CACHE_READ_START,
 	MV_NFC_CMD_READ_MONOLITHIC,
 	MV_NFC_CMD_READ_MULTIPLE,
 	MV_NFC_CMD_READ_NAKED,
@@ -321,12 +325,44 @@ typedef struct {
 	MV_U32		cmdPdmaIntMask;
 }MV_NFC_CTRL;
 
+/*
+ * Nand multi command information structure.
+ *	cmd		The command to be issued.
+ *	pageAddr	The flash page address to operate on.
+ *	pageCount	Number of pages to read / write.
+ *	virtAddr	The virtual address of the buffer to copy data to /
+ *			from (For relevant commands).
+ *	physAddr	The physical address of the buffer to copy data to /
+ *			from (For relevant commands).
+ *	The following parameters might only be used when working in Gagned PDMA 
+ *	and the pageCount must be set to 1.
+ *	For ganged mode, the use might need to split the NAND stack read / 
+ *	write buffer into several buffers according to what the HW expects.
+ *	e.g. NAND stack expects data in the following format: 
+ *	---------------------------
+ *	| Data (4K) | Spare | ECC |
+ *	---------------------------
+ *	While NAND controller expects data to be in the following format:
+ *	-----------------------------------------------------
+ *	| Data (2K) | Spare | ECC | Data (2K) | Spare | ECC |
+ *	-----------------------------------------------------
+ *	numSgBuffs	Number of buffers to split the HW buffer into
+ *			If 1, then buffOffset & buffSize are ignored.
+ *	sgBuffAddr	Array holding the address of the buffers into which the
+ *			HW data should be split (Or read into).
+ *	sgBuffSize	Array holding the size of each sub-buffer, entry "i"
+ *			represents the size in bytes of the buffer starting at
+ *			offset buffOffset[i].
+ */
 typedef struct {
 	MV_NFC_CMD_TYPE cmd;
 	MV_U32		pageAddr;
 	MV_U32		pageCount;
-	MV_U32 * 	virtAddr;
+	MV_U32 		*virtAddr;
 	MV_U32		physAddr;
+	MV_U32		numSgBuffs;
+	MV_U32		sgBuffAddr[MV_NFC_RW_MAX_BUFF_NUM];
+	MV_U32		sgBuffSize[MV_NFC_RW_MAX_BUFF_NUM];
 }MV_NFC_MULTI_CMD;
 
 typedef struct {
@@ -353,9 +389,11 @@ MV_VOID   mvNfcAddress2BlockConvert(MV_NFC_CTRL *nfcCtrl, MV_U32 address, MV_U32
 MV_8 * 	  mvNfcFlashModelGet(MV_NFC_CTRL *nfcCtrl);
 MV_STATUS mvNfcFlashPageSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
 MV_STATUS mvNfcFlashBlockSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
+MV_STATUS mvNfcFlashBlockNumGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *numBlocks);
 MV_STATUS mvNfcDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *data_len);
 MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 * data_len);
 MV_STATUS mvNfcFlashIdGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *flashId);
+MV_STATUS mvNfcUnitStateStore(MV_U32 *stateData, MV_U32 *len);
 
 
 #ifdef __cplusplus
