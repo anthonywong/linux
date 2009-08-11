@@ -152,6 +152,9 @@ MV_U32 mvDramIfParamCountGet(MV_VOID)
 	else
 		cnt += MV_DRAM_RECONFIG_CNT;
 
+	/* Add 1 entry for the DLL reset clearing in DDR reconfig */
+	cnt++;
+
 	return cnt;
 }
 
@@ -254,7 +257,8 @@ MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params, MV_U32 * 
 *******************************************************************************/
 MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARAMS * params, MV_U32 * paramcnt)
 {
-	MV_U32	reg_index, i, mask;
+	MV_U32 reg_index, i, mask;
+	MV_U32 dll_rst = 0;
 
 	/* Check that the Uboot passed valid parameters in the TAG */
 	if (!mv_dram_init_valid) {
@@ -297,6 +301,11 @@ MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARA
 	for (i=0; i<*paramcnt; i++) {
 		params->addr = (mv_dram_init_info.reg_init[reg_index].reg_addr & 0xFFFFF); /* offset only */
 		params->val = mv_dram_init_info.reg_init[reg_index].reg_value;
+                if (params->addr == 0x80)
+                {
+                        dll_rst = params->val;
+                        params->val |= 0x40;		/* Add DLL reset */
+ 		}
 		reg_index++;
 		params++;
 	}
@@ -308,8 +317,12 @@ MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARA
 		params++;
 	}
 
-	/* Add the count of LMR and LEMR registers count */
-	*paramcnt += MV_DRAM_RECONFIG_CNT;
+	/* Add the DLL reset deasser */
+	params->addr = 0x80;
+	params->val = dll_rst;
+
+	/* Add the count of LMR and LEMR registers count + DLL reset clearing */
+	*paramcnt += (MV_DRAM_RECONFIG_CNT + 1);
 
 	return MV_OK;	
 }
