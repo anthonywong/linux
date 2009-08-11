@@ -42,5 +42,9 @@ int pxa_request_dma (char *name,
 			 void *data);
 
 void pxa_free_dma (int dma_ch);
+int pxa_request_dma_intr (char *name, int ch_num,
+		void (*irq_handler)(int, void *),
+		void *data);
+int pxa_reserve_dma_channel (int dma_ch);
 
 #endif /* _ASM_ARCH_DMA_H */
