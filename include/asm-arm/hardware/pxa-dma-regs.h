@@ -230,7 +230,9 @@
 #define DCMD_LENGTH	0x01fff		/* length mask (max = 8K - 1) */
 
 #define DWBR(x)		__DMA2(0x4000, (x) << 3)
+#define DWBR_ADDR(x)	__ADDR2(0x4000, (x) << 3)
 #define DWCR(x)		__DMA2(0x4004, (x) << 3)
+#define DWCR_ADDR(x)	__ADDR2(0x4004, (x) << 3)
 
 #define DWCR_WINEN	(1 << 0)
 #define DWCR_WRBL	(1 << 1)
