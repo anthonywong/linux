@@ -72,6 +72,14 @@ static unsigned int vpro_size = UIO_DOVE_VPRO_MEM_SIZE;
 static unsigned int dove_gpu_memory_start;
 static unsigned int gpu_size = DOVE_GPU_MEM_SIZE;
 
+int useNandHal = 0;
+static int __init useNandHal_setup(char *__unused)
+{
+	useNandHal = 1;
+	return 1;
+}
+__setup("useNandHal", useNandHal_setup);
+
 int useHalDrivers = 0;
 #ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
 static int __init useHalDrivers_setup(char *__unused)
@@ -1296,7 +1304,7 @@ static struct platform_device dove_ssp_pdev = {
 
 void __init dove_ssp_init(struct dove_ssp_platform_data *pdata)
 {
-	if(!useHalDrivers) {
+	if((!useHalDrivers) && (!useNandHal)){
 		dove_ssp_pdev.dev.platform_data = pdata;
 		platform_device_register(&dove_ssp_pdev);
 	}
@@ -1644,7 +1652,7 @@ void __init dove_ac97_setup(void)
 		return;
 	}
 
-	if(!useHalDrivers)
+	if((!useHalDrivers) && (!useNandHal))
 		platform_device_register(&dove_device_ac97);
 }
 
