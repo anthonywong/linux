@@ -23,6 +23,7 @@
 #include <asm/dma.h>
 
 #include <mach/dove_nand.h>
+#include <asm/hardware/pxa-dma.h>
 
 #include "mvCommon.h"
 #include "mvOs.h"
@@ -168,7 +169,7 @@ static int handle_data_pio(struct pxa3xx_nand_info *info)
 	return 0;
 }
 
-static irqreturn_t pxa3xx_nand_data_dma_irq(int irq, void *data)
+static void pxa3xx_nand_data_dma_irq(int irq, void *data)
 {
 	struct pxa3xx_nand_info *info = data;
 	uint32_t dcsr, intr;
@@ -189,7 +190,7 @@ static irqreturn_t pxa3xx_nand_data_dma_irq(int irq, void *data)
 			info->state = STATE_READY;
 			complete(&info->cmd_complete);
 		}
-		return IRQ_HANDLED;
+		return;
 	}
 
 	if (dcsr & DCSR_BUSERRINTR) {
@@ -205,7 +206,7 @@ static irqreturn_t pxa3xx_nand_data_dma_irq(int irq, void *data)
 		complete(&info->cmd_complete);
 	}
 
-	return IRQ_HANDLED;
+	return;
 }
 
 static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
@@ -794,8 +795,8 @@ static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 		return -ENOMEM;
 	}
 
-	ret = request_irq(IRQ_DMA, pxa3xx_nand_data_dma_irq, IRQF_DISABLED,
-			"nand-data", info);
+	ret = pxa_request_dma_intr ("nand-data", info->nfcCtrl.dataChanHndl.chanNumber,
+			pxa3xx_nand_data_dma_irq, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request PDMA IRQ\n");
 		return -ENOMEM;
@@ -991,11 +992,12 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 
 	info->mmio_phys_base = r->start;
 
+#if 0
 	if (mvPdmaHalInit(MV_PDMA_MAX_CHANNELS_NUM) != MV_OK) {
 		dev_err(&pdev->dev, "mvPdmaHalInit() failed.\n");
 		goto fail_put_clk;
 	}
-
+#endif
 	/* Initialize NFC HAL */
 	nfcInfo.ioMode = (use_dma ? MV_NFC_PDMA_ACCESS : MV_NFC_PIO_ACCESS);
 	if(use_ecc) {
