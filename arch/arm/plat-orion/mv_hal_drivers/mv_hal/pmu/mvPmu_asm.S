@@ -92,17 +92,33 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ENTRY(mvPmuSramDdrReconfigFunc)
 	stmfd	sp!, {r4 - r10, lr}	@ save registers on stack
 
+	mov	r9, r0
+	mov	r10, r1
+
 	/*
 	 * Block all data requests to the MC from the SB
 	 */
-	ldr	r2, pmu_ddrfs_mc_ctrl_reg
+	ldr	r2, ddfs_mc_ctrl_reg
 	mov	r3, #0x1
 	str	r3, [r2]
 
+
+	/* 
+	 * Disable All SB access ro DDR
+	 */
+/*
+	ldr	r3, ddfs_arbit_val
+	ldr	r2, ddfs_arbit_low_reg	
+	ldr	r7, [r2]			@ r7 saves Arbitor HI
+	str	r3, [r2]
+	ldr	r2, ddfs_arbit_hi_reg
+	ldr	r8, [r2]			@ r8 saves Arbitor LOW
+	str	r3, [r2]	
+*/
 	/*
 	 * Set DDR in Self refresh mode and poll status bit
 	 */
-	ldr	r2, pmu_ddrfs_ctrl_reg
+	ldr	r2, ddfs_ctrl_reg
 	mov	r3, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r4, [r2]
 	orr	r4, r4, r3
@@ -113,30 +129,16 @@ ddr_fs_sr_loop:
 	beq	ddr_fs_sr_loop
 
 	/*
-	 * Loop and execute MC init addr/value couples
-	 */
-mc_init_loop:
-	cmp	r1, #0
-	beq	mc_init_done
-	ldr 	r2, [r0]
-	add	r0, #4
-	ldr	r3, [r0]
-	add	r0, #4
-	str	r3, [r2]
-	sub	r1, r1, #1
-	b	mc_init_loop
-mc_init_done:
-
-	/*
 	 * Enter WFI
 	 */
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4
 
+
 	/*
 	 * Exit DDR self refresh mode if active
 	 */
-	ldr	r0, pmu_ddrfs_ctrl_reg
+	ldr	r0, ddfs_ctrl_reg
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
@@ -150,17 +152,31 @@ ddrfs_sr_exit_loop:
 skip_ddrfs_sr_exit:
 
 	/*
-	 * UN-Block data requests to the MC from the SB
+	 * Loop and execute MC init addr/value couples
 	 */
-	ldr	r2, pmu_ddrfs_mc_ctrl_reg
-	mov	r3, #0x0
-	str	r3, [r2]
+	mov	r0, r9
+	mov	r1, r10
+	ldr	r4, ddfs_nb_offset
+	ldr	r5, ddfs_nb_mask
+mc_init_loop:
+	cmp	r1, #0
+	beq	mc_init_done
+	ldr 	r2, [r0]			@ Address
+	add	r0, #4
+	ldr	r3, [r0]			@ Value
+	add	r0, #4
+	bic	r2, r2, r5			
+	orr	r2, r2, r4			@ NB Offset
+	str	r3, [r2]			@ [Address]=Value
+	sub	r1, r1, #1
+	b	mc_init_loop
+mc_init_done:
 
 /*************************************************************/
 /*   FOR DEBUG ONLY - BLINK LED ON MPP7 AS A LIFE INDICATION */
 /*************************************************************/
 /*
-	mov	r4, #1
+	mov	r4, #8
 	ldr	r0, led_addr
 	ldr	r1, led_val_on
 	ldr	r2, led_val_off
@@ -186,19 +202,50 @@ loop_delay2:
 */
 /********************************************************************/
 
+	/*
+	 * UN-Block data requests to the MC from the SB
+	 */
+	ldr	r2, ddfs_mc_ctrl_reg
+	mov	r3, #0x0
+	str	r3, [r2]
+
+
+	/* 
+	 * Restore SB access ro DDR
+	 */
+/*
+	ldr	r2, ddfs_arbit_low_reg	
+	str	r7, [r2]			@ restore Arbitor HI
+	ldr	r2, ddfs_arbit_hi_reg
+	str	r8, [r2]			@ restore Arbitor LOW
+*/
 	ldmfd	sp!, {r4 - r10, pc}	@ restore regs and return
 
-pmu_ddrfs_mc_ctrl_reg:
+ddfs_nb_offset:
+	.word (DOVE_NB_REGS_VIRT_BASE)
+ddfs_nb_mask:
+	.word (0xFFF00000)
+ddfs_mc_ctrl_reg:
 	.word (DOVE_NB_REGS_VIRT_BASE + 0x7E0)
-pmu_ddrfs_ctrl_reg:
+ddfs_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
+/*
+ddfs_arbit_low_reg:
+	.word(DOVE_SB_REGS_VIRT_BASE + 0xD02A8)
+ddfs_arbit_hi_reg:
+	.word(DOVE_SB_REGS_VIRT_BASE + 0xD02AC)
+ddfs_arbit_val:
+	.word(0xFFFFFFFF)
+*/
 /*********************************************************************/
+/*
 led_addr:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_SIG_SLCT_CTRL_0_REG)
 led_val_on:
 	.word (0x1048B500)
 led_val_off:
 	.word (0x2048B500)
+*/
 /*********************************************************************/
 ENTRY(mvPmuSramDdrReconfigFuncSZ)
 	.word	. - mvPmuSramDdrReconfigFunc
