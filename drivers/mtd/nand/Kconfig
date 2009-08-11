@@ -466,6 +466,7 @@ config MTD_NAND_DOVE
 config MTD_NAND_HAL_DOVE
 	tristate "Support for NAND flash devices on Dove (HAL based)"
 	depends on MTD_NAND
+	select MV_MTD_GANG_SUPPORT
 	help
 	  This enables the driver for the NAND flash device found on
 	  the Marvell Dove SoC.
