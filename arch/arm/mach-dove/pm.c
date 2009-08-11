@@ -257,7 +257,7 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 
 		printk("Set New System Frequencies to CPU %dMhz, L2 %dMhz, DDR %dMhz", cpuFreq, l2Freq, ddrFreq);
 		local_irq_save(ints);
-		mc = MV_REG_READ(CPU_MAIN_INT_CAUSE_HIGH_REG);
+		mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, (mc | 0x2));	/* PMU Interrupt Enable */
 		if (mvPmuSysFreqScale (ddrFreq, l2Freq, cpuFreq) != MV_OK)
 			printk(">>>>>> FAILED\n");
