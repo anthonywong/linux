@@ -471,6 +471,13 @@ config MTD_NAND_HAL_DOVE
 	  the Marvell Dove SoC.
 	  This driver uses the NFC HAL.
 
+config MV_MTD_GANG_SUPPORT
+        bool "NAND Ganged mode support"
+        depends on MTD_NAND_HAL_DOVE
+        help
+          This option allows support for Nand ganged mode in the Dove
+	  NAND HAL driver and the MTD stack.
+
 config MTD_NAND_DAVINCI
         tristate "Support NAND on DaVinci SoC"
         depends on ARCH_DAVINCI
