@@ -264,8 +264,8 @@ aoeblk_gdalloc(void *vp)
 		goto err_disk;
 	}
 
-	blk_queue_make_request(&d->blkq, aoeblk_make_request);
-	if (bdi_init(&d->blkq.backing_dev_info))
+	blk_queue_make_request(d->blkq, aoeblk_make_request);
+	if (bdi_init(&d->blkq->backing_dev_info))
 		goto err_mempool;
 	spin_lock_irqsave(&d->lock, flags);
 	gd->major = AOE_MAJOR;
@@ -276,7 +276,7 @@ aoeblk_gdalloc(void *vp)
 	snprintf(gd->disk_name, sizeof gd->disk_name, "etherd/e%ld.%d",
 		d->aoemajor, d->aoeminor);
 
-	gd->queue = &d->blkq;
+	gd->queue = d->blkq;
 	d->gd = gd;
 	d->flags &= ~DEVFL_GDALLOC;
 	d->flags |= DEVFL_UP;

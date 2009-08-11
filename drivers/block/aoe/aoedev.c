@@ -113,6 +113,7 @@ aoedev_freedev(struct aoedev *d)
 	if (d->bufpool)
 		mempool_destroy(d->bufpool);
 	skbpoolfree(d);
+	blk_cleanup_queue(d->blkq);
 	kfree(d);
 }
 
@@ -202,6 +203,7 @@ aoedev_by_sysminor_m(ulong sysminor)
 {
 	struct aoedev *d;
 	ulong flags;
+	struct request_queue *rq;
 
 	spin_lock_irqsave(&devlist_lock, flags);
 
@@ -210,9 +212,13 @@ aoedev_by_sysminor_m(ulong sysminor)
 			break;
 	if (d)
 		goto out;
+	rq = blk_init_queue(NULL, NULL);
+	if (!rq)
+		goto out;
 	d = kcalloc(1, sizeof *d, GFP_ATOMIC);
 	if (!d)
-		goto out;
+		goto out_rq;
+	d->blkq = rq;
 	INIT_WORK(&d->work, aoecmd_sleepwork);
 	spin_lock_init(&d->lock);
 	skb_queue_head_init(&d->sendq);
@@ -234,6 +240,9 @@ aoedev_by_sysminor_m(ulong sysminor)
  out:
 	spin_unlock_irqrestore(&devlist_lock, flags);
 	return d;
+ out_rq:
+	blk_cleanup_queue(rq);
+	goto out;
 }
 
 static void
