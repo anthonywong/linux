@@ -36,6 +36,25 @@ struct dma_channel {
 static struct dma_channel *dma_channels;
 static int num_dma_channels;
 
+int pxa_request_dma_intr (char *name, int dma_ch,
+		void (*irq_handler)(int, void *),
+		void *data)
+{
+	dma_channels[dma_ch].name = name;
+	dma_channels[dma_ch].irq_handler = irq_handler;
+	dma_channels[dma_ch].data = data;
+	return 0;
+}
+
+/*
+** Reserve a DMA channel to be used by external clients.
+*/
+int pxa_reserve_dma_channel (int dma_ch)
+{
+	dma_channels[dma_ch].name = "reserved";
+	return 0;
+}
+
 int pxa_request_dma (char *name, pxa_dma_prio prio,
 			 void (*irq_handler)(int, void *),
 		 	 void *data)
