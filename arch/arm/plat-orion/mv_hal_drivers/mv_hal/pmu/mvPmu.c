@@ -780,6 +780,7 @@ MV_STATUS mvPmuCpuFreqScale (MV_PMU_CPU_SPEED cpuSpeed)
 MV_STATUS mvPmuSysFreqScale (MV_U32 ddrFreq, MV_U32 l2Freq, MV_U32 cpuFreq)
 {
 	MV_U32 reg, pllFreq, ddrDiv, l2Div, ddrParamCnt;
+	MV_STATUS ret = MV_OK;
 
 	/* Get current PLL frequency */
 	pllFreq = mvPmuGetPllFreq();
@@ -826,7 +827,7 @@ MV_STATUS mvPmuSysFreqScale (MV_U32 ddrFreq, MV_U32 l2Freq, MV_U32 cpuFreq)
 	/* Check and clear the DFSDone interrupt */
 	reg = MV_REG_READ(PMU_INT_CAUSE_REG);
 	if ((reg & PMU_INT_DFS_DONE_MASK) == 0)
-		return MV_FAIL;
+		ret = MV_FAIL;
 	reg &= ~PMU_INT_DFS_DONE_MASK;
 	MV_REG_WRITE(PMU_INT_CAUSE_REG, reg);
 	
@@ -839,10 +840,16 @@ MV_STATUS mvPmuSysFreqScale (MV_U32 ddrFreq, MV_U32 l2Freq, MV_U32 cpuFreq)
 	reg = MV_REG_READ(PMU_DFS_STATUS_REG);
 	reg = ((reg & PMU_DFS_STAT_DDR_RATIO_MASK) >> PMU_DFS_STAT_DDR_RATIO_OFFS);
 	if (reg != ddrDiv)
-		return MV_OK;
+		ret = MV_FAIL;
 
 	/* IRQ and FIQ are unmasked by the PMU */
-	return MV_OK;
+#if 0
+	reg = MV_REG_READ(PMU_CTRL_REG);
+	reg &= ~(PMU_CTRL_MASK_IRQ_MASK | PMU_CTRL_MASK_FIQ_MASK);
+	MV_REG_WRITE(PMU_CTRL_REG, reg);
+#endif
+
+	return ret;
 }
 
 /*******************************************************************************
