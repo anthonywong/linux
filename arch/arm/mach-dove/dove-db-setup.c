@@ -46,6 +46,7 @@
 #include "pm.h"
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
+#include "pdma/mvPdma.h"
 
 #define DOVE_DB_WAKEUP_GPIO	(3)
 static unsigned int front_panel = 0;
@@ -683,10 +684,19 @@ static void __init dove_db_init(void)
 
 	dove_rtc_init();
 
-	if((!useHalDrivers) && (!useNandHal)) {
-		pxa_init_dma_wins(&dove_mbus_dram_info);
-		pxa_init_dma(16);
+	pxa_init_dma_wins(&dove_mbus_dram_info);
+	pxa_init_dma(16);
+
+	if(useHalDrivers || useNandHal) {
+		if (mvPdmaHalInit(MV_PDMA_MAX_CHANNELS_NUM) != MV_OK) {
+			printk(KERN_ERR "mvPdmaHalInit() failed.\n");
+			BUG();
+		}
+		/* reserve channels for NAND Data and command PDMA */
+		pxa_reserve_dma_channel(MV_PDMA_NAND_DATA);
+		pxa_reserve_dma_channel(MV_PDMA_NAND_COMMAND);
 	}
+
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
