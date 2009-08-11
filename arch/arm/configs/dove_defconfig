@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.30.4-dove-3.1.0
-# Mon Aug 10 10:52:23 2009
+# Tue Aug 11 16:50:32 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -347,7 +347,7 @@ CONFIG_PAGE_OFFSET=0xC0000000
 # CONFIG_PREEMPT is not set
 CONFIG_HZ=100
 CONFIG_AEABI=y
-CONFIG_OABI_COMPAT=y
+# CONFIG_OABI_COMPAT is not set
 # CONFIG_ARCH_HAS_HOLES_MEMORYMODEL is not set
 # CONFIG_ARCH_SPARSEMEM_DEFAULT is not set
 # CONFIG_ARCH_SELECT_MEMORY_MODEL is not set
@@ -408,8 +408,6 @@ CONFIG_CPU_IDLE_GOV_MENU=y
 #
 # At least one emulation must be selected
 #
-# CONFIG_FPE_NWFPE is not set
-# CONFIG_FPE_FASTFPE is not set
 CONFIG_VFP=y
 CONFIG_VFPv3=y
 # CONFIG_NEON is not set
@@ -652,6 +650,7 @@ CONFIG_MTD_NAND_IDS=y
 # CONFIG_MTD_NAND_ORION is not set
 CONFIG_MTD_NAND_DOVE=y
 CONFIG_MTD_NAND_HAL_DOVE=y
+CONFIG_MV_MTD_GANG_SUPPORT=y
 # CONFIG_MTD_ONENAND is not set
 
 #
