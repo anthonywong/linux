@@ -491,6 +491,17 @@ static struct dove_nand_platform_data dove_db_nfc_hal_data = {
 	.nr_parts = ARRAY_SIZE(partition_dove)
 };
 
+static struct dove_nand_platform_data dove_db_nfc_gang_hal_data = {
+	.nfc_width      = 16,
+	.num_devs       = 2,
+	.num_cs         = 1,
+	.use_dma	= 1,
+	.use_ecc	= 1,
+	.use_bch	= 1,
+	.parts = partition_dove,
+	.nr_parts = ARRAY_SIZE(partition_dove)
+};
+
 static struct dove_nand_platform_data dove_db_nfc_data = {
 	.nfc_width      = 8,
 	.num_devs       = 1,
@@ -543,13 +554,13 @@ static void __init dove_db_nfc_init(void)
 	dove_db_nfc_data.tclk = dove_tclk_get();
 
 	if(useHalDrivers || useNandHal) {
-		dove_db_nfc_hal_data.tclk = dove_tclk_get();
-		dove_nfc.dev.platform_data = &dove_db_nfc_hal_data;
 		dove_nfc.name = "dove-nand-hal";
 		if(useNandHal && (strcmp(useNandHal, "ganged") == 0)) {
-			dove_db_nfc_hal_data.nfc_width = 16;
-			dove_db_nfc_hal_data.num_devs = 2;
-			dove_db_nfc_hal_data.use_bch = 1;
+			dove_db_nfc_gang_hal_data.tclk = dove_tclk_get();
+			dove_nfc.dev.platform_data = &dove_db_nfc_gang_hal_data;
+		} else {
+			dove_db_nfc_hal_data.tclk = dove_tclk_get();
+			dove_nfc.dev.platform_data = &dove_db_nfc_hal_data;
 		}
 	}
 
