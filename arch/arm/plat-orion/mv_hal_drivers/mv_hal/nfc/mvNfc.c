@@ -334,6 +334,11 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 		nfcCtrl->dfcWidth = 8;
 	}		
 
+	/* Make sure ECC is disabled, otherwise native 
+	** read ID might not work */
+	MV_REG_BIT_RESET(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
+	MV_REG_BIT_SET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
+
 	/* Configure initial READ-ID byte count */
 	ctrl_reg |= (0x2 <<  NFC_CTRL_RD_ID_CNT_OFFS);
 
@@ -646,7 +651,10 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 				}
 				else /* Large Page */
 				{
-					*data_len = NFC_RW_LP_PDMA_DATA_LEN;
+					if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
+						*data_len = NFC_RW_LP_BCH_ECC_DATA_LEN;
+					else /* Hamming and No-Ecc */
+						*data_len = NFC_RW_LP_PDMA_DATA_LEN;
 				}
 			}
 			else /* PIO mode */
@@ -805,11 +813,15 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 			{
 				/* disable ECC for these commands */
 				MV_REG_BIT_RESET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
+				if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
+					MV_REG_BIT_RESET(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
 			}
 			else
 			{
 				/* enable ECC for all other commands */
 				MV_REG_BIT_SET(NFC_CONTROL_REG, NFC_CTRL_ECC_EN_MASK);
+				if (nfcCtrl->eccMode == MV_NFC_ECC_BCH)
+					MV_REG_BIT_SET(NFC_ECC_CONTROL_REG, NFC_ECC_BCH_EN_MASK);
 			}
 		}
 
