@@ -32,6 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos_params.h>
 
 #include "msm_fb.h"
 
@@ -69,6 +70,8 @@ static int lcdc_off(struct platform_device *pdev)
 {
 	int ret = 0;
 
+	pm_qos_update_requirement(PM_QOS_SYSTEM_BUS_FREQ , "lcdc",
+				PM_QOS_DEFAULT_VALUE);
 	ret = panel_next_off(pdev);
 
 	clk_disable(mdp_lcdc_pclk_clk);
@@ -88,6 +91,8 @@ static int lcdc_on(struct platform_device *pdev)
 	int ret = 0;
 	struct msm_fb_data_type *mfd;
 
+	pm_qos_update_requirement(PM_QOS_SYSTEM_BUS_FREQ , "lcdc",
+				128000);
 	mfd = platform_get_drvdata(pdev);
 
 	clk_enable(mdp_lcdc_pclk_clk);
@@ -197,6 +202,7 @@ lcdc_probe_err:
 
 static int lcdc_remove(struct platform_device *pdev)
 {
+	pm_qos_remove_requirement(PM_QOS_SYSTEM_BUS_FREQ , "lcdc");
 	return 0;
 }
 
@@ -217,7 +223,8 @@ static int __init lcdc_driver_init(void)
 		printk(KERN_ERR "error: can't get mdp_lcdc_pad_pclk_clk!\n");
 		return IS_ERR(mdp_lcdc_pad_pclk_clk);
 	}
-
+	pm_qos_add_requirement(PM_QOS_SYSTEM_BUS_FREQ , "lcdc",
+				PM_QOS_DEFAULT_VALUE);
 	return lcdc_register_driver();
 }
 
