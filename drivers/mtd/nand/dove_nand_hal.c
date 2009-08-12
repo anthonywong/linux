@@ -254,11 +254,11 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 			info->state = STATE_READY;
 			complete(&info->cmd_complete);
 		}
-	} else if (status & (NFC_SR_BBD_MASK | NFC_SR_RDY0_MASK | NFC_SR_RDY1_MASK)) {
-		if (status & NFC_SR_BBD_MASK)
-			info->retcode = ERR_BBERR;
+	} else if (status & (NFC_SR_BBD_MASK | NFC_SR_RDY0_MASK | NFC_SR_RDY1_MASK | NFC_SR_UNCERR_MASK)) {
+		if (status & (NFC_SR_BBD_MASK | NFC_SR_UNCERR_MASK))
+			info->retcode = ERR_DBERR;
 		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY | MV_NFC_STATUS_CMDD, MV_FALSE);
-		if(info->state != STATE_DMA_READING) {
+		if((info->state != STATE_DMA_READING) || (info->retcode == ERR_BBERR)) {
 			info->state = STATE_READY;
 			complete(&info->cmd_complete);
 		}
@@ -290,13 +290,15 @@ static void pxa3xx_nand_set_rw_chunks(struct pxa3xx_nand_info *info)
 	** -----------------------------------------------------
 	** | Data (2K) | Spare | ECC | Data (2K) | Spare | ECC |
 	** -----------------------------------------------------
+	**
+	** In BCH mode, we read only the spare area.
 	*/
 	if(info->flash_info.page_size == 1024)		/* 2 x 512 */
-		spare_size = 32;
+		spare_size = 16;
 	else if(info->flash_info.page_size == 4096)	/* 2 x 2048 */
-		spare_size = 64;
+		spare_size = 32;
 	else if (info->flash_info.page_size == 8192)	/* 2 x 4096 */
-		spare_size = 128;
+		spare_size = 64;
 	else
 		return;
 
@@ -313,7 +315,8 @@ static void pxa3xx_nand_set_rw_chunks(struct pxa3xx_nand_info *info)
 	info->sgBuffSize[idx] = (info->flash_info.page_size >> 1);
 	idx++;
 
-	info->sgBuffAddr[idx] = info->data_buff_phys + info->flash_info.page_size + spare_size;
+	/* Add 32 bytes to skip over the BCH ECC of the first page */
+	info->sgBuffAddr[idx] = info->data_buff_phys + info->flash_info.page_size + spare_size + 32;
 	info->sgBuffSize[idx] = spare_size;
 	idx++;
 	info->sgNumBuffs = idx;
@@ -527,6 +530,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	info->data_size = 0;
 	info->state = STATE_READY;
 	info->chained_cmd = 0;
+	info->retcode = ERR_NONE;
 	init_completion(&info->cmd_complete);
 
 	switch (command) {
@@ -547,10 +551,9 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 	case NAND_CMD_READ0:
 		info->use_ecc = 1;
-		info->retcode = ERR_NONE;
 		info->buf_start = column;
 		info->buf_count = mtd->writesize + mtd->oobsize;
-		memset(info->data_buff, 0xff, info->buf_count);
+		memset(info->data_buff + mtd->writesize, 0xff, mtd->oobsize);
 		info->cmd = MV_NFC_CMD_READ_MONOLITHIC;
 		info->column = column;
 		info->page_addr = page_addr;
@@ -563,15 +566,16 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			 * 0, which is different from the ECC information within
 			 * OOB, ignore such double bit errors
 			 */
-			printk(KERN_INFO "%s: retCode == ERR_DBERR", __FUNCTION__);
 			if (is_buf_blank(info->data_buff, mtd->writesize))
 				info->retcode = ERR_NONE;
+			else
+				printk(KERN_INFO "%s: retCode == ERR_DBERR\n", __FUNCTION__);
 		}
 		break;
 	case NAND_CMD_SEQIN:
 		info->buf_start = column;
 		info->buf_count = mtd->writesize + mtd->oobsize;
-		memset(info->data_buff, 0xff, info->buf_count);
+		memset(info->data_buff + mtd->writesize, 0xff, mtd->oobsize);
 
 		/* save column/page_addr for next CMD_PAGEPROG */
 		info->seqin_column = column;
