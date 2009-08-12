@@ -32,6 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos_params.h>
 
 #define TVENC_C
 #include "tvenc.h"
@@ -68,6 +69,8 @@ static int tvenc_off(struct platform_device *pdev)
 {
 	int ret = 0;
 
+	pm_qos_update_requirement(PM_QOS_SYSTEM_BUS_FREQ , "tvenc",
+				PM_QOS_DEFAULT_VALUE);
 	ret = panel_next_off(pdev);
 
 	clk_disable(tvenc_clk);
@@ -89,6 +92,8 @@ static int tvenc_on(struct platform_device *pdev)
 {
 	int ret = 0;
 
+	pm_qos_update_requirement(PM_QOS_SYSTEM_BUS_FREQ , "tvenc",
+				128000);
 	if (tvenc_pdata && tvenc_pdata->pm_vid_en)
 		ret = tvenc_pdata->pm_vid_en(1);
 
@@ -259,6 +264,7 @@ tvenc_probe_err:
 
 static int tvenc_remove(struct platform_device *pdev)
 {
+	pm_qos_remove_requirement(PM_QOS_SYSTEM_BUS_FREQ , "tvenc");
 	return 0;
 }
 
@@ -282,6 +288,8 @@ static int __init tvenc_driver_init(void)
 		return IS_ERR(tvdac_clk);
 	}
 
+	pm_qos_add_requirement(PM_QOS_SYSTEM_BUS_FREQ , "tvenc",
+				PM_QOS_DEFAULT_VALUE);
 	return tvenc_register_driver();
 }
 
