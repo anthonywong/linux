@@ -46,6 +46,7 @@
 #include <plat/time.h>
 #include <plat/mv_xor.h>
 #include <ctrlEnv/mvCtrlEnvRegs.h>
+#include "ctrlEnv/sys/mvCpuIfRegs.h"
 #ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
 #endif
@@ -155,7 +156,7 @@ int mv_usb1_cmdline_config(char *s)
 #include "common.h"
 
 #ifdef CONFIG_PM
-enum orion_cpu_conf_save_state {
+enum orion_dwnstrm_conf_save_state {
 	/* CPU Configuration Registers */
 	DOVE_DWNSTRM_BRDG_CPU_CONFIG = 0,
 	DOVE_DWNSTRM_BRDG_CPU_CONTROL,
@@ -185,6 +186,22 @@ enum orion_cpu_conf_save_state {
 	writel(dove_downstream_regs[DOVE_DWNSTRM_BRDG_##x], x)
 
 static u32 dove_downstream_regs[DOVE_DWNSTRM_BRDG_SIZE];
+
+enum orion_uptrm_conf_save_state {
+	/* Upstream Bridge Configuration Registers */
+	DOVE_UPSTRM_AXI_P_D_CTRL_REG = 0,
+	DOVE_UPSTRM_D2X_ARB_LO_REG,
+	DOVE_UPSTRM_D2X_ARB_HI_REG,
+
+	DOVE_UPSTRM_BRDG_SIZE
+};
+
+#define DOVE_UPSTRM_BRDG_SAVE(x) \
+	dove_upstream_regs[DOVE_##x] = readl(DOVE_SB_REGS_VIRT_BASE | x)
+#define DOVE_UPSTRM_BRDG_RESTORE(x) \
+	writel(dove_upstream_regs[DOVE_##x], (DOVE_SB_REGS_VIRT_BASE | x))
+
+static u32 dove_upstream_regs[DOVE_UPSTRM_BRDG_SIZE];
 #endif
 
 /*****************************************************************************
@@ -1764,6 +1781,20 @@ void dove_restore_cpu_conf_regs(void)
 	DOVE_DWNSTRM_BRDG_RESTORE(RSTOUTn_MASK);
 	DOVE_DWNSTRM_BRDG_RESTORE(BRIDGE_MASK);
 	DOVE_DWNSTRM_BRDG_RESTORE(POWER_MANAGEMENT);
+}
+
+void dove_save_upstream_regs(void)
+{
+	DOVE_UPSTRM_BRDG_SAVE(UPSTRM_AXI_P_D_CTRL_REG);
+	DOVE_UPSTRM_BRDG_SAVE(UPSTRM_D2X_ARB_LO_REG);
+	DOVE_UPSTRM_BRDG_SAVE(UPSTRM_D2X_ARB_HI_REG);
+}
+
+void dove_restore_upstream_regs(void)
+{
+	DOVE_UPSTRM_BRDG_RESTORE(UPSTRM_AXI_P_D_CTRL_REG);
+	DOVE_UPSTRM_BRDG_RESTORE(UPSTRM_D2X_ARB_LO_REG);
+	DOVE_UPSTRM_BRDG_RESTORE(UPSTRM_D2X_ARB_HI_REG);
 }
 
 void dove_save_timer_regs(void)
