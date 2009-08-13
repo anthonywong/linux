@@ -49,6 +49,7 @@
 #ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
 #endif
+#include <mach/pm.h>
 #include "clock.h"
 #include "twsi.h"
 
@@ -1652,7 +1653,12 @@ void __init dove_ac97_setup(void)
 
 	platform_device_register(&dove_device_ac97);
 }
-
+#ifdef CONFIG_PM
+static u32 dove_arbitration_regs[] = {
+	DOVE_MC_VIRT_BASE + 0x280,
+	DOVE_MC_VIRT_BASE + 0x510,
+};
+#endif
 void __init dove_config_arbitration(void)
 {
 	u32 sc_dec;
@@ -1701,6 +1707,8 @@ void __init dove_config_arbitration(void)
 #endif
         writel(sc_dec, DOVE_MC_VIRT_BASE + 0x510);
         /* End of supersection testing */
+	pm_registers_add(dove_arbitration_regs,
+			 ARRAY_SIZE(dove_arbitration_regs));
 
 }
 void __init dove_init(void)
