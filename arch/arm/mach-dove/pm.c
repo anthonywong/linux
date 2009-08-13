@@ -283,7 +283,7 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, mc);
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc2);
 		goto done;
-	}
+	}        	
 
 	str = "deepidle";
 	if(!strncmp(buffer+len, str,strlen(str))) {
@@ -374,6 +374,37 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 			/* Downscale Voltage -2.5% */
 			if (mvPmuDvs(11, 0x8, 0x2, 0x5) != MV_OK)
 				printk("Volatge down-scaling failed\n");
+			goto done;
+		}
+		goto done;
+	}
+
+	str = "units ";
+	if(!strncmp(buffer+len, str,strlen(str))) {
+		len += strlen(str);
+		str = "off";
+		if(!strncmp(buffer+len, str,strlen(str))) {
+			MV_U32 units_reg;			
+			len += strlen(str);
+
+			printk("Units Disabled: SATA, NAND, CAM, AUD0, AUD1, CESA, PDMA, XOR0, XOR1\n");
+			/* Unit clock gating */
+			units_reg = MV_REG_READ(0xD0038);
+			units_reg &= ~0x01C0BC08;
+			MV_REG_WRITE(0xD0038, units_reg);
+
+			goto done;
+		}
+		str = "on";
+		if (!strncmp(buffer+len, str, strlen(str))) {
+			MV_U32 units_reg;
+			len += strlen(str);
+
+			printk(KERN_INFO "Units Enabled: SATA, NAND, CAM, AUD0, AUD1, CESA, PDMA, XOR0, XOR1\n");
+			/* Unit clock gating */
+			units_reg = MV_REG_READ(0xD0038);
+			units_reg |= 0x01C0BC08;
+			MV_REG_WRITE(0xD0038, units_reg);
 			goto done;
 		}
 		goto done;
@@ -532,6 +563,7 @@ int pmu_proc_read(char* page, char** start, off_t off, int count,int* eof,
 	len += sprintf(page+len,"   gpu <on|off>\n");
 	len += sprintf(page+len,"   vpu <on|off>\n");
 	len += sprintf(page+len,"   wlan <on|off>\n");
+	len += sprintf(page+len,"   units <on|off>\n");
 	len += sprintf(page+len,"   deepcnt\n");
 	return len;
 }
