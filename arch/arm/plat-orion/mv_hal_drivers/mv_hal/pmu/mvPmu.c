@@ -397,8 +397,10 @@ MV_STATUS mvPmuDeepIdle (MV_BOOL lcdRefresh)
 		return MV_FAIL;
 
 	/* mask out IRQ and FIQ from being assereted to the cpu */
+	/* Disable DDR SR by default */
 	reg = MV_REG_READ(PMU_CTRL_REG);
 	reg |= (PMU_CTRL_MASK_IRQ_MASK | PMU_CTRL_MASK_FIQ_MASK);
+	reg &= ~PMU_CTRL_DDR_SLF_RFRSH_EN_MASK;
 	MV_REG_WRITE(PMU_CTRL_REG, reg);
 
 	/* Set CPU power delay in TCLK cycles */
