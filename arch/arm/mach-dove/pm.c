@@ -664,6 +664,7 @@ void dove_standby(void)
 	/* Save CPU Peripherals state */
 	dove_save_cpu_wins();
 	dove_save_cpu_conf_regs();
+	dove_save_upstream_regs();	
 	dove_save_timer_regs();	
 	dove_save_int_regs();
 
@@ -682,6 +683,7 @@ void dove_standby(void)
 	/* Restore CPU Peripherals state */
 	dove_restore_int_regs();
 	dove_restore_timer_regs();	
+	dove_restore_upstream_regs();	
 	dove_restore_cpu_conf_regs();
 	dove_restore_cpu_wins();
 
