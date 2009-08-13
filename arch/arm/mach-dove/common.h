@@ -79,6 +79,8 @@ void dove_restore_timer_regs(void);
 void dove_restore_cpu_conf_regs(void);
 void dove_save_int_regs(void);
 void dove_restore_int_regs(void);
+void dove_save_upstream_regs(void);
+void dove_restore_upstream_regs(void);
 #endif
 
 #endif
