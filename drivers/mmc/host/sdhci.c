@@ -1859,9 +1859,6 @@ int sdhci_add_host(struct sdhci_host *host)
 	else
 		mmc->f_min = host->max_clk / 256;
 	
-	if (host->dove_card_int_wa)
-		sdhci_ops.enable_sdio_irq = sdhci_enable_sdio_gpio_irq;
-
 	mmc->f_max = host->max_clk;
 	mmc->caps = MMC_CAP_SDIO_IRQ;
 
