@@ -28,7 +28,11 @@
 #include <asm/spinlock_types.h>
 #undef __LINUX_SPINLOCK_TYPES_H
 
+#if defined(CONFIG_ARCH_MSM_ARM11)
+#include <asm/spinlock_swp.h>
+#else
 #include <asm/spinlock.h>
+#endif /* CONFIG_ARCH_MSM_ARM11 */
 
 #include <mach/remote_spinlock.h>
 #include "smd_private.h"
@@ -60,6 +64,22 @@ int _remote_spin_lock_init(remote_spin_lock_id_t id, _remote_spinlock_t *lock)
 	return 0;
 }
 
+/* Only use SWP-based spinlocks for ARM11 apps processors,
+ * where the LDREX/STREX instructions are unable to lock
+ * shared memory for exclusive access.  Use the standard
+ * local spinlock implementation for all other SoC's.
+ */
+#if defined(CONFIG_ARCH_MSM_ARM11)
+void _remote_spin_lock(_remote_spinlock_t *lock)
+{
+	__raw_swp_spin_lock((raw_spinlock_t *) (*lock));
+}
+
+void _remote_spin_unlock(_remote_spinlock_t *lock)
+{
+	__raw_swp_spin_unlock((raw_spinlock_t *) (*lock));
+}
+#else
 void _remote_spin_lock(_remote_spinlock_t *lock)
 {
 	__raw_spin_lock((raw_spinlock_t *) (*lock));
@@ -69,3 +89,5 @@ void _remote_spin_unlock(_remote_spinlock_t *lock)
 {
 	__raw_spin_unlock((raw_spinlock_t *) (*lock));
 }
+#endif /* CONFIG_ARCH_MSM_ARM11 */
+
