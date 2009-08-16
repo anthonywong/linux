@@ -674,6 +674,7 @@ static struct platform_device *devices[] __initdata = {
 	&mddi_toshiba_device,
 	&smc91x_device,
 	&msm_device_smd,
+	&msm_device_dmov,
 	&android_pmem_device,
 	&android_pmem_adsp_device,
 	&android_pmem_gpu0_device,

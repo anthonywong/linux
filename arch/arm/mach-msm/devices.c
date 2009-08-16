@@ -199,6 +199,11 @@ struct platform_device msm_device_smd = {
 	.id	= -1,
 };
 
+struct platform_device msm_device_dmov = {
+	.name	= "msm_dmov",
+	.id	= -1,
+};
+
 #if defined(CONFIG_ARCH_MSM_SCORPION)
 #define MSM_SDC1_BASE         0xA0300000
 #define MSM_SDC2_BASE         0xA0400000
