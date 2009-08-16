@@ -38,6 +38,7 @@ disclaimer.
 #include "mvOs.h"
 #include "mvCommon.h"
 #include "ctrlEnv/mvCtrlEnvRegs.h"
+#include "mvSysHwConfig.h"
 #ifdef CONFIG_MV_INCLUDE_GIG_ETH
 #include "eth/mvEth.h"
 #endif
