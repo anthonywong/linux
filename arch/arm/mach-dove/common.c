@@ -45,6 +45,7 @@
 #include <plat/mv_eth.h>
 #include <plat/time.h>
 #include <plat/mv_xor.h>
+#include <mvSysHwConfig.h>
 #include <ctrlEnv/mvCtrlEnvRegs.h>
 #include "ctrlEnv/sys/mvCpuIfRegs.h"
 #ifdef CONFIG_MV_ETHERNET
@@ -103,6 +104,20 @@ int mv_usb1_cmdline_config(char *s);
 __setup("usb0Mode=", mv_usb0_cmdline_config);
 __setup("usb1Mode=", mv_usb1_cmdline_config);
 
+int mv_usb0_cmdline_config(char *s)
+{
+    usb0Mode = s;
+    return 1;
+}
+
+int mv_usb1_cmdline_config(char *s)
+{
+    usb1Mode = s;
+    return 1;
+}
+
+#endif 
+
 static int noL2 = 0;
 static int __init noL2_setup(char *__unused)
 {
@@ -139,20 +154,7 @@ static int __init dvs_enable_setup(char *__unused)
 
 __setup("dvs_enable", dvs_enable_setup);
 
-int mv_usb0_cmdline_config(char *s)
-{
-    usb0Mode = s;
-    return 1;
-}
 
-int mv_usb1_cmdline_config(char *s)
-{
-    usb1Mode = s;
-    return 1;
-}
-
-
-#endif
 #include "common.h"
 
 #ifdef CONFIG_PM
