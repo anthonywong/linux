@@ -14,4 +14,3 @@ include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 endif
 
 obj-$(CONFIG_MV_HAL_DRIVERS)		+= mv_hal_support/
-obj-$(CONFIG_MV_HAL_DRIVERS)		+= ../plat-orion/mv_hal_drivers/
