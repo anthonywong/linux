@@ -3,7 +3,6 @@
 #
 
 ifeq ($(CONFIG_ARCH_DOVE),y)
-include $(srctree)/include/config/auto.conf
 include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 else
 #include $(MV_RULES_PATH)/mvRules.mk
