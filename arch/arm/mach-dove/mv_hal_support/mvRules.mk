@@ -2,7 +2,7 @@
 
 ###################################################################################################
 # General definitions
-###################################################################################################
+##################################################################################################
 CPU_ARCH    = ARM
 CHIP        = 88F6781
 VENDOR      = Marvell
@@ -16,13 +16,13 @@ endif
 # directory structure
 ###################################################################################################
 # Main directory structure
-SRC_PATH          = .
-PLAT_PATH	  = ../../plat-orion/mv_hal_drivers
+SRC_PATH          = $(srctree)/arch/arm/mach-dove
+PLAT_PATH	  = $(srctree)/arch/arm/plat-orion/mv_hal_drivers
 PLAT_DRIVERS	  = $(PLAT_PATH)/mv_drivers_lsp
 HAL_DIR           = $(PLAT_PATH)/mv_hal
 COMMON_DIR        = $(PLAT_PATH)/common
 OSSERV_DIR        = $(PLAT_PATH)/linux_oss
-LSP_DIR           = $(SRC_PATH)/mv_hal_support/
+LSP_DIR           = $(SRC_PATH)/mv_hal_support
 CONFIG_DIR        = $(LSP_DIR)/config
 HAL_SYS_DIR	  = $(LSP_DIR)/mv_hal_sys
 
@@ -96,17 +96,30 @@ SOC_SYS_DIR	    = $(OSSERV_DIR)/ctrlEnv/sys
 LSP_PATH_I      = $(srctree)/arch/arm/mach-dove
 PLAT_PATH_I	= $(srctree)/arch/arm/plat-orion/mv_hal_drivers
 
-HAL_PATH        = -I$(HAL_DIR) -I$(PLAT_PATH_I)/$(HAL_DIR) -I$(PLAT_PATH_I)/$(HAL_SATA_DIR)
-DOVE_FAM_PATH  =  -I$(LSP_PATH_I)/$(DOVE_FAM_DIR)
-QD_PATH         = -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include  -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/msApi 	\
-                  -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/driver -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/platform
-                     
-COMMON_PATH   	= -I$(PLAT_PATH_I)/$(COMMON_DIR)
- 
-OSSERV_PATH     = -I$(PLAT_PATH_I)/$(OSSERV_DIR)
-LSP_PATH        = -I$(LSP_PATH_I)/$(LSP_DIR)
-CONFIG_PATH     = -I$(LSP_PATH_I)/$(CONFIG_DIR)
-HAL_SYS_PATH    = -I$(LSP_PATH_I)/$(HAL_SYS_DIR)
+##HAL_PATH        = -I$(HAL_DIR) -I$(PLAT_PATH_I)/$(HAL_DIR) -I$(PLAT_PATH_I)/$(HAL_SATA_DIR)
+HAL_PATH        = -I$(HAL_DIR) -I$(HAL_SATA_DIR)
+
+##DOVE_FAM_PATH  =  -I$(LSP_PATH_I)/$(DOVE_FAM_DIR)
+DOVE_FAM_PATH  =  -I$(DOVE_FAM_DIR)
+##QD_PATH         = -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include  -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/msApi 	\
+##                  -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/driver -I$(PLAT_PATH_I)/$(HAL_QD_DIR)/Include/h/platform
+QD_PATH         = -I$(HAL_QD_DIR)/Include  -I$(HAL_QD_DIR)/Include/h/msApi 	\
+                  -I$(HAL_QD_DIR)/Include/h/driver -I$(HAL_QD_DIR)/Include/h/platform
+                    
+##COMMON_PATH   	= -I$(PLAT_PATH_I)/$(COMMON_DIR)
+COMMON_PATH   	= -I$(COMMON_DIR)
+
+##OSSERV_PATH     = -I$(PLAT_PATH_I)/$(OSSERV_DIR)
+OSSERV_PATH     = -I$(OSSERV_DIR)
+
+##LSP_PATH        = -I$(LSP_PATH_I)/$(LSP_DIR)
+LSP_PATH        = -I$(LSP_DIR)
+
+##CONFIG_PATH     = -I$(LSP_PATH_I)/$(CONFIG_DIR)
+CONFIG_PATH     = -I$(CONFIG_DIR)
+
+##HAL_SYS_PATH    = -I$(LSP_PATH_I)/$(HAL_SYS_DIR)
+HAL_SYS_PATH    = -I$(HAL_SYS_DIR)
 
 EXTRA_INCLUDE  	= $(OSSERV_PATH) $(COMMON_PATH) $(HAL_PATH)  $(DOVE_FAM_PATH) \
                   $(LSP_PATH) $(CONFIG_PATH) $(HAL_SYS_PATH)
@@ -114,7 +127,7 @@ EXTRA_INCLUDE  	= $(OSSERV_PATH) $(COMMON_PATH) $(HAL_PATH)  $(DOVE_FAM_PATH) \
 ###################################################################################################
 # defines
 ###################################################################################################
-MV_DEFINE = -DMV_LINUX -DMV_CPU_$(ENDIAN) -DMV_$(CPU_ARCH)
+MV_DEFINE = -DMV_LINUX -DMV_CPU_$(ENDIAN) -DMV_$(CPU_ARCH) -DLINUX
 
 EXTRA_CFLAGS 	+= $(EXTRA_INCLUDE) $(MV_DEFINE)
 
