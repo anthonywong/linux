@@ -770,6 +770,7 @@ static int dove_pm_enter(suspend_state_t state)
  */
 static void dove_pm_finish(void)
 {
+	local_irq_enable();
 }
 
 /*
