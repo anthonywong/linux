@@ -17,7 +17,8 @@ include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 # Objects list
 
-obj-y	+= mvKW_HAL_glue.o export.o 
+obj-$(CONFIG_MV_INCLUDE_CESA)		+= mvSysCesa.o
+obj-$(CONFIG_MV_INCLUDE_GIG_ETH)	+= mvSysEth.o
+obj-$(CONFIG_MV_INCLUDE_AUDIO)		+= mvSysAudio.o
+obj-$(CONFIG_MV_INCLUDE_USB)		+= mvSysUsb.o
 
-obj-$(CONFIG_MV_DBG_TRACE)	+= dbg-trace.o
-obj-y    	+= mv_hal_sys/
