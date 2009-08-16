@@ -87,7 +87,12 @@ MV_U16 mvCtrlModelGet(MV_VOID)
 }
 MV_U8 mvCtrlRevGet(MV_VOID)
 {
-     return 0;
+#ifdef CONFIG_DOVE_REV_Z0
+	return 0;
+#endif
+#ifdef CONFIG_DOVE_REV_Y0
+	return 2;
+#endif
 }
 //EXPORT_SYMBOL(mvCtrlEthMaxPortGet);
 #endif
