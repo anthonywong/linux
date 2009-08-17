@@ -537,8 +537,10 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		if(mvPmuGetCurrentFreq(&freqs) != MV_OK)
 			printk(">>>>>> FAILED!\n");
 		else
-			printk("CPU %dMhz, AXI %dMHz, L2 %dMhz, DDR %dMhz\n", 
-				freqs.cpuFreq, freqs.axiFreq, freqs.l2Freq, freqs.ddrFreq);
+			printk(KERN_INFO "PLL %dMhz CPU %dMhz, AXI %dMHz,"
+			       " L2 %dMhz, DDR %dMhz\n", freqs.pllFreq, 
+			       freqs.cpuFreq, freqs.axiFreq, freqs.l2Freq,
+			       freqs.ddrFreq);
 	}
 
 done:
