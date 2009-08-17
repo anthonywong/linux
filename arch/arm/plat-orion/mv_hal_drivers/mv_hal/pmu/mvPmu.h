@@ -129,6 +129,7 @@ typedef struct
 	MV_U32		axiFreq;
 	MV_U32		l2Freq;
 	MV_U32		ddrFreq;
+	MV_U32		pllFreq;
 } MV_PMU_FREQ_INFO;
 
 /* Temp sensor configuration structure */
