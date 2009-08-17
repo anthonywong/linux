@@ -113,8 +113,9 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x1}, 	/* DDR:PLL 1:2 */
 						{10,0x5}, 	/* DDR:PLL 1:10 */
 						{12,0x6}}; 	/* DDR:PLL 1:12 */
 #else
-#define MAX_RATIO_MAP_CNT	9
-MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x2}, 	/* DDR:PLL 1:2 */
+#define MAX_RATIO_MAP_CNT	10
+MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{1,0x1}, 	/* DDR:PLL 1:1 */
+						{2,0x2}, 	/* DDR:PLL 1:2 */
 						{3,0x3}, 	/* DDR:PLL 1:3 */
 						{4,0x4}, 	/* DDR:PLL 1:4 */
 						{5,0x5}, 	/* DDR:PLL 1:5 */
@@ -1321,6 +1322,7 @@ MV_STATUS mvPmuGetCurrentFreq(MV_PMU_FREQ_INFO * freqs)
 	
 	/* Get current DDR frequency to be configured in resume */
 	pllFreq = mvPmuGetPllFreq();
+	freqs->pllFreq = pllFreq;
 	reg = MV_REG_READ(PMU_CLK_DIVIDER_0_REG);
 	
 	/* CPU frequency */
