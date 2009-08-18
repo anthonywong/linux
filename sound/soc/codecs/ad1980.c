@@ -87,8 +87,10 @@ SOC_DOUBLE("Line HP Swap Switch", AC97_AD_MISC, 10, 5, 1, 0),
 
 SOC_SINGLE("Stereo Spread Switch", AC97_AD_MISC, 7, 1, 0),
 
-SOC_DOUBLE("Surround Playback Volume", AC97_SURROUND_MASTER, 8, 0, 31, 1),
-SOC_DOUBLE("Surround Playback Switch", AC97_SURROUND_MASTER, 15, 7, 1, 1),
+SOC_DOUBLE("Surround/Headphone Playback Volume", AC97_SURROUND_MASTER,
+		8, 0, 31, 1),
+SOC_DOUBLE("Surround/Headphone Playback Switch", AC97_SURROUND_MASTER,
+		15, 7, 1, 1),
 
 SOC_DOUBLE("Center/LFE Playback Volume", AC97_CENTER_LFE_MASTER, 8, 0, 31, 1),
 SOC_DOUBLE("Center/LFE Playback Switch", AC97_CENTER_LFE_MASTER, 15, 7, 1, 1),
