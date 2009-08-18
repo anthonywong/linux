@@ -98,23 +98,33 @@ ENTRY(mvPmuSramDdrReconfigFunc)
 	/*
 	 * Block all data requests to the MC from the SB
 	 */
+/*
 	ldr	r2, ddfs_mc_ctrl_reg
 	mov	r3, #0x1
 	str	r3, [r2]
-
+*/
 
 	/* 
-	 * Disable All SB access ro DDR
+	 * Disable All SB access to DDR
 	 */
-/*
 	ldr	r3, ddfs_arbit_val
 	ldr	r2, ddfs_arbit_low_reg	
 	ldr	r7, [r2]			@ r7 saves Arbitor HI
 	str	r3, [r2]
 	ldr	r2, ddfs_arbit_hi_reg
 	ldr	r8, [r2]			@ r8 saves Arbitor LOW
+	str	r3, [r2]
+
+	/*
+	 * Disable CS0 in the MC
+	 */
+/*
+	ldr	r2, ddfs_mc_map0_reg
+	ldr	r3, [r2]
+	bic	r3, r3, #0x1
 	str	r3, [r2]	
 */
+
 	/*
 	 * Set DDR in Self refresh mode and poll status bit
 	 */
@@ -154,6 +164,7 @@ skip_ddrfs_sr_exit:
 	/*
 	 * Loop and execute MC init addr/value couples
 	 */
+/*
 	mov	r0, r9
 	mov	r1, r10
 	ldr	r4, ddfs_nb_offset
@@ -171,7 +182,7 @@ mc_init_loop:
 	sub	r1, r1, #1
 	b	mc_init_loop
 mc_init_done:
-
+*/
 /*************************************************************/
 /*   FOR DEBUG ONLY - BLINK LED ON MPP7 AS A LIFE INDICATION */
 /*************************************************************/
@@ -205,20 +216,30 @@ loop_delay2:
 	/*
 	 * UN-Block data requests to the MC from the SB
 	 */
+/*
 	ldr	r2, ddfs_mc_ctrl_reg
 	mov	r3, #0x0
 	str	r3, [r2]
+*/
 
-
+	/*
+	 * Enable CS0 in the MC
+	 */
+/*
+	ldr	r2, ddfs_mc_map0_reg
+	ldr	r3, [r2]
+	orr	r3, r3, #0x1
+	str	r3, [r2]
+*/
 	/* 
 	 * Restore SB access ro DDR
 	 */
-/*
+
 	ldr	r2, ddfs_arbit_low_reg	
 	str	r7, [r2]			@ restore Arbitor HI
 	ldr	r2, ddfs_arbit_hi_reg
 	str	r8, [r2]			@ restore Arbitor LOW
-*/
+
 	ldmfd	sp!, {r4 - r10, pc}	@ restore regs and return
 
 ddfs_nb_offset:
@@ -229,13 +250,16 @@ ddfs_mc_ctrl_reg:
 	.word (DOVE_NB_REGS_VIRT_BASE + 0x7E0)
 ddfs_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
-/*
+
 ddfs_arbit_low_reg:
 	.word(DOVE_SB_REGS_VIRT_BASE + 0xD02A8)
 ddfs_arbit_hi_reg:
 	.word(DOVE_SB_REGS_VIRT_BASE + 0xD02AC)
 ddfs_arbit_val:
 	.word(0xFFFFFFFF)
+/*
+ddfs_mc_map0_reg:
+	.word(DOVE_NB_REGS_VIRT_BASE + 0x100)
 */
 /*********************************************************************/
 /*
