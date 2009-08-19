@@ -42,12 +42,17 @@
 #include "../edid.h"
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
+#include <video/dovefb_display.h>
 
 #include "dovefb_if.h"
 
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
 
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+extern struct display_settings lcd_config;
+#endif
 static int dovefb_fill_edid(struct fb_info *fi,
 				struct dovefb_mach_info *dmi);
 static int wait_for_vsync(struct dovefb_layer_info *dfli);
@@ -242,12 +247,8 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	int needed_pixclk;
 	u64 div_result;
 	u32 x = 0;
-#ifdef CONFIG_DOVE_REV_Z0
+	struct dovefb_info *info = dfli->info;
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
-#else
-	u32 axi_div, lcd_div, is_ext;
-#endif
-
 
 	/*
 	 * Notice: The field pixclock is used by linux fb
@@ -274,10 +275,13 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	 * Calc divider according to refresh rate.
 	 */
 	div_result = 1000000000000ll;
+
+	if(info->fixed_output)
+		m = &info->out_vmode;
+
 	do_div(div_result, m->pixclock);
 	needed_pixclk = (u32)div_result;
 
-#ifdef CONFIG_DOVE_REV_Z0
 	divider_int = dmi->sclk_clock / needed_pixclk;
 	/* check whether divisor is too small. */
 	if (divider_int < 2) {
@@ -285,15 +289,10 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 				 "Try smaller resolution\n");
 		divider_int = 2;
 	}
-#else
-	calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
-	divider_int = lcd_div;
 
-	printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
-			needed_pixclk, axi_div, lcd_div, is_ext);
-
-	set_external_lcd_clock(axi_div, is_ext);
-#endif /* CONFIG_DOVE_REV_Z0 */
+#ifndef CONFIG_DOVE_REV_Z0
+	set_external_lcd_clock(2, 0);
+#endif /* !CONFIG_DOVE_REV_Z0 */
 
 	/*
 	 * Set setting to reg.
@@ -310,7 +309,8 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 	 * Set bit to enable graphics DMA.
 	 */
 	x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
-	x |= (dfli->active && dfli->enabled) ? CFG_GRA_ENA_MASK : 0;
+	//x |= (dfli->active && dfli->enabled) ? CFG_GRA_ENA_MASK : 0;
+	x |= CFG_GRA_ENA_MASK;
 	dfli->active = 0;
 
 	/*
@@ -321,6 +321,11 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 		x |= 0x10000000;
 	else
 		x &= ~0x10000000;
+
+	/*
+	 * enable horizontal smooth scaling.
+	 */
+	x |= 0x1 << 14;
 
 	/*
 	 * Cursor enabled?
@@ -391,10 +396,32 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 	int pixel_offset;
 	unsigned long addr;
 
-	pixel_offset = (yoffset * var->xres_virtual) + xoffset;
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+	if (lcd_config.display_mode < 3) {
+		pixel_offset = (yoffset * var->xres_virtual) + xoffset;
 
-	addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
-	writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
+		addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
+		writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
+		if (lcd_config.display_mode == DISPLAY_DUALVIEW) {
+			struct dovefb_layer_info *dfli1 = lcd_config.lcd1_gfx->par;
+			int pixel_offset1;
+			unsigned long addr1;
+
+
+			pixel_offset1 = (yoffset * var->xres_virtual) + xoffset;
+
+			addr1 = dfli->fb_start_dma + (pixel_offset1 * (var->bits_per_pixel >> 3));
+			writel(addr1, dfli1->reg_base + LCD_CFG_GRA_START_ADDR0);
+	
+		}
+	}
+#else
+		pixel_offset = (yoffset * var->xres_virtual) + xoffset;
+
+		addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
+		writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
+#endif
 }
 
 static int dovefb_pan_display(struct fb_var_screeninfo *var,
@@ -486,21 +513,20 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 		fi->fix.visual = FB_VISUAL_TRUECOLOR;
 	fi->fix.line_length = var->xres_virtual * var->bits_per_pixel / 8;
 
-	/*
-	 * Disable panel output while we setup the display.
-	 */
-	x = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL);
-	writel(x & ~1, dfli->reg_base + LCD_SPU_DUMB_CTRL);
+	x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
+	if ((x & CFG_GRA_ENA_MASK))
+		wait_for_vsync(dfli);
 
 	/*
 	 * Configure global panel parameters.
 	 */
-	if (info->fixed_output)
+	if (info->fixed_output) {
 		writel((info->out_vmode.yres << 16) | info->out_vmode.xres,
 			dfli->reg_base + LCD_SPU_V_H_ACTIVE);
-	else
+	} else {
 		writel((var->yres << 16) | var->xres,
 			dfli->reg_base + LCD_SPU_V_H_ACTIVE);
+	}
 
 	/*
 	 * convet var to video mode
@@ -518,18 +544,54 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	/*
 	 * Configure graphics DMA parameters.
 	 */
-	set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+	switch (lcd_config.display_mode) {
+	case DISPLAY_EXTENDED:
+		if (1 == dfli->info->id) {
+			set_graphics_start(fi, fi->var.xoffset+(var->xres/2), fi->var.yoffset);
+			break;
+		}
+	case DISPLAY_NORMAL:
+	case DISPLAY_CLONE:
+	case DISPLAY_DUALVIEW:
+		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
+		break;
+	default:
+		;
+	}
+#else
+		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
+#endif
 	x = readl(dfli->reg_base + LCD_CFG_GRA_PITCH);
 	x = (x & ~0xFFFF) | ((var->xres_virtual * var->bits_per_pixel) >> 3);
 	writel(x, dfli->reg_base + LCD_CFG_GRA_PITCH);
-	writel((var->yres << 16) | var->xres,
-			dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
-	writel((var->yres << 16) | var->xres,
-			dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
 
-	if (info->fixed_output)
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+	switch (lcd_config.display_mode) {
+	case DISPLAY_EXTENDED:
+		writel((var->yres << 16) | (var->xres*lcd_config.extend_ratio/4),
+				dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
+		break;
+	case DISPLAY_NORMAL:
+	case DISPLAY_CLONE:
+	case DISPLAY_DUALVIEW:
+		writel((var->yres << 16) | (var->xres),
+			dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
+		break;
+	default:
+		;
+	}
+#else
+		writel((var->yres << 16) | (var->xres),
+			dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
+#endif
+
+	if (info->fixed_output) {
 		writel((info->out_vmode.yres << 16) | info->out_vmode.xres,
 				dfli->reg_base + LCD_SPU_GZM_HPXL_VLN);
+	}
 	else
 		writel((var->yres << 16) | var->xres,
 				dfli->reg_base + LCD_SPU_GZM_HPXL_VLN);
@@ -941,7 +1003,8 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 {
 	writel(0x80000001, dfli->reg_base + LCD_CFG_SCLK_DIV);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_BLANKCOLOR);
-	writel(dfli->info->io_pin_allocation,
+	writel(dfli->info->io_pin_allocation |
+		(0x3 << 18),
 			dfli->reg_base + SPU_IOPAD_CONTROL);
 	writel(0x00000000, dfli->reg_base + LCD_CFG_GRA_START_ADDR1);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_GRA_OVSA_HPXL_VLN);
