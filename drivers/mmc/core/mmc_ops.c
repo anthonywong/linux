@@ -180,6 +180,11 @@ int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 	for (i = 100; i; i--) {
 		err = mmc_wait_for_cmd(host, &cmd, 0);
+		if (err == -ETIMEDOUT) {
+			mmc_delay(10);
+			continue;
+		}
+
 		if (err)
 			break;
 
