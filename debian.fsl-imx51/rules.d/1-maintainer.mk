@@ -97,7 +97,7 @@ printchanges:
 		perl -w -f $(DEBIAN)/scripts/misc/git-ubuntu-log $(ubuntu_log_opts)
 
 insertchanges:
-	@perl -w -f $(DEBIAN)/scripts/misc/insert-changes.pl
+	@perl -w -f $(DEBIAN)/scripts/misc/insert-changes.pl $(DEBIAN)
 
 diffupstream:
 	@git diff-tree -p refs/remotes/linux-2.6/master..HEAD $(shell ls | grep -vE '^(ubuntu|$(DEBIAN)|\.git.*)')
