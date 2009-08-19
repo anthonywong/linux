@@ -47,7 +47,7 @@ clean: debian/control
 	rm -rf $(DEBIAN)/abi/$(release)-$(revision)
 	rm -rf $(builddir)
 	rm -f $(stampdir)/stamp-*
-	rm -rf $(DEBIAN)/linux-*
+	rm -rf debian/linux-* debian/libc-dev*
 
 	# This gets rid of the d-i packages in control
 	cp -f $(DEBIAN)/control.stub $(DEBIAN)/control
