@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 
-my $debian=debian.master
+my $debian;
+$debian = $ARGV[0] if (defined $ARGV[0]);
+$debian = 'debian.master' if (!defined $debian);
 
 system("make -s -f $debian/rules printchanges > $debian/changes");
 
