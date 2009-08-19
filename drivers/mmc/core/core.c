@@ -1120,7 +1120,11 @@ void mmc_rescan(struct work_struct *work)
 	/*
 	 * ...and finally MMC.
 	 */
+#ifdef CONFIG_ARCH_DOVE
+	err = mmc_send_op_cond(host, 0x40000, &ocr);
+#else
 	err = mmc_send_op_cond(host, 0, &ocr);
+#endif
 	if (!err) {
 		if (mmc_attach_mmc(host, ocr))
 			mmc_power_off(host);
