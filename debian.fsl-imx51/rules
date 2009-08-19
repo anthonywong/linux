@@ -47,11 +47,12 @@ clean: debian/control
 	rm -rf $(DEBIAN)/abi/$(release)-$(revision)
 	rm -rf $(builddir)
 	rm -f $(stampdir)/stamp-*
-	rm -rf debian/linux-* debian/libc-dev*
+	rm -rf debian/linux-* debian/libc-dev* debian/d-i* $(DEBIAN)/*-di
 
 	# This gets rid of the d-i packages in control
 	cp -f $(DEBIAN)/control.stub $(DEBIAN)/control
 	cp $(DEBIAN)/changelog debian/changelog
+	rm -f $(DEBIAN)/control.stub $(DEBIAN)/d-i/kernel-versions
 
 # Builds the image, arch headers and debug packages
 include $(DEBIAN)/rules.d/2-binary-arch.mk
