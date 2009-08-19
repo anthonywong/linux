@@ -13,6 +13,17 @@
 #ifndef _DOVEDCON_H_
 #define	_DOVEDCON_H_
 
+#define _PA_LCD0_BYPASS	(0x00)
+#define _PA_OLPC_DCON	(0x01)		/* display lcd0. */
+#define _PA_DUAL_VIEW	(0x10)
+#define _PA_DCON_MODE	(0x11)		/* LCD0 data */
+#define _PB_LCD1_BYPASS	(0x00)
+#define _PB_LCD0_BYPASS	(0x01)
+#define _PB_RESERVED	(0x10)
+#define _PB_DCON_MODE	(0x11)		/* LCD0 data */
+
+#ifdef __KERNEL__
+
 struct dovedcon_mach_info {
 	unsigned int port_a;
 	unsigned int port_b;
@@ -67,15 +78,7 @@ struct dovedcon_info {
 #define _SMAB_CLKOE		(0x1<<12)
 #define _SMAB_CLKO		(0x1<<11)
 #define _PORTB_SEL(mode)	(mode<<8)
-	#define _PB_LCD1_BYPASS	(0x00)
-	#define _PB_LCD0_BYPASS	(0x01)
-	#define _PB_RESERVED	(0x10)
-	#define _PB_DCON_MODE	(0x11)		/* LCD0 data */
 #define _PORTA_SEL(mode)	(mode<<6)
-	#define _PA_LCD0_BYPASS	(0x00)
-	#define _PA_OLPC_DCON	(0x01)		/* display lcd0. */
-	#define _PA_DUAL_VIEW	(0x10)
-	#define _PA_DCON_MODE	(0x11)		/* LCD0 data */
 #define _DCON_STATUS1		(0x1<<3)
 #define _DCON_STATUS0		(0x1<<2)
 #define _MONO_LUMI		(0x1<<2)
@@ -145,5 +148,5 @@ struct dovedcon_info {
 
 /* offset, 0x0A4, Crosstalk Look up table index. Table 1 @ 0x0000_0xxx. */
 /* offset, 0x0A8, Crosstalk Look up table data. */
-
+#endif /* __KERNEL__ */
 #endif /*_DOVEDCON_H_ */
