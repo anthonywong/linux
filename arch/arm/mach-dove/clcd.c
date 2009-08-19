@@ -181,6 +181,21 @@ static struct fb_videomode video_modes[] = {
 	.lower_margin	= 31,
 	.sync		= 0,
 	},
+	[6] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1920,
+	.yres		= 1080,
+
+	.hsync_len	= 32,
+	.left_margin	= 80,
+	.right_margin	= 48,
+
+	.vsync_len	= 5,
+	.upper_margin	= 23,
+	.lower_margin	= 3,
+	.sync		= 0,
+	},
 
 };
 
