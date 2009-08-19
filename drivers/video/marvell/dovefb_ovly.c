@@ -41,12 +41,17 @@
 
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
+#include <video/dovefb_display.h>
 #include "dovefb_if.h"
 
 #define MAX_QUEUE_NUM	60
 #define RESET_BUF	0x1
 #define FREE_ENTRY	0x2
 
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+extern struct display_settings lcd_config;
+#endif
 static int dovefb_ovly_set_par(struct fb_info *fi);
 static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset);
 static void set_dma_control0(struct dovefb_layer_info *dfli);
@@ -549,23 +554,32 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 		break;
 	case DOVEFB_IOCTL_GET_FBID:
 		mutex_lock(&dfli->access_ok);
-		copy_to_user(argp, &dfli->cur_fbid, sizeof(unsigned int));
+		if (copy_to_user(argp, &dfli->cur_fbid, sizeof(unsigned int))) {
+			mutex_unlock(&dfli->access_ok);
+			return -EFAULT;
+		}
 		mutex_unlock(&dfli->access_ok);
 		break;
 	case DOVEFB_IOCTL_GET_SRC_MODE:
 		mutex_lock(&dfli->access_ok);
-		copy_to_user(argp, &dfli->src_mode, sizeof(int));
+		if (copy_to_user(argp, &dfli->src_mode, sizeof(int))) {
+			mutex_unlock(&dfli->access_ok);
+			return -EFAULT;
+		}
 		mutex_unlock(&dfli->access_ok);
 		break;
 	case DOVEFB_IOCTL_SET_SRC_MODE:
 		mutex_lock(&dfli->access_ok);
-		copy_from_user(&dfli->src_mode, argp, sizeof(int));
+		if (copy_from_user(&dfli->src_mode, argp, sizeof(int))) {
+			mutex_unlock(&dfli->access_ok);
+			return -EFAULT;
+		}
 		mutex_unlock(&dfli->access_ok);
 		break;
 	case DOVEFB_IOCTL_GET_FBPA:
 		{
 		struct shm_private_info info;
-		int i, index;
+		int index;
 
 		if (copy_from_user(&info, argp,
 		    sizeof(struct shm_private_info)))
@@ -577,7 +591,8 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 		/* calc physical address. */
 		info.fb_pa = (unsigned long)(dfli->fb_start_dma+
 				(index*info.width*info.height*MAX_YUV_PIXEL));
-		copy_to_user(argp, &info, sizeof(struct shm_private_info));
+		if (copy_to_user(argp, &info, sizeof(struct shm_private_info)))
+			return -EFAULT;
 
 		break;
 		}
@@ -808,6 +823,11 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 	x &= 0xef0fff01;
 
 	/*
+	 * enable horizontal smooth scaling.
+	 */
+	x |= 0x1 << 6;
+
+	/*
 	 * If we are in a pseudo-color mode, we need to enable
 	 * palette lookup.
 	 */
@@ -893,7 +913,8 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 	pixel_offset = (yoffset * var->xres_virtual) + xoffset;
 
 	if (dfli->new_addr) {
-		addr = dfli->new_addr;
+		addr = dfli->new_addr +
+			(pixel_offset * (var->bits_per_pixel >> 3));
 	} else {
 		addr = dfli->fb_start_dma +
 			(pixel_offset * (var->bits_per_pixel >> 3));
@@ -928,6 +949,7 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 	struct fb_var_screeninfo *var = &fi->var;
 	int pix_fmt;
 	int xzoom, yzoom;
+	int xbefzoom;
 
 	/*
 	 * Determine which pixel format we're going to use.
@@ -955,12 +977,31 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 	/*
 	 * Configure graphics DMA parameters.
 	 */
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+	switch (lcd_config.display_mode) {
+	case DISPLAY_NORMAL:
+	case DISPLAY_CLONE:
+	case DISPLAY_DUALVIEW:
+		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
+		xbefzoom = var->xres/2;
+		break;
+	case DISPLAY_EXTENDED:
+		xbefzoom = var->xres/2/2;
+		set_graphics_start(fi, fi->var.xoffset+(var->xres/2), fi->var.yoffset);
+	default:
+		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
+		xbefzoom = var->xres/2;
+		;
+	}
+#else
+	xbefzoom = var->xres/2;
 	set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
-
+#endif
 	if ((dfli->pix_fmt >= 0) && (dfli->pix_fmt < 10)) {
 		writel((var->xres_virtual * var->bits_per_pixel) >> 3,
 			dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
-		writel((var->yres << 16) | var->xres,
+		writel((var->yres << 16) | xbefzoom,
 			dfli->reg_base + LCD_SPU_DMA_HPXL_VLN);
 		writel((var->yres << 16) | var->xres,
 			dfli->reg_base + LCD_SPU_DZM_HPXL_VLN);
@@ -978,7 +1019,7 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 				dfli->reg_base + LCD_SPU_DMA_PITCH_UV);
 		}
 
-		writel((var->yres << 16) | var->xres,
+		writel((var->yres << 16) | (xbefzoom*2),
 			dfli->reg_base + LCD_SPU_DMA_HPXL_VLN);
 		if (info->fixed_output == 0) {
 			yzoom = dfli->surface.viewPortInfo.zoomYSize;
