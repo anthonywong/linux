@@ -211,16 +211,6 @@ install-arch-headers:
 binary-arch-headers: install-arch-headers
 	dh_testdir
 	dh_testroot
-ifeq ($(do_libc_dev),true)
-	dh_installchangelogs -plinux-libc-dev
-	dh_installdocs -plinux-libc-dev
-	dh_compress -plinux-libc-dev
-	dh_fixperms -plinux-libc-dev
-	dh_installdeb -plinux-libc-dev
-	dh_gencontrol -plinux-libc-dev
-	dh_md5sums -plinux-libc-dev
-	dh_builddeb -plinux-libc-dev
-endif
 
 binary-%: pkgimg = $(bin_pkg_name)-$*
 binary-%: pkghdr = $(hdrs_pkg_name)-$*
