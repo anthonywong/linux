@@ -118,12 +118,20 @@ config FB_DOVE_CLCD_DEFAULT_OPTION
 	depends on FB_DOVE && (FB_DOVE_CLCD || FB_DOVE_CLCD1)
 	default "lcd0:1280x768-24@60,lcd1:1024x768-16@60"
 
+config DOVEFB_DISPLAY_MODE
+	tristate "Support display configuration."
+	depends on FB_DOVE && FB_DOVE_CLCD && FB_DOVE_CLCD1
+	default y if ARCH_DOVE
+	---help---
+	Say Y here if you want to build driver into kernel. Default is N.
+
 config FB_DOVE_CLCD_FLAREON_GV
 	tristate "Marvell DOVE Color LCD - Flareon GV"
 	depends on FB_DOVE && (FB_DOVE_CLCD || FB_DOVE_CLCD1)
 	default y if ARCH_REALVIEW
 	---help---
 	Say Y here if your LCD version is on Flareon GV. Default is N.
+
 ## Following is for MUSTANG LCD config
 config FB_MUSTANG_CLCD
     tristate "Marvell Mustang Color LCD support"

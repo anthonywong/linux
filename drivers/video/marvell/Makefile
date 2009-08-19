@@ -6,3 +6,4 @@ obj-$(CONFIG_FB_DOVE)          += dovefb_base.o dovefb_gfx.o dovefb_ovly.o dovef
 
 obj-$(CONFIG_FB_DOVE_DCON)     += dovedcon.o
 
+obj-$(CONFIG_DOVEFB_DISPLAY_MODE)	+=	dovefb_display.o

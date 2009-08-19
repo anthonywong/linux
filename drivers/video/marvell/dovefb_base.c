@@ -41,11 +41,18 @@
 
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
+#include <video/dovefb_display.h>
 #include "dovefb_if.h"
 
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
 #define DOVEFB_INT_MASK  DMA_FRAME_IRQ0_ENA(0x1)
+
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+struct display_settings lcd_config;
+EXPORT_SYMBOL(lcd_config);
+#endif
 
 static int dovefb_init_layer(struct platform_device *pdev,
 		enum dovefb_type type, struct dovefb_info *info,
@@ -533,7 +540,6 @@ bad_options:
 }
 #endif
 
-
 static int dovefb_init_layer(struct platform_device *pdev,
 		enum dovefb_type type, struct dovefb_info *info,
 		struct resource *res)
@@ -599,6 +605,7 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	 * fix me, currently, vpro occupy a very large dma.
 	 * It's better not to alloc DMA buffer from dma_alloc_xxx
 	 */
+//	if (0 == fb_start) {
 #ifdef CONFIG_ARCH_DOVE
 	dfli->fb_start = dma_alloc_writecombine(dfli->dev, dfli->fb_size,
 						&dfli->fb_start_dma,
@@ -619,7 +626,14 @@ static int dovefb_init_layer(struct platform_device *pdev,
 		goto failed;
 	}
 
-	memset(dfli->fb_start, 0, dfli->fb_size);
+//		fb_start = dfli->fb_start;
+//		fb_start_dma = dfli->fb_start_dma;
+//	} else {
+//		dfli->fb_start = fb_start;
+//		dfli->fb_start_dma = fb_start_dma;
+//	}
+
+	//memset(dfli->fb_start, 0, dfli->fb_size);
 	fi->fix.smem_start = dfli->fb_start_dma;
 	fi->fix.smem_len = dfli->fb_size;
 	fi->screen_base = dfli->fb_start;
@@ -839,6 +853,7 @@ static int __init dovefb_probe(struct platform_device *pdev)
 		goto failed_irq;
 	}
 
+
 	ret = register_framebuffer(info->vid_plane->fb_info);
 	if (ret < 0) {
 		printk(KERN_ERR "doveFB: Failed to register VID FB.\n");
@@ -846,6 +861,19 @@ static int __init dovefb_probe(struct platform_device *pdev)
 		goto failed_fb;
 	}
 
+#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
+    defined(CONFIG_DOVEFB_DISPLAY_MODE)
+	lcd_config.display_mode = DISPLAY_NORMAL;
+	lcd_config.extend_ratio = 2;
+
+	if (info->id == 0) {
+		lcd_config.lcd0_gfx = info->gfx_plane->fb_info;
+		lcd_config.lcd0_vid = info->vid_plane->fb_info;
+	} else {
+		lcd_config.lcd1_gfx = info->gfx_plane->fb_info;
+		lcd_config.lcd1_vid = info->vid_plane->fb_info;
+	}
+#endif
 	printk(KERN_INFO "  o dovefb: frame buffer device was successfully "
 			"loaded.\n");
 	return 0;
