@@ -3094,6 +3094,18 @@ static int mv643xx_eth_resume(struct platform_device *pdev)
 		wrlp(mp, INT_MASK_EXT, INT_EXT_LINK_PHY | INT_EXT_TX);
 		wrlp(mp, INT_MASK, mp->interrupt_mask);
 		netif_device_attach(mp->dev);
+	} else {
+		init_pscr(mp, pd->speed, pd->duplex);
+		mib_counters_clear(mp);
+
+		if (mp->shared->win_protect)
+			wrl(mp, WINDOW_PROTECT(mp->port_num),
+			    mp->shared->win_protect);
+
+		wrlp(mp, SDMA_CONFIG, PORT_SDMA_CONFIG_DEFAULT_VALUE);
+
+		set_rx_coal(mp, 250);
+		set_tx_coal(mp, 0);
 	}
 	return 0;
 }
