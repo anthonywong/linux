@@ -1,3 +1,14 @@
+linux-fsl-imx51 (2.6.31-100.4) karmic; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * abstracted debian -- kernel-wedge needs to work in debian/
+  * abstracted debian -- ensure we install the copyright file
+  * abstracted-debian -- drop the debian directories from headers
+  * abstracted-debian -- drop the debian directories from headers part 2
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 20 Aug 2009 10:13:41 -0600
+
 linux-fsl-imx51 (2.6.31-100.3) karmic; urgency=low
 
   * UBUNTU: [Config] Produce headers packages of the form linux-headers-2.6.31-ABI
