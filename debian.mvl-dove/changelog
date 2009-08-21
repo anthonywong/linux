@@ -1,0 +1,42 @@
+linux-mvl-dove (2.6.31-200.4) karmic; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] Added rsync to build dependencies
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Fri, 21 Aug 2009 09:11:26 -0600
+
+linux-mvl-dove (2.6.31-200.3) karmic; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * abstracted debian -- kernel-wedge needs to work in debian/
+  * abstracted debian -- ensure we install the copyright file
+  * abstracted-debian -- drop the debian directories from headers
+  * abstracted-debian -- drop the debian directories from headers part 2
+
+  [ Tim Gardner ]
+
+  * SAUCE: Improve error reporting in postinst
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 20 Aug 2009 11:10:40 -0600
+
+linux-mvl-dove (2.6.31-200.2) karmic; urgency=low
+
+  * Marvell ARM dove marvell-dove-2.6.31-rc5
+  * Abstracted debian build infrastructure.
+  * Bump ABI to 200 to avoid conflictas with other kernel packages.
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 13 Aug 2009 08:45:29 -0600
+
+linux-mvl-dove (2.6.31-200.1) UNRELEASED; urgency=low
+
+  * Marvell ARM dove marvell-dove-2.6.31-rc4
+
+ -- Brad Figg <brad.figg@canonical.com>  Fri, 07 Aug 2009 07:23:35 -0700
+
+linux-mvl-dove (2.6.31-0.0) UNRELEASED; urgency=low
+
+  * Initial release
+
+ -- Brad Figg <brad.figg@canonical.com>  Fri, 07 Aug 2009 04:56:51 -0700

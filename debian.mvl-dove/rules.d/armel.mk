@@ -1,0 +1,10 @@
+build_arch	= arm
+header_arch	= arm
+asm_link	= arm
+defconfig	= defconfig
+flavours	= dove dove-z0
+build_image	= uImage
+kernel_file	= arch/$(build_arch)/boot/uImage
+install_file	= vmlinuz
+no_dumpfile     = true
+loader		= grub
