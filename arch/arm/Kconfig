@@ -1510,6 +1510,8 @@ source "drivers/uio/Kconfig"
 
 source "drivers/staging/Kconfig"
 
+source "ubuntu/Kconfig"
+
 endmenu
 
 source "fs/Kconfig"
