@@ -11,10 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/mbus.h>
+#include <linux/delay.h>
 #include <asm/mach/pci.h>
 #include <asm/mach/arch.h>
 #include <asm/setup.h>
-#include <asm/delay.h>
 #include <plat/pcie.h>
 #include <mach/irqs.h>
 #include <mach/bridge-regs.h>
@@ -253,7 +253,7 @@ void dove_restore_pcie_regs(void)
 	u32 reg;
 
 	/* Configure PCIE ports */
-	for (i=0; i<num_pcie_ports; i++)
+	for (i = 0; i<num_pcie_ports; i++)
 	{
 		orion_pcie_set_local_bus_nr(pcie_port[i].base, pcie_port[i].root_bus_nr);
 		orion_pcie_setup(pcie_port[i].base, &dove_mbus_dram_info);
@@ -265,18 +265,21 @@ void dove_restore_pcie_regs(void)
 	writel(reg, CPU_CONTROL);
 
 	/*
-	 * Loop waiting for link up on the phy of both ports.
-	 * In one or both ports does not have a card plugged in then this
-	 * loop will add a short delay
+	 * Loop waiting for link up on the phy of the ports.
 	 */
-	
+
 	do {
-		if (orion_pcie_link_up(pcie_port[0].base) && 
-		    orion_pcie_link_up(pcie_port[1].base))
+		int i;
+		int links_ready = 1;
+
+		for (i = 0; i < num_pcie_ports; i++)
+			if (!orion_pcie_link_up(pcie_port[i].base))
+				links_ready = 0;
+
+		if (links_ready)
 			break;
 
-		timeout--;
-		udelay(1000);
-	} while (timeout);
+		mdelay(1);
+	} while (timeout--);
 }
 #endif
