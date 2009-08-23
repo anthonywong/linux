@@ -31,19 +31,6 @@ Description: SRCPKGNAME kernel source for version PKGVER with Ubuntu patches
  you do not want this package. Install the appropriate SRCPKGNAME-headers
  package instead.
 
-Package: SRCPKGNAME-doc
-Architecture: all
-Section: doc
-Priority: optional
-Conflicts: SRCPKGNAME-doc-2.6
-Replaces: SRCPKGNAME-doc-2.6
-Description: SRCPKGNAME kernel specific documentation for version PKGVER
- This package provides the various documents in the PKGVER kernel
- Documentation/ subdirectory.  These document kernel subsystems, APIs, device
- drivers, and so on.  See
- /usr/share/doc/SRCPKGNAME-doc/00-INDEX for a list of what is
- contained in each file.
-
 Package: linux-headers-PKGVER-ABINUM
 Architecture: all
 Section: devel
