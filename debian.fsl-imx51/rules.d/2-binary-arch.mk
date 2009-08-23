@@ -32,7 +32,7 @@ install-%: dbgpkgdir = $(CURDIR)/debian/$(dbg_pkg_name)-$*
 install-%: basepkg = $(hdrs_pkg_name)
 install-%: hdrdir = $(CURDIR)/debian/$(basepkg)-$*/usr/src/$(basepkg)-$*
 install-%: target_flavour = $*
-install-%: $(stampdir)/stamp-build-% checks-%
+install-%: $(stampdir)/stamp-build-% checks-% install-headers
 	dh_testdir
 	dh_testroot
 	dh_clean -k -p$(bin_pkg_name)-$*
@@ -159,6 +159,11 @@ endif
 			$(CURDIR)/debian/$(basepkg)-$*/DEBIAN/$$script;		\
 	  chmod 755 $(CURDIR)/debian/$(basepkg)-$*/DEBIAN/$$script;		\
 	done
+
+	#
+	# Now drop in the arch independent headers.
+	#
+	rsync -a $(indep_hdrdir)/ $(hdrdir)
 
 	# At the end of the package prep, call the tests
 	DPKG_ARCH="$(arch)" KERN_ARCH="$(build_arch)" FLAVOUR="$*"	\
