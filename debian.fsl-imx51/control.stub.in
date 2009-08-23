@@ -8,14 +8,3 @@ Build-Depends-Indep: xmlto, docbook-utils, gs, transfig, bzip2, sharutils
 Build-Conflicts: findutils (= 4.4.1-1ubuntu1)
 Vcs-Git: http://kernel.ubuntu.com/git-repos/ubuntu/ubuntu-karmic.git
 
-Package: linux-headers-PKGVER-ABINUM
-Architecture: all
-Section: devel
-Priority: optional
-Depends: coreutils | fileutils (>= 4.0)
-#Provides: SRCPKGNAME-headers, SRCPKGNAME-headers-2.6
-Description: Header files related to SRCPKGNAME kernel version PKGVER
- This package provides kernel header files for version PKGVER, for sites
- that want the latest kernel headers. Please read
- /usr/share/doc/SRCPKGNAME-headers-PKGVER-ABINUM/debian.README.gz for details
-
