@@ -41,7 +41,7 @@ Package: linux-headers-PKGVER-ABINUM-FLAVOUR
 Architecture: ARCH
 Section: devel
 Priority: optional
-Depends: coreutils | fileutils (>= 4.0), linux-headers-PKGVER-ABINUM, ${shlibs:Depends}
+Depends: coreutils | fileutils (>= 4.0), ${shlibs:Depends}
 #Provides: SRCPKGNAME-headers, SRCPKGNAME-headers-2.6
 Description: Linux kernel headers for version PKGVER on DESC
  This package provides kernel header files for version PKGVER on
@@ -49,19 +49,4 @@ Description: Linux kernel headers for version PKGVER on DESC
  .
  This is for sites that want the latest kernel headers.  Please read
  /usr/share/doc/linux-headers-PKGVER-ABINUM/debian.README.gz for details.
-
-Package: linux-image-debug-PKGVER-ABINUM-FLAVOUR
-Architecture: ARCH
-Section: devel
-Priority: optional
-#Provides: linux-debug
-Description: Linux kernel debug image for version PKGVER on DESC
- This package provides a kernel debug image for version PKGVER on
- DESC.
- .
- This is for sites that wish to debug the kernel.
- .
- The kernel image contained in this package is NOT meant to boot from. It
- is uncompressed, and unstripped. This package also includes the
- unstripped modules.
 
