@@ -89,14 +89,6 @@ bin_pkg_name=$(bin_base_pkg_name)-$(abi_release)
 dbg_pkg_name=$(bin_base_pkg_name)-debug-$(abi_release)
 hdrs_pkg_name=linux-headers-$(abi_release)
 
-#
-# Similarly with the linux-source package, you need not build it as a developer. Its
-# somewhat I/O intensive and utterly useless.
-#
-ifneq ($(wildcard /CurrentlyBuilding),)
-do_linux_source_content=true
-endif
-
 # Support parallel=<n> in DEB_BUILD_OPTIONS (see #209008)
 #
 # These 2 environment variables set the -j value of the kernel build. For example,
