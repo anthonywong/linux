@@ -1,10 +1,21 @@
 linux-mvl-dove (2.6.31-201.5) karmic; urgency=low
 
+  [ Tim Gardner ]
+
+  * [Config] Do not generate a doc package
+  * [Config] Do not produce a source package
+  * [Config] Common headers package is arch (armel) dependent
+  * [Config] Create common headers file for armel only.
+    - LP: #417266
   * Rebased to master Ubuntu-2.6.31-6.26  which brings the Dove branch up to
     2.6.31-rc6.
   * Dropped 'fixes to the Makefile system to enable out-of-tree compilation'
-    in order from the Dove repo in order to make in-tree builds work.
+    from the Dove repo in order to make in-tree builds work.
   * Enabled the ubuntu directory drivers (aufs, compcache, etc).
+
+  [ Brad Figg ]
+
+  * Add dove-z0 flavour
 
  --  Tim Gardner <tim.gardner@canonical.com>  Fri, 21 Aug 2009 12:50:08 -0600
 
