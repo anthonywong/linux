@@ -1,3 +1,11 @@
+linux-fsl-imx51 (2.6.31-100.6) karmic; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] Add rsync as a build dependency
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Sun, 23 Aug 2009 18:09:36 -0600
+
 linux-fsl-imx51 (2.6.31-100.5) karmic; urgency=low
 
   [ Tim Gardner ]
