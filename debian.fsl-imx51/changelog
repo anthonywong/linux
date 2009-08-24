@@ -1,3 +1,11 @@
+linux-fsl-imx51 (2.6.31-100.7) karmic; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] Removed debug package rules
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Mon, 24 Aug 2009 06:43:24 -0600
+
 linux-fsl-imx51 (2.6.31-100.6) karmic; urgency=low
 
   [ Tim Gardner ]
