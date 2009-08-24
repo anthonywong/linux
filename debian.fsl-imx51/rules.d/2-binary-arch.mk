@@ -110,18 +110,6 @@ ifneq ($(skipsub),true)
 	done
 endif
 
-ifneq ($(skipdbg),true)
-	# Debug image is simple
-	install -m644 -D $(builddir)/build-$*/vmlinux \
-		$(dbgpkgdir)/usr/lib/debug/boot/vmlinux-$(abi_release)-$*
-	$(kmake) O=$(builddir)/build-$* modules_install \
-		INSTALL_MOD_PATH=$(dbgpkgdir)/usr/lib/debug
-	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(abi_release)-$*/build
-	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(abi_release)-$*/source
-	rm -f $(dbgpkgdir)/usr/lib/debug/lib/modules/$(abi_release)-$*/modules.*
-	rm -fr $(dbgpkgdir)/usr/lib/debug/lib/firmware
-endif
-
 	# The flavour specific headers image
 	# TODO: Would be nice if we didn't have to dupe the original builddir
 	install -d -m755 $(hdrdir)
@@ -256,30 +244,6 @@ ifneq ($(skipsub),true)
 		dh_md5sums -p$$pkg;			\
 		dh_builddeb -p$$pkg;			\
 	done
-endif
-
-ifneq ($(skipdbg),true)
-	dh_installchangelogs -p$(dbgpkg)
-	dh_installdocs -p$(dbgpkg)
-	dh_compress -p$(dbgpkg)
-	dh_fixperms -p$(dbgpkg)
-	dh_installdeb -p$(dbgpkg)
-	dh_gencontrol -p$(dbgpkg)
-	dh_md5sums -p$(dbgpkg)
-	dh_builddeb -p$(dbgpkg)
-
-	# Hokay...here's where we do a little twiddling...
-	# Renaming the debug package prevents it from getting into
-	# the primary archive, and therefore prevents this very large
-	# package from being mirrored. It is instead, through some
-	# archive admin hackery, copied to http://ddebs.ubuntu.com.
-	#
-	mv ../$(dbgpkg)_$(release)-$(revision)_$(arch).deb \
-		../$(dbgpkg)_$(release)-$(revision)_$(arch).ddeb
-	grep -v '^$(dbgpkg)_.*$$' debian/files > debian/files.new
-	mv debian/files.new debian/files
-	# Now, the package wont get into the archive, but it will get put
-	# into the debug system.
 endif
 
 $(stampdir)/stamp-flavours:

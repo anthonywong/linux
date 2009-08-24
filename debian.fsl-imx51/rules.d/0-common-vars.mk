@@ -35,7 +35,6 @@ AUTOBUILD=
 ifneq ($(AUTOBUILD),)
 skipabi		= true
 skipmodule	= true
-skipdbg		= true
 gitver=$(shell if test -f .git/HEAD; then cat .git/HEAD; else uuidgen; fi)
 gitverpre=$(shell echo $(gitver) | cut -b -3)
 gitverpost=$(shell echo $(gitver) | cut -b 38-40)
@@ -47,14 +46,6 @@ ubuntu_log_opts += --no-kern-log
 endif
 ifneq ($(PRINTSHAS),)
 ubuntu_log_opts += --print-shas
-endif
-
-#
-# The debug packages are ginormous, so you probably want to skip
-# building them (as a developer).
-#
-ifeq ($(wildcard /CurrentlyBuilding),)
-skipdbg=true
 endif
 
 abinum		:= $(shell echo $(revision) | sed -e 's/\..*//')$(abi_suffix)
