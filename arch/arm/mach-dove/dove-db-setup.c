@@ -43,7 +43,6 @@
 #include "common.h"
 #include "clock.h"
 #include "mpp.h"
-#include "pm.h"
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
 #include "pdma/mvPdma.h"
