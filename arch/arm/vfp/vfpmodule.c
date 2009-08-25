@@ -383,6 +383,21 @@ static void vfp_pm_init(void)
 	sysdev_register(&vfp_pm_sysdev);
 }
 
+void vfp_save(void)
+{
+	struct pm_message temp;
+	/*
+	 * if VFP was not initialized yet, then do nothing
+	 */
+	if (VFP_arch)
+		vfp_pm_suspend(NULL , temp);
+}
+
+void vfp_restore(void)
+{
+	if (VFP_arch)
+		vfp_pm_resume(NULL);
+}
 
 #else
 static inline void vfp_pm_init(void) { }
@@ -514,18 +529,3 @@ static int __init vfp_init(void)
 
 late_initcall(vfp_init);
 
-void vfp_save(void)
-{
-	struct pm_message temp;
-	/*
-	 * if VFP was not initialized yet, then do nothing
-	 */
-	if (VFP_arch)
-		vfp_pm_suspend(NULL , temp);
-}
-
-void vfp_restore(void)
-{
-	if (VFP_arch)
-		vfp_pm_resume(NULL);
-}
