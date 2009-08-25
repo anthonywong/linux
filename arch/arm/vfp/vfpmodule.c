@@ -514,36 +514,18 @@ static int __init vfp_init(void)
 
 late_initcall(vfp_init);
 
-
-void vfp_save_user_state(u32 *);
-void vfp_load_user_state(u32 *);
-
-static u32 fpexc, fpscr;
-static u32 vfp_regs[32];
-
 void vfp_save(void)
 {
+	struct pm_message temp;
 	/*
 	 * if VFP was not initialized yet, then do nothing
 	 */
-	if (!VFP_arch)
-		return;
-
-	fpexc = fmrx(FPEXC);
-	fpscr = fmrx(FPSCR);
-	vfp_save_user_state(vfp_regs);
+	if (VFP_arch)
+		vfp_pm_suspend(NULL , temp);
 }
 
 void vfp_restore(void)
 {
-	u32 access;
-	
-	if (!VFP_arch)
-		return;
-
-	access = get_copro_access();	
-	set_copro_access(access | CPACC_FULL(10) | CPACC_FULL(11));
-	vfp_load_user_state(vfp_regs);
-	fmxr(FPSCR, fpscr);
-	fmxr(FPEXC, fpexc);
+	if (VFP_arch)
+		vfp_pm_resume(NULL);
 }

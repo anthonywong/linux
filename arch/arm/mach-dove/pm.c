@@ -668,17 +668,9 @@ void dove_standby(void)
 	dove_save_timer_regs();	
 	dove_save_int_regs();
 
-#if defined(CONFIG_VFP)
-	vfp_save();
-#endif
-
 	/* Suspend the CPU only */	
 	mvPmuStandby();	
 	cpu_init();
-
-#if defined(CONFIG_VFP)
-	vfp_restore();
-#endif
 
 	/* Restore CPU Peripherals state */
 	dove_restore_int_regs();
