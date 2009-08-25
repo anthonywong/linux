@@ -1726,9 +1726,10 @@ void __init dove_config_arbitration(void)
 #endif
         writel(sc_dec, DOVE_MC_VIRT_BASE + 0x510);
         /* End of supersection testing */
+#ifdef CONFIG_PM
 	pm_registers_add(dove_arbitration_regs,
 			 ARRAY_SIZE(dove_arbitration_regs));
-
+#endif
 }
 void __init dove_init(void)
 {
