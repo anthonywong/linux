@@ -63,6 +63,8 @@ int pm_registers_add(u32 *registers, int count);
  */
 int pm_registers_add_single(u32 register_address);
 
+void dove_pm_register (void);
+
 void dove_pm_cpuidle_deepidle (void);
 
 #endif
