@@ -213,10 +213,8 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 		gfp |= GFP_DMA;
 
 	page = alloc_pages(gfp, order);
-	if (!page){
-	     printk("%s %d: failed to alloc pages order %d\n",__func__, __LINE__, order);
+	if (!page)
 		goto no_page;
-	}
 
 	/*
 	 * Invalidate any data that might be lurking in the
