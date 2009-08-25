@@ -39,6 +39,7 @@
 #include <asm/hardware/pxa-dma.h>
 #include <mach/dove_nand.h>
 #include <mach/dove_ssp.h>
+#include <mach/pm.h>
 #include <plat/cafe-orion.h>
 #include "common.h"
 #include "clock.h"
