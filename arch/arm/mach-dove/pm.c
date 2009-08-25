@@ -622,6 +622,12 @@ void dove_deepidle(void)
 	reg |= (PMU_SIGNAL_0 << PMU_SIG_7_SLCT_CTRL_OFFS);
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
 
+#ifdef CONFIG_IWMMXT
+	/* force any iWMMXt context to ram **/
+	if (elf_hwcap & HWCAP_IWMMXT)
+		iwmmxt_task_disable(NULL);
+#endif
+
 #if defined(CONFIG_VFP)
 	vfp_save();
 #endif
@@ -657,6 +663,12 @@ void dove_standby(void)
 	reg &= ~PMU_SIG_7_SLCT_CTRL_MASK;
 	reg |= (PMU_SIGNAL_BLINK/*PMU_SIGNAL_0*/ << PMU_SIG_7_SLCT_CTRL_OFFS);
 	MV_REG_WRITE(PMU_SIG_SLCT_CTRL_0_REG, reg);
+
+#ifdef CONFIG_IWMMXT
+	/* force any iWMMXt context to ram **/
+	if (elf_hwcap & HWCAP_IWMMXT)
+		iwmmxt_task_disable(NULL);
+#endif
 
 	/* Save generic list of registes */
 	pm_registers_action(SAVE);
