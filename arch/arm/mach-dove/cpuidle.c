@@ -15,7 +15,7 @@
 #include <linux/cpuidle.h>
 #include <asm/io.h>
 #include <asm/proc-fns.h>
-#include "pm.h"
+#include <mach/pm.h>
 
 #define DOVE_IDLE_STATES	2
 

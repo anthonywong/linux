@@ -194,10 +194,12 @@ int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram)
 	DWBR(DMA_MAX_DECODE_WIN - 1) = DOVE_SB_REGS_PHYS_BASE;
 	DWCR(DMA_MAX_DECODE_WIN - 1) = 0x03FF03C1; /* 16M, Attrib=0x03, Target=0xC, WinEn=1 */ 
 
+#ifdef CONFIG_PM
 	for(i = 0; i < DMA_MAX_DECODE_WIN; i++) {
 		pm_registers_add_single(DWBR_ADDR(i));
 		pm_registers_add_single(DWCR_ADDR(i));
 	}
+#endif
 	return 0;
 }
 
