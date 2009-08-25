@@ -144,7 +144,7 @@ static void sdhci_sdio_gpio_irq_disable(struct sdhci_host *host)
 
 	mmiowb();
 }
-
+#ifdef DEBUG
 static void sdhci_sdio_gpio_irq_dump(struct sdhci_host *host)
 {
 	struct sdhci_mv_host *mv_host = sdhci_priv(host);
@@ -165,7 +165,7 @@ static void sdhci_sdio_gpio_irq_dump(struct sdhci_host *host)
 	printk(" gpio data in [0x%x] 0x%08x\n", GPIO_DATA_IN(gpio),
 	       readl(GPIO_DATA_IN(gpio)));
 }
-
+#endif
 static int __devinit sdhci_mv_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -173,7 +173,7 @@ static int __devinit sdhci_mv_probe(struct platform_device *pdev)
 	struct resource *r;
 	struct sdhci_dove_int_wa *data = (struct sdhci_dove_int_wa *)
 		pdev->dev.platform_data;
-	int ret;
+	int ret = 0;
 
 	host = sdhci_alloc_host(&pdev->dev, sizeof(*mv_host));
 	if (IS_ERR(host)) {
