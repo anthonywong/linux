@@ -1,13 +1,13 @@
 /*
- * include/asm-arm/arch-dove/pm.h
+ * arch/arm/mach-dove/include/mach/pm.h
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_ARCH_PM_H
-#define __ASM_ARCH_PM_H
+#ifndef __MACH_PM_H
+#define __MACH_PM_H
 
 #include <asm/errno.h>
 #include <mach/irqs.h>
@@ -62,4 +62,7 @@ int pm_registers_add(u32 *registers, int count);
  * request the pm core to save & restore single register
  */
 int pm_registers_add_single(u32 register_address);
+
+void dove_pm_cpuidle_deepidle (void);
+
 #endif
