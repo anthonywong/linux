@@ -74,9 +74,7 @@ endif
 ifeq ($(CONFIG_MV_INCLUDE_TS),y)
 HAL_TS_DIR      = $(HAL_DIR)/ts
 endif
-ifeq ($(CONFIG_MV_INCLUDE_PMU),y)
 HAL_PMU_DIR      = $(HAL_DIR)/pmu
-endif
 ifeq ($(CONFIG_MV_INCLUDE_NFC),y)
 HAL_NFC_DIR      = $(HAL_DIR)/nfc
 endif
