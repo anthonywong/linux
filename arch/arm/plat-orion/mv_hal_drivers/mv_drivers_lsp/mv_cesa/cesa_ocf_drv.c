@@ -120,6 +120,8 @@ struct cesa_ocf_process {
 struct cesa_ocf_pm_info {
 	MV_U32 tdma_ctl;
 	MV_U32 isr_mask;
+	MV_U32 cfg;
+	MV_U32 desc_ptr;
 };
 
 
@@ -1268,11 +1270,15 @@ static int cesa_ocf_suspend(struct platform_device *pdev, pm_message_t state)
 	/* save registers */
 	cesa_ocf_pm.tdma_ctl = MV_REG_READ(MV_CESA_TDMA_CTRL_REG);
 	cesa_ocf_pm.isr_mask = MV_REG_READ(MV_CESA_ISR_MASK_REG);
+	cesa_ocf_pm.cfg	     = MV_REG_READ(MV_CESA_CFG_REG);
+	cesa_ocf_pm.desc_ptr = MV_REG_READ(MV_CESA_CHAN_DESC_OFFSET_REG);
+
+	/* disable all interrupts */
+	MV_REG_WRITE(MV_CESA_ISR_MASK_REG, 0);
 
 	/* clear interrupts */
 	MV_REG_WRITE(MV_CESA_ISR_CAUSE_REG, 0);
-	/* disable all interrupts */
-	MV_REG_WRITE(MV_CESA_ISR_MASK_REG, 0);
+
 	/* disable tdma */
 	if (cesa_ocf_pm.tdma_ctl & MV_CESA_TDMA_ENABLE_MASK)
 		MV_REG_WRITE(MV_CESA_TDMA_CTRL_REG,
@@ -1289,6 +1295,8 @@ static int cesa_ocf_resume(struct platform_device *pdev)
 	MV_REG_WRITE(MV_CESA_ISR_CAUSE_REG, 0);
 
 	/* restore registers */
+	MV_REG_WRITE(MV_CESA_CFG_REG, cesa_ocf_pm.cfg);
+	MV_REG_WRITE(MV_CESA_CHAN_DESC_OFFSET_REG, cesa_ocf_pm.desc_ptr);
 	MV_REG_WRITE(MV_CESA_TDMA_CTRL_REG, cesa_ocf_pm.tdma_ctl);
 	MV_REG_WRITE(MV_CESA_ISR_MASK_REG, cesa_ocf_pm.isr_mask);
 
