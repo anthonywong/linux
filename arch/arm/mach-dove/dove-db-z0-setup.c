@@ -38,7 +38,7 @@
 #include "clock.h"
 #include "mpp.h"
 #include "dove-front-panel-common.h"
-#include "pm.h"
+#include <mach/pm.h>
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
 
