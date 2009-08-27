@@ -1,3 +1,31 @@
+linux-mvl-dove (2.6.31-202.6) karmic; urgency=low
+
+  [ Brad Figg ]
+
+  * [Config] Common network options
+  * [Config] Common filesystem options
+  * [Config] Common library routines
+  * [Config] Common cryptographic API options.
+  * [Config] Common security and kernel hacking options.
+  * [Config] Common device driver options enabled for Marvell dove
+  * [Config] Dove Configuration, AppArmor
+  * [Config] Dove Configuration, Staging
+  * [Config] Dove Configuration, Userspace I/O drivers
+  * [Config] Dove Configuration, Voltage & Regulator, Auxiliary Display
+  * [Config] Dove Configuration, LED and RTC
+  * [Config] Dove Configuration, USB
+  * [Config] Dove Configuration, General setup (initramfs/initrd)
+  * [Config] Dove Configuration, HID, USB networking, Multimedia, Android,
+    Input, etc.
+
+  [ Tim Gardner ]
+
+  * [Config] Dropped KSM
+  * Rebased against 2.6.31-8.28 which brings the Dove branch up to
+    2.6.31-rc7
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Thu, 27 Aug 2009 09:29:45 -0600
+
 linux-mvl-dove (2.6.31-201.5) karmic; urgency=low
 
   [ Tim Gardner ]
