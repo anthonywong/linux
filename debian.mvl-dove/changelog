@@ -1,3 +1,20 @@
+linux-mvl-dove (2.6.31-203.7) karmic; urgency=low
+
+  [ Brad Figg ]
+
+  * [Config] Dove configuration, fixup DOVEFB_DISPLAY_MODE=y
+  * SAUCE: Correct undefined dove_pm_register which prevented Z0 flavour
+    from building.
+
+  [ Upstream Kernel Changes ]
+
+  * rebased against marvell-dove-2.6.31-rc7
+  * Revert "dove: fix build error when builing modules This patch builds
+    the hal sub-dirs only when builing the kernel"
+  * Revert "fixes to the Makefile system to enable out-of-tree compilation"
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Sun, 30 Aug 2009 17:27:30 -0600
+
 linux-mvl-dove (2.6.31-202.6) karmic; urgency=low
 
   [ Brad Figg ]
