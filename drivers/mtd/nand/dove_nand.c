@@ -37,6 +37,7 @@
 #define NDPCR		(0x18) /* Page Count Register */
 #define NDBDR0		(0x1C) /* Bad Block Register 0 */
 #define NDBDR1		(0x20) /* Bad Block Register 1 */
+#define NDECCCR		(0x28) /* ECC Control Register */
 #define NDDB		(0x40) /* Data Buffer */
 #define NDCB0		(0x48) /* Command Buffer0 */
 #define NDCB1		(0x4C) /* Command Buffer1 */
@@ -86,6 +87,8 @@
 #define NDCB0_CMD2_MASK		(0xff << 8)
 #define NDCB0_CMD1_MASK		(0xff)
 #define NDCB0_ADDR_CYC_SHIFT	(16)
+
+#define NDECCCR_BCH_EN		(0x1 << 0)
 
 /* macros for registers read/write */
 #define nand_writel(info, off, val)	\
@@ -530,20 +533,30 @@ static void disable_int(struct pxa3xx_nand_info *info, uint32_t int_mask)
 /* NOTE: it is a must to set ND_RUN firstly, then write command buffer
  * otherwise, it does not work
  */
-static int write_cmd(struct pxa3xx_nand_info *info)
+static int write_cmd(struct pxa3xx_nand_info *info, int allow_ecc)
 {
-	uint32_t ndcr;
+	uint32_t ndcr, ecc_ctrl;
+
+	ecc_ctrl = nand_readl(info, NDECCCR);
 
 	/* clear status bits and run */
 	nand_writel(info, NDSR, NDSR_MASK);
 
 	ndcr = info->reg_ndcr;
+	if (allow_ecc) {
+		ndcr |= info->use_ecc ? NDCR_ECC_EN : 0;
+		ecc_ctrl |= info->use_bch ? NDECCCR_BCH_EN : 0;
+	}
+	else {
+		ndcr &= ~NDCR_ECC_EN;
+		ecc_ctrl &= ~NDECCCR_BCH_EN;
+	}
 
-	ndcr |= info->use_ecc ? NDCR_ECC_EN : 0;
 	ndcr |= info->use_dma ? NDCR_DMA_EN : 0;
 	ndcr |= NDCR_ND_RUN;
 
 	nand_writel(info, NDCR, ndcr);
+	nand_writel(info, NDECCCR, ecc_ctrl);
 
 	if (wait_for_event(info, NDSR_WRCMDREQ)) {
 		printk(KERN_ERR "timed out writing command\n");
@@ -673,12 +686,12 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
+static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event, int allow_ecc)
 {
 	uint32_t ndcr;
 	int ret, timeout = CHIP_DELAY_TIMEOUT;
 
-	if (write_cmd(info)) {
+	if (write_cmd(info, allow_ecc)) {
 		info->retcode = ERR_SENDCMD;
 		goto fail_stop;
 	}
@@ -746,7 +759,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		if (prepare_read_prog_cmd(info, cmdset->read1, column, page_addr))
 			break;
 
-		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ | NDSR_DBERR);
+		pxa3xx_nand_do_cmd(info, (NDSR_RDDREQ | NDSR_DBERR), 1);
 
 		/* We only are OOB, so if the data has error, does not matter */
 		if (info->retcode == ERR_DBERR)
@@ -763,7 +776,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		if (prepare_read_prog_cmd(info, cmdset->read1, column, page_addr))
 			break;
 
-		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ | NDSR_DBERR);
+		pxa3xx_nand_do_cmd(info, (NDSR_RDDREQ | NDSR_DBERR), 1);
 
 		if (info->retcode == ERR_DBERR) {
 			/* for blank page (all 0xff), HW will calculate its ECC as
@@ -790,13 +803,13 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 				info->seqin_column, info->seqin_page_addr))
 			break;
 
-		pxa3xx_nand_do_cmd(info, NDSR_WRDREQ);
+		pxa3xx_nand_do_cmd(info, NDSR_WRDREQ, 1);
 		break;
 	case NAND_CMD_ERASE1:
 		if (prepare_erase_cmd(info, cmdset->erase, page_addr))
 			break;
 
-		pxa3xx_nand_do_cmd(info, NDSR_CS0_BBD | NDSR_CS0_CMDD);
+		pxa3xx_nand_do_cmd(info, (NDSR_CS0_BBD | NDSR_CS0_CMDD), 0);
 		break;
 	case NAND_CMD_ERASE2:
 		break;
@@ -811,13 +824,13 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 				cmdset->read_id : cmdset->read_status))
 			break;
 
-		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ);
+		pxa3xx_nand_do_cmd(info, NDSR_RDDREQ, 0);
 		break;
 	case NAND_CMD_RESET:
 		if (prepare_other_cmd(info, cmdset->reset))
 			break;
 
-		ret = pxa3xx_nand_do_cmd(info, NDSR_CS0_CMDD);
+		ret = pxa3xx_nand_do_cmd(info, NDSR_CS0_CMDD, 0);
 		if (ret == 0) {
 			int timeout = 2;
 			uint32_t ndcr;
@@ -956,8 +969,8 @@ static int __readid(struct pxa3xx_nand_info *info, uint32_t *id)
 		return -EINVAL;
 	}
 
-	/* Send command */
-	if (write_cmd(info))
+	/* Send command, don't allow ecc for read_id command */
+	if (write_cmd(info, 0))
 		goto fail_timeout;
 
 	/* Wait for CMDDM(command done successfully) */
@@ -1024,7 +1037,6 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(builtin_flash_types); i++) {
-
 		f = builtin_flash_types[i];
 
 		if (pxa3xx_nand_config_flash(info, f))
