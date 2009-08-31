@@ -259,7 +259,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 	}
 
 	if (!channel_active) {
-		disable_irq(INT_ADM_AARM);
+		disable_irq_nosync(INT_ADM_AARM);
 		clk_ctl = CLK_TO_BE_DIS;
 		mod_timer(&timer, jiffies + HZ);
 	}
