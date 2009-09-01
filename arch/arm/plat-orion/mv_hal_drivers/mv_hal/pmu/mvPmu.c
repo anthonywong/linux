@@ -215,22 +215,6 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	MV_U32 reg;
 	MV_32 i;
 
-	/* Configure the L2$ Low Leakage status in the PMU Control Register */
-	reg = MV_REG_READ(PMU_CTRL_REG);
-	if (pmu->deepIdleStatus)
-		reg &= ~PMU_CTRL_L2_LOWLEAK_EN_MASK;
-	else
-		reg |= PMU_CTRL_L2_LOWLEAK_EN_MASK;
-	MV_REG_WRITE(PMU_CTRL_REG, reg);
-
-	/* Set the Power Good Pin monitoring control */
-	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
-	if (pmu->cpuPwrGoodEn)
-		reg |= PMU_PWR_GOOD_PIN_EN_MASK;
-	else
-		reg &= ~PMU_PWR_GOOD_PIN_EN_MASK;
-	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
-
 	/* Set the DeepIdle and Standby power delays */
       	MV_REG_WRITE(PMU_STANDBY_PWR_DELAY_REG, PMU_STBY_CORE_PWR_DLY);
 
@@ -897,28 +881,6 @@ MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 	reg |= PMU_DVS_CTRL_DVS_EN_MASK;
 	MV_REG_WRITE(PMU_CPU_DVS_CTRL_REG, reg);
 
-#ifdef CONFIG_DOVE_REV_Z0
-	/* Workarround for the PMU race with CPU */
-	udelay(2);
-
-	/* Force PC to zero */
-	MV_REG_WRITE(PMU_PC_FORCE_CTRL_REG, ((0x0 << PMU_PC_FORCE_VAL_OFFS) | PMU_PC_FORCE_CMD_MASK));
-	MV_REG_WRITE(PMU_PC_FORCE_CTRL_REG, 0x0);
-
-	reg = MV_REG_READ(PMU_INT_MASK_REG);
-	MV_REG_WRITE(PMU_INT_MASK_REG, PMU_INT_DVS_DONE_MASK);
-	for (i=0; i<1000000; i++)
-	{
-		if ((MV_REG_READ(0x20210) & 0x2) == 0x2)
-		{
-			MV_REG_WRITE(PMU_INT_MASK_REG, reg);
-			return MV_OK;
-		}
-	}
-	MV_REG_WRITE(PMU_INT_MASK_REG, reg);
-
-	return MV_TIMEOUT;
-#else
 	/* Disable all PMU interrupts and enable DVS done */
 	reg = MV_REG_READ(PMU_INT_MASK_REG);
 	MV_REG_WRITE(PMU_INT_MASK_REG, PMU_INT_DVS_DONE_MASK);
@@ -933,7 +895,6 @@ MV_STATUS mvPmuDvs (MV_U32 pSet, MV_U32 vSet, MV_U32 rAddr, MV_U32 sAddr)
 		return MV_TIMEOUT;
 
 	return MV_OK;
-#endif
 }
 
 /*******************************************************************************
