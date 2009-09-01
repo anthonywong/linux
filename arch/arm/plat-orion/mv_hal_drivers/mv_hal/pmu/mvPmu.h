@@ -114,8 +114,7 @@ typedef enum
 /* PMU init structure */
 typedef struct 
 {
-	MV_BOOL     	deepIdleStatus; /* enable/disable L2 retention enable in WFI */
-	MV_BOOL		cpuPwrGoodEn;	/* Enable/Disable monioring the CPU Power Good pin */
+	MV_BOOL     	L2LowLeakEn; 	/* enable/disable L2 retention enable in WFI */
 	MV_BOOL		batFltMngDis;	/* Disable the handling of battery fault assertion */
 	MV_BOOL     	exitOnBatFltDis;/* Disable resume in battery fault situation in Standby */
 	MV_PMU_SIG_SRC	sigSelctor[16]; /* PMU signal selector of signal 0-15 */
