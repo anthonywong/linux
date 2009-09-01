@@ -2599,6 +2599,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	kthread_stop
 EXPORT_SYMBOL vmlinux 0x00000000	kvasprintf
 EXPORT_SYMBOL vmlinux 0x00000000	kzfree
 EXPORT_SYMBOL vmlinux 0x00000000	laptop_mode
+EXPORT_SYMBOL vmlinux 0x00000000	lcd_config
 EXPORT_SYMBOL vmlinux 0x00000000	lcd_device_register
 EXPORT_SYMBOL vmlinux 0x00000000	lcd_device_unregister
 EXPORT_SYMBOL vmlinux 0x00000000	lease_get_mtime
