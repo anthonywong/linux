@@ -461,23 +461,6 @@ extern "C" {
 #define PMU_BAT_FLT_STBY_EXIT_DIS_OFFS	1
 #define PMU_BAT_FLT_STBY_EXIT_DIS_MASK	(0x1 << PMU_BAT_FLT_STBY_EXIT_DIS_OFFS)
 
-/* PMU Wait Timer Register */
-#define PMU_WAIT_TIMER_REG		(MV_PMU_REGS_BASE + 0x8024)
-
-/* PMU Wait For Register */
-#define PMU_WAIT_FOR_REG		(MV_PMU_REGS_BASE + 0x8028)
-#define PMU_W4_CPU_IDLE_MASK		(0x1 << 0)
-#define PMU_W4_CPU_PLL_LOCK_MASK	(0x1 << 1)
-#define PMU_W4_CORE_PLL_LOCK_MASK	(0x1 << 2)
-#define PMU_W4_CPU_PWR_GOOD_MASK	(0x1 << 3)
-#define PMU_W4_IRQ_MASK			(0x1 << 4)
-#define PMU_W4_FIQ_MASK			(0x1 << 5)
-#define PMU_W4_BAT_FLT_MASK		(0x1 << 6)
-#define PMU_W4_SB_UPSTRM_REQ_MASK	(0x1 << 7)
-#define PMU_W4_LCD_0_INT_MASK		(0x1 << 8)
-#define PMU_W4_LCD_1_INT_MASK		(0x1 << 9)
-#define PMU_W4_STBY_PWR_GOOD_MASK	(0x1 << 10)
-
 /* PMU Signal selector Control 0 Register */
 #define PMU_SIG_SLCT_CTRL_0_REG		(MV_PMU_REGS_BASE + 0x802C)
 #define PMU_SIG_0_SLCT_CTRL_OFFS	0
@@ -521,28 +504,6 @@ extern "C" {
 
 /* PMU Blink Duty Cycle Control Register */
 #define PMU_BLINK_DUTY_CYCLE_CTRL_REG	(MV_PMU_REGS_BASE + 0x8038)
-
-/* PMU Internal Control Register */
-#define PMU_INTERNAL_CTRL_REG		(MV_PMU_REGS_BASE + 0x8050)
-#define PMU_INTCTRL_PMU_EN_MASK		(0x1 << 0)
-#define PMU_INTCTRL_PMU_CLK_SLCT_MASK	(0x1 << 4)
-#define PMU_INTCTRL_STBY_PRE_EN_MASK	(0x1 << 8)
-#define PMU_INTCTRL_STBY_DDR_EN_MASK	(0x1 << 9)
-#define PMU_INTCTRL_DFS_PRE_EN_MASK	(0x1 << 16)
-#define PMU_INTCTRL_DFS_CPU_EN_MASK	(0x1 << 17)
-#define PMU_INTCTRL_DFS_DDR_EN_MASK	(0x1 << 18)
-#define PMU_INTCTRL_DFS_L2_EN_MASK	(0x1 << 19)
-#define PMU_INTCTRL_DFS_PLL_EN_MASK	(0x1 << 20)
-#define PMU_INTCTRL_DVS_PRE_EN_MASK	(0x1 << 21)
-#define PMU_INTCTRL_CPU_RESET_MASK	(0x1 << 22)
-#define PMU_INTCTRL_STBY_RESET_OUT_MASK	(0x1 << 23)
-
-/* PMU PC Force Control Register */
-#define PMU_PC_FORCE_CTRL_REG		(MV_PMU_REGS_BASE + 0x8054)
-#define PMU_PC_FORCE_CMD_OFFS		0
-#define PMU_PC_FORCE_CMD_MASK		(0x1 << PMU_PC_FORCE_CMD_OFFS)
-#define PMU_PC_FORCE_VAL_OFFS		1
-#define PMU_PC_FORCE_VAL_MASK		(0x7F << PMU_PC_FORCE_VAL_OFFS)
 
 /* PMU ISO Control Register */
 #define PMU_ISO_CTRL_REG		(MV_PMU_REGS_BASE + 0x8058)
