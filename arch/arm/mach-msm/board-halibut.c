@@ -50,6 +50,7 @@
 
 #include "devices.h"
 #include "socinfo.h"
+#include "clock.h"
 #include "msm-keypad-devices.h"
 #include "pm.h"
 
@@ -677,6 +678,8 @@ static void __init halibut_init(void)
 	if (cpu_is_msm7x01()
 	    && SOCINFO_VERSION_MAJOR(socinfo_get_version()) == 2)
 		halibut_clock_data.max_axi_khz = 160000;
+
+	msm_acpu_clock_init(&halibut_clock_data);
 
 #if defined(CONFIG_MSM_SERIAL_DEBUGGER)
 	msm_serial_debug_init(MSM_UART3_PHYS, INT_UART3,
