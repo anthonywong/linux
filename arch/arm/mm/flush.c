@@ -139,12 +139,16 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 
 void __flush_dcache_page(struct address_space *mapping, struct page *page)
 {
+	void *virual_address = page_address(page);
 	/*
 	 * Writeback any data associated with the kernel mapping of this
 	 * page.  This ensures that data in the physical page is mutually
 	 * coherent with the kernels mapping.
 	 */
-	__cpuc_flush_dcache_page(page_address(page));
+#ifdef CONFIG_HIGHMEM
+	if (virual_address)
+#endif
+		__cpuc_flush_dcache_page(virual_address);
 
 	/*
 	 * If this is a page cache page, and we have an aliasing VIPT cache,
