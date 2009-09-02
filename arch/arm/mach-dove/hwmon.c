@@ -111,17 +111,33 @@ static int dovetemp_init_sensor(void)
 
 static int dovetemp_read_temp(void)
 {
-	u32 reg;
+	u32 reg = 0;
+	u32 reg1 = 0;
+	u32 i;
 
 	/* Verify that the temperature is valid */
 	reg = readl(INTER_REGS_BASE | PMU_TEMP_DIOD_CTRL1_REG);
 	if ((reg & PMU_TDC1_TEMP_VLID_MASK) == 0x0)
 		return -EIO;
 
-	/* Read the raw temperature */
-	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
-	reg &= PMU_TM_CURR_TEMP_MASK;
-	reg >>= PMU_TM_CURR_TEMP_OFFS;
+	/*
+	 * Read the thermal sensor looking two successive readings that differ
+	 * in LSb only.
+	 */
+	for (i=0; i<16; i++) {
+		/* Read the raw temperature */
+		reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
+		reg &= PMU_TM_CURR_TEMP_MASK;
+		reg >>= PMU_TM_CURR_TEMP_OFFS;
+
+		if (((reg ^ reg1) & 0x1FE) == 0x0)
+			break;
+		/* save the current reading for the next iteration */
+		reg1 = reg;
+	}
+
+	if (i==16)
+		printk(KERN_WARNING, "dove-hwmon: Thermal sensor is unstable!\n");
 	
 	/* Convert the temperature to Celsuis */
 	return DOVE_TSEN_RAW2TEMP(reg);
