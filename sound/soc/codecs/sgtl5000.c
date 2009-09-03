@@ -975,7 +975,7 @@ static int sgtl5000_init(struct snd_soc_device *socdev)
 
 	sgtl5000_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	ret = snd_soc_register_card(socdev);
+	ret = snd_soc_init_card(socdev);
 	if (ret < 0) {
 		printk(KERN_ERR "sgtl5000: failed to register card\n");
 		snd_soc_free_pcms(socdev);
