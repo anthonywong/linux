@@ -29,6 +29,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-dai.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
@@ -139,9 +140,9 @@ static int imx_3stack_audio_hw_params(struct snd_pcm_substream *substream,
 
 #if SGTL5000_SSI_MASTER
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-	    SND_SOC_DAIFMT_CBM_CFM | SND_SOC_DAIFMT_SYNC;
-	if (channels == 2)
-		dai_format |= SND_SOC_DAIFMT_TDM;
+	    SND_SOC_DAIFMT_CBM_CFM;
+//	if (channels == 2)
+//		dai_format |= SND_SOC_DAIFMT_TDM;
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
@@ -154,9 +155,9 @@ static int imx_3stack_audio_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 #else
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-	    SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_SYNC;
-	if (channels == 2)
-		dai_format |= SND_SOC_DAIFMT_TDM;
+	    SND_SOC_DAIFMT_CBS_CFS;
+//	if (channels == 2)
+//		dai_format |= SND_SOC_DAIFMT_TDM;
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
@@ -549,16 +550,16 @@ static int imx_3stack_machine_remove(struct platform_device *pdev)
 }
 
 /* imx_3stack audio machine driver */
-static struct snd_soc_machine snd_soc_machine_imx_3stack = {
+static struct snd_soc_card snd_soc_machine_imx_3stack = {
 	.name = "imx-3stack",
+	.platform = &imx_soc_platform,
 	.dai_link = &imx_3stack_dai,
 	.num_links = 1,
 	.remove = imx_3stack_machine_remove,
 };
 
 static struct snd_soc_device imx_3stack_snd_devdata = {
-	.machine = &snd_soc_machine_imx_3stack,
-	.platform = &imx_soc_platform,
+	.card = &snd_soc_machine_imx_3stack,
 	.codec_dev = &soc_codec_dev_sgtl5000,
 };
 
