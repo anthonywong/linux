@@ -243,11 +243,4 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
 		 */
 		flush_pfn_alias(pfn, vmaddr);
 	}
-
-	/*
-	 * Invalidate kernel mapping.  No data should be contained
-	 * in this mapping of the page.  FIXME: this is overkill
-	 * since we actually ask for a write-back and invalidate.
-	 */
-	__cpuc_flush_dcache_page(page_address(page));
 }
