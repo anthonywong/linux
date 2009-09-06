@@ -280,7 +280,7 @@ MV_STATUS mvPdmaChanAlloc(MV_PDMA_PERIPH_TYPE chanType,
 		chanHndl->width = DCMD_WIDTH_8_BYTE;
 		break;
 	case MV_PDMA_NAND_COMMAND:
-		chanHndl->burstSize = DCMD_BURST_16_BYTES;
+		chanHndl->burstSize = DCMD_BURST_8_BYTES;
 		chanHndl->width = DCMD_WIDTH_8_BYTE;
 		break;
 	case MV_PDMA_MEMORY:
