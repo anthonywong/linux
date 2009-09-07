@@ -49,6 +49,8 @@
 #include "pdma/mvPdma.h"
 
 #define DOVE_DB_WAKEUP_GPIO	(3)
+#define DOVE_DB_POWER_OFF_GPIO	(8)
+
 static unsigned int front_panel = 0;
 module_param(front_panel, uint, 0);
 MODULE_PARM_DESC(front_panel, "set to 1 if the dove DB front panel connected");
@@ -578,7 +580,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 	{ 6, MPP_PMU },			/* Wakup - Charger */
 	{ 7, MPP_PMU },			/* Standby led */
 
-	{ 8, MPP_GPIO },
+	{ 8, MPP_GPIO },		/* power off */
 
 	{ 9, MPP_PMU },			/* Cpu power good indication */
 	{ 10, MPP_PMU },		/* DVS SDI control */
@@ -627,6 +629,21 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 static struct dove_mpp_mode dove_db_tact_int_mpp_modes[] __initdata = {
 	{ 57, MPP_GPIO_AUDIO1 }, /* use this mpp for the tact irq line */
 };
+
+static void dove_db_power_off(void)
+{
+	if (gpio_request(DOVE_DB_POWER_OFF_GPIO, "DOVE_DB_POWER_OFF") != 0) {
+		pr_err("Dove: failed to setup power off GPIO\n");
+		return;
+	}
+
+	if (gpio_direction_output(DOVE_DB_POWER_OFF_GPIO, 0) != 0) {
+ 		printk(KERN_ERR "%s failed to set power off output pin %d\n",
+		       __func__, DOVE_DB_POWER_OFF_GPIO);
+		return;
+	}
+}
+
 #ifdef CONFIG_PM
 /*****************************************************************************
  * POWER MANAGEMENT
@@ -691,6 +708,7 @@ static void __init dove_db_init(void)
 	if ((front_panel) && (left_tact || right_tact))
 		dove_mpp_conf(dove_db_tact_int_mpp_modes);
 
+	pm_power_off = dove_db_power_off;
 
         /* the (SW1) button is for use as a "wakeup" button */
 	dove_wakeup_button_setup(DOVE_DB_WAKEUP_GPIO);
