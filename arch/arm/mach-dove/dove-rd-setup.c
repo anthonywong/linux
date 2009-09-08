@@ -312,7 +312,7 @@ static void __init dove_rd_init(void)
 	dove_cam_init(&dove_cafe_cam_data);
 	dove_lcd_spi_init();
 	dove_fp_clcd_init();
-	dove_vpro_init();
+	dove_vmeta_init();
 	dove_gpu_init();
 	dove_tact_init(&tact_dove_fp_data);
 	dove_cesa_init();
@@ -337,6 +337,6 @@ MACHINE_START(DOVE_RD, "Marvell MV88F6781-RD Board")
 	.map_io		= dove_map_io,
 	.init_irq	= dove_init_irq,
 	.timer		= &dove_timer,
-/* reserve memory for VPRO and GPU */
+/* reserve memory for VMETA and GPU */
 	.fixup		= dove_tag_fixup_mem32,
 MACHINE_END
