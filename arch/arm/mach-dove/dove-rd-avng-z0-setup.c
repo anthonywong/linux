@@ -497,7 +497,7 @@ static void __init dove_rd_avng_init(void)
 	dove_rd_avng_nfc_init();
 	dove_i2s_init(0, &i2s0_data);
 
-	dove_vpro_init();
+	dove_vmeta_init();
 	dove_gpu_init();
 	dove_cesa_init();
 	dove_hwmon_init();
@@ -530,6 +530,6 @@ MACHINE_START(DOVE_RD_AVNG_Z0, "Marvell MV88F6781-RD Avengers Z0 MID Board")
 	.map_io		= dove_map_io,
 	.init_irq	= dove_init_irq,
 	.timer		= &dove_timer,
-/* reserve memory for VPRO and GPU */
+/* reserve memory for VMETA and GPU */
 	.fixup		= dove_tag_fixup_mem32,
 MACHINE_END

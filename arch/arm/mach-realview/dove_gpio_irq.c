@@ -120,12 +120,12 @@ static void gpio_clear_int(dove_gpio0_pin pin)
 *	Dove FlareonGV use these gpio0 pins as interrupt on Realview EB
 *	
 *	GPIO0_0: LCD
-*	GPIO0_3: VPRO
+*	GPIO0_3: VMETA
 *	GPIO0_7: GPU
 */
 #define NR_DOVE_GPIO_IRQ 3
 #define DOVE_GPIO0_LCD 0
-#define DOVE_GPIO0_VPRO 1
+#define DOVE_GPIO0_VMETA 1
 #define DOVE_GPIO0_GPU 2
 static struct dove_gpio_irq_handler irq_handles[NR_DOVE_GPIO_IRQ];
 
@@ -152,7 +152,7 @@ int dove_gpio_request(dove_gpio0_pin pin, struct dove_gpio_irq_handler *handle)
 			nr_irq = DOVE_GPIO0_LCD;
 			break;
 		case DOVE_GPIO0_3:
-			nr_irq = DOVE_GPIO0_VPRO;
+			nr_irq = DOVE_GPIO0_VMETA;
 			break;
 		case DOVE_GPIO0_7:
 			nr_irq = DOVE_GPIO0_GPU;
@@ -202,7 +202,7 @@ int dove_gpio_free(dove_gpio0_pin pin, char *dev_name)
 			nr_irq = DOVE_GPIO0_LCD;
 			break;
 		case DOVE_GPIO0_3:
-			nr_irq = DOVE_GPIO0_VPRO;
+			nr_irq = DOVE_GPIO0_VMETA;
 			break;
 		case DOVE_GPIO0_7:
 			nr_irq = DOVE_GPIO0_GPU;
@@ -247,7 +247,7 @@ static irqreturn_t realview_dove_gpio_irqhandler(int irq, void *dev_id)//, struc
 		nr_irq = DOVE_GPIO0_LCD;
 		intr_pin = DOVE_GPIO0_0;
 	} else if(int_status & (1 << (int)DOVE_GPIO0_3)) {
-		nr_irq = DOVE_GPIO0_VPRO;
+		nr_irq = DOVE_GPIO0_VMETA;
 		intr_pin = DOVE_GPIO0_3;
 	} else if(int_status & (1 << (int)DOVE_GPIO0_7)) {
 		nr_irq = DOVE_GPIO0_GPU;
