@@ -81,13 +81,13 @@
 #define DOVEFB_IOCTL_SWITCH_GRA_OVLY		_IO(DOVEFB_IOC_MAGIC, 15)
 #define DOVEFB_IOCTL_SWITCH_VID_OVLY		_IO(DOVEFB_IOC_MAGIC, 16)
 
-/* For VPro integration */
+/* For Vmeta integration */
 #define DOVEFB_IOCTL_GET_FREELIST		_IO(DOVEFB_IOC_MAGIC, 17)
 
 /* Wait for vsync happen. */
 #define DOVEFB_IOCTL_WAIT_VSYNC			_IO(DOVEFB_IOC_MAGIC, 18)
 
-/* for xv+vpro/sw decoder w/o memory move. */
+/* for xv+vmeta/sw decoder w/o memory move. */
 #define DOVEFB_IOCTL_GET_FBPA			_IO(DOVEFB_IOC_MAGIC, 19)
 #define DOVEFB_IOCTL_GET_FBID			_IO(DOVEFB_IOC_MAGIC, 20)
 #define DOVEFB_IOCTL_SET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 21)
@@ -187,7 +187,7 @@ struct _sCursorConfig {
 };
 
 #define SHM_NORMAL		0x01
-#define SHM_VPRO		0x02
+#define SHM_VMETA		0x02
 #define SHM_SOFTWARE_MAP	0x04
 
 struct shm_private_info {
