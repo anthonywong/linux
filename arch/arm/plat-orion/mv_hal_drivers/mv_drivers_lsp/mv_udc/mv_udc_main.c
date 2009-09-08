@@ -1933,6 +1933,17 @@ int usb_start_resource_dump(void)
   return 0;
 }
 
+#ifdef CONFIG_PM
+static int mv_usb_gadget_suspend(struct platform_device *pdev,
+				 pm_message_t state)
+{
+	/* this driver doesn't support PM yet*/
+	return -1;
+}
+#else
+#define mv_usb_gadget_suspend NULL
+#endif
+
 static struct platform_driver mv_usb_gadget_driver = 
 {
 	.driver = {
@@ -1941,7 +1952,8 @@ static struct platform_driver mv_usb_gadget_driver =
 	},
 //	.bus        = &platform_bus_type,
 	.probe      = mv_usb_gadget_probe,
-	.remove     = __exit_p(mv_usb_gadget_remove), 
+	.remove     = __exit_p(mv_usb_gadget_remove),
+	.suspend    = mv_usb_gadget_suspend,
 };
 
 MODULE_VERSION (DRIVER_VERSION);
