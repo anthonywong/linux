@@ -227,7 +227,7 @@ static int __devinit sdhci_mv_probe(struct platform_device *pdev)
                 mv_host->dove_int_wa_info.func_select_bit = data->func_select_bit;
                 mv_host->dove_int_wa_info.status = 0; //disabled
 		ret = devm_request_irq(&pdev->dev, mv_host->dove_int_wa_info.irq,
-				       sdhci_dove_gpio_irq, IRQF_SHARED,
+				       sdhci_dove_gpio_irq, IRQF_DISABLED,
 				       mmc_hostname(host->mmc), host);
 		if(ret) {
 			dev_err(&pdev->dev, "cannot request wa irq\n");
