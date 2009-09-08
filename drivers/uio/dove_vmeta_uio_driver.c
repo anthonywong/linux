@@ -1,5 +1,5 @@
 /*
- * driver/uio/dove_vpro_uio_driver.c
+ * driver/uio/dove_vmeta_uio_driver.c
  */
 
 #include <linux/uio_driver.h>
@@ -12,43 +12,43 @@
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 
-#include "dove_vpro_uio_driver.h"
+#include "dove_vmeta_uio_driver.h"
 
 /* local control  */
-struct vpro_xv_video_queue {
+struct vmeta_xv_video_queue {
 	struct list_head list;
-	struct vpro_xv_frame frame_info;
+	struct vmeta_xv_frame frame_info;
 };
 
-struct vpro_xv_data {
-	struct mutex lock;			// for vpro xv enhancement
-	struct vpro_xv_video_queue iqueue;	// for vpro xv enhancement
-	struct vpro_xv_video_queue oqueue;	// for vpro xv enhancement
+struct vmeta_xv_data {
+	struct mutex lock;			// for vmeta xv enhancement
+	struct vmeta_xv_video_queue iqueue;	// for vmeta xv enhancement
+	struct vmeta_xv_video_queue oqueue;	// for vmeta xv enhancement
 };
 
-struct vpro_uio_data {
+struct vmeta_uio_data {
 	struct uio_info		uio_info;
 };
 
-static atomic_t vpro_available = ATOMIC_INIT(1);
+static atomic_t vmeta_available = ATOMIC_INIT(1);
 
-static int vpro_open(struct uio_info *info, struct inode *inode)
+static int vmeta_open(struct uio_info *info, struct inode *inode)
 {
-	if (!atomic_dec_and_test(&vpro_available)) {
-		atomic_inc(&vpro_available);
+	if (!atomic_dec_and_test(&vmeta_available)) {
+		atomic_inc(&vmeta_available);
 		return -EBUSY;	/* already open */
 	}
 
 	return 0;
 }
 
-static int vpro_release(struct uio_info *info, struct inode *inode)
+static int vmeta_release(struct uio_info *info, struct inode *inode)
 {
-	atomic_inc(&vpro_available); /* release the device */
+	atomic_inc(&vmeta_available); /* release the device */
 	return 0;
 }
 
-static int vpro_mmap(struct uio_info *info, struct vm_area_struct *vma)
+static int vmeta_mmap(struct uio_info *info, struct vm_area_struct *vma)
 {
 	struct uio_device *idev = vma->vm_private_data;
 	int mi;
@@ -68,9 +68,9 @@ static int vpro_mmap(struct uio_info *info, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO | VM_RESERVED;
 
 #if defined(CONFIG_ARCH_DOVE) && !defined(CONFIG_DOVE_REV_Z0)
-	if(mi == VPRO_CONTROL_REGISTER_MAP)
+	if(mi == VMETA_CONTROL_REGISTER_MAP)
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	else if(mi == VPRO_DMA_BUFFER_MAP)
+	else if(mi == VMETA_DMA_BUFFER_MAP)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 #else
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
@@ -82,25 +82,25 @@ static int vpro_mmap(struct uio_info *info, struct vm_area_struct *vma)
 			       vma->vm_page_prot);
 }
 
-static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg)
+static int vmeta_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
 
-	struct vpro_xv_data *xv_data = (struct vpro_xv_data*)info->priv;
+	struct vmeta_xv_data *xv_data = (struct vmeta_xv_data*)info->priv;
 
 	switch(cmd) {
-		case UIO_VPRO_IRQ_ENABLE:
+		case UIO_VMETA_IRQ_ENABLE:
 			enable_irq(info->irq);
 			break;
-		case UIO_VPRO_IRQ_DISABLE:
+		case UIO_VMETA_IRQ_DISABLE:
 			disable_irq(info->irq);
 			break;
-		case UIO_VPRO_XV_IN_QUEUE: {
-			struct vpro_xv_frame video_frame;
-			struct vpro_xv_video_queue *video_queue_data;
+		case UIO_VMETA_XV_IN_QUEUE: {
+			struct vmeta_xv_frame video_frame;
+			struct vmeta_xv_video_queue *video_queue_data;
 
-			__copy_from_user(&(video_frame), (int __user*)arg, sizeof(struct vpro_xv_frame));
-			video_queue_data = kzalloc(sizeof(struct vpro_xv_video_queue), GFP_KERNEL);
+			__copy_from_user(&(video_frame), (int __user*)arg, sizeof(struct vmeta_xv_frame));
+			video_queue_data = kzalloc(sizeof(struct vmeta_xv_video_queue), GFP_KERNEL);
 			video_queue_data->frame_info.phy_addr = video_frame.phy_addr;
 			video_queue_data->frame_info.size =  video_frame.size;
 
@@ -109,14 +109,14 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 			mutex_unlock(&xv_data->lock);
 			}
 			break;
-		case UIO_VPRO_XV_DQUEUE: {
-			struct vpro_xv_frame video_frame;
+		case UIO_VMETA_XV_DQUEUE: {
+			struct vmeta_xv_frame video_frame;
 
 			if (!list_empty(&xv_data->oqueue.list)) {
-				struct vpro_xv_video_queue *video_queue_data;
+				struct vmeta_xv_video_queue *video_queue_data;
 				
 				mutex_lock(&xv_data->lock);
-				video_queue_data = list_first_entry(&xv_data->oqueue.list, struct vpro_xv_video_queue, list);
+				video_queue_data = list_first_entry(&xv_data->oqueue.list, struct vmeta_xv_video_queue, list);
 				video_frame.phy_addr = video_queue_data->frame_info.phy_addr;
 				video_frame.size = video_queue_data->frame_info.size;
 				list_del(&video_queue_data->list);
@@ -127,17 +127,17 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 				video_frame.size = 0;
 			}
 
-			__copy_to_user((int __user*)arg, &video_frame, sizeof(struct vpro_xv_frame));
+			__copy_to_user((int __user*)arg, &video_frame, sizeof(struct vmeta_xv_frame));
 			}
 			break;
-		case UIO_VPRO_XV_QUERY_VIDEO: {
-			struct vpro_xv_frame video_frame;
+		case UIO_VMETA_XV_QUERY_VIDEO: {
+			struct vmeta_xv_frame video_frame;
 
 			if (!list_empty(&xv_data->iqueue.list)) {
-				struct vpro_xv_video_queue *video_queue_data;
+				struct vmeta_xv_video_queue *video_queue_data;
 				
 				mutex_lock(&xv_data->lock);
-				video_queue_data = list_first_entry(&xv_data->iqueue.list, struct vpro_xv_video_queue, list);
+				video_queue_data = list_first_entry(&xv_data->iqueue.list, struct vmeta_xv_video_queue, list);
 				video_frame.phy_addr = video_queue_data->frame_info.phy_addr;
 				video_frame.size = video_queue_data->frame_info.size;
 				list_del(&video_queue_data->list);
@@ -148,15 +148,15 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 				video_frame.size = 0;
 			}
 
-			__copy_to_user((int __user*)arg, &video_frame, sizeof(struct vpro_xv_frame));
+			__copy_to_user((int __user*)arg, &video_frame, sizeof(struct vmeta_xv_frame));
 			}
 			break;
-		case UIO_VPRO_XV_FREE_VIDEO: {
-			struct vpro_xv_frame video_frame;
-			struct vpro_xv_video_queue *video_queue_data;
+		case UIO_VMETA_XV_FREE_VIDEO: {
+			struct vmeta_xv_frame video_frame;
+			struct vmeta_xv_video_queue *video_queue_data;
 
-			__copy_from_user(&(video_frame), (int __user*)arg, sizeof(struct vpro_xv_frame));
-			video_queue_data = kzalloc(sizeof(struct vpro_xv_video_queue), GFP_KERNEL);
+			__copy_from_user(&(video_frame), (int __user*)arg, sizeof(struct vmeta_xv_frame));
+			video_queue_data = kzalloc(sizeof(struct vmeta_xv_video_queue), GFP_KERNEL);
 			video_queue_data->frame_info.phy_addr = video_frame.phy_addr;
 			video_queue_data->frame_info.size = video_frame.size;
 
@@ -165,23 +165,23 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 			mutex_unlock(&xv_data->lock);
 			}
 			break;
-		case UIO_VPRO_XV_INIT_QUEUE: {
+		case UIO_VMETA_XV_INIT_QUEUE: {
 			mutex_lock(&xv_data->lock);
 			while (!list_empty(&xv_data->iqueue.list)) {
-				struct vpro_xv_video_queue *iqueue_data;
+				struct vmeta_xv_video_queue *iqueue_data;
 				
-				iqueue_data = list_first_entry(&xv_data->iqueue.list, struct vpro_xv_video_queue, list);
+				iqueue_data = list_first_entry(&xv_data->iqueue.list, struct vmeta_xv_video_queue, list);
 				list_del(&iqueue_data->list);
 				kfree(iqueue_data);
-				printk(KERN_INFO "warning: [vpro uio driver] Here is a xv frame buffer not be free in iqueue.\n");
+				printk(KERN_INFO "warning: [vmeta uio driver] Here is a xv frame buffer not be free in iqueue.\n");
 			}
 			while (!list_empty(&xv_data->oqueue.list)) {
-				struct vpro_xv_video_queue *oqueue_data;
+				struct vmeta_xv_video_queue *oqueue_data;
 				
-				oqueue_data = list_first_entry(&xv_data->oqueue.list, struct vpro_xv_video_queue, list);
+				oqueue_data = list_first_entry(&xv_data->oqueue.list, struct vmeta_xv_video_queue, list);
 				list_del(&oqueue_data->list);
 				kfree(oqueue_data);
-				printk(KERN_INFO "warning: [vpro uio driver] Here is a xv     frame buffer not be free in oqueue.\n");
+				printk(KERN_INFO "warning: [vmeta uio driver] Here is a xv     frame buffer not be free in oqueue.\n");
 			}
 			INIT_LIST_HEAD(&xv_data->iqueue.list);
 			INIT_LIST_HEAD(&xv_data->oqueue.list);
@@ -195,23 +195,23 @@ static int vpro_ioctl(struct uio_info *info, unsigned int cmd, unsigned long arg
 	return ret;
 }
 
-static irqreturn_t vpro_irqhandler(int irq, void *dev_id)
+static irqreturn_t vmeta_irqhandler(int irq, void *dev_id)
 {
 	disable_irq_nosync(irq);
 	return IRQ_HANDLED;
 }
 
-static int dove_vpro_probe(struct platform_device *pdev)
+static int dove_vmeta_probe(struct platform_device *pdev)
 {
 	int id, ret = -ENODEV;
 	unsigned long start, size;
 	struct resource *res;
-	struct vpro_uio_data *vd;
-	struct vpro_xv_data *xvd;
+	struct vmeta_uio_data *vd;
+	struct vmeta_xv_data *xvd;
 
-	printk(KERN_INFO "Registering VPRO UIO driver:.\n");
+	printk(KERN_INFO "Registering VMETA UIO driver:.\n");
 
-	vd = kzalloc(sizeof(struct vpro_uio_data), GFP_KERNEL);
+	vd = kzalloc(sizeof(struct vmeta_uio_data), GFP_KERNEL);
 	if (vd == NULL) {
 		printk(KERN_ERR "vdec_prvdec_probe: "
 				"Failed to allocate memory.\n");
@@ -219,10 +219,10 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	}
 
 	/* Get internal registers memory. */
-	id = VPRO_CONTROL_REGISTER_MAP;
+	id = VMETA_CONTROL_REGISTER_MAP;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		printk(KERN_ERR "dove_vpro_probe: "
+		printk(KERN_ERR "dove_vmeta_probe: "
 				"No registers memory supplied.\n");
 		goto uio_register_fail;
 	}
@@ -233,30 +233,30 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	vd->uio_info.mem[id].memtype = UIO_MEM_PHYS;
 	printk(KERN_INFO "  o Mapping registers at 0x%x Size %ld KB.\n",
 			res->start, vd->uio_info.mem[id].size >> 10);
-	/* Get VPRO reserved memory area. */
-#ifndef CONFIG_VPRO_NEW
+	/* Get VMETA reserved memory area. */
+#ifndef CONFIG_VMETA_NEW
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res == NULL) {
-		printk(KERN_ERR "dove_vpro_probe: "
-				"No VPRO memory supplied.\n");
+		printk(KERN_ERR "dove_vmeta_probe: "
+				"No VMETA memory supplied.\n");
 		goto uio_register_fail;
 	}
 
-	id = VPRO_DMA_BUFFER_MAP_1;
-	size = VPRO_DMA_BUFFER_1_SIZE;
+	id = VMETA_DMA_BUFFER_MAP_1;
+	size = VMETA_DMA_BUFFER_1_SIZE;
 	start = res->start;
 	vd->uio_info.mem[id].internal_addr =
 		(void __iomem *)ioremap_nocache(start, size);
 	vd->uio_info.mem[id].addr = start;
-	vd->uio_info.mem[id].size = VPRO_DMA_BUFFER_1_SIZE;
+	vd->uio_info.mem[id].size = VMETA_DMA_BUFFER_1_SIZE;
 	vd->uio_info.mem[id].memtype = UIO_MEM_PHYS;
 
 	printk(KERN_INFO "  o Mapping buffer #1 at %ld MB Size %ld MB.\n",
 			start >> 20, vd->uio_info.mem[id].size >> 20);
 
-	id = VPRO_DMA_BUFFER_MAP_2;
-	start += VPRO_DMA_BUFFER_1_SIZE;
-	size = res->end - res->start - VPRO_DMA_BUFFER_1_SIZE + 1;
+	id = VMETA_DMA_BUFFER_MAP_2;
+	start += VMETA_DMA_BUFFER_1_SIZE;
+	size = res->end - res->start - VMETA_DMA_BUFFER_1_SIZE + 1;
 	vd->uio_info.mem[id].internal_addr =
 		(void __iomem *)ioremap_nocache(start, size);
 	vd->uio_info.mem[id].addr = start;
@@ -264,16 +264,16 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	vd->uio_info.mem[id].memtype = UIO_MEM_PHYS;
 	printk(KERN_INFO "  o Mapping buffer #2 at %ld MB Size %ld MB.\n",
 			start >> 20, vd->uio_info.mem[id].size >> 20);
-#else /* CONFIG_VPRO_NEW */
+#else /* CONFIG_VMETA_NEW */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res == NULL) {
-		printk(KERN_ERR "dove_vpro_probe: "
-				"No VPRO memory supplied.\n");
+		printk(KERN_ERR "dove_vmeta_probe: "
+				"No VMETA memory supplied.\n");
 		goto uio_register_fail;
 	}
 
-	id = VPRO_DMA_BUFFER_MAP;
-	size = CONFIG_UIO_DOVE_VPRO_MEM_SIZE << 20;
+	id = VMETA_DMA_BUFFER_MAP;
+	size = CONFIG_UIO_DOVE_VMETA_MEM_SIZE << 20;
 	start = res->start;
 	vd->uio_info.mem[id].internal_addr =
 		(void __iomem *)ioremap_nocache(start, size);
@@ -283,21 +283,21 @@ static int dove_vpro_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "  o Mapping buffer at %ld MB Size %ld MB.\n",
 			start >> 20, vd->uio_info.mem[id].size >> 20);
-#endif /* CONFIG_VPRO_NEW */
+#endif /* CONFIG_VMETA_NEW */
 
 	platform_set_drvdata(pdev, vd);
 
-	vd->uio_info.name = "dove_vpro_uio";
+	vd->uio_info.name = "dove_vmeta_uio";
 	vd->uio_info.version = "0.9.0";
 	vd->uio_info.irq = platform_get_irq(pdev, 0);
-	vd->uio_info.handler = vpro_irqhandler;
-	vd->uio_info.ioctl = vpro_ioctl;
-	vd->uio_info.mmap = vpro_mmap;
-	vd->uio_info.open = vpro_open;
-	vd->uio_info.release = vpro_release;
+	vd->uio_info.handler = vmeta_irqhandler;
+	vd->uio_info.ioctl = vmeta_ioctl;
+	vd->uio_info.mmap = vmeta_mmap;
+	vd->uio_info.open = vmeta_open;
+	vd->uio_info.release = vmeta_release;
 
-	// init video buffer queue for vpro xv interface
-	xvd = kzalloc(sizeof(struct vpro_xv_data), GFP_KERNEL);
+	// init video buffer queue for vmeta xv interface
+	xvd = kzalloc(sizeof(struct vmeta_xv_data), GFP_KERNEL);
 	if (xvd == NULL) {
 		printk(KERN_ERR "vdec_prvdec_probe: "
 				"Failed to allocate memory.\n");
@@ -318,36 +318,36 @@ static int dove_vpro_probe(struct platform_device *pdev)
 	disable_irq(vd->uio_info.irq);
 
 
-	printk(KERN_INFO "VPRO UIO driver registered successfully.\n");
+	printk(KERN_INFO "VMETA UIO driver registered successfully.\n");
 	return 0;
 
 uio_register_fail:
-#ifndef CONFIG_VPRO_NEW
-	iounmap(vd->uio_info.mem[VPRO_DMA_BUFFER_MAP_1].internal_addr);
-	iounmap(vd->uio_info.mem[VPRO_DMA_BUFFER_MAP_2].internal_addr);
-#else /* CONFIG_VPRO_NEW */
-	iounmap(vd->uio_info.mem[VPRO_DMA_BUFFER_MAP].internal_addr);
-#endif /* CONFIG_VPRO_NEW */
-	iounmap(vd->uio_info.mem[VPRO_CONTROL_REGISTER_MAP].internal_addr);
+#ifndef CONFIG_VMETA_NEW
+	iounmap(vd->uio_info.mem[VMETA_DMA_BUFFER_MAP_1].internal_addr);
+	iounmap(vd->uio_info.mem[VMETA_DMA_BUFFER_MAP_2].internal_addr);
+#else /* CONFIG_VMETA_NEW */
+	iounmap(vd->uio_info.mem[VMETA_DMA_BUFFER_MAP].internal_addr);
+#endif /* CONFIG_VMETA_NEW */
+	iounmap(vd->uio_info.mem[VMETA_CONTROL_REGISTER_MAP].internal_addr);
 	kfree(vd);
 
-	printk(KERN_INFO "Failed to register VPRO uio driver.\n");
+	printk(KERN_INFO "Failed to register VMETA uio driver.\n");
 	return ret;
 }
 
 
-static int dove_vpro_remove(struct platform_device *pdev)
+static int dove_vmeta_remove(struct platform_device *pdev)
 {
-	struct vpro_uio_data *vd = platform_get_drvdata(pdev);
+	struct vmeta_uio_data *vd = platform_get_drvdata(pdev);
 
 	uio_unregister_device(&vd->uio_info);
-#ifndef CONFIG_VPRO_NEW
-	iounmap(vd->uio_info.mem[VPRO_DMA_BUFFER_MAP_1].internal_addr);
-	iounmap(vd->uio_info.mem[VPRO_DMA_BUFFER_MAP_2].internal_addr);
-#else /* CONFIG_VPRO_NEW */
-	iounmap(vd->uio_info.mem[VPRO_DMA_BUFFER_MAP].internal_addr);
-#endif /* CONFIG_VPRO_NEW */
-	iounmap(vd->uio_info.mem[VPRO_CONTROL_REGISTER_MAP].internal_addr);
+#ifndef CONFIG_VMETA_NEW
+	iounmap(vd->uio_info.mem[VMETA_DMA_BUFFER_MAP_1].internal_addr);
+	iounmap(vd->uio_info.mem[VMETA_DMA_BUFFER_MAP_2].internal_addr);
+#else /* CONFIG_VMETA_NEW */
+	iounmap(vd->uio_info.mem[VMETA_DMA_BUFFER_MAP].internal_addr);
+#endif /* CONFIG_VMETA_NEW */
+	iounmap(vd->uio_info.mem[VMETA_CONTROL_REGISTER_MAP].internal_addr);
 	memset(vd->uio_info.mem, 0, sizeof(vd->uio_info.mem));
 
 	kfree(vd->uio_info.priv);
@@ -356,50 +356,50 @@ static int dove_vpro_remove(struct platform_device *pdev)
 	return 0;
 } 
 
-static void dove_vpro_shutdown(struct platform_device *pdev)
+static void dove_vmeta_shutdown(struct platform_device *pdev)
 {
 	return;
 }
 
 #ifdef CONFIG_PM
-static int dove_vpro_suspend(struct platform_device *dev, pm_message_t state)
+static int dove_vmeta_suspend(struct platform_device *dev, pm_message_t state)
 {
 	return 0;
 }
 
-static int dove_vpro_resume(struct platform_device *dev)
+static int dove_vmeta_resume(struct platform_device *dev)
 {
 	return 0;
 }
 #endif
 
-static struct platform_driver vpro_driver = {
-	.probe		= dove_vpro_probe,
-	.remove		= dove_vpro_remove,
-	.shutdown	= dove_vpro_shutdown,
+static struct platform_driver vmeta_driver = {
+	.probe		= dove_vmeta_probe,
+	.remove		= dove_vmeta_remove,
+	.shutdown	= dove_vmeta_shutdown,
 #ifdef CONFIG_PM
-	.suspend	= dove_vpro_suspend,
-	.resume		= dove_vpro_resume,
+	.suspend	= dove_vmeta_suspend,
+	.resume		= dove_vmeta_resume,
 #endif
 	.driver = {
-		.name	= "dove_vpro_uio",
+		.name	= "dove_vmeta_uio",
 		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init dove_vpro_init(void)
+static int __init dove_vmeta_init(void)
 {
-	return platform_driver_register(&vpro_driver);
+	return platform_driver_register(&vmeta_driver);
 }
 
-static void __exit dove_vpro_exit(void)
+static void __exit dove_vmeta_exit(void)
 {
-	platform_driver_unregister(&vpro_driver);
+	platform_driver_unregister(&vmeta_driver);
 }
 
-module_init(dove_vpro_init);
-module_exit(dove_vpro_exit);
+module_init(dove_vmeta_init);
+module_exit(dove_vmeta_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Dove vPro UIO driver");
+MODULE_DESCRIPTION("Dove vMeta UIO driver");
 

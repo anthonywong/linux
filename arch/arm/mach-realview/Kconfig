@@ -55,7 +55,7 @@ config REALVIEW_DOVE_GPIO_IRQ
 	default n
 	help
 	  Enable support for interrupt trigger on GPIO.
-	  Since the LCD, VPRO and GPU on the Dove FlareonGV EB use the GPIO
+	  Since the LCD, VMETA and GPU on the Dove FlareonGV EB use the GPIO
 	  on RealView platform as their interrupt source. 
 
 config REALVIEW_PB1176_SECURE_FLASH
