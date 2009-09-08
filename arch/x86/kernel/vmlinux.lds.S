@@ -16,8 +16,10 @@
 
 #ifdef CONFIG_X86_32
 #define LOAD_OFFSET __PAGE_OFFSET
-#else
+#elif !defined(CONFIG_XEN) || CONFIG_XEN_COMPAT > 0x030002
 #define LOAD_OFFSET __START_KERNEL_map
+#else
+#define LOAD_OFFSET 0
 #endif
 
 #include <asm-generic/vmlinux.lds.h>
@@ -58,6 +60,10 @@ SECTIONS
 {
 #ifdef CONFIG_X86_32
         . = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
+#if defined(CONFIG_XEN) && CONFIG_XEN_COMPAT <= 0x030002
+#undef LOAD_OFFSET
+#define LOAD_OFFSET 0
+#endif
         phys_startup_32 = startup_32 - LOAD_OFFSET;
 #else
         . = __START_KERNEL;
@@ -361,8 +367,10 @@ SECTIONS
 
 
 #ifdef CONFIG_X86_32
+#if !defined(CONFIG_XEN) || CONFIG_XEN_COMPAT > 0x030002
 . = ASSERT((_end - LOAD_OFFSET <= KERNEL_IMAGE_SIZE),
 	   "kernel image bigger than KERNEL_IMAGE_SIZE");
+#endif
 #else
 /*
  * Per-cpu symbols which need to be offset from __per_cpu_load

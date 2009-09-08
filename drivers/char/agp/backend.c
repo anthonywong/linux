@@ -149,7 +149,7 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 			return -ENOMEM;
 		}
 
-		bridge->scratch_page_real = phys_to_gart(page_to_phys(page));
+		bridge->scratch_page_real = page_to_gart(page);
 		bridge->scratch_page =
 		    bridge->driver->mask_memory(bridge, page, 0);
 	}

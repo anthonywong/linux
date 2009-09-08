@@ -730,6 +730,7 @@ static struct ctl_table kern_table[] = {
 		.mode           = 0644,
 		.proc_handler   = &proc_dointvec,
 	},
+#ifdef ARCH_HAS_NMI_WATCHDOG
 	{
 		.procname       = "nmi_watchdog",
 		.data           = &nmi_watchdog_enabled,
@@ -737,6 +738,7 @@ static struct ctl_table kern_table[] = {
 		.mode           = 0644,
 		.proc_handler   = &proc_nmi_enabled,
 	},
+#endif
 #endif
 #if defined(CONFIG_X86)
 	{
@@ -808,7 +810,7 @@ static struct ctl_table kern_table[] = {
 		.proc_handler	= &proc_dointvec,
 	},
 #endif
-#if	defined(CONFIG_ACPI_SLEEP) && defined(CONFIG_X86)
+#if defined(CONFIG_ACPI_SLEEP) && defined(CONFIG_X86) && !defined(CONFIG_ACPI_PV_SLEEP)
 	{
 		.procname	= "acpi_video_flags",
 		.data		= &acpi_realmode_flags,
@@ -1357,6 +1359,18 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &scan_unevictable_handler,
 	},
+#ifdef CONFIG_PRESWAP
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "preswap",
+		.data		= NULL,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &preswap_sysctl_handler,
+		.extra1		= (void *)&preswap_zero,
+		.extra2		= (void *)&preswap_infinity,
+	},
+#endif
 /*
  * NOTE: do not add new entries to this table unless you have read
  * Documentation/sysctl/ctl_unnumbered.txt
