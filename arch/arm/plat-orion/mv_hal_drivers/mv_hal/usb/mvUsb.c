@@ -386,7 +386,7 @@ static void    mvUsbPhy6781Y0Init(int dev)
 
     /* bits[7:4]	SQ_THRESH	= 0x8 */
     regVal &= ~(0xf << 4);
-    regVal |= (0x8 << 4);
+    regVal |= (0xc << 4);
 
     /* bits[16:15]	REG_SQ_LENGTH	= 0x1 */
     regVal &= ~(0x3 << 15);
