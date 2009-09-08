@@ -297,8 +297,9 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		/* FALLTHRU */
 	case MV64XXX_I2C_ACTION_SEND_STOP:
 		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
-		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
-			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+		mv_ctrl_writel(drv_data, drv_data->cntl_bits |
+			       MV64XXX_I2C_REG_CONTROL_STOP, 
+			       MV64XXX_I2C_REG_CONTROL);
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
