@@ -362,7 +362,7 @@ static void __init ap_init(void)
         sc_dec = sc_dec&0xfffff0ff | 0x00000e00;
         writel( sc_dec, VA_DOVEMC_BASE + 0x280);
         /*
-	 * Master 0 - VPro
+	 * Master 0 - VMeta
 	 * Master 1 - GC500
 	 * Master 2 - LCD
 	 * Master 3 - Upstream (SB)

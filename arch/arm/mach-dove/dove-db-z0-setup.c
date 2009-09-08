@@ -385,7 +385,7 @@ static void __init dove_db_init(void)
 	dove_sdio1_init();
 	dove_db_nfc_init();
 	dove_fp_clcd_init();
-	dove_vpro_init();
+	dove_vmeta_init();
 	dove_gpu_init();
 	dove_cesa_init();
 
@@ -411,6 +411,6 @@ MACHINE_START(DOVE_DB, "Marvell DB-MV88F6781-BP-Z0 Development Board")
 	.map_io		= dove_map_io,
 	.init_irq	= dove_init_irq,
 	.timer		= &dove_timer,
-/* reserve memory for VPRO and GPU */
+/* reserve memory for VMETA and GPU */
 	.fixup		= dove_tag_fixup_mem32,
 MACHINE_END
