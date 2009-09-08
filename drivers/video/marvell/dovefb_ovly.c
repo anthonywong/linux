@@ -404,7 +404,7 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 			kfree(surface);
 			return -EFAULT;
 		}
-
+		mutex_lock(&dfli->access_ok);
 		length = surface->videoBufferAddr.length;
 		dst_addr = dfli->surface.videoBufferAddr.startAddr;
 		start_addr = surface->videoBufferAddr.startAddr;
@@ -436,8 +436,13 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 				wait_for_vsync(dfli);
 				/* if support hw DMA, replace this. */
 				if (copy_from_user(dfli->fb_start,
-						input_data, length))
+						   input_data, length)) {
+					mutex_unlock(&dfli->access_ok);
+					kfree(surface);
 					return -EFAULT;
+				}
+				mutex_unlock(&dfli->access_ok);
+				kfree(surface);
 				return 0;
 			}
 
@@ -473,7 +478,6 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 			}
 #endif
 		}
-
 		mutex_unlock(&dfli->access_ok);
 		return 0;
 	}
