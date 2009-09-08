@@ -601,11 +601,6 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	 */
 	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE);
 
-	/*
-	 * fix me, currently, vpro occupy a very large dma.
-	 * It's better not to alloc DMA buffer from dma_alloc_xxx
-	 */
-//	if (0 == fb_start) {
 #ifdef CONFIG_ARCH_DOVE
 	dfli->fb_start = dma_alloc_writecombine(dfli->dev, dfli->fb_size,
 						&dfli->fb_start_dma,
