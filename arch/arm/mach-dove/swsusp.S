@@ -129,12 +129,18 @@ FUNC(swsusp_arch_suspend)
 	CHANGE_MODE(1f)	/* change to system(user) mode */
 	/* save nonvolatile int register */
 	ldr	r3, .Lsaved_context_r0
-	stmia	r3, {r0-r14}
+ ARM(	stmia	r3, {r0-r14}		)
+ THUMB(	stmia	r3, {r0-r12}		)
+ THUMB(	str	r13, [r3], #4		)
+ THUMB(	str	r14, [r3], #4		)
 
 	CHANGE_MODE(11) /* change to fiq mode */
 	/* save nonvolatile int register */
 	ldr	r3, .Lsaved_context_r8_fiq
-	stmia	r3, {r8-r14}
+ ARM(	stmia	r3, {r8-r14}		)
+ THUMB(	stmia	r3, {r8-r12}		)
+ THUMB(	str	r13, [r3], #4		)
+ THUMB(	str	r14, [r3], #4		)
 	/* save spsr_fiq register */
 	ldr	r3, .Lsaved_spsr_fiq
 	mrs	r1, spsr
@@ -143,7 +149,9 @@ FUNC(swsusp_arch_suspend)
 	CHANGE_MODE(12) /* change to irq mode */
 	/* save nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_irq
-	stmia	r3, {r13-r14}
+ ARM(	stmia	r3, {r13-r14}		)
+ THUMB(	str	r13, [r3], #4		)
+ THUMB(	str	r14, [r3], #4		)
 	/* save spsr_irq register */
 	ldr	r3, .Lsaved_spsr_irq
 	mrs	r1, spsr
@@ -152,7 +160,9 @@ FUNC(swsusp_arch_suspend)
 	CHANGE_MODE(13) /* change to svc mode */
 	/* save nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_svc
-	stmia	r3, {r13-r14}
+ ARM(	stmia	r3, {r13-r14}		)
+ THUMB(	str	r13, [r3], #4		)
+ THUMB(	str	r14, [r3], #4		)
 	/* save spsr_svc register */
 	ldr	r3, .Lsaved_spsr_svc
 	mrs	r1, spsr
@@ -161,7 +171,9 @@ FUNC(swsusp_arch_suspend)
 	CHANGE_MODE(17) /* change to abt mode */
 	/* save nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_abt
-	stmia	r3, {r13-r14}
+ ARM(	stmia	r3, {r13-r14}		)
+ THUMB(	str	r13, [r3], #4		)
+ THUMB(	str	r14, [r3], #4		)
 	/* save spsr_abt register */
 	ldr	r3, .Lsaved_spsr_abt
 	mrs	r1, spsr
@@ -170,7 +182,9 @@ FUNC(swsusp_arch_suspend)
 	CHANGE_MODE(1b) /* change to und mode */
 	/* save nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_und
-	stmia	r3, {r13-r14}
+ ARM(	stmia	r3, {r13-r14}		)
+ THUMB(	str	r13, [r3], #4		)
+ THUMB(	str	r14, [r3], #4		)
 	/* save spsr_und register */
 	ldr	r3, .Lsaved_spsr_und
 	mrs	r1, spsr
@@ -249,7 +263,10 @@ FUNC(swsusp_arch_resume)
 	CHANGE_MODE(1f) /* change to system(user) mode */
 	/* restore nonvolatile int register */
 	ldr	r3, .Lsaved_context_r0
-	ldmia	r3, {r0-r14}
+ ARM(	ldmia	r3, {r0-r14}			)
+ THUMB(	ldmia	r3!, {r0-r12}			)
+ THUMB(	ldr	r13, [r3], #4			)
+ THUMB(	ldr	r14, [r3]			)
 	/* restore current program status register */
 	ldr	r3, .Lsaved_cpsr
 	ldr	r1, [r3]
@@ -258,7 +275,10 @@ FUNC(swsusp_arch_resume)
 	CHANGE_MODE(11) /* change to fiq mode */
 	/* restore nonvolatile int register */
 	ldr	r3, .Lsaved_context_r8_fiq
-	ldmia	r3, {r8-r14}
+ ARM(	ldmia	r3, {r8-r14}			)
+ THUMB(	ldmia	r3!, {r8-r12}			)
+ THUMB(	ldr	r13, [r3], #4			)
+ THUMB(	ldr	r14, [r3]			)
 	/* restore spsr_fiq register */
 	ldr	r3, .Lsaved_spsr_fiq
 	ldr	r1, [r3]
@@ -267,7 +287,9 @@ FUNC(swsusp_arch_resume)
 	CHANGE_MODE(12) /* change to irq mode */
 	/* restore nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_irq
-	ldmia	r3, {r13-r14}
+ ARM(	ldmia	r3, {r13-r14}			)
+ THUMB(	ldr	r13, [r3], #4			)
+ THUMB(	ldr	r14, [r3]			)
 	/* restore spsr_irq register */
 	ldr	r3, .Lsaved_spsr_irq
 	ldr	r1, [r3]
@@ -276,7 +298,9 @@ FUNC(swsusp_arch_resume)
 	CHANGE_MODE(13) /* change to svc mode */
 	/* restore nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_svc
-	ldmia	r3, {r13-r14}
+ ARM(	ldmia	r3, {r13-r14}			)
+ THUMB(	ldr	r13, [r3], #4			)
+ THUMB(	ldr	r14, [r3]			)
 	/* restore spsr_svc register */
 	ldr	r3, .Lsaved_spsr_svc
 	ldr	r1, [r3]
@@ -285,7 +309,9 @@ FUNC(swsusp_arch_resume)
 	CHANGE_MODE(17) /* change to abt mode */
 	/* restore nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_abt
-	ldmia	r3, {r13-r14}
+ ARM(	ldmia	r3, {r13-r14}			)
+ THUMB(	ldr	r13, [r3], #4			)
+ THUMB(	ldr	r14, [r3]			)
 	/* restore spsr_abt register */
 	ldr	r3, .Lsaved_spsr_abt
 	ldr	r1, [r3]
@@ -294,7 +320,9 @@ FUNC(swsusp_arch_resume)
 	CHANGE_MODE(1b) /* change to und mode */
 	/* restore nonvolatile int register */
 	ldr	r3, .Lsaved_context_r13_und
-	ldmia	r3, {r13-r14}
+ ARM(	ldmia	r3, {r13-r14}			)
+ THUMB(	ldr	r13, [r3], #4			)
+ THUMB(	ldr	r14, [r3]			)
 	/* restore spsr_und register */
 	ldr	r3, .Lsaved_spsr_und
 	ldr	r1, [r3]
