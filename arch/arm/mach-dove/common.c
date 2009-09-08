@@ -55,15 +55,15 @@
 #include "clock.h"
 #include "twsi.h"
 
-/* used for memory allocation for the VPRO video engine */
-#ifdef CONFIG_UIO_DOVE_VPRO
-#define UIO_DOVE_VPRO_MEM_SIZE (CONFIG_UIO_DOVE_VPRO_MEM_SIZE << 20)
+/* used for memory allocation for the VMETA video engine */
+#ifdef CONFIG_UIO_DOVE_VMETA
+#define UIO_DOVE_VMETA_MEM_SIZE (CONFIG_UIO_DOVE_VMETA_MEM_SIZE << 20)
 #else
-#define UIO_DOVE_VPRO_MEM_SIZE 0
+#define UIO_DOVE_VMETA_MEM_SIZE 0
 #endif
 
-static unsigned int dove_vpro_memory_start;
-static unsigned int vpro_size = UIO_DOVE_VPRO_MEM_SIZE;
+static unsigned int dove_vmeta_memory_start;
+static unsigned int vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
 
 /* used for memory allocation for the GPU graphics engine */
 #ifdef CONFIG_DOVE_GPU
@@ -1188,7 +1188,7 @@ void __init dove_cesa_init(void)
 /*****************************************************************************
  * VPU
  ****************************************************************************/
-static struct resource dove_vpro_resources[] = {
+static struct resource dove_vmeta_resources[] = {
 	[0] = {
 		.start	= DOVE_VPU_PHYS_BASE,
 		.end	= DOVE_VPU_PHYS_BASE + 0x280000 - 1,
@@ -1200,26 +1200,26 @@ static struct resource dove_vpro_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[2] = {
-		.start  = IRQ_DOVE_VPRO_DMA1,
-		.end    = IRQ_DOVE_VPRO_DMA1,
+		.start  = IRQ_DOVE_VMETA_DMA1,
+		.end    = IRQ_DOVE_VMETA_DMA1,
 		.flags  = IORESOURCE_IRQ,
 	}
 };
 
-void __init dove_vpro_init(void)
+void __init dove_vmeta_init(void)
 {
-#ifdef CONFIG_UIO_DOVE_VPRO
-	if (vpro_size == 0) {
-		printk("memory allocation for VPRO failed\n");
+#ifdef CONFIG_UIO_DOVE_VMETA
+	if (vmeta_size == 0) {
+		printk("memory allocation for VMETA failed\n");
 		return;
 	}
 
-	dove_vpro_resources[1].start = dove_vpro_memory_start;
-	dove_vpro_resources[1].end = dove_vpro_memory_start + vpro_size - 1;
+	dove_vmeta_resources[1].start = dove_vmeta_memory_start;
+	dove_vmeta_resources[1].end = dove_vmeta_memory_start + vmeta_size - 1;
 
-	platform_device_register_simple("dove_vpro_uio", 0,
-			dove_vpro_resources,
-			ARRAY_SIZE(dove_vpro_resources));
+	platform_device_register_simple("dove_vmeta_uio", 0,
+			dove_vmeta_resources,
+			ARRAY_SIZE(dove_vmeta_resources));
 #endif
 }
 
@@ -1606,7 +1606,7 @@ void __init dove_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 		char **from, struct meminfo *meminfo)
 {
 	struct tag *last_tag = NULL;
-	int total_size = vpro_size + gpu_size;
+	int total_size = vmeta_size + gpu_size;
 
 	for (; t->hdr.size; t = tag_next(t))
 		if ((t->hdr.tag == ATAG_MEM) && (t->u.mem.size >= total_size)) {
@@ -1618,14 +1618,14 @@ void __init dove_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 	if (last_tag == NULL) {
 		early_printk(KERN_WARNING "No suitable memory tag was found, "
 				"required memory %d MB.\n", total_size);
-		vpro_size = 0;
+		vmeta_size = 0;
 		gpu_size = 0;
 		return;
 	}
 
 	/* Resereve memory from last tag for VPU usage.	*/
-	last_tag->u.mem.size -= vpro_size;
-	dove_vpro_memory_start = last_tag->u.mem.start + last_tag->u.mem.size;
+	last_tag->u.mem.size -= vmeta_size;
+	dove_vmeta_memory_start = last_tag->u.mem.start + last_tag->u.mem.size;
 
 	/* Reserve memory for gpu usage */
 	last_tag->u.mem.size -= gpu_size;
@@ -1695,7 +1695,7 @@ void __init dove_config_arbitration(void)
 	writel(sc_dec, DOVE_MC_VIRT_BASE + 0x280);
 	
         /* Dove Z0 and Z1
-        * Master 0 - VPro
+        * Master 0 - Vmeta
         * Master 1 - GC500
         * Master 2 - LCD
         * Master 3 - Upstream (SB)
@@ -1703,12 +1703,12 @@ void __init dove_config_arbitration(void)
 
 	/* Dove Y0
  	 * MC Master 0 - CPU
- 	 * MC Master 1 - vPro-GC-UP
+ 	 * MC Master 1 - vmeta-GC-UP
  	 * MC Master 2 - LCD
  	 */
         /*
   	 * MC Master 1
-         * Master 0 - VPro
+         * Master 0 - Vmeta
 	 * Master 1 - GC500
 	 * Master 2 - LCD
 	 * Master 3 - Upstream (SB)

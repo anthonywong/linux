@@ -94,32 +94,32 @@ config UIO_PCI_GENERIC
 	  primarily, for virtualization scenarios.
 	  If you compile this as a module, it will be called uio_pci_generic.
 
-config UIO_DOVE_VPRO
-       tristate "Dove VPRO UIO device driver"
+config UIO_DOVE_VMETA
+       tristate "Dove VMETA UIO device driver"
        depends on UIO
        default n
        help
-         This is Dove VPRO UIO device driver. It is an interface to co-
-	 work with userspace vpro video dirver. And it provides memory-map,
+         This is Dove VMETA UIO device driver. It is an interface to co-
+	 work with userspace vmeta video dirver. And it provides memory-map,
 	 io-map and interrupt service for userspace driver.
 
 
-config UIO_DOVE_VPRO_MEM_SIZE
-	int "VPRO control and data memory size (MB)"
-	depends on UIO_DOVE_VPRO
+config UIO_DOVE_VMETA_MEM_SIZE
+	int "VMETA control and data memory size (MB)"
+	depends on UIO_DOVE_VMETA
 	default 34
 	help
-	  Set the memory size to be reserved for VPRO usage.
+	  Set the memory size to be reserved for VMETA usage.
 	  Use the following as a guideline:
 	  For video resolutions up to 1280x768 set this to 34 (MB).
 	  For higher resolutions set to 64 (MB).
 
-config VPRO_NEW
-	bool "VPRO Version 1.2 or higher"
-	depends on UIO_DOVE_VPRO && DOVE_REV_Y0
+config VMETA_NEW
+	bool "VMETA Version 1.2 or higher"
+	depends on UIO_DOVE_VMETA && DOVE_REV_Y0
 	default y if DOVE_REV_Y0
 	default n
 	help
-	  This is used for VPRO version 1.2 or higher.
+	  This is used for VMETA version 1.2 or higher.
 
 endif
