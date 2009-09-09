@@ -617,6 +617,7 @@ config HPET_EMULATE_RTC
 # The code disables itself when not needed.
 config DMI
 	default y
+	depends on !XEN_UNPRIVILEGED_GUEST
 	bool "Enable DMI scanning" if EMBEDDED
 	---help---
 	  Enabled scanning of DMI to identify machine quirks. Say Y
