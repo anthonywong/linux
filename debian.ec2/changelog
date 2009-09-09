@@ -1,3 +1,31 @@
+linux-ec2 (2.6.31-300.1) karmic; urgency=low
+
+  [ Tim Gardner ]
+
+  * Revert "[Config] Let lenovo-sl-laptop build"
+  * Revert "SAUCE: [x86] implement cs-limit nx-emulation for ia32"
+  * [Config] Initial EC2 commit
+  * [Config] Removed ports
+  * [Config] Removed lpia
+  * [Config] Settled on the single EC2 flavour
+  * [Config] Disable udebs
+  * SAUCE: Prepare swap.h for Xen patches
+  * SAUCE: Xen 3.02
+  * [Config] Target vmlinuz
+  * [Config] Build with correct arch
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "PCI SR-IOV: correct broken resource alignment calculations"
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 08 Sep 2009 20:31:57 -0600
+
+linux-ec2 (2.6.31-300.0) karmic; urgency=low
+
+  * Dummy entry
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 08 Sep 2009 20:31:57 -0600
+
 linux (2.6.31-10.30) karmic; urgency=low
 
   [ Amit Kucheria ]
