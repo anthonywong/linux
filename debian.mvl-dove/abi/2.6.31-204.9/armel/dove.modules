@@ -1000,13 +1000,10 @@ slip
 slram
 sm501
 smbfs
-sms1xxx
 smsc47b397
 smsc47m1
 smsc47m192
 smsc95xx
-smsdvb
-smsusb
 sn9c102
 snd-hwdep
 snd-mixer-oss
