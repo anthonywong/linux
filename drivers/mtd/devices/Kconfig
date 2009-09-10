@@ -80,6 +80,17 @@ config MTD_DATAFLASH_OTP
 	  other key product data.  The second half is programmed with a
 	  unique-to-each-chip bit pattern at the factory.
 
+config MTD_MXC_DATAFLASH
+	tristate "Support for Freescale AT45xxx DataFlash"
+	depends on SPI_MASTER && EXPERIMENTAL
+	help
+	  This enables access to AT45xxx DataFlash chips, using SPI.
+	  Sometimes DataFlash chips are packaged inside MMC-format
+	  cards; at this writing, the MMC stack won't handle those.
+
+	  This contains some Freescale sauce that required writing a new
+	  driver
+
 config MTD_M25P80
 	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
 	depends on SPI_MASTER && EXPERIMENTAL
