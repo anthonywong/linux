@@ -1,3 +1,3 @@
 # arch	version		flavour		installedname			suffix	bdep
-armel	PKGVER-ABINUM	dove		PKGVER-ABINUM-dove			y
-armel	PKGVER-ABINUM	dove-z0		PKGVER-ABINUM-dove			y
+armel	PKGVER-ABINUM	dove		PKGVER-ABINUM-dove			n
+armel	PKGVER-ABINUM	dove-z0		PKGVER-ABINUM-dove			n
