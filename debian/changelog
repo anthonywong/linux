@@ -1,3 +1,11 @@
+linux (2.6.24-24.59netbook02) netbook-common; urgency=low
+
+  [Steve Conklin]
+
+  * Add back missing .mk files so fdr clean will work
+
+ -- sconklin <sconklin@ubuntu.com>  Fri, 11 Sep 2009 17:04:14 +0000
+
 linux (2.6.24-24.59netbook01) netbook-common; urgency=low
 
   [Andy Whitcroft]
