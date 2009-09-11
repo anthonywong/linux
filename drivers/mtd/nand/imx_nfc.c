@@ -6664,24 +6664,24 @@ static int get_module_force_bytewise_copy(char *p, struct kernel_param *kp)
 
 /* Module attributes that appear in sysfs. */
 
-module_param_call(enable, set_module_enable, get_module_enable, 0, 0444);
+module_param_call(enable, set_module_enable, get_module_enable, NULL, 0444);
 MODULE_PARM_DESC(enable, "enables/disables probing");
 
 #ifdef EVENT_REPORTING
 module_param_call(report_events,
-		set_module_report_events, get_module_report_events, 0, 0644);
+		set_module_report_events, get_module_report_events, NULL, 0644);
 MODULE_PARM_DESC(report_events, "enables/disables event reporting");
 
-module_param_call(dump_events, set_module_dump_events, 0, 0, 0644);
+module_param_call(dump_events, set_module_dump_events, NULL, NULL, 0644);
 MODULE_PARM_DESC(dump_events, "forces current event dump");
 #endif
 
 module_param_call(interleave_override, set_module_interleave_override,
-				get_module_interleave_override, 0, 0444);
+				get_module_interleave_override, NULL, 0444);
 MODULE_PARM_DESC(interleave_override, "overrides interleaving choice");
 
 module_param_call(force_bytewise_copy, set_module_force_bytewise_copy,
-				get_module_force_bytewise_copy, 0, 0644);
+				get_module_force_bytewise_copy, NULL, 0644);
 MODULE_PARM_DESC(force_bytewise_copy, "forces bytewise copy from/to NFC");
 
 /**
@@ -6778,7 +6778,7 @@ static ssize_t show_device_platform_info(struct device *dev,
 							"MTDPART_OFS_APPEND\n");
 				break;
 			default:
-				o += sprintf(buf+o, "  Offset: %u (%u MiB)\n",
+				o += sprintf(buf+o, "  Offset: %llu (%llu MiB)\n",
 					partition->offset,
 					partition->offset / (1024 * 1024));
 				break;
@@ -6789,7 +6789,7 @@ static ssize_t show_device_platform_info(struct device *dev,
 				o += sprintf(buf+o, "  Size  : "
 							"MTDPART_SIZ_FULL\n");
 			} else {
-				o += sprintf(buf+o, "  Size  : %u (%u MiB)\n",
+				o += sprintf(buf+o, "  Size  : %llu (%llu MiB)\n",
 					partition->size,
 					partition->size / (1024 * 1024));
 			}
@@ -6962,7 +6962,7 @@ static ssize_t show_device_mtd_nand_info(struct device *dev,
 	o += sprintf(buf + o,
 		"Options              : 0x%08x\n"
 		"Chip Count           : %u\n"
-		"Chip Size            : %lu\n"
+		"Chip Size            : %llu\n"
 		"Minimum Writable Size: %u\n"
 		"Page Shift           : %u\n"
 		"Page Mask            : 0x%x\n"
@@ -7057,7 +7057,7 @@ static ssize_t show_device_mtd_info(struct device *dev,
 		"Name               : %s\n"
 		"Type               : %u\n"
 		"Flags              : 0x%08x\n"
-		"Size in Bytes      : %u\n"
+		"Size in Bytes      : %llu\n"
 		"Erase Region Count : %d\n"
 		"Erase Size in Bytes: %u\n"
 		"Write Size in Bytes: %u\n"
@@ -7627,7 +7627,7 @@ static int acquire_resources(struct imx_nfc_data *this)
 	this->interrupt = r->start;
 
 	error = request_irq(this->interrupt,
-				nfc_util_isr, 0, this->dev->bus_id, this);
+			nfc_util_isr, 0, dev_name(this->dev), this);
 
 	if (error) {
 		dev_err(dev, "Can't own interrupt %d\n", this->interrupt);
