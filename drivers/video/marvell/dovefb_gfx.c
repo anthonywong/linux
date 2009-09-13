@@ -376,10 +376,18 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 {
 	if (dfli) {
 		u32 irq_ena = readl(dfli->reg_base + SPU_IRQ_ENA);
+		int rc = 0;
+
 		writel(irq_ena | GRA_FRAME_IRQ0_ENA_MASK, 
 		       dfli->reg_base + SPU_IRQ_ENA);
-		wait_event_interruptible(dfli->w_intr_wq,
-				atomic_read(&dfli->w_intr));
+		
+		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
+						      atomic_read(&dfli->w_intr), 10);
+		
+		if ( rc <= 0)
+			printk(KERN_ERR "%s: wait for vsync timed out, rc %d\n", 
+			       __func__, rc);
+		
 		writel(irq_ena, 
 		       dfli->reg_base + SPU_IRQ_ENA);
 		atomic_set(&dfli->w_intr, 0);
