@@ -777,6 +777,11 @@ int mxc_spi_setup(struct spi_device *spi)
 	return 0;
 }
 
+static int mxc_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
+{
+	return 0;
+}
+
 /*!
  * This function is called when the data has to transfer from/to the
  * current SPI device in poll mode
@@ -963,6 +968,7 @@ static int mxc_spi_probe(struct platform_device *pdev)
 
 	master->bus_num = pdev->id + 1;
 	master->num_chipselect = mxc_platform_info->maxchipselect;
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
 #ifdef CONFIG_SPI_MXC_TEST_LOOPBACK
 	master->num_chipselect += 1;
 #endif
@@ -1000,6 +1006,7 @@ static int mxc_spi_probe(struct platform_device *pdev)
 	master_drv_data->mxc_bitbang.txrx_bufs = mxc_spi_transfer;
 	master_drv_data->mxc_bitbang.master->setup = mxc_spi_setup;
 	master_drv_data->mxc_bitbang.master->cleanup = mxc_spi_cleanup;
+	master_drv_data->mxc_bitbang.setup_transfer = mxc_spi_setup_transfer;
 
 	/* Initialize the completion object */
 
