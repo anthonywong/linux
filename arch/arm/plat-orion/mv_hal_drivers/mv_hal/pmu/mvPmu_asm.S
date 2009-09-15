@@ -141,8 +141,13 @@ ddr_fs_sr_loop:
 	/*
 	 * Enter WFI
 	 */
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4
+#else
+	dsb
+	wfi
+#endif
 
 
 	/*
@@ -381,8 +386,13 @@ die_leave_ddr_active:
 	/*
 	 * Enter Deep Idle by entering WFI
 	 */
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c0, 4	
+	mcr	p15, 0, r0, c7, c0, 4
+#else
+	dsb
+	wfi
+#endif
 
 die_vtp:
 	.word mvPmuSramVirt2Phys
@@ -636,8 +646,14 @@ sbe_skip_l2_clean:
 	/*
 	 * Enter standby by entering WFI
 	 */
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 	mov	r0, #0
-	mcr	p15, 0, r0, c7, c0, 4	
+	mcr	p15, 0, r0, c7, c0, 4
+#else
+	dsb
+	wfi
+#endif
+
 
 #ifdef CONFIG_DOVE_REV_Z0
 sbe_nvram_int_base:
@@ -768,8 +784,13 @@ dfs_sr_enter_loop:
 	/*
 	 * Enter WFI
 	 */
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4
+#else
+	dsb
+	wfi
+#endif
 
 	/*
 	 * Exit DDR SR Mode
