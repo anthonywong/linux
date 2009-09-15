@@ -574,7 +574,7 @@ static struct proc_dir_entry *pmu_proc_entry;
 extern struct proc_dir_entry proc_root;
 static int pm_proc_init(void)
 {
-	pmu_proc_entry = create_proc_entry("pm", 0666, &proc_root);
+	pmu_proc_entry = create_proc_entry("pm", 0644, &proc_root);
 	pmu_proc_entry->read_proc = pmu_proc_read;
 	pmu_proc_entry->write_proc = pmu_proc_write;
 	return 0;
