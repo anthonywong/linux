@@ -316,8 +316,11 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 #endif
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, 0x0);		
 
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 		__asm__ __volatile__("mcr p15, 0, %0, c7, c0, 4\n" : "=r" (dummy));
-
+#else
+		__asm__ __volatile__("wfi\n");
+#endif
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, mc);
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, mc2);
 		goto done;
