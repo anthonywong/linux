@@ -179,17 +179,14 @@ kgsl_gem_create_ioctl(struct drm_device *dev, void *data,
 	phys = pmem_kalloc(create->size,
 		      PMEM_MEMTYPE_EBI1 |
 		      PMEM_ALIGNMENT_4K);
-	if (IS_ERR_VALUE(phys)) {
+	if ((int) phys < 0) {
 		DRM_ERROR("Unable to allocate memory\n");
 		return -ENOMEM;
 	}
 
 	obj = drm_gem_object_alloc(dev, create->size);
-
-	if (obj == NULL) {
-		pmem_kfree(phys);
+	if (obj == NULL)
 		return -ENOMEM;
-	}
 
 	mutex_lock(&dev->struct_mutex);
 	priv = obj->driver_private;
@@ -199,11 +196,8 @@ kgsl_gem_create_ioctl(struct drm_device *dev, void *data,
 	drm_gem_object_handle_unreference(obj);
 	mutex_unlock(&dev->struct_mutex);
 
-	if (ret) {
-		pmem_kfree(phys);
-		priv->pmem_phys = 0;
+	if (ret)
 		return ret;
-	}
 
 	create->handle = handle;
 	return 0;
