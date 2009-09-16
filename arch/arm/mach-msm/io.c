@@ -57,7 +57,7 @@ static void msm_map_io(struct map_desc *io_desc, int size)
 static struct map_desc msm_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_DEVICE(CSR),
-	MSM_DEVICE(GPT),
+	MSM_DEVICE(TMR),
 	MSM_DEVICE(DMOV),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
@@ -95,7 +95,7 @@ void __init msm_map_common_io(void)
 static struct map_desc qsd8x50_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_DEVICE(CSR),
-	MSM_DEVICE(GPT),
+	MSM_DEVICE(TMR),
 	MSM_DEVICE(DMOV),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
@@ -124,7 +124,7 @@ void __init msm_map_qsd8x50_io(void)
 static struct map_desc msm7x30_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_DEVICE(CSR),
-	MSM_DEVICE(GPT),
+	MSM_DEVICE(TMR),
 	MSM_DEVICE(DMOV),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
@@ -154,7 +154,7 @@ void __init msm_map_msm7x30_io(void)
 static struct map_desc comet_io_desc[] __initdata = {
 	MSM_DEVICE(VIC),
 	MSM_DEVICE(CSR),
-	MSM_DEVICE(GPT),
+	MSM_DEVICE(TMR),
 	MSM_DEVICE(DMOV),
 	MSM_DEVICE(GPIO1),
 	MSM_DEVICE(GPIO2),
