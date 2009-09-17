@@ -296,7 +296,7 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 	mrc 	p15, 0, r4, c13, c0, 0		@ save CP15 - FCSE
 	mrc 	p15, 0, r5, c2, c0, 0		@ save CP15 - TTBR
 	mrc     p15, 0, r6, c13, c0, 1          @ save CP15 - context ID
-	mrc	p15, 1, r7, c15, c1, 0		@ save CP15 extra features
+	mrc	p15, 1, r7, c15, c1, 0		@ save CP15 - extra features
 	mov	r8, r13				@ save resume SP
 	stmfd	sp!, {r2-r8}
 
@@ -478,7 +478,7 @@ dix_term_enable_delay:
 dix_ddr_active:	
 	ldr	r0, dix_saved_sp		@ stack phys addr
 	ldmfd	r0, {r2-r8}
-	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 extra features		
+	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
 	mcr 	p15, 0, r4, c13, c0, 0		@ restore CP15 - FCSE
@@ -586,7 +586,7 @@ ENTRY(mvPmuSramStandbyEnterFunc)
 	mrc 	p15, 0, r4, c13, c0, 0		@ save CP15 - FCSE
 	mrc 	p15, 0, r5, c2, c0, 0		@ save CP15 - TTBR
 	mrc     p15, 0, r6, c13, c0, 1          @ save CP15 - context ID
-	mrc	p15, 1, r7, c15, c1, 0		@ save extra features
+	mrc	p15, 1, r7, c15, c1, 0		@ save CP15 - extra features
 	mov	r8, r13				@ save resume SP
 	stmfd	sp!, {r2-r8}
 
@@ -694,7 +694,7 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	ldr	r0, sbx_saved_sp		@ stack phys addr
 	ldmfd	r0, {r2-r8}
 
-	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 extra features		
+	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
 	mcr 	p15, 0, r4, c13, c0, 0		@ restore CP15 - FCSE
