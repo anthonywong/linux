@@ -1245,7 +1245,7 @@ itd_urb_transaction (
 	/* allocate/init ITDs */
 	spin_lock_irqsave (&ehci->lock, flags);
 	for (i = 0; i < num_itds; i++) {
-		unsigned now = readl (&ehci->regs->frame_index) % (ehci->periodic_size << 3);
+
 		/* free_list.next might be cache-hot ... but maybe
 		 * the HC caches it too. avoid that issue for now.
 		 */
@@ -1254,20 +1254,9 @@ itd_urb_transaction (
 		if (likely (!list_empty(&stream->free_list))) {
 			itd = list_entry (stream->free_list.prev,
 					struct ehci_itd, itd_list);
-			if( (now >> 3) == itd->frame)
-			{
-				itd = NULL;
-			}
-			else
-			{
 				list_del (&itd->itd_list);
 				itd_dma = itd->itd_dma;
-			}
-		} else
-			itd = NULL;
-		
-		if (!itd)
-		{
+		} else {
 			spin_unlock_irqrestore (&ehci->lock, flags);
 			itd = dma_pool_alloc (ehci->itd_pool, mem_flags,
 					&itd_dma);
@@ -1352,14 +1341,14 @@ sitd_slot_ok (
 		 */
 		if (!tt_available (ehci, period_uframes << 3,
 				stream->udev, frame, uf, stream->tt_usecs))
-			goto next;
+			return 0;
 #else
 		/* tt must be idle for start(s), any gap, and csplit.
 		 * assume scheduling slop leaves 10+% for control/bulk.
 		 */
 		if (!tt_no_collision (ehci, period_uframes << 3,
 				stream->udev, frame, mask))
-			goto next;
+			return 0;
 #endif
 
 		/* check starts (OUT uses more than one) */
@@ -1385,7 +1374,7 @@ sitd_slot_ok (
 		}
 
 		/* we know urb->interval is 2^N uframes */
-next:	uframe += period_uframes;
+	uframe += period_uframes;
 	} while (uframe < mod);
 
 	stream->splits = cpu_to_hc32(ehci, stream->raw_mask << (uframe & 7));
@@ -1744,8 +1733,8 @@ itd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	if (!ehci->periodic_sched)
-		(void) disable_periodic (ehci);
+
+	(void) disable_periodic(ehci);
 
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
@@ -2135,8 +2124,8 @@ sitd_complete (
 	ehci_urb_done(ehci, urb, 0);
 	retval = true;
 	urb = NULL;
-	if (!ehci->periodic_sched)
-		(void) disable_periodic (ehci);
+
+	(void) disable_periodic(ehci);
 	
     	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs--;
 
