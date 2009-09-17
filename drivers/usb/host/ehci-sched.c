@@ -716,8 +716,11 @@ static int check_period (
 	} else {
 		do {
 			claimed = periodic_usecs (ehci, frame, uframe);
-			if (claimed > usecs)
+			if (claimed > usecs) {
+				ehci_dbg(ehci, "check_period FAILED: claimed=%d"
+					 ", usecs=%d\n", claimed, usecs);
 				return 0;
+			}
 		} while ((frame += period) < ehci->periodic_size);
 	}
 
@@ -739,8 +742,11 @@ static int check_intr_schedule (
 	if (qh->c_usecs && uframe >= 6)		/* FSTN territory? */
 		goto done;
 
-	if (!check_period (ehci, frame, uframe, qh->period, qh->usecs))
+	if (!check_period(ehci, frame, uframe, qh->period, qh->usecs)) {
+		ehci_dbg(ehci, "check_intr_schedule: usecs=%d FAILED\n",
+			 qh->usecs);
 		goto done;
+	}
 	if (!qh->c_usecs) {
 		retval = 0;
 		*c_maskp = 0;
@@ -755,15 +761,19 @@ static int check_intr_schedule (
 		/* TODO : this may need FSTN for SSPLIT in uframe 5. */
 		for (i = uframe+2; i < 8 && i < uframe+5; i++)
 			if (!check_period (ehci, frame, i,
-						qh->period, qh->c_usecs))
+					   qh->period, qh->c_usecs)){
+				ehci_dbg(ehci, "check_intr_schedule: FAILED - "
+					 "frame=%d, uframe=%d, i=%d\n",
+					 frame, uframe, i);
 				goto done;
-			else
+			} else
 				mask |= 1 << i;
 
 		retval = 0;
 
 		*c_maskp = cpu_to_hc32(ehci, mask << 8);
-	}
+	} else
+		ehci_dbg(ehci, "check_intr_schedule: tt_available FAILED\n");
 #else
 	/* Make sure this tt's buffer is also available for CSPLITs.
 	 * We pessimize a bit; probably the typical full speed case
@@ -858,7 +868,7 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		qh->hw_info2 |= cpu_to_hc32(ehci, s_mask);
 		qh->hw_info2 |= c_mask;
 	} else
-		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
+		ehci_dbg(ehci, "reused qh %p schedule\n", qh);
 
 	/* stuff into the periodic schedule */
 	status = qh_link_periodic (ehci, qh);
@@ -900,8 +910,11 @@ static int intr_submit (
 		goto done;
 	}
 	if (qh->qh_state == QH_STATE_IDLE) {
-		if ((status = qh_schedule (ehci, qh)) != 0)
+		if ((status = qh_schedule(ehci, qh)) != 0) {
+			ehci_err(ehci, "intr_submit - qh_schedule FAILED: "
+				 "status=%d\n", status);
 			goto done;
+		}
 	}
 
 	/* then queue the urb's tds to the qh */
@@ -1128,7 +1141,7 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 
 	/* if dev->ep [epnum] is a QH, hw is set */
 	} else if (unlikely (stream->hw != NULL)) {
-		ehci_dbg (ehci, "dev %s ep%d%s, not iso??\n",
+		ehci_dbg(ehci, "dev %s ep%d%s, not iso??\n",
 			urb->dev->devpath, epnum,
 			usb_pipein(urb->pipe) ? "in" : "out");
 		stream = NULL;
@@ -1405,13 +1418,14 @@ iso_stream_schedule (
 	struct ehci_iso_sched	*sched = urb->hcpriv;
 
 	if (sched->span > (mod - 8 * SCHEDULE_SLOP)) {
-		ehci_dbg (ehci, "iso request %p too long\n", urb);
+		ehci_dbg(ehci, "iso request %p too long: (%d > (%d - 80))\n",
+			 urb, sched->span, mod);
 		status = -EFBIG;
 		goto fail;
 	}
 
 	if ((stream->depth + sched->span) > mod) {
-		ehci_dbg (ehci, "request %p would overflow (%d+%d>%d)\n",
+		ehci_dbg(ehci, "request %p would overflow ((%d + %d) > %d)\n",
 			urb, stream->depth, sched->span, mod);
 		status = -EFBIG;
 		goto fail;
@@ -1443,6 +1457,9 @@ iso_stream_schedule (
 
 		/* Tried to schedule too far into the future? */
 		if (unlikely((start + sched->span) >= max)) {
+			ehci_dbg(ehci, "iso request %p too far into the future"
+				 " (%d + %d >= %d)\n",
+				 urb, start, sched->span, max);
 			status = -EFBIG;
 			goto fail;
 		}
@@ -1485,7 +1502,7 @@ iso_stream_schedule (
 	}
 
 	/* no room in the schedule */
-	ehci_dbg (ehci, "iso %ssched full %p (now %d max %d)\n",
+	ehci_dbg(ehci, "iso %ssched full %p (now %d max %d)\n",
 		list_empty (&stream->td_list) ? "" : "re",
 		urb, now, max);
 	status = -ENOSPC;
@@ -1781,17 +1798,17 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	/* Get iso_stream head */
 	stream = iso_stream_find (ehci, urb);
 	if (unlikely (stream == NULL)) {
-		ehci_dbg (ehci, "can't get iso stream\n");
+		ehci_err(ehci, "can't get iso stream\n");
 		return -ENOMEM;
 	}
 	if (unlikely (urb->interval != stream->interval)) {
-		ehci_dbg (ehci, "can't change iso interval %d --> %d\n",
+		ehci_err(ehci, "can't change iso interval %d --> %d\n",
 			stream->interval, urb->interval);
 		goto done;
 	}
 
 #ifdef EHCI_URB_TRACE
-	ehci_dbg (ehci,
+	ehci_dbg(ehci,
 		"%s %s urb %p ep%d%s len %d, %d pkts %d uframes [%p]\n",
 		__func__, urb->dev->devpath, urb,
 		usb_pipeendpoint (urb->pipe),
@@ -1804,7 +1821,7 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	/* allocate ITDs w/o locking anything */
 	status = itd_urb_transaction (stream, ehci, urb, mem_flags);
 	if (unlikely (status < 0)) {
-		ehci_dbg (ehci, "can't init itds\n");
+		ehci_err(ehci, "can't init itds\n");
 		goto done;
 	}
 
@@ -1821,8 +1838,10 @@ static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	status = iso_stream_schedule(ehci, urb, stream);
 	if (likely (status == 0))
 		itd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
-	else
-		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+    else {
+	    ehci_err(ehci, "itd_submit: can't schedule iso stream\n");
+	    usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+    }
 done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -2171,28 +2190,28 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	/* Get iso_stream head */
 	stream = iso_stream_find (ehci, urb);
 	if (stream == NULL) {
-		ehci_dbg (ehci, "can't get iso stream\n");
+		ehci_err(ehci, "can't get iso stream\n");
 		return -ENOMEM;
 	}
 	if (urb->interval != stream->interval) {
-		ehci_dbg (ehci, "can't change iso interval %d --> %d\n",
+		ehci_err(ehci, "can't change iso interval %d --> %d\n",
 			stream->interval, urb->interval);
 		goto done;
 	}
 
 #ifdef EHCI_URB_TRACE
-	ehci_dbg (ehci,
-		"submit %p dev%s ep%d%s-iso len %d\n",
-		urb, urb->dev->devpath,
-		usb_pipeendpoint (urb->pipe),
-		usb_pipein (urb->pipe) ? "in" : "out",
-		urb->transfer_buffer_length);
+	ehci_dbg(ehci,
+		 "submit %p dev%s ep%d%s-iso len %d\n",
+		 urb, urb->dev->devpath,
+		 usb_pipeendpoint (urb->pipe),
+		 usb_pipein(urb->pipe) ? "in" : "out",
+		 urb->transfer_buffer_length);
 #endif
 
 	/* allocate SITDs */
 	status = sitd_urb_transaction (stream, ehci, urb, mem_flags);
 	if (status < 0) {
-		ehci_dbg (ehci, "can't init sitds\n");
+		ehci_err(ehci, "can't init sitds\n");
 		goto done;
 	}
 
@@ -2209,8 +2228,10 @@ static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
 	status = iso_stream_schedule(ehci, urb, stream);
 	if (status == 0)
 		sitd_link_urb (ehci, urb, ehci->periodic_size << 3, stream);
-	else
+    else {
+	    ehci_err(ehci, "sitd_submit: can't schedule iso stream\n");
 		usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
+    }
 done_not_linked:
 	spin_unlock_irqrestore (&ehci->lock, flags);
 
@@ -2385,8 +2406,9 @@ restart:
 				q = *q_p;
 				break;
 			default:
-				dbg ("corrupt type %d frame %d shadow %p",
-					type, frame, q.ptr);
+				ehci_dbg(ehci, "corrupt type %d frame %d shadow"
+					 " %p\n",
+					 type, frame, q.ptr);
 				// BUG ();
 				q.ptr = NULL;
 			}
