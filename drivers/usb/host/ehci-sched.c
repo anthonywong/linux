@@ -208,7 +208,7 @@ static inline unsigned char tt_start_uframe(struct ehci_hcd *ehci, __hc32 mask)
 }
 
 static const unsigned char
-max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 30, 0 };
+max_tt_usecs[] = { 125, 125, 125, 125, 125, 125, 125, 100 };
 
 /* carryover low/fullspeed bandwidth that crosses uframe boundries */
 static inline void carryover_tt_bandwidth(unsigned short tt_usecs[8])
@@ -278,10 +278,6 @@ periodic_tt_usecs (
 	}
 
 	carryover_tt_bandwidth(tt_usecs);
-
-	if (max_tt_usecs[7] < tt_usecs[7])
-		ehci_err(ehci, "frame %d tt sched overrun: %d usecs\n",
-			frame, tt_usecs[7] - max_tt_usecs[7]);
 }
 
 /*
@@ -752,12 +748,12 @@ static int check_intr_schedule (
 	}
 
 #ifdef CONFIG_USB_EHCI_TT_NEWSCHED
-	if (tt_available (ehci, qh->period, qh->dev, frame, uframe,
+	if (tt_available(ehci, qh->period, qh->dev, frame, uframe+2,
 				qh->tt_usecs)) {
 		unsigned i;
 
 		/* TODO : this may need FSTN for SSPLIT in uframe 5. */
-		for (i=uframe+1; i<8 && i<uframe+4; i++)
+		for (i = uframe+2; i < 8 && i < uframe+5; i++)
 			if (!check_period (ehci, frame, i,
 						qh->period, qh->c_usecs))
 				goto done;
