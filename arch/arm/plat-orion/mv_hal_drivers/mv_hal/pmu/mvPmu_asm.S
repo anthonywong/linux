@@ -297,8 +297,9 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 	mrc 	p15, 0, r5, c2, c0, 0		@ save CP15 - TTBR
 	mrc     p15, 0, r6, c13, c0, 1          @ save CP15 - context ID
 	mrc	p15, 1, r7, c15, c1, 0		@ save CP15 - extra features
-	mov	r8, r13				@ save resume SP
-	stmfd	sp!, {r2-r8}
+	mrc	p15, 0, r8, c1, c0, 1		@ save CP15 - Aux CR
+	mov	r9, r13				@ save resume SP
+	stmfd	sp!, {r2-r9}
 
 	/*
 	 * Save the physical address of the resume SP
@@ -331,7 +332,12 @@ sb_pc_v2p_res:
 	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
 	mcr     p15, 0, r0, c7, c5, 6           @ flush BTAC/BTB
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 	tst	r5, #0x04000000			@ check if L2 is enabled
+#else
+	mrc     p15, 0, r5, c1, c0, 1           @ read Aux CR
+	tst     r5, #0x2
+#endif
 	beq	die_skip_l2_clean
 	mcr 	p15, 1, r0, c7, c11, 0		@ clean all L2 cache
 die_skip_l2_clean:
@@ -477,7 +483,8 @@ dix_term_enable_delay:
 
 dix_ddr_active:	
 	ldr	r0, dix_saved_sp		@ stack phys addr
-	ldmfd	r0, {r2-r8}
+	ldmfd	r0, {r2-r9}
+	mcr	p15, 0, r8, c1, c0, 1		@ restore CP15 - Aux CR
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
@@ -518,7 +525,7 @@ dix_ddr_active:
 	 */
 	mov	r6, r5, lsr #20
 	orr	r7, r0, r6, lsl #20		@ temporay mapping
-	ldr	r9, [r5, r6, lsl #2]		@ save original mapping
+	ldr	r10, [r5, r6, lsl #2]		@ save original mapping
 	str     r7, [r5, r6, lsl #2]		@ set temporary mapping	
 	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
 	mcr	p15, 0, r0, c7, c10, 5		@ data memory barrier
@@ -535,14 +542,14 @@ dix_saved_sp:
 	.text
 dix_resume_after_mmu:
 	str	r4, [r5, r1, lsl #2]		@ restore original PMU mapping
-	str	r9, [r5, r6, lsl #2]		@ restore original PT mapping
+	str	r10, [r5, r6, lsl #2]		@ restore original PT mapping
 	/*
 	 * No need for cach flushes since the 2 PT entries are strongly ordered
 	 */
 	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
 	mcr     p15, 0, r0, c7, c10, 5          @ data memory barrier
 	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
-	mov	r13, r8				@ restore virtual SP
+	mov	r13, r9				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
 
 dix_irbd_reg:
@@ -587,8 +594,9 @@ ENTRY(mvPmuSramStandbyEnterFunc)
 	mrc 	p15, 0, r5, c2, c0, 0		@ save CP15 - TTBR
 	mrc     p15, 0, r6, c13, c0, 1          @ save CP15 - context ID
 	mrc	p15, 1, r7, c15, c1, 0		@ save CP15 - extra features
-	mov	r8, r13				@ save resume SP
-	stmfd	sp!, {r2-r8}
+	mrc	p15, 0, r8, c1, c0, 1		@ save CP15 - Aux CR
+	mov	r9, r13				@ save resume SP
+	stmfd	sp!, {r2-r9}
 
 	/*
 	 * Save the physical address of the resume SP
@@ -619,7 +627,12 @@ sbe_pc_v2p_res:
 	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
 	mcr     p15, 0, r0, c7, c5, 6           @ flush BTAC/BTB
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
-	tst	r5, #0x04000000
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
+	tst	r5, #0x04000000			@ check if L2 is enabled
+#else
+	mrc     p15, 0, r5, c1, c0, 1           @ read Aux CR
+	tst     r5, #0x2
+#endif
 	beq	sbe_skip_l2_clean
 	mcr 	p15, 1, r0, c7, c11, 0		@ clean all L2 cache
 sbe_skip_l2_clean:
@@ -692,8 +705,8 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	mcr	p15, 0, r1, c7, c5, 4		@ Prefetch Flush - ISB
 
 	ldr	r0, sbx_saved_sp		@ stack phys addr
-	ldmfd	r0, {r2-r8}
-
+	ldmfd	r0, {r2-r9}
+	mcr	p15, 0, r8, c1, c0, 1		@ restore CP15 - Aux CR
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
@@ -726,7 +739,7 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	 */
 	mov	r6, r5, lsr #20
 	orr	r7, r0, r6, lsl #20		@ temporay mapping
-	ldr	r9, [r5, r6, lsl #2]		@ save original mapping
+	ldr	r10, [r5, r6, lsl #2]		@ save original mapping
 	str     r7, [r5, r6, lsl #2]		@ set temporary mapping	
 
 	.align 5
@@ -741,9 +754,9 @@ sbx_saved_sp:
 	.text
 sbx_resume_after_mmu:
 	str	r4, [r5, r1, lsl #2]		@ restore original PMU mapping
-	str	r9, [r5, r6, lsl #2]		@ restore original PT mapping
+	str	r10, [r5, r6, lsl #2]		@ restore original PT mapping
 	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
-	mov	r13, r8				@ restore virtual SP
+	mov	r13, r9				@ restore virtual SP
 	ldmfd	sp!, {r4-r12, pc}		@ restore SVC registers
 
 sbx_virt_mask:
