@@ -1032,7 +1032,7 @@ done:
 	return;
 }
 
-static void
+void
 ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
