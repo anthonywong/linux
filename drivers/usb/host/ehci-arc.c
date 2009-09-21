@@ -401,6 +401,10 @@ static const struct hc_driver ehci_fsl_hc_driver = {
 	.bus_suspend = ehci_bus_suspend,
 	.bus_resume = ehci_bus_resume,
 	.start_port_reset = ehci_start_port_reset,
+	.relinquish_port = ehci_relinquish_port,
+	.port_handed_over = ehci_port_handed_over,
+
+	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
 static int ehci_fsl_drv_probe(struct platform_device *pdev)
@@ -422,7 +426,7 @@ static int ehci_fsl_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int ehci_fsl_drv_shutdown(struct platform_device *pdev)
+static void ehci_fsl_drv_shutdown(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
 
