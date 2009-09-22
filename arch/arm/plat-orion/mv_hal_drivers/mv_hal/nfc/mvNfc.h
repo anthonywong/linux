@@ -157,6 +157,7 @@ extern "C" {
 /* Supported page sizes */
 #define MV_NFC_512B_PAGE		512
 #define MV_NFC_2KB_PAGE			2048
+#define MV_NFC_4KB_PAGE			4096
 
 #define MV_NFC_MAX_CHUNK_SIZE		(2048)
 
@@ -185,7 +186,7 @@ extern "C" {
 
 
 /* Max number of buffers chunks for as single read / write operation */
-#define MV_NFC_RW_MAX_BUFF_NUM		8
+#define MV_NFC_RW_MAX_BUFF_NUM		16
 
 /* ECC mode options.			*/
 typedef enum {
@@ -387,14 +388,14 @@ MV_STATUS mvNfcReadWrite(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *virt
 MV_VOID   mvNfcAddress2RowConvert(MV_NFC_CTRL *nfcCtrl, MV_U32 address, MV_U32 *row, MV_U32 *colOffset);
 MV_VOID   mvNfcAddress2BlockConvert(MV_NFC_CTRL *nfcCtrl, MV_U32 address, MV_U32 *blk);
 MV_8 * 	  mvNfcFlashModelGet(MV_NFC_CTRL *nfcCtrl);
-MV_STATUS mvNfcFlashPageSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
+MV_STATUS mvNfcFlashPageSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size, MV_U32 *totalSize);
 MV_STATUS mvNfcFlashBlockSizeGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *size);
 MV_STATUS mvNfcFlashBlockNumGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *numBlocks);
 MV_STATUS mvNfcDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *data_len);
 MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 * data_len);
 MV_STATUS mvNfcFlashIdGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *flashId);
 MV_STATUS mvNfcUnitStateStore(MV_U32 *stateData, MV_U32 *len);
-
+MV_NFC_ECC_MODE mvNfcEccModeSet(MV_NFC_CTRL *nfcCtrl, MV_NFC_ECC_MODE eccMode);
 
 #ifdef __cplusplus
 }
