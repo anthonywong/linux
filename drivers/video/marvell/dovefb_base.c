@@ -54,6 +54,14 @@ struct display_settings lcd_config;
 EXPORT_SYMBOL(lcd_config);
 #endif
 
+#define USING_SAME_BUFF
+#ifdef USING_SAME_BUFF
+void *gfx_fb_start = 0;
+dma_addr_t gfx_fb_start_dma = 0;
+void *vid_fb_start = 0;
+dma_addr_t vid_fb_start_dma = 0;
+#endif
+
 static int dovefb_init_layer(struct platform_device *pdev,
 		enum dovefb_type type, struct dovefb_info *info,
 		struct resource *res);
@@ -600,7 +608,9 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	 * Allocate framebuffer memory.
 	 */
 	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE);
-
+#ifdef USING_SAME_BUFF
+	if (strstr(fi->fix.id, "0")) {
+#endif
 #ifdef CONFIG_ARCH_DOVE
 	dfli->fb_start = dma_alloc_writecombine(dfli->dev, dfli->fb_size,
 						&dfli->fb_start_dma,
@@ -620,15 +630,27 @@ static int dovefb_init_layer(struct platform_device *pdev,
 		ret = -ENOMEM;
 		goto failed;
 	}
-
-//		fb_start = dfli->fb_start;
-//		fb_start_dma = dfli->fb_start_dma;
-//	} else {
-//		dfli->fb_start = fb_start;
-//		dfli->fb_start_dma = fb_start_dma;
-//	}
-
-	//memset(dfli->fb_start, 0, dfli->fb_size);
+#ifdef USING_SAME_BUFF
+		if(strstr(fi->fix.id, "GFX Layer 0")) {
+			gfx_fb_start = dfli->fb_start;
+			gfx_fb_start_dma = dfli->fb_start_dma;
+		} else {
+			vid_fb_start = dfli->fb_start;
+			vid_fb_start_dma = dfli->fb_start_dma;
+		}
+		memset(dfli->fb_start, 0, dfli->fb_size);
+	} else {
+		if(strstr(fi->fix.id, "GFX Layer 1")) {
+			dfli->fb_start = gfx_fb_start;
+			dfli->fb_start_dma = gfx_fb_start_dma;
+		} else {
+			dfli->fb_start = vid_fb_start;
+			dfli->fb_start_dma = vid_fb_start_dma;
+		}
+	}
+#else
+	memset(dfli->fb_start, 0, dfli->fb_size);
+#endif
 	fi->fix.smem_start = dfli->fb_start_dma;
 	fi->fix.smem_len = dfli->fb_size;
 	fi->screen_base = dfli->fb_start;
