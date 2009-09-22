@@ -521,8 +521,8 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 		fi->fix.visual = FB_VISUAL_TRUECOLOR;
 	fi->fix.line_length = var->xres_virtual * var->bits_per_pixel / 8;
 
-	x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
-	if ((x & CFG_GRA_ENA_MASK))
+	x = readl(dfli->reg_base + SPU_IRQ_ENA);
+	if ((x & GRA_FRAME_IRQ0_ENA_MASK))
 		wait_for_vsync(dfli);
 
 	/*
