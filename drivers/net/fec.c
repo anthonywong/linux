@@ -248,6 +248,7 @@ struct fec_enet_private {
 	struct clk *clk;
 };
 
+static const struct net_device_ops fec_netdev_ops;
 static int fec_enet_open(struct net_device *dev);
 static int fec_enet_start_xmit(struct sk_buff *skb, struct net_device *dev);
 static void fec_enet_mii(struct net_device *dev);
@@ -259,6 +260,17 @@ static void set_multicast_list(struct net_device *dev);
 static void fec_restart(struct net_device *dev, int duplex);
 static void fec_stop(struct net_device *dev);
 static void fec_set_mac_address(struct net_device *dev);
+static void fec_timeout(struct net_device *dev);
+
+static const struct net_device_ops fec_netdev_ops = {
+	.ndo_open               = fec_enet_open,
+	.ndo_stop               = fec_enet_close,
+	.ndo_start_xmit         = fec_enet_start_xmit,
+	.ndo_set_multicast_list = set_multicast_list,
+	.ndo_set_mac_address    = fec_set_mac_address,
+	.ndo_tx_timeout         = fec_timeout,
+	.ndo_validate_addr      = eth_validate_addr,
+};
 
 static void __inline__ fec_dcache_inv_range(void * start, void * end);
 static void __inline__ fec_dcache_flush_range(void * start, void * end);
@@ -1213,7 +1225,7 @@ static phy_info_t const phy_info_ks8721bl = {
 
 static void mii_parse_dp8384x_sr2(uint mii_reg, struct net_device *dev)
 {
-	struct fec_enet_private *fep = dev->priv;
+	struct fec_enet_private *fep = netdev_priv(dev);
 	volatile uint *s = &(fep->phy_status);
 
 	*s &= ~(PHY_STAT_SPMASK | PHY_STAT_LINK | PHY_STAT_ANC);
@@ -2918,12 +2930,8 @@ int __init fec_enet_init(struct net_device *dev)
 	dev->base_addr = (unsigned long)fecp;
 
 	/* The FEC Ethernet specific entries in the device structure. */
-	dev->open = fec_enet_open;
-	dev->hard_start_xmit = fec_enet_start_xmit;
-	dev->tx_timeout = fec_timeout;
+	dev->netdev_ops = &fec_netdev_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
-	dev->stop = fec_enet_close;
-	dev->set_multicast_list = set_multicast_list;
 
 	for (i=0; i<NMII-1; i++)
 		mii_cmds[i].mii_next = &mii_cmds[i+1];
