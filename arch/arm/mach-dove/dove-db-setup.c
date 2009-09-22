@@ -488,7 +488,7 @@ static struct dove_nand_platform_data dove_db_nfc_hal_data = {
 	.num_cs         = 1,
 	.use_dma	= 1,
 	.use_ecc	= 1,
-	.use_bch	= 0,
+	.use_bch	= 1,
 	.parts = partition_dove,
 	.nr_parts = ARRAY_SIZE(partition_dove)
 };

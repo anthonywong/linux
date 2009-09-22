@@ -132,11 +132,12 @@ MODULE_PARM_DESC(use_bch, "enable 16bit BCH ECC calculation if ECC operations ar
 static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 			int column, int page_addr)
 {
-	if (mvNfcTransferDataLength(&info->nfcCtrl, MV_NFC_CMD_READ_MONOLITHIC,
-				&info->data_size) != MV_OK)
+	MV_U32 size;
+
+	if (mvNfcFlashPageSizeGet(&info->nfcCtrl, &size, &info->data_size) 
+	    != MV_OK)
 		return -EINVAL;
 
-	info->data_size *= info->flash_info.num_devs;
 	return 0;
 }
 
@@ -235,30 +236,35 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 			if (info->use_dma) {
 				info->state = STATE_DMA_WRITING;
 				NFC_DPRINT((KERN_INFO "Calling mvNfcReadWrite().\n"));
-				if(mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, 
-							info->data_buff_phys) != MV_OK)
+				if (mvNfcReadWrite(&info->nfcCtrl, info->cmd,
+						   (MV_U32 *)info->data_buff,
+						   info->data_buff_phys) 
+				    != MV_OK)
 					printk(KERN_ERR "mvNfcReadWrite() failed.\n");
 			} else {
 				info->state = STATE_PIO_WRITING;
 				complete(&info->cmd_complete);
 			}
-		} else if (status & (NFC_SR_BBD_MASK | MV_NFC_CS0_CMD_DONE_INT | NFC_SR_RDY0_MASK |
-					MV_NFC_CS1_CMD_DONE_INT | NFC_SR_RDY1_MASK)) {
-			if((info->state == STATE_DMA_WRITING) || (info->state == STATE_DMA_READING))
-				printk(KERN_INFO "%s - %d ERROR (%d).\n", __FUNCTION__, __LINE__, info->cmd);
-
+		} else if (status & (NFC_SR_BBD_MASK | MV_NFC_CS0_CMD_DONE_INT |
+				     NFC_SR_RDY0_MASK | MV_NFC_CS1_CMD_DONE_INT |
+				     NFC_SR_RDY1_MASK)) {
 			if (status & NFC_SR_BBD_MASK)
 				info->retcode = ERR_BBERR;
-			mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_CMDD | MV_NFC_STATUS_RDY,
+			mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD |
+					MV_NFC_STATUS_CMDD | MV_NFC_STATUS_RDY,
 					MV_FALSE);
 			info->state = STATE_READY;
 			complete(&info->cmd_complete);
 		}
-	} else if (status & (NFC_SR_BBD_MASK | NFC_SR_RDY0_MASK | NFC_SR_RDY1_MASK | NFC_SR_UNCERR_MASK)) {
+	} else if (status & (NFC_SR_BBD_MASK | NFC_SR_RDY0_MASK |
+				NFC_SR_RDY1_MASK | NFC_SR_UNCERR_MASK)) {
 		if (status & (NFC_SR_BBD_MASK | NFC_SR_UNCERR_MASK))
 			info->retcode = ERR_DBERR;
-		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY | MV_NFC_STATUS_CMDD, MV_FALSE);
-		if((info->state != STATE_DMA_READING) || (info->retcode == ERR_BBERR)) {
+		mvNfcIntrEnable(&info->nfcCtrl, MV_NFC_STATUS_BBD |
+				MV_NFC_STATUS_RDY | MV_NFC_STATUS_CMDD,
+				MV_FALSE);
+		if ((info->state != STATE_DMA_READING) ||
+		    (info->retcode == ERR_DBERR)) {
 			info->state = STATE_READY;
 			complete(&info->cmd_complete);
 		}
@@ -269,20 +275,22 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 
 static void pxa3xx_nand_set_rw_chunks(struct pxa3xx_nand_info *info)
 {
-	uint32_t idx;
-	uint32_t spare_size;
+	uint32_t idx, i;
+	uint32_t spare_size, single_trans;
+	uint32_t oob_size;
 
-	if(info->nfcCtrl.ifMode != MV_NFC_IF_2X8) {
+	if ((info->nfcCtrl.ifMode != MV_NFC_IF_2X8) &&
+	    (info->flash_info.page_size <= 2048)) {
 		/* Non-Ganged mode */
 		info->sgNumBuffs = 1;
 		return;
 	}
 
-	/* 
+	/*
 	** Ganged mode,
 	** need to split the MTD read / write buffer into several buffers
 	** according to what the HW expects.
-	** e.g. MTD sees 
+	** e.g. MTD sees
 	** ---------------------------
 	** | Data (4K) | Spare | ECC |
 	** ---------------------------
@@ -293,32 +301,31 @@ static void pxa3xx_nand_set_rw_chunks(struct pxa3xx_nand_info *info)
 	**
 	** In BCH mode, we read only the spare area.
 	*/
-	if(info->flash_info.page_size == 1024)		/* 2 x 512 */
+	if (info->flash_info.page_size == 1024) {	/* 2 x 512 */
 		spare_size = 16;
-	else if(info->flash_info.page_size == 4096)	/* 2 x 2048 */
+		single_trans = 512;
+		oob_size = 32;
+	} else if (info->flash_info.page_size == 4096) {/* 2 x 2048 */
 		spare_size = 32;
-	else if (info->flash_info.page_size == 8192)	/* 2 x 4096 */
-		spare_size = 64;
-	else
+		single_trans = 2048;
+		oob_size = 64;
+	} else if (info->flash_info.page_size == 8192) {/* 2 x 4096 */
+		spare_size = 32;
+		single_trans = 2048;
+		oob_size = 64;
+	} else
 		return;
 
 	idx = 0;
-	info->sgBuffAddr[idx] = info->data_buff_phys;
-	info->sgBuffSize[idx] = info->flash_info.page_size >> 1;
-	idx++;
-
-	info->sgBuffAddr[idx] = info->data_buff_phys + info->flash_info.page_size;
-	info->sgBuffSize[idx] = spare_size;
-	idx++;
-
-	info->sgBuffAddr[idx] = info->data_buff_phys + (info->flash_info.page_size >> 1);
-	info->sgBuffSize[idx] = (info->flash_info.page_size >> 1);
-	idx++;
-
-	/* Add 32 bytes to skip over the BCH ECC of the first page */
-	info->sgBuffAddr[idx] = info->data_buff_phys + info->flash_info.page_size + spare_size + 32;
-	info->sgBuffSize[idx] = spare_size;
-	idx++;
+	for (i = 0; i < (info->flash_info.page_size / single_trans); i++) {
+		info->sgBuffAddr[2 * i] = info->data_buff_phys +
+			(single_trans * i);
+		info->sgBuffSize[2 * i] = single_trans;
+		info->sgBuffAddr[2 * i + 1] = info->data_buff_phys +
+			info->flash_info.page_size + (oob_size * i);
+		info->sgBuffSize[2 * i + 1] = spare_size;
+		idx += 2;
+	}
 	info->sgNumBuffs = idx;
 
 	return;
@@ -371,12 +378,17 @@ static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info, uint32_t e
 
 			currDesc->pageAddr = info->page_addr;
 			currDesc->pageCount = 1;
-			currDesc->virtAddr = (MV_U32*)(info->data_buff + (i * singleBuffSize));
-			currDesc->physAddr = info->data_buff_phys + (i * singleBuffSize);
-			currDesc->numSgBuffs = ((info->sgNumBuffs == 1) ? 1 : 2);
+			currDesc->virtAddr = (MV_U32 *)(info->data_buff +
+					(i * singleBuffSize));
+			currDesc->physAddr = info->data_buff_phys +
+				(i * singleBuffSize);
+			currDesc->numSgBuffs =
+				((info->sgNumBuffs == 1) ? 1 : 2);
 			if(currDesc->numSgBuffs > 1) {
-				memcpy(currDesc->sgBuffAddr, info->sgBuffAddr + 2, sizeof(MV_U32) * 2);
-				memcpy(currDesc->sgBuffSize, info->sgBuffSize + 2, sizeof(MV_U32) * 2);
+				memcpy(currDesc->sgBuffAddr, info->sgBuffAddr +
+						i*2, sizeof(MV_U32) * 2);
+				memcpy(currDesc->sgBuffSize, info->sgBuffSize +
+						i*2, sizeof(MV_U32) * 2);
 			}
 			currDesc++;
 		}
@@ -396,13 +408,17 @@ static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info, uint32_t e
 			currDesc->cmd = MV_NFC_CMD_WRITE_NAKED;
 			currDesc->pageAddr = info->page_addr;
 			currDesc->pageCount = 1;
-			currDesc->virtAddr = (MV_U32*)(info->data_buff + (i * singleBuffSize));
-			currDesc->physAddr = info->data_buff_phys + (i * singleBuffSize);
+			currDesc->virtAddr = (MV_U32 *)(info->data_buff +
+					(i * singleBuffSize));
+			currDesc->physAddr = info->data_buff_phys +
+				(i * singleBuffSize);
 			currDesc->numSgBuffs = ((info->sgNumBuffs == 1) ? 1 : 2);
 			if(currDesc->numSgBuffs > 1) {
-				memcpy(currDesc->sgBuffAddr, info->sgBuffAddr + ((i & 1) * 2),
+				memcpy(currDesc->sgBuffAddr,
+						info->sgBuffAddr + (i * 2),
 						sizeof(MV_U32) * 2);
-				memcpy(currDesc->sgBuffSize, info->sgBuffSize + ((i & 1) * 2),
+				memcpy(currDesc->sgBuffSize,
+						info->sgBuffSize + (i * 2),
 						sizeof(MV_U32) * 2);
 			}
 			currDesc++;
@@ -434,14 +450,19 @@ static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info, uint32_t e
 		info->retcode = ERR_SENDCMD;
 		goto fail_stop;
 	}
+
 	if (info->use_dma == 0 && info->data_size > 0)
 		if (handle_data_pio(info))
 			goto fail_stop;
 
 	mvNfcIntrEnable(&info->nfcCtrl, event | MV_NFC_STATUS_CMDD, MV_FALSE);
 
-	if(MV_PDMA_CHANNEL_STOPPED != mvPdmaChannelStateGet(&info->nfcCtrl.dataChanHndl))
-		BUG();
+	while (MV_PDMA_CHANNEL_STOPPED !=
+			mvPdmaChannelStateGet(&info->nfcCtrl.dataChanHndl)) {
+		if (info->retcode == ERR_NONE)
+			BUG();
+
+	}
 
 	return 0;
 
@@ -542,8 +563,10 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = page_addr;
 		if (prepare_read_prog_cmd(info, column, page_addr))
 			break;
-		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
-		/* pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK); */
+		pxa3xx_nand_do_cmd_multiple(info,
+				MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+		/*pxa3xx_nand_do_cmd(info,
+				NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);*/
 		/* We only are OOB, so if the data has error, does not matter */
 		if (info->retcode == ERR_DBERR)
 			info->retcode = ERR_NONE;
@@ -553,14 +576,16 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->use_ecc = 1;
 		info->buf_start = column;
 		info->buf_count = mtd->writesize + mtd->oobsize;
-		memset(info->data_buff + mtd->writesize, 0xff, mtd->oobsize);
+		memset(info->data_buff, 0xff, info->buf_count);
 		info->cmd = MV_NFC_CMD_READ_MONOLITHIC;
 		info->column = column;
 		info->page_addr = page_addr;
 		if (prepare_read_prog_cmd(info, column, page_addr))
 			break;
-		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
-		/* pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK); */
+		pxa3xx_nand_do_cmd_multiple(info,
+				MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+		/*pxa3xx_nand_do_cmd(info,
+				NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);*/
 		if (info->retcode == ERR_DBERR) {
 			/* for blank page (all 0xff), HW will calculate its ECC as
 			 * 0, which is different from the ECC information within
@@ -612,7 +637,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->data_size = 8;
 		info->column = 0;
 		info->page_addr = 0;
-		info->cmd = (command == NAND_CMD_READID) ? 
+		info->cmd = (command == NAND_CMD_READID) ?
 			MV_NFC_CMD_READ_ID : MV_NFC_CMD_READ_STATUS;
 		pxa3xx_nand_do_cmd(info,NFC_SR_RDDREQ_MASK);
 		break;
@@ -621,7 +646,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = 0;
 		info->cmd = MV_NFC_CMD_RESET;
 		ret = pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_CMDD);
-		/* ret = pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_CMDD); */
+		/*ret = pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_CMDD);*/
 		if (ret == 0) {
 			int timeout = 2;
 			uint32_t ndcr;
@@ -758,8 +783,9 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info)
 	struct dove_nand_platform_data *pdata = pdev->dev.platform_data;
 	struct pxa3xx_nand_flash *f = &info->flash_info;
 
-	mvNfcFlashPageSizeGet(&info->nfcCtrl, &f->page_size);
-	if (f->page_size != 4096 && f->page_size != 2048 && f->page_size != 512)
+	mvNfcFlashPageSizeGet(&info->nfcCtrl, &f->page_size, NULL);
+	if (f->page_size != 8192 && f->page_size != 4096 &&
+	    f->page_size != 2048 && f->page_size != 512)
 		return -EINVAL;
 
 	f->flash_width = pdata->nfc_width;
@@ -774,11 +800,11 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info)
 }
 
 /* the maximum possible buffer size for large page with OOB data
- * is: 2048 + 64 = 2112 bytes, allocate a page here for both the
+ * is: 4096 + 128 = 4224 bytes, allocate a page here for both the
  * data buffer and the DMA descriptor
  * Multiply by 2 for Ganged mode.
  */
-#define MAX_BUFF_SIZE	(PAGE_SIZE << 1)
+#define MAX_BUFF_SIZE	(PAGE_SIZE << 2)
 
 static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 {
@@ -798,6 +824,7 @@ static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 		dev_err(&pdev->dev, "failed to allocate dma buffer\n");
 		return -ENOMEM;
 	}
+	memset(info->data_buff, 0xff, MAX_BUFF_SIZE);
 
 	ret = pxa_request_dma_intr ("nand-data", info->nfcCtrl.dataChanHndl.chanNumber,
 			pxa3xx_nand_data_dma_irq, info);
@@ -848,6 +875,33 @@ static struct nand_ecclayout hw_ganged_largepage_bch_ecclayout = {
 	.oobfree = { {1, 4}, {6, 26}, { 64, 32} }
 };
 
+static struct nand_ecclayout hw_ganged_largepage_8k_bch_ecclayout = {
+	.eccbytes = 128,
+	.eccpos = {
+		32,  33,  34,  35,  36,  37,  38,  39,
+		40,  41,  42,  43,  44,  45,  46,  47,
+		48,  49,  50,  51,  52,  53,  54,  55,
+		56,  57,  58,  59,  60,  61,  62,  63,
+
+		96,  97,  98,  99,  100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127,
+
+		160, 161, 162, 163, 164, 165, 166, 167,
+		168, 169, 170, 171, 172, 173, 174, 175,
+		176, 177, 178, 179, 180, 181, 182, 183,
+		184, 185, 186, 187, 188, 189, 190, 191,
+
+		224, 225, 226, 227, 228, 229, 230, 231,
+		232, 233, 234, 235, 236, 237, 238, 239,
+		240, 241, 242, 243, 244, 245, 246, 247,
+		248, 249, 250, 251, 252, 253, 254, 255},
+
+	/* Bootrom looks in bytes 0 & 5 for bad blocks */
+	.oobfree = { {1, 4}, {6, 26}, { 64, 32}, {128, 32}, {192, 32} }
+};
+
 static uint8_t mv_bbt_pattern[] = {'M', 'V', 'B', 'b', 't', '0' };
 static uint8_t mv_mirror_pattern[] = {'1', 't', 'b', 'B', 'V', 'M' };
 
@@ -881,7 +935,7 @@ static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 	this->options = (f->flash_width == 16) ? NAND_BUSWIDTH_16: 0;
 
 	this->num_devs = pdata->num_devs;
-	this->options |= NAND_USE_FLASH_BBT; 
+	this->options |= NAND_USE_FLASH_BBT;
 
 	this->waitfunc		= pxa3xx_nand_waitfunc;
 	this->select_chip	= pxa3xx_nand_select_chip;
@@ -900,13 +954,25 @@ static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 	this->ecc.size		= f->page_size;
 
 	if (f->page_size >= 2048) {
-		if(info->nfcCtrl.ifMode != MV_NFC_IF_2X8)
-			if(info->use_bch)
-				this->ecc.layout = &hw_largepage_bch_ecclayout;
+		if (info->nfcCtrl.ifMode != MV_NFC_IF_2X8) {
+			if (f->page_size < 4096) {
+				if (info->use_bch)
+					this->ecc.layout =
+						&hw_largepage_bch_ecclayout;
+				else
+					this->ecc.layout =
+						&hw_largepage_ecclayout;
+			} else
+				this->ecc.layout =
+					&hw_ganged_largepage_bch_ecclayout;
+		} else {
+			if (f->page_size <= 4096)
+				this->ecc.layout =
+					&hw_ganged_largepage_bch_ecclayout;
 			else
-				this->ecc.layout = &hw_largepage_ecclayout;
-		else
-			this->ecc.layout = &hw_ganged_largepage_bch_ecclayout;
+				this->ecc.layout =
+					&hw_ganged_largepage_8k_bch_ecclayout;
+		}
 	} else
 		this->ecc.layout = &hw_smallpage_ecclayout;
 
@@ -939,8 +1005,10 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	if (pdata->use_ecc) use_ecc = 1;
 	if (pdata->use_bch) use_bch = 1;
 
-	dev_info(&pdev->dev, "Initialize HAL based NFC in %dbit mode with DMA %s, ECC %s, BCH %s\n", 
-				pdata->nfc_width, stat[use_dma], stat[use_ecc], stat[use_bch]);
+	dev_info(&pdev->dev, "Initialize HAL based NFC in %dbit mode with "
+			"DMA %s, ECC %s, BCH %s\n",
+			pdata->nfc_width, stat[use_dma], stat[use_ecc],
+			stat[use_bch]);
 
 	mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct pxa3xx_nand_info),
 			GFP_KERNEL);
@@ -1020,7 +1088,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	nfcInfo.tclk = pdata->tclk;
 	nfcInfo.readyBypass = MV_FALSE;
 	nfcInfo.osHandle = NULL;
-	nfcInfo.regsPhysAddr = info->mmio_phys_base;
+	nfcInfo.regsPhysAddr = DOVE_SB_REGS_PHYS_BASE;
 	nfcInfo.dataPdmaIntMask = MV_PDMA_END_OF_RX_INTR_EN | MV_PDMA_END_INTR_EN;
 	nfcInfo.cmdPdmaIntMask = 0x0;
 	if (mvNfcInit(&nfcInfo, &info->nfcCtrl) != MV_OK) {
