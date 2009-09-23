@@ -74,7 +74,7 @@ extern "C" {
 #define PMU_SRAM_BASE		0xD00DC000
 
 /* Assembler labels */
-extern MV_VOID mvPmuSramDdrReconfigFunc(MV_U32, MV_U32);
+extern MV_VOID mvPmuSramDdrReconfigFunc(MV_U32, MV_U32, MV_U32);
 extern MV_U32 mvPmuSramDdrReconfigFuncSZ;
 extern MV_VOID mvPmuSramDeepIdleEnterFunc(MV_U32);
 extern MV_U32 mvPmuSramDeepIdleEnterFuncSZ;
