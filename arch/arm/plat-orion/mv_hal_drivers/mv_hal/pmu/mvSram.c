@@ -91,7 +91,7 @@ static unsigned long mvPmuSramOffs = PMU_SCRATCHPAD_RSRV;
 static unsigned long mvPmuSramSize = (PMU_SCRATCHPAD_SIZE - PMU_SCRATCHPAD_RSRV);
 
 /* SRAM functions pointer */
-static MV_VOID (*_mvPmuSramDdrReconfigPtr)(MV_U32 cplPtr, MV_U32 cplCnt);
+static MV_VOID (*_mvPmuSramDdrReconfigPtr)(MV_U32 cplPtr, MV_U32 cplCnt, MV_U32 dryRun);
 static MV_VOID (*_mvPmuSramDeepIdleEnterPtr)(MV_U32 ddrSelfRefresh);
 static MV_VOID (*_mvPmuSramDeepIdleExitPtr)(MV_VOID);
 static MV_VOID (*_mvPmuSramStandbyEnterPtr)(MV_VOID);
@@ -179,7 +179,13 @@ MV_VOID mvPmuSramDdrReconfig(MV_U32 paramcnt)
 	if (!_mvPmuSramDdrReconfigPtr)
 		panic("Function not yet relocated in SRAM\n");
 
-	return _mvPmuSramDdrReconfigPtr((MV_U32)_mvPmuSramDdrParamPtrInt, paramcnt);
+	/* First DRY run to avoid speculative prefetches*/
+	_mvPmuSramDdrReconfigPtr((MV_U32)_mvPmuSramDdrParamPtrInt, paramcnt, 0);
+
+	/* Real run to perform the scalinf */
+	_mvPmuSramDdrReconfigPtr((MV_U32)_mvPmuSramDdrParamPtrInt, paramcnt, 1);
+	
+	return;
 }	
 
 /*******************************************************************************
