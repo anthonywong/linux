@@ -609,7 +609,7 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	 */
 	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE);
 #ifdef USING_SAME_BUFF
-	if (strstr(fi->fix.id, "0")) {
+	if (strstr(fi->fix.id, "0") || (gfx_fb_start == 0) ) {
 #endif
 #ifdef CONFIG_ARCH_DOVE
 	dfli->fb_start = dma_alloc_writecombine(dfli->dev, dfli->fb_size,
