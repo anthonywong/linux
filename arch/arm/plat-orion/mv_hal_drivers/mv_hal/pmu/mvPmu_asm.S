@@ -440,6 +440,14 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 	mov	r0, #DOVE_SB_REGS_PHYS_BASE
 	str	r0, [r1]
 
+	/*
+	* DDR Sync workaround
+	*/
+	ldr     r1, dix_ddr_sync_reg
+	ldr     r0, dix_ddr_sync_val
+	str     r0, [r1]
+	ldr	r0, [r1]
+
 	mov	r1, #0
 	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
 	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate	
@@ -494,15 +502,7 @@ dix_ddr_active:
 	ldr	r4, dix_virt_mask
 	and	r3, r3, r4
 	ldr	r4, dix_virt_offs
-	orr	r3, r3, r4			@ virtual resume address
-
-	/*
-	* DDR Sync workaround
-	*/
-	ldr     r1, dix_ddr_sync_reg
-	ldr     r0, dix_ddr_sync_val
-	str     r0, [r1]
-	ldr	r0, [r1]
+	orr	r3, r3, r4			@ virtual resume address	
 
 	/*
 	 * temporarily map PMU SRAM into the page table so that PA=VA
