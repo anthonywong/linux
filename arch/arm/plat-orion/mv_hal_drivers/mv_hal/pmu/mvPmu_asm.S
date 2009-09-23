@@ -84,25 +84,23 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * mvPmuSramDdrReconfigFunc: Change the DDR frequency
  * Inputs:
  *    r0: address of first Addr/Value couple
- *    r1: count of Addr/Value couples 
+ *    r1: count of Addr/Value couples
+ *    r2: Dry run flag (0 - dry run, 1 - real run)
  * Outputs:
  *    None
  **************************************************************/
 	.align 5
 ENTRY(mvPmuSramDdrReconfigFunc)
 	stmfd	sp!, {r4 - r10, lr}	@ save registers on stack
-
 	mov	r9, r0
 	mov	r10, r1
+	mov     r11, r2
 
-	/*
-	 * Block all data requests to the MC from the SB
-	 */
-/*
-	ldr	r2, ddfs_mc_ctrl_reg
-	mov	r3, #0x1
-	str	r3, [r2]
-*/
+        /*
+         * Verify that the SRAM PTE is found in dTLB
+         * iTLB is guranteed.... Already in the SRAM
+         */
+	ldr     r2, ddfs_sp_addr
 
 	/* 
 	 * Disable All SB access to DDR
@@ -110,20 +108,38 @@ ENTRY(mvPmuSramDdrReconfigFunc)
 	ldr	r3, ddfs_arbit_val
 	ldr	r2, ddfs_arbit_low_reg	
 	ldr	r7, [r2]			@ r7 saves Arbitor HI
-	str	r3, [r2]
+	cmp	r11, #0
+	strne	r3, [r2]
 	ldr	r2, ddfs_arbit_hi_reg
 	ldr	r8, [r2]			@ r8 saves Arbitor LOW
-	str	r3, [r2]
+	cmp	r11, #0
+	strne	r3, [r2]
 
 	/*
-	 * Disable CS0 in the MC
+	 * Disable and flush BPU
 	 */
-/*
-	ldr	r2, ddfs_mc_map0_reg
+	mrc	p15, 0, r12, c1, c0, 0		@ read and save CP15 CR
+	bic	r2, r12, #0x800			@ clear BPU bit11
+	cmp	r11, #0
+	mcrne	p15, 0, r2, c1, c0, 0		@ disable BPU
+	mov	r2, #0
+	cmp	r11, #0
+	mcrne	p15, 1, r2, c15, c12, 4		@ BPU flush
+
+	/*
+	 * Drain Write buffer
+	 */
+	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
+	mcr	p15, 0, r0, c7, c10, 5		@ data memory barrier
+
+	/*
+	 * Block all data requests to the MC from the SB
+	 */
+	ldr	r2, ddfs_mc_ctrl_reg
+	mov	r3, #0x1
+	cmp	r11, #0
+	strne	r3, [r2]
 	ldr	r3, [r2]
-	bic	r3, r3, #0x1
-	str	r3, [r2]	
-*/
 
 	/*
 	 * Set DDR in Self refresh mode and poll status bit
@@ -132,21 +148,25 @@ ENTRY(mvPmuSramDdrReconfigFunc)
 	mov	r3, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r4, [r2]
 	orr	r4, r4, r3
-	str	r4, [r2]
+	cmp	r11, #0
+	strne	r4, [r2]
 ddr_fs_sr_loop:
 	ldr	r4, [r2]
+	cmp	r11, #0
+	moveq	r4, #PMU_CTRL_MC_SR_ACK_MASK
 	tst	r4, #PMU_CTRL_MC_SR_ACK_MASK
 	beq	ddr_fs_sr_loop
 
 	/*
 	 * Enter WFI
 	 */
+	cmp     r11, #0
 #ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
-	mov	r0, #0
-	mcr	p15, 0, r0, c7, c0, 4
+	movne	r0, #0
+	mcrne	p15, 0, r0, c7, c0, 4
 #else
-	dsb
-	wfi
+	dsbne
+	wfine
 #endif
 
 
@@ -159,17 +179,19 @@ ddr_fs_sr_loop:
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
 	beq	skip_ddrfs_sr_exit
 	bic	r2, r2, r1
-	str	r2, [r0]
+	cmp	r11, #0
+	strne	r2, [r0]
 ddrfs_sr_exit_loop:
 	ldr	r2, [r0]
+	cmp	r11, #0
+	moveq	r2, #PMU_CTRL_MC_SR_ACK_MASK
 	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
 	bne	ddrfs_sr_exit_loop
-skip_ddrfs_sr_exit:
+skip_ddrfs_sr_exit:	
 
 	/*
 	 * Loop and execute MC init addr/value couples
 	 */
-/*
 	mov	r0, r9
 	mov	r1, r10
 	ldr	r4, ddfs_nb_offset
@@ -183,11 +205,40 @@ mc_init_loop:
 	add	r0, #4
 	bic	r2, r2, r5			
 	orr	r2, r2, r4			@ NB Offset
-	str	r3, [r2]			@ [Address]=Value
+	cmp	r11, #0
+	strne	r3, [r2]			@ [Address]=Value
 	sub	r1, r1, #1
 	b	mc_init_loop
 mc_init_done:
-*/
+	ldr	r3, [r2]
+
+	/*
+	 * UN-Block data requests to the MC from the SB
+	 */
+	ldr	r2, ddfs_mc_ctrl_reg
+	mov	r3, #0x0
+	cmp	r11, #0
+	strne	r3, [r2]
+	ldr	r3, [r2]
+
+	/*
+	 * Enable and flush BPU
+	 */
+	cmp	r11, #0
+	mcrne	p15, 0, r12, c1, c0, 0		@ restore saved CP15 CR
+
+	/* 
+	 * Restore SB access ro DDR
+	 */
+	ldr	r2, ddfs_arbit_low_reg
+	cmp	r11, #0
+	strne	r7, [r2]			@ restore Arbitor HI
+	ldr	r2, ddfs_arbit_hi_reg
+	cmp	r11, #0
+	strne	r8, [r2]			@ restore Arbitor LOW
+
+	ldmfd	sp!, {r4 - r10, pc}	@ restore regs and return
+
 /*************************************************************/
 /*   FOR DEBUG ONLY - BLINK LED ON MPP7 AS A LIFE INDICATION */
 /*************************************************************/
@@ -218,35 +269,6 @@ loop_delay2:
 */
 /********************************************************************/
 
-	/*
-	 * UN-Block data requests to the MC from the SB
-	 */
-/*
-	ldr	r2, ddfs_mc_ctrl_reg
-	mov	r3, #0x0
-	str	r3, [r2]
-*/
-
-	/*
-	 * Enable CS0 in the MC
-	 */
-/*
-	ldr	r2, ddfs_mc_map0_reg
-	ldr	r3, [r2]
-	orr	r3, r3, #0x1
-	str	r3, [r2]
-*/
-	/* 
-	 * Restore SB access ro DDR
-	 */
-
-	ldr	r2, ddfs_arbit_low_reg	
-	str	r7, [r2]			@ restore Arbitor HI
-	ldr	r2, ddfs_arbit_hi_reg
-	str	r8, [r2]			@ restore Arbitor LOW
-
-	ldmfd	sp!, {r4 - r10, pc}	@ restore regs and return
-
 ddfs_nb_offset:
 	.word (DOVE_NB_REGS_VIRT_BASE)
 ddfs_nb_mask:
@@ -262,10 +284,8 @@ ddfs_arbit_hi_reg:
 	.word(DOVE_SB_REGS_VIRT_BASE + 0xD02AC)
 ddfs_arbit_val:
 	.word(0xFFFFFFFF)
-/*
-ddfs_mc_map0_reg:
-	.word(DOVE_NB_REGS_VIRT_BASE + 0x100)
-*/
+ddfs_sp_addr:
+	.word (PMU_SCRATCHPAD_INT_BASE)
 /*********************************************************************/
 /*
 led_addr:
