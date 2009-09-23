@@ -50,7 +50,7 @@ static int dove_enter_idle(struct cpuidle_device *dev,
 			(after.tv_usec - before.tv_usec);
 	return idle_time;
 }
-extern int pm_enable;
+extern int pm_disable;
 /* 
  * Register Dove IDLE states
  */
@@ -78,7 +78,7 @@ int dove_init_cpuidle(void)
 	strcpy(device->states[1].name, "DEEP IDLE");
 	strcpy(device->states[1].desc, "Deep Idle (eBook if LCD is OFF)");
 
-	if (!pm_enable)
+	if (pm_disable)
 		return 0;
 
 	if (cpuidle_register_device(device)) {
