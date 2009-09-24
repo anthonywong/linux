@@ -67,10 +67,9 @@ mv_submake_end: FORCE
 	@rm $(HAL_SATA_DIR)/Makefile
 
 $(obj)/dummy.o: mv_submake
-	@touch $(obj)/dummy.o
 
 $(obj)/dummy_end.o: mv_submake_end
-	@touch $(obj)/dummy_end.o
+
 ifneq ($(KBUILD_BUILTIN),)
 obj-y += dummy.o 										\
 		common/ linux_oss/ mv_hal/audio/ mv_hal/pmu/ mv_hal/ddr/ddrmc/		\
