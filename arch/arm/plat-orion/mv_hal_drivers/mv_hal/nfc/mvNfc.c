@@ -195,6 +195,24 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.id = 0xD320,	/* Device ID 0xDevice,Vendor */
 		.model = "ST 8Gb 8bit",
 	}, 
+	{			/* ST 32Gb */
+		.tCH = 5,	/* tCH, Enable signal hold time */
+		.tCS = 20,	/* tCS, Enable signal setup time */
+		.tWH = 10,	/* tWH, ND_nWE high duration */
+		.tWP = 12,	/* tWP, ND_nWE pulse time */
+		.tRH = 10,	/* tRH, ND_nRE high duration */
+		.tRP = 12,	/* tRP, ND_nRE pulse width */			
+		.tR = 25121, 	/* tR = tR+tRR+tWB+1, ND_nWE high to ND_nRE low for read - 25000+20+100+1 */
+		.tWHR = 80,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
+		.tAR = 10,	/* tAR, ND_ALE low to ND_nRE low delay */
+		.tRHW = 100,	/* tRHW, ND_nRE high to ND_nWE low delay */
+		.pgPrBlk = 64,	/* Pages per block - detected */
+		.pgSz = 4096,	/* Page size */
+		.oobSz = 128,	/* Spare size */ 
+		.blkNum = 16384,/* Number of blocks/sectors in the flash */
+		.id = 0xD520,	/* Device ID 0xVendor,device */
+		.model = "ST 32Gb 8bit",
+	},
 
 	{			/* Samsung 16Gb */
 		.tCH = 5,	/* tCH, Enable signal hold time */
@@ -214,6 +232,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.id = 0xD5EC,	/* Device ID 0xDevice,Vendor */
 		.model = "Samsung 16Gb 8bit",
 	},
+
 
 	{			/* Samsung 32Gb */
 		.tCH = 5,	/* tCH, Enable signal hold time */
@@ -2115,7 +2134,6 @@ static MV_STATUS mvNfcReadIdNative(MV_NFC_CHIP_SEL cs, MV_U16 *id)
    	if ((errCode = mvDfcWait4Complete(NFC_SR_WRCMDREQ_MASK, 1)) != MV_OK) {
 		return errCode;
 	}
-
 
    	/* Send Command */
 	reg =  NFC_NATIVE_READ_ID_CMD;

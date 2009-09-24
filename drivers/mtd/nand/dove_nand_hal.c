@@ -285,8 +285,10 @@ static void pxa3xx_nand_set_rw_chunks(struct pxa3xx_nand_info *info)
 	if ((info->nfcCtrl.ifMode != MV_NFC_IF_2X8) &&
 	    (info->flash_info.page_size <= 2048)) {
 		/* Non-Ganged mode */
-		info->sgNumBuffs = 1;
-		return;
+		if (info->flash_info.page_size <= 2048) {
+			info->sgNumBuffs = 1;
+			return;
+		}
 	}
 
 	/*
