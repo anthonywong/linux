@@ -729,6 +729,15 @@ static int dovefb_enable_lcd0(struct platform_device *pdev)
 
 	return 0;
 }
+
+static void dovefb_config_vga_calibration(struct dovefb_info *info)
+{
+	if (info->id == 1) {
+		u32 portB_config = readl(DOVE_LCD1_CONFIG_VIRT);
+		writel(0, DOVE_LCD1_CONFIG_VIRT);
+	}
+}
+
 #include <video/dovefb_gpio.h>
 
 static int __init dovefb_probe(struct platform_device *pdev)
@@ -823,6 +832,8 @@ static int __init dovefb_probe(struct platform_device *pdev)
 	 */
 	ret = dovefb_parse_options(option, info, dmi, pdev->id);
 #endif
+	dovefb_config_vga_calibration(info);
+
 	ret = dovefb_gfx_init(info, dmi);
 	if (ret) {
 		printk(KERN_ERR "DoveFB: dovefb_gfx_init() "
@@ -970,6 +981,8 @@ static int dovefb_resume(struct platform_device *pdev)
 				"dovefb_enable_lcd0() failed.\n");
 		return -1;
 	}
+
+	dovefb_config_vga_calibration(dfi);
 
 	if (dovefb_gfx_resume(dfi->gfx_plane)) {
 		printk(KERN_INFO "dovefb_resume(): "
