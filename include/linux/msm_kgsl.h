@@ -295,8 +295,13 @@ struct kgsl_drawctxt_set_bin_base_offset {
 int kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
 			unsigned long *len);
 #else
-#define kgsl_gem_obj_addr(...) 0
-#endif
+int kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
+			unsigned long *len)
+{
+	printk(KERN_ERR "%s: MSM_KGSL_DRM not configured \n", __func__);
+	return -1;
+}
+
 #endif
 
 #endif /* _MSM_KGSL_H */
