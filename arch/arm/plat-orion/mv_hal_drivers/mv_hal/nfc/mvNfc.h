@@ -184,7 +184,6 @@ extern "C" {
 #define MV_NFC_CS0_CMD_DONE_INT		0x100
 #define MV_NFC_DEVICE_READY_INT		0x800
 
-
 /* Max number of buffers chunks for as single read / write operation */
 #define MV_NFC_RW_MAX_BUFF_NUM		16
 
