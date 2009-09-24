@@ -48,6 +48,9 @@
 #include <mvSysHwConfig.h>
 #include <ctrlEnv/mvCtrlEnvRegs.h>
 #include "ctrlEnv/sys/mvCpuIfRegs.h"
+#ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
+#include "mvTypes.h"
+#endif
 #ifdef CONFIG_MV_ETHERNET
 #include "../plat-orion/mv_hal_drivers/mv_drivers_lsp/mv_network/mv_ethernet/mv_netdev.h"
 #endif
