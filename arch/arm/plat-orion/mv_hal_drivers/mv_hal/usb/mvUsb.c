@@ -381,8 +381,9 @@ static void    mvUsbPhy6781Y0Init(int dev)
     /******* USB PHY Rx Control Register 0x430 *******/
     regVal = MV_REG_READ(MV_USB_PHY_RX_CTRL_REG(dev)); 
     
-    /* bits[3:2]	LPL_COEF	= 0x0 (1/8) */
+    /* bits[3:2]	LPL_COEF	= 0x1 (1/4) */
     regVal &= ~(0x3 << 2);
+    regVal |= 1 << 2;
 
     /* bits[7:4]	SQ_THRESH	= 0x8 */
     regVal &= ~(0xf << 4);

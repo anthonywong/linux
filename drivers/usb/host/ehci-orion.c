@@ -151,6 +151,8 @@ static void orion_usb_phy_v2_setup(struct usb_hcd *hcd)
 
 	reg = rdl(USB_PHY_RX_CTRL);
 	reg &= ~(3 << 2); /* LPL_COEF */
+	reg |= 1 << 2;
+
 	reg &= ~(0xf << 4);
 #ifdef CONFIG_DOVE_REV_Z0
 	reg |= 7 << 4; /* SQ_THRESH */
