@@ -71,6 +71,6 @@ echo $abi > $abidir/abiname
 # NOTE: The flavours are hardcoded, because they may have changed from the
 # current build.
 
-getall armel dove dove-z0
+getall armel dove
 
 rmdir $tmpdir
