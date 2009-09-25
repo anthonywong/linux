@@ -1,3 +1,20 @@
+linux-ec2 (2.6.31-300.3) karmic; urgency=low
+
+  [ Chuck Short ]
+
+  * SAUCE: ec2: Default domU console to tty.
+    - LP: #431103
+
+  [ Tim Gardner ]
+
+  * [Config] Remove dependency on wireless-crda
+    - LP: #434755
+  * [Config] Drop bootloaders as a recommendation
+    - LP: #434755
+  * [Config] Drop virtual sub flavours
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Fri, 25 Sep 2009 15:18:34 -0600
+
 linux-ec2 (2.6.31-300.2) karmic; urgency=low
 
   [ Tim Gardner ]
