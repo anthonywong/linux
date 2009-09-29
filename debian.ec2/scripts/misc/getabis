@@ -16,6 +16,7 @@ repo="http://archive.ubuntu.com/ubuntu/pool/main/l"
 repo_ports="http://ports.ubuntu.com/ubuntu-ports/pool/main/l"
 repo_uni="http://archive.ubuntu.com/ubuntu/pool/universe/l"
 repo_ports_uni="http://ports.ubuntu.com/ubuntu-ports/pool/universe/l"
+srcpkg=linux-ec2
 
 WGET="wget --quiet -c"
 
@@ -42,7 +43,7 @@ getall() {
 		for r in $repo $repo_ports $repo_uni $repo_ports_uni
 		do
 			if ! [ -f $filename ]; then
-				$WGET $r/linux/$filename
+				$WGET $r/${srcpkg}/$filename
 			fi
 		done
 		if [ "$?" = "0" ]; then
