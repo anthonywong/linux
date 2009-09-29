@@ -165,8 +165,9 @@ ddr_fs_sr_loop:
 	movne	r0, #0
 	mcrne	p15, 0, r0, c7, c0, 4
 #else
-	dsbne
-	wfine
+	itt	ne
+	dsb
+	wfi
 #endif
 
 
