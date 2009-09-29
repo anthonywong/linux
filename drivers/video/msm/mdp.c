@@ -41,6 +41,7 @@
 #endif
 
 static struct clk *mdp_clk;
+static struct clk *mdp_pclk;
 
 struct completion mdp_ppp_comp;
 struct semaphore mdp_ppp_mutex;
@@ -476,12 +477,15 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 		if ((mdp_all_blocks_off) && (mdp_current_clk_on)) {
 			if (block == MDP_MASTER_BLOCK) {
 				mdp_current_clk_on = FALSE;
-				/* turn off MDP clk */
+				/* turn off MDP clks */
 				if (mdp_clk != NULL) {
 					clk_disable(mdp_clk);
 					MSM_FB_DEBUG("MDP CLK OFF\n");
 				}
-
+				if (mdp_pclk != NULL) {
+					clk_disable(mdp_pclk);
+					MSM_FB_DEBUG("MDP PCLK OFF\n");
+				}
 			} else {
 				/* send workqueue to turn off mdp power */
 				queue_delayed_work(mdp_pipe_ctrl_wq,
@@ -490,10 +494,14 @@ void mdp_pipe_ctrl(MDP_BLOCK_TYPE block, MDP_BLOCK_POWER_STATE state,
 			}
 		} else if ((!mdp_all_blocks_off) && (!mdp_current_clk_on)) {
 			mdp_current_clk_on = TRUE;
-			/* turn on MDP clk */
+			/* turn on MDP clks */
 			if (mdp_clk != NULL) {
 				clk_enable(mdp_clk);
 				MSM_FB_DEBUG("MDP CLK ON\n");
+			}
+			if (mdp_pclk != NULL) {
+				clk_enable(mdp_pclk);
+				MSM_FB_DEBUG("MDP PCLK ON\n");
 			}
 		}
 		up(&mdp_pipe_ctrl_mutex);
@@ -761,7 +769,7 @@ static int mdp_on(struct platform_device *pdev)
 	return ret;
 }
 
-int mdp_irq_clk_setup(void)
+static int mdp_irq_clk_setup(void)
 {
 	int ret;
 
@@ -783,6 +791,10 @@ int mdp_irq_clk_setup(void)
 		free_irq(INT_MDP, 0);
 		return ret;
 	}
+
+	mdp_pclk = clk_get(NULL, "mdp_pclk");
+	if (IS_ERR(mdp_pclk))
+		mdp_pclk = NULL;
 
 	return 0;
 }
