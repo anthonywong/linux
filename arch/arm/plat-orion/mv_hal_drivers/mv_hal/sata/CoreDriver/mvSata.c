@@ -2768,15 +2768,25 @@ static MV_BOOLEAN transferPIOData(MV_SATA_CHANNEL *pSataChannel,
     case MV_NON_UDMA_PROTOCOL_PIO_DATA_IN:
         for (i = 0; i < dataBlockWords; i++)
         {
+	     MV_U16 data;
             if (pNoneUdmaCommandParams->count == 0)
             {
                 return MV_TRUE;
             }
             pNoneUdmaCommandParams->count--;
-            *pNoneUdmaCommandParams->bufPtr++ =
-            MV_REG_READ_WORD(pSataChannel->mvSataAdapter->adapterIoBaseAddress,
+	    data = MV_REG_READ_WORD(pSataChannel->mvSataAdapter->adapterIoBaseAddress,
                              pSataChannel->eDmaRegsOffset +
                              MV_ATA_DEVICE_PIO_DATA_REG_OFFSET);
+#if defined(MV_NETBSD)
+	    /* identify data is in big endian */
+	    if((pNoneUdmaCommandParams->command == MV_ATA_COMMAND_IDENTIFY) ||
+	       (pNoneUdmaCommandParams->command == MV_ATA_COMMAND_ATAPI_IDENTIFY))
+		 data = MV_BE16_TO_CPU(data);
+	    else
+		 data = MV_CPU_TO_LE16(data); /*should be LE16 TO CPU */
+#endif
+	    *pNoneUdmaCommandParams->bufPtr++ = data;
+	    
         }
         break;
     default:
@@ -3517,7 +3527,7 @@ static void _fixPhyParams(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex)
 				     getEdmaRegOffset (channelIndex) +
 				     MV_SATA_II_PHY_MODE_3_REG_OFFSET);
 
-         regVal &= ~0x78000000;
+         regVal &= ~0x78100000;
          regVal |=  0x28000000;
 
          MV_REG_WRITE_DWORD (pAdapter->adapterIoBaseAddress,
@@ -3537,18 +3547,6 @@ static void _fixPhyParams(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex)
 
 	 regVal = MV_REG_READ_DWORD (pAdapter->adapterIoBaseAddress,
 				     getEdmaRegOffset (channelIndex) +
-				     MV_SATA_II_PHY_MODE_1_REG_OFFSET);
-
-	 regVal &= ~0x800;/* bit 11 mist be written with 0*/
-	 regVal |= 0x300000;
-
-	 MV_REG_WRITE_DWORD (pAdapter->adapterIoBaseAddress,
-			     getEdmaRegOffset (channelIndex) +
-			     MV_SATA_II_PHY_MODE_1_REG_OFFSET,
-			     regVal);
-	 
-	 regVal = MV_REG_READ_DWORD (pAdapter->adapterIoBaseAddress,
-				     getEdmaRegOffset (channelIndex) +
 				     MV_SATA_II_PHY_MODE_9_GEN2_REG_OFFSET);
 	 regVal &= ~0x7CFF;
 	 regVal |= 0x00438;
@@ -3561,8 +3559,8 @@ static void _fixPhyParams(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex)
 	 regVal = MV_REG_READ_DWORD (pAdapter->adapterIoBaseAddress,
 				     getEdmaRegOffset (channelIndex) +
 				     MV_SATA_II_PHY_MODE_9_GEN1_REG_OFFSET);
-	 regVal &= ~0x7CFF;
-	 regVal |= 0x02438;
+	 regVal &= ~0x400F;
+	 regVal |= 0x00008;
 	 
 	 MV_REG_WRITE_DWORD (pAdapter->adapterIoBaseAddress,
 			     getEdmaRegOffset (channelIndex) +
@@ -3836,7 +3834,7 @@ static void revertSataHCRegs (MV_SATA_ADAPTER *pAdapter)
                 MV_REG_WRITE_DWORD(pAdapter->adapterIoBaseAddress,
                                    edmaRegsOffset + MV_EDMA_TEST_CONTROL_REG_OFFSET, 0);
                 MV_REG_WRITE_DWORD(pAdapter->adapterIoBaseAddress,
-                                   edmaRegsOffset + MV_EDMA_IORDY_TIMEOUT_REG_OFFSET, 0xbc);
+                                   edmaRegsOffset + MV_EDMA_IORDY_TIMEOUT_REG_OFFSET, 0x800);
             }
 
             /* Revert values of SATA HC regs (few registers are READ-ONLY ) */
@@ -4308,6 +4306,12 @@ static void activateEdma(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex)
                            MV_EDMA_INTERRUPT_ERROR_CAUSE_REG_OFFSET, MV_BIT8);
     }
 
+    if (pSataChannel->FBSEnabled == MV_TRUE)
+    {
+	 _setRegBits(ioBaseAddr, pSataChannel->eDmaRegsOffset + 
+		       MV_EDMA_CONFIG_REG_OFFSET, MV_BIT16);
+    }
+
     /* disable sata device interrupts */
     disableSaDevInterrupts(pAdapter, channelIndex);
 
@@ -4374,7 +4378,11 @@ static void deactivateEdma(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex)
                                     channelIndex);
         mvOsSemTake(&pSataChannel->semaphore);
     }
-
+    if (pSataChannel->FBSEnabled == MV_TRUE)
+    {
+	 _clearRegBits(ioBaseAddr, pSataChannel->eDmaRegsOffset + 
+		       MV_EDMA_CONFIG_REG_OFFSET, MV_BIT16);
+    }
     /*_dumpSataRegs(pAdapter, channelIndex);*/
     enableSaDevInterrupts(pAdapter, channelIndex);
 }
@@ -5403,7 +5411,7 @@ static MV_BOOLEAN sendNoneUdmaCommand(MV_SATA_CHANNEL *pSataChannel,
 
         /* Wait for the command to complete */
         if (waitWhileStorageDevIsBusy(pSataChannel->mvSataAdapter,
-                                      ioBaseAddr, eDmaRegsOffset, 10, 100) ==
+                                      ioBaseAddr, eDmaRegsOffset, 10000, 100) ==
             MV_FALSE)
         {
             mvLogMsg(MV_CORE_DRIVER_LOG_ID, MV_DEBUG_FATAL_ERROR, " %d %d: in Issue PIO "
@@ -5798,6 +5806,29 @@ MV_BOOLEAN mvSataInitAdapter (MV_SATA_ADAPTER *pAdapter)
 		pAdapter->mainCauseOffset = 0x20020;
 		pAdapter->chipIs62X1Z0 = MV_TRUE;
 		break;
+	case MV_SATA_DEVICE_ID_76100:
+		pAdapter->numberOfChannels = MV_SATA_76100_PORT_NUM;
+		pAdapter->numberOfUnits = 1;
+		pAdapter->portsPerUnit = MV_SATA_76100_PORT_NUM;
+		pAdapter->sataAdapterGeneration = MV_SATA_GEN_IIE;
+		/*The integrated sata core chip based on 60x1 C0*/
+		pAdapter->hostInterface = MV_HOST_IF_INTEGRATED;
+		pAdapter->mainMaskOffset = 0x20024;
+		pAdapter->mainCauseOffset = 0x20020;
+		pAdapter->chipIs62X1Z0 = MV_TRUE;
+		break;
+	case MV_SATA_DEVICE_ID_6323:
+		pAdapter->numberOfChannels = MV_SATA_6323_PORT_NUM;
+		pAdapter->numberOfUnits = 1;
+		pAdapter->portsPerUnit = MV_SATA_6323_PORT_NUM;
+		pAdapter->sataAdapterGeneration = MV_SATA_GEN_IIE;
+		/*The integrated sata core chip based on 60x1 C0*/
+		pAdapter->hostInterface = MV_HOST_IF_INTEGRATED;
+		pAdapter->mainMaskOffset = 0x20024;
+		pAdapter->mainCauseOffset = 0x20020;
+		pAdapter->chipIs62X1Z0 = MV_TRUE;
+		break;
+
 	case MV_SATA_DEVICE_ID_6281:
 		pAdapter->numberOfChannels = MV_SATA_6281_PORT_NUM;
 		pAdapter->numberOfUnits = 1;
@@ -5820,10 +5851,10 @@ MV_BOOLEAN mvSataInitAdapter (MV_SATA_ADAPTER *pAdapter)
 		pAdapter->mainCauseOffset = 0x20020;
 		pAdapter->chipIs62X1Z0 = MV_TRUE;
         break;
-	case MV_SATA_DEVICE_ID_6781:
-		pAdapter->numberOfChannels = MV_SATA_6781_PORT_NUM;
+	case MV_SATA_DEVICE_ID_6190:
+		pAdapter->numberOfChannels = MV_SATA_6190_PORT_NUM;
 		pAdapter->numberOfUnits = 1;
-		pAdapter->portsPerUnit = MV_SATA_6781_PORT_NUM;
+		pAdapter->portsPerUnit = MV_SATA_6190_PORT_NUM;
 		pAdapter->sataAdapterGeneration = MV_SATA_GEN_IIE;
 		/*The integrated sata core chip based on 60x1 C0*/
 		pAdapter->hostInterface = MV_HOST_IF_INTEGRATED;
@@ -6799,7 +6830,7 @@ MV_BOOLEAN mvSataConfigEdmaMode(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex,
             mvLogMsg(MV_CORE_DRIVER_LOG_ID, MV_DEBUG,
                      " %d %d: Enable FBS feature\n",
                      pAdapter->adapterId, channelIndex);
-            val |= MV_BIT16;
+/*            val |= MV_BIT16;*/
             /* Set bit 16 at FISDMAActiveSyncResp */
             _setRegBits(ioBaseAddr, pSataChannel->eDmaRegsOffset + 
                         MV_EDMA_FIS_CONFIGURATION_REG_OFFSET, MV_BIT16);
