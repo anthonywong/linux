@@ -106,10 +106,12 @@ extern "C" /*{*/
 #define MV_SATA_DEVICE_ID_78XX0                 0x7800 /*78x00 Z0/Y0 integrated sata*/
 #define MV_SATA_DEVICE_ID_78100                 0x7810 /*78100 integrated sata*/
 #define MV_SATA_DEVICE_ID_78200                 0x7820 /*78200 integrated sata*/
+#define MV_SATA_DEVICE_ID_76100                 0x7610 /*76100 integrated sata*/
+#define MV_SATA_DEVICE_ID_6323                  0x6323 /*6323 integrated sata*/
 
 #define MV_SATA_DEVICE_ID_6281                 0x6281 /*88f6281 integrated sata*/
 #define MV_SATA_DEVICE_ID_6192                 0x6192 /*88f6192 integrated sata*/
-
+#define MV_SATA_DEVICE_ID_6190                 0x6190 /*88f6190 integrated sata*/
 #define MV_SATA_DEVICE_ID_6781                 0x6781 /*88f6781 integrated sata*/
 
 #define MV_SATA_CHANNELS_NUM                    8
@@ -121,8 +123,12 @@ extern "C" /*{*/
 #define MV_SATA_6490_PORT_NUM                   1
 #define MV_SATA_6281_PORT_NUM                   2
 #define MV_SATA_6192_PORT_NUM                   2
+#define MV_SATA_6190_PORT_NUM                   1
 #define MV_SATA_78XX0_PORT_NUM                  2
 #define MV_SATA_6781_PORT_NUM                   1
+#define MV_SATA_76100_PORT_NUM                  1
+#define MV_SATA_6323_PORT_NUM                   1
+
 
 #define MV_SATA_PM_MAX_PORTS                    15
 #define MV_SATA_PM_CONTROL_PORT                 15
@@ -269,7 +275,8 @@ typedef enum mvNonUdmaProtocol
     MV_NON_UDMA_PROTOCOL_PACKET_PIO_NON_DATA,
     MV_NON_UDMA_PROTOCOL_PACKET_PIO_DATA_IN,
     MV_NON_UDMA_PROTOCOL_PACKET_PIO_DATA_OUT,
-    MV_NON_UDMA_PROTOCOL_PACKET_DMA
+    MV_NON_UDMA_PROTOCOL_PACKET_DMA,
+    MV_NON_UDMA_PROTOCOL_UNKNOWN
 } MV_NON_UDMA_PROTOCOL;
 
 typedef enum mvSataGeneration
