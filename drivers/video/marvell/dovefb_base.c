@@ -405,15 +405,17 @@ static irqreturn_t dovefb_handle_irq(int irq, void *dev_id)
 
 	isr = readl(dfi->reg_base + SPU_IRQ_ISR);
 
-	if (isr & GRA_FRAME_IRQ0_ENA_MASK)
+	if (isr & GRA_FRAME_IRQ0_ENA_MASK) {
 		ret += dovefb_gfx_handle_irq(isr, dfi->gfx_plane);
+		isr &= ~GRA_FRAME_IRQ0_ENA_MASK;
+	}
 
-	if (isr & DMA_FRAME_IRQ0_ENA_MASK)
+	if (isr & DMA_FRAME_IRQ0_ENA_MASK) {
 		ret += dovefb_ovly_handle_irq(isr, dfi->vid_plane);
+		isr &= ~DMA_FRAME_IRQ0_ENA_MASK;
+	}
 
-	isr &= (GRA_FRAME_IRQ0_ENA_MASK | DMA_FRAME_IRQ0_ENA_MASK);
-
-	writel(~isr, dfi->reg_base + SPU_IRQ_ISR);
+	writel(isr, dfi->reg_base + SPU_IRQ_ISR);
 
 	return IRQ_RETVAL(ret);
 }
@@ -609,7 +611,7 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	 */
 	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE);
 #ifdef USING_SAME_BUFF
-	if (strstr(fi->fix.id, "0") || (gfx_fb_start == 0) ) {
+	if ((gfx_fb_start == 0) || (vid_fb_start == 0) ) {
 #endif
 #ifdef CONFIG_ARCH_DOVE
 	dfli->fb_start = dma_alloc_writecombine(dfli->dev, dfli->fb_size,
@@ -631,7 +633,7 @@ static int dovefb_init_layer(struct platform_device *pdev,
 		goto failed;
 	}
 #ifdef USING_SAME_BUFF
-		if(strstr(fi->fix.id, "GFX Layer 0")) {
+		if(strstr(fi->fix.id, "GFX")) {
 			gfx_fb_start = dfli->fb_start;
 			gfx_fb_start_dma = dfli->fb_start_dma;
 		} else {
@@ -640,7 +642,7 @@ static int dovefb_init_layer(struct platform_device *pdev,
 		}
 		memset(dfli->fb_start, 0, dfli->fb_size);
 	} else {
-		if(strstr(fi->fix.id, "GFX Layer 1")) {
+		if(strstr(fi->fix.id, "GFX")) {
 			dfli->fb_start = gfx_fb_start;
 			dfli->fb_start_dma = gfx_fb_start_dma;
 		} else {
