@@ -321,6 +321,9 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 	mrc	p15, 0, r8, c1, c0, 1		@ save CP15 - Aux CR
 	mov	r9, r13				@ save resume SP
 	stmfd	sp!, {r2-r9}
+	mrc	p15, 0, r7, c10, c2, 0		@ save CP15 - PRRR
+	mrc	p15, 0, r8, c10, c2, 1		@ save CP15 - NMRR
+	stmfd	sp!, {r7-r8}
 
 	/*
 	 * Save the physical address of the resume SP
@@ -512,6 +515,9 @@ dix_term_enable_delay:
 
 dix_ddr_active:	
 	ldr	r0, dix_saved_sp		@ stack phys addr
+	ldmfd	r0!, {r7-r8}
+	mcr	p15, 0, r8, c10, c2, 1		@ restore CP15 - NMRR
+	mcr	p15, 0, r7, c10, c2, 0		@ restore CP15 - PRRR
 	ldmfd	r0, {r2-r9}
 	mcr	p15, 0, r8, c1, c0, 1		@ restore CP15 - Aux CR
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
@@ -618,6 +624,9 @@ ENTRY(mvPmuSramStandbyEnterFunc)
 	mrc	p15, 0, r8, c1, c0, 1		@ save CP15 - Aux CR
 	mov	r9, r13				@ save resume SP
 	stmfd	sp!, {r2-r9}
+	mrc	p15, 0, r7, c10, c2, 0		@ save CP15 - PRRR
+	mrc	p15, 0, r8, c10, c2, 1		@ save CP15 - NMRR
+	stmfd	sp!, {r7-r8}
 
 	/*
 	 * Save the physical address of the resume SP
@@ -726,6 +735,9 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	mcr	p15, 0, r1, c7, c5, 4		@ Prefetch Flush - ISB
 
 	ldr	r0, sbx_saved_sp		@ stack phys addr
+	ldmfd	r0!, {r7-r8}
+	mcr	p15, 0, r8, c10, c2, 1		@ restore CP15 - NMRR
+	mcr	p15, 0, r7, c10, c2, 0		@ restore CP15 - PRRR
 	ldmfd	r0, {r2-r9}
 	mcr	p15, 0, r8, c1, c0, 1		@ restore CP15 - Aux CR
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
