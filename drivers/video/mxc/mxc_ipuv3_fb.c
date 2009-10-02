@@ -78,7 +78,7 @@ struct mxcfb_alloc_list {
 };
 
 static char *fb_mode;
-static unsigned long default_bpp = 16;
+static unsigned long default_bpp = 32;
 static bool g_dp_in_use;
 LIST_HEAD(fb_alloc_list);
 
