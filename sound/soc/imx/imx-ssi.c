@@ -39,6 +39,13 @@
 #include "imx-ssi.h"
 #include "imx-pcm.h"
 
+/* private info */
+struct imx_ssi {
+	bool network_mode;
+};
+
+static struct imx_ssi imx_ssi_data[IMX_DAI_SSI3];
+
 /* debug */
 #define IMX_SSI_DEBUG 0
 #if IMX_SSI_DEBUG
@@ -187,7 +194,10 @@ static int imx_ssi_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 				    unsigned int mask, int slots)
 {
+	bool network_mode = (!(mask & 0x2));
 	u32 stmsk, srmsk, stccr;
+
+	imx_ssi_data[cpu_dai->id].network_mode = network_mode;
 
 	if (cpu_dai->id == IMX_DAI_SSI0 || cpu_dai->id == IMX_DAI_SSI1) {
 		if (__raw_readl(SSI1_SCR) & SSI_SCR_SSIEN)
@@ -226,7 +236,11 @@ static int imx_ssi_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
  */
 static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 {
+  	bool sync_mode = cpu_dai->symmetric_rates;
+	bool network_mode;
 	u32 stcr = 0, srcr = 0, scr;
+
+	network_mode = imx_ssi_data[cpu_dai->id].network_mode;
 
 	if (cpu_dai->id == IMX_DAI_SSI0 || cpu_dai->id == IMX_DAI_SSI1)
 		scr = __raw_readl(SSI1_SCR) & ~(SSI_SCR_SYN | SSI_SCR_NET);
@@ -288,11 +302,11 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
 		stcr |= SSI_STCR_TFDIR | SSI_STCR_TXDIR;
-//		if (((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S)
-//		    && (fmt & SND_SOC_DAIFMT_TDM)) {
-//			scr &= ~SSI_SCR_I2S_MODE_MASK;
-//			scr |= SSI_SCR_I2S_MODE_MSTR;
-//		}
+		if (((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S)
+		    && network_mode) {
+			scr &= ~SSI_SCR_I2S_MODE_MASK;
+			scr |= SSI_SCR_I2S_MODE_MSTR;
+		}
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
 		stcr |= SSI_STCR_TFDIR;
@@ -303,21 +317,21 @@ static int imx_ssi_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 		srcr |= SSI_SRCR_RXDIR;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
-//		if (((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S)
-//		    && (fmt & SND_SOC_DAIFMT_TDM)) {
-//			scr &= ~SSI_SCR_I2S_MODE_MASK;
-//			scr |= SSI_SCR_I2S_MODE_SLAVE;
-//		}
+		if (((fmt & SND_SOC_DAIFMT_FORMAT_MASK) == SND_SOC_DAIFMT_I2S)
+		    && network_mode) {
+			scr &= ~SSI_SCR_I2S_MODE_MASK;
+			scr |= SSI_SCR_I2S_MODE_SLAVE;
+		}
 		break;
 	}
 
 	/* sync */
-//	if (!(fmt & SND_SOC_DAIFMT_ASYNC))
-//		scr |= SSI_SCR_SYN;
+	if (sync_mode)
+		scr |= SSI_SCR_SYN;
 
 	/* tdm - only for stereo atm */
-//	if (fmt & SND_SOC_DAIFMT_TDM)
-//		scr |= SSI_SCR_NET;
+	if (network_mode)
+		scr |= SSI_SCR_NET;
 
 	if (cpu_dai->id == IMX_DAI_SSI0 || cpu_dai->id == IMX_DAI_SSI1) {
 		__raw_writel(stcr, SSI1_STCR);
@@ -336,11 +350,8 @@ static struct clk *ssi1_clk;
 static struct clk *ssi2_clk;
 
 static int imx_ssi_startup(struct snd_pcm_substream *substream,
-			struct snd_soc_dai *dai)
+			   struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-
 	/* we cant really change any SSI values after SSI is enabled
 	 * need to fix in software for max flexibility - lrg */
 	if (cpu_dai->playback.active || cpu_dai->capture.active)
@@ -388,10 +399,9 @@ static int imx_ssi_startup(struct snd_pcm_substream *substream,
 }
 
 static int imx_ssi_hw_tx_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	u32 stccr, stcr, sier;
 
 	if (cpu_dai->id == IMX_DAI_SSI0 || cpu_dai->id == IMX_DAI_SSI1) {
@@ -438,24 +448,19 @@ static int imx_ssi_hw_tx_params(struct snd_pcm_substream *substream,
 }
 
 static int imx_ssi_hw_rx_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	bool sync_mode = cpu_dai->symmetric_rates;
 	u32 srccr, srcr, sier;
-	bool sync_mode;
 
 	if (cpu_dai->id == IMX_DAI_SSI0 || cpu_dai->id == IMX_DAI_SSI1) {
-		sync_mode =
-		    (__raw_readl(SSI1_SCR) & SSI_SCR_SYN) ? true : false;
 		srccr =
 		    sync_mode ? __raw_readl(SSI1_STCCR) :
 		    __raw_readl(SSI1_SRCCR);
 		srcr = __raw_readl(SSI1_SRCR);
 		sier = __raw_readl(SSI1_SIER);
 	} else {
-		sync_mode =
-		    (__raw_readl(SSI2_SCR) & SSI_SCR_SYN) ? true : false;
 		srccr =
 		    sync_mode ? __raw_readl(SSI2_STCCR) :
 		    __raw_readl(SSI2_SRCCR);
@@ -507,11 +512,9 @@ static int imx_ssi_hw_rx_params(struct snd_pcm_substream *substream,
  * although can be called multiple times by upper layers.
  */
 static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
-			struct snd_pcm_hw_params *params,
-			struct snd_soc_dai *da)
+			     struct snd_pcm_hw_params *params,
+			     struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int id;
 
 	id = cpu_dai->id;
@@ -528,7 +531,7 @@ static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
 			    (__raw_readl(SSI2_SCR) & SSI_SCR_TE))
 				return 0;
 		}
-		return imx_ssi_hw_tx_params(substream, params);
+		return imx_ssi_hw_tx_params(substream, params, cpu_dai);
 	} else {
 		/* cant change any parameters when SSI is running */
 		if (id == IMX_DAI_SSI0 || id == IMX_DAI_SSI1) {
@@ -540,15 +543,13 @@ static int imx_ssi_hw_params(struct snd_pcm_substream *substream,
 			    (__raw_readl(SSI2_SCR) & SSI_SCR_RE))
 				return 0;
 		}
-		return imx_ssi_hw_rx_params(substream, params);
+		return imx_ssi_hw_rx_params(substream, params, cpu_dai);
 	}
 }
 
 static int imx_ssi_prepare(struct snd_pcm_substream *substream,
-			struct snd_soc_dai *da)
+			   struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	u32 scr;
 
 	/* enable the SSI port, note that no other port config
@@ -565,10 +566,8 @@ static int imx_ssi_prepare(struct snd_pcm_substream *substream,
 }
 
 static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
-			struct snd_soc_dai *da)
+			   struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	u32 scr;
 
 	if (cpu_dai->id == IMX_DAI_SSI0 || cpu_dai->id == IMX_DAI_SSI1)
@@ -613,10 +612,8 @@ static int imx_ssi_trigger(struct snd_pcm_substream *substream, int cmd,
 }
 
 static void imx_ssi_shutdown(struct snd_pcm_substream *substream,
-			struct snd_soc_dai *da)
+			     struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int id;
 
 	id = cpu_dai->id;
@@ -748,7 +745,7 @@ static void imx_ssi_remove(struct platform_device *pdev,
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-struct snd_soc_dai_ops imx_ssi_dai_ops = {
+static struct snd_soc_dai_ops imx_ssi_dai_ops = {
 	.startup = imx_ssi_startup,
 	.shutdown = imx_ssi_shutdown,
 	.trigger = imx_ssi_trigger,
