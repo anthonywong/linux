@@ -379,21 +379,6 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 		   1),
 };
 
-static int sgtl5000_add_controls(struct snd_soc_codec *codec)
-{
-	int err, i;
-
-	for (i = 0; i < ARRAY_SIZE(sgtl5000_snd_controls); i++) {
-		err = snd_ctl_add(codec->card,
-				  snd_soc_cnew(&sgtl5000_snd_controls[i],
-					       codec, NULL));
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
-}
-
 static int sgtl5000_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -497,8 +482,8 @@ static int sgtl5000_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream,
-				  struct snd_soc_dai *dia)
+static int sgtl5000_pcm_prepare(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -526,11 +511,12 @@ static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static int sgtl5000_pcm_startup(struct snd_pcm_substream *substream)
+static int sgtl5000_pcm_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
 	struct snd_pcm_runtime *master_runtime;
 
@@ -545,13 +531,8 @@ static int sgtl5000_pcm_startup(struct snd_pcm_substream *substream)
 	if (sgtl5000->master_substream) {
 		master_runtime = sgtl5000->master_substream->runtime;
 
-		pr_debug("Constraining to %d bits at %dHz\n",
-			 master_runtime->sample_bits, master_runtime->rate);
-
-		snd_pcm_hw_constraint_minmax(substream->runtime,
-					     SNDRV_PCM_HW_PARAM_RATE,
-					     master_runtime->rate,
-					     master_runtime->rate);
+		pr_debug("Constraining to %d bits\n",
+			 master_runtime->sample_bits);
 
 		snd_pcm_hw_constraint_minmax(substream->runtime,
 					     SNDRV_PCM_HW_PARAM_SAMPLE_BITS,
@@ -565,11 +546,12 @@ static int sgtl5000_pcm_startup(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream)
+static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream,
+				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
-	struct snd_soc_codec *codec = socdev->codec;
+	struct snd_soc_codec *codec = socdev->card->codec;
 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
 	int reg, dig_pwr, ana_pwr;
 
@@ -609,7 +591,7 @@ static void sgtl5000_pcm_shutdown(struct snd_pcm_substream *substream)
  */
 static int sgtl5000_pcm_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params,
-				  struct snd_soc_dai *dia)
+				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
@@ -874,10 +856,10 @@ static int sgtl5000_set_bias_level(struct snd_soc_codec *codec,
 			SNDRV_PCM_FMTBIT_S24_LE)
 
 struct snd_soc_dai_ops sgtl5000_ops = {
-	.shutdown = sgtl5000_pcm_shutdown,
-	.hw_params = sgtl5000_pcm_hw_params,
 	.prepare = sgtl5000_pcm_prepare,
 	.startup = sgtl5000_pcm_startup,
+	.shutdown = sgtl5000_pcm_shutdown,
+	.hw_params = sgtl5000_pcm_hw_params,
 	.digital_mute = sgtl5000_digital_mute,
 	.set_fmt = sgtl5000_set_dai_fmt,
 	.set_sysclk = sgtl5000_set_dai_sysclk
@@ -899,7 +881,8 @@ struct snd_soc_dai sgtl5000_dai = {
 		    .rates = SGTL5000_RATES,
 		    .formats = SGTL5000_FORMATS,
 		    },
-	.ops = &sgtl5000_ops
+	.ops = &sgtl5000_ops,
+	.symmetric_rates = 1,
 };
 EXPORT_SYMBOL_GPL(sgtl5000_dai);
 
@@ -917,7 +900,6 @@ static int sgtl5000_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-
 	unsigned int i;
 
 	/* Restore refs first in same order as in sgtl5000_init */
@@ -942,55 +924,30 @@ static int sgtl5000_resume(struct platform_device *pdev)
 	return 0;
 }
 
+static struct snd_soc_codec *sgtl5000_codec;
+
 /*
  * initialise the SGTL5000 driver
  * register the mixer and dsp interfaces with the kernel
  */
-static int sgtl5000_init(struct snd_soc_device *socdev)
+static int sgtl5000_probe(struct platform_device *pdev)
 {
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct sgtl5000_platform_data *plat = socdev->codec_data;
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct i2c_client *client = codec->control_data;
+	struct snd_soc_codec *codec = sgtl5000_codec;
 	struct sgtl5000_priv *sgtl5000 = codec->private_data;
 	u16 reg, ana_pwr, lreg_ctrl, ref_ctrl, lo_ctrl, short_ctrl, sss;
 	int vag;
-	unsigned int val;
 	int ret = 0;
 
-	val = sgtl5000_read(codec, SGTL5000_CHIP_ID);
-	if (((val & SGTL5000_PARTID_MASK) >> SGTL5000_PARTID_SHIFT) !=
-	    SGTL5000_PARTID_PART_ID) {
-		pr_err("Device with ID register %x is not a SGTL5000\n", val);
-		return -ENODEV;
-	}
-
-	sgtl5000->rev = (val & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
-	dev_info(&client->dev, "SGTL5000 revision %d\n", sgtl5000->rev);
-
-	codec->name = "SGTL5000";
-	codec->owner = THIS_MODULE;
-	codec->read = sgtl5000_read_reg_cache;
-	codec->write = sgtl5000_write;
-	codec->bias_level = SND_SOC_BIAS_OFF;
-	codec->set_bias_level = sgtl5000_set_bias_level;
-	codec->dai = &sgtl5000_dai;
-	codec->num_dai = 1;
-	codec->reg_cache_size = sizeof(sgtl5000_regs);
-	codec->reg_cache_step = 2;
-	codec->reg_cache = (void *)&sgtl5000_regs;
-	if (codec->reg_cache == NULL) {
-		dev_err(&client->dev, "Failed to allocate register cache\n");
-		return -ENOMEM;
-	}
+	socdev->card->codec = sgtl5000_codec;
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to create pcms\n");
+		dev_err(codec->dev, "failed to create pcms\n");
 		return ret;
 	}
-
-	sgtl5000_sync_reg_cache(codec);
 
 	/* reset value */
 	ana_pwr = SGTL5000_DAC_STEREO |
@@ -1056,7 +1013,8 @@ static int sgtl5000_init(struct snd_soc_device *socdev)
 	ref_ctrl |= SGTL5000_SMALL_POP;
 
 	/* Controls the output bias current for the lineout */
-	lo_ctrl |= (SGTL5000_LINE_OUT_CURRENT_360u << SGTL5000_LINE_OUT_CURRENT_SHIFT);
+	lo_ctrl |=
+	    (SGTL5000_LINE_OUT_CURRENT_360u << SGTL5000_LINE_OUT_CURRENT_SHIFT);
 
 	/* set short detect */
 	/* keep default */
@@ -1108,7 +1066,8 @@ static int sgtl5000_init(struct snd_soc_device *socdev)
 	sgtl5000_write(codec, SGTL5000_DAP_CTRL, 0);
 	/* TODO: initialize DAP */
 
-	sgtl5000_add_controls(codec);
+	snd_soc_add_controls(codec, sgtl5000_snd_controls,
+			     ARRAY_SIZE(sgtl5000_snd_controls));
 	sgtl5000_add_widgets(codec);
 
 	sgtl5000_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1124,23 +1083,114 @@ static int sgtl5000_init(struct snd_soc_device *socdev)
 	return 0;
 }
 
-static struct snd_soc_device *sgtl5000_socdev;
-
-static int sgtl5000_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+/* power down chip */
+static int sgtl5000_remove(struct platform_device *pdev)
 {
-	struct snd_soc_device *socdev = sgtl5000_socdev;
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	int ret;
 
-	i2c_set_clientdata(i2c, codec);
-	codec->control_data = i2c;
+	if (codec->control_data)
+		sgtl5000_set_bias_level(codec, SND_SOC_BIAS_OFF);
+	snd_soc_free_pcms(socdev);
+	snd_soc_dapm_free(socdev);
 
-	ret = sgtl5000_init(socdev);
-	if (ret < 0)
-		dev_err(&i2c->dev, "Device initialisation failed\n");
+	return 0;
+}
+
+struct snd_soc_codec_device soc_codec_dev_sgtl5000 = {
+	.probe = sgtl5000_probe,
+	.remove = sgtl5000_remove,
+	.suspend = sgtl5000_suspend,
+	.resume = sgtl5000_resume,
+};
+EXPORT_SYMBOL_GPL(soc_codec_dev_sgtl5000);
+
+static __devinit int sgtl5000_i2c_probe(struct i2c_client *client,
+					const struct i2c_device_id *id)
+{
+	struct sgtl5000_priv *sgtl5000;
+	struct snd_soc_codec *codec;
+	int ret = 0;
+	u32 val;
+
+	if (sgtl5000_codec) {
+		dev_err(&client->dev,
+			"Multiple SGTL5000 devices not supported\n");
+		return -ENOMEM;
+	}
+
+	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
+	if (codec == NULL)
+		return -ENOMEM;
+
+	sgtl5000 = kzalloc(sizeof(struct sgtl5000_priv), GFP_KERNEL);
+	if (sgtl5000 == NULL) {
+		kfree(codec);
+		return -ENOMEM;
+	}
+
+	codec->private_data = sgtl5000;
+	mutex_init(&codec->mutex);
+	INIT_LIST_HEAD(&codec->dapm_widgets);
+	INIT_LIST_HEAD(&codec->dapm_paths);
+
+	i2c_set_clientdata(client, codec);
+	codec->control_data = client;
+
+	val = sgtl5000_read(codec, SGTL5000_CHIP_ID);
+	if (((val & SGTL5000_PARTID_MASK) >> SGTL5000_PARTID_SHIFT) !=
+	    SGTL5000_PARTID_PART_ID) {
+		pr_err("Device with ID register %x is not a SGTL5000\n", val);
+		return -ENODEV;
+	}
+
+	sgtl5000->rev = (val & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
+	dev_info(&client->dev, "SGTL5000 revision %d\n", sgtl5000->rev);
+
+	codec->dev = &client->dev;
+	codec->name = "SGTL5000";
+	codec->owner = THIS_MODULE;
+	codec->read = sgtl5000_read_reg_cache;
+	codec->write = sgtl5000_write;
+	codec->bias_level = SND_SOC_BIAS_OFF;
+	codec->set_bias_level = sgtl5000_set_bias_level;
+	codec->dai = &sgtl5000_dai;
+	codec->num_dai = 1;
+	codec->reg_cache_size = sizeof(sgtl5000_regs);
+	codec->reg_cache_step = 2;
+	codec->reg_cache = (void *)&sgtl5000_regs;
+
+	sgtl5000_sync_reg_cache(codec);
+
+	sgtl5000_codec = codec;
+	sgtl5000_dai.dev = &client->dev;
+
+	ret = snd_soc_register_codec(codec);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to register codec: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_register_dai(&sgtl5000_dai);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to register DAIs: %d\n", ret);
+		return ret;
+	}
 
 	return ret;
+}
+
+static __devexit int sgtl5000_i2c_remove(struct i2c_client *client)
+{
+	struct snd_soc_codec *codec = i2c_get_clientdata(client);
+	struct sgtl5000_priv *sgtl5000 = codec->private_data;
+
+	snd_soc_unregister_dai(&sgtl5000_dai);
+	snd_soc_unregister_codec(codec);
+	kfree(codec);
+	kfree(sgtl5000);
+	sgtl5000_codec = NULL;
+	return 0;
 }
 
 static const struct i2c_device_id sgtl5000_id[] = {
@@ -1156,67 +1206,21 @@ static struct i2c_driver sgtl5000_i2c_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = sgtl5000_i2c_probe,
+	.remove = __devexit_p(sgtl5000_i2c_remove),
 	.id_table = sgtl5000_id,
 };
 
-static int sgtl5000_probe(struct platform_device *pdev)
+static int __init sgtl5000_modinit(void)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-	struct sgtl5000_priv *sgtl5000;
-	int ret = 0;
-
-	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
-	if (codec == NULL)
-		return -ENOMEM;
-
-	sgtl5000 = kzalloc(sizeof(struct sgtl5000_priv), GFP_KERNEL);
-	if (sgtl5000 == NULL) {
-		kfree(codec);
-		return -ENOMEM;
-	}
-
-	codec->private_data = sgtl5000;
-	socdev->card->codec = codec;
-	mutex_init(&codec->mutex);
-	INIT_LIST_HEAD(&codec->dapm_widgets);
-	INIT_LIST_HEAD(&codec->dapm_paths);
-	sgtl5000_socdev = socdev;
-
-	ret = i2c_add_driver(&sgtl5000_i2c_driver);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "can't add i2c driver\n");
-		kfree(codec->private_data);
-		kfree(codec);
-	}
-
-	return ret;
+	return i2c_add_driver(&sgtl5000_i2c_driver);
 }
+module_init(sgtl5000_modinit);
 
-/* power down chip */
-static int sgtl5000_remove(struct platform_device *pdev)
+static void __exit sgtl5000_exit(void)
 {
-	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec = socdev->card->codec;
-
-	if (codec->control_data)
-		sgtl5000_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	snd_soc_free_pcms(socdev);
-	snd_soc_dapm_free(socdev);
 	i2c_del_driver(&sgtl5000_i2c_driver);
-	kfree(codec->private_data);
-	kfree(codec);
-
-	return 0;
 }
-
-struct snd_soc_codec_device soc_codec_dev_sgtl5000 = {
-	.probe = sgtl5000_probe,
-	.remove = sgtl5000_remove,
-	.suspend = sgtl5000_suspend,
-	.resume = sgtl5000_resume,
-};
-EXPORT_SYMBOL_GPL(soc_codec_dev_sgtl5000);
+module_exit(sgtl5000_exit);
 
 MODULE_DESCRIPTION("ASoC SGTL5000 driver");
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");

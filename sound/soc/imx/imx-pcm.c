@@ -102,7 +102,7 @@ static int imx_iram_audio_playback_mmap(struct snd_pcm_substream *substream,
 	if (off + size > SND_RAM_SIZE)
 		return -EINVAL;
 
-	area->vm_page_prot = pgprot_nonshareddev(area->vm_page_prot);
+	area->vm_page_prot = pgprot_writecombine(area->vm_page_prot);
 	area->vm_flags |= VM_IO;
 	ret =
 	    remap_pfn_range(area, area->vm_start, phys >> PAGE_SHIFT,
@@ -681,8 +681,19 @@ struct snd_soc_platform imx_soc_platform = {
 	.pcm_new = imx_pcm_new,
 	.pcm_free = imx_pcm_free_dma_buffers,
 };
-
 EXPORT_SYMBOL_GPL(imx_soc_platform);
+
+static int __init imx_pcm_init(void)
+{
+	return snd_soc_register_platform(&imx_soc_platform);
+}
+module_init(imx_pcm_init);
+
+static void __exit imx_pcm_exit(void)
+{
+	snd_soc_unregister_platform(&imx_soc_platform);
+}
+module_exit(imx_pcm_exit);
 
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_DESCRIPTION("Freescale i.MX3x PCM DMA module");

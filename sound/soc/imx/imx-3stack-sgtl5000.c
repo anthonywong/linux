@@ -29,7 +29,6 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
-#include <sound/soc-dai.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 
@@ -75,7 +74,7 @@ struct imx_3stack_priv {
 	struct regulator *reg_vddd;
 };
 
-static struct imx_3stack_priv machine_priv;
+static struct imx_3stack_priv card_priv;
 
 static int imx_3stack_audio_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
@@ -84,7 +83,7 @@ static int imx_3stack_audio_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai_link *machine = rtd->dai;
 	struct snd_soc_dai *cpu_dai = machine->cpu_dai;
 	struct snd_soc_dai *codec_dai = machine->codec_dai;
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 	unsigned int rate = params_rate(params);
 	int ret = 0;
 
@@ -105,7 +104,7 @@ static int imx_3stack_audio_hw_params(struct snd_pcm_substream *substream,
 		    substream->runtime->private_data;
 		struct asrc_config config;
 		struct mxc_audio_platform_data *plat;
-		struct imx_3stack_priv *priv = &machine_priv;
+		struct imx_3stack_priv *priv = &card_priv;
 		int retVal = 0;
 		retVal = asrc_req_pair(channel, &asrc_ssi_data.asrc_index);
 		if (retVal < 0) {
@@ -141,38 +140,24 @@ static int imx_3stack_audio_hw_params(struct snd_pcm_substream *substream,
 #if SGTL5000_SSI_MASTER
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 	    SND_SOC_DAIFMT_CBM_CFM;
-//	if (channels == 2)
-//		dai_format |= SND_SOC_DAIFMT_TDM;
-
-	/* set codec DAI configuration */
-	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
-	if (ret < 0)
-		return ret;
-
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
-	if (ret < 0)
-		return ret;
 #else
 	dai_format = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 	    SND_SOC_DAIFMT_CBS_CFS;
-//	if (channels == 2)
-//		dai_format |= SND_SOC_DAIFMT_TDM;
+#endif
 
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, dai_format);
 	if (ret < 0)
 		return ret;
-
-	/* set cpu DAI configuration */
-	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
-	if (ret < 0)
-		return ret;
-#endif
 
 	/* set i.MX active slot mask */
 	snd_soc_dai_set_tdm_slot(cpu_dai,
 				 channels == 1 ? 0xfffffffe : 0xfffffffc, 2);
+
+	/* set cpu DAI configuration */
+	ret = snd_soc_dai_set_fmt(cpu_dai, dai_format);
+	if (ret < 0)
+		return ret;
 
 	/* set the SSI system clock as input (unused) */
 	snd_soc_dai_set_sysclk(cpu_dai, IMX_SSP_SYS_CLK, 0, SND_SOC_CLOCK_IN);
@@ -205,7 +190,7 @@ static int imx_3stack_startup(struct snd_pcm_substream *substream)
 
 static void imx_3stack_shutdown(struct snd_pcm_substream *substream)
 {
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 
 #if defined(CONFIG_MXC_ASRC) || defined(CONFIG_MXC_ASRC_MODULE)
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -306,7 +291,7 @@ static int sgtl5000_spk_func;
 
 static void headphone_detect_handler(struct work_struct *work)
 {
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 	struct platform_device *pdev = priv->pdev;
 	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
 	int hp_status;
@@ -331,7 +316,7 @@ static irqreturn_t imx_headphone_detect_handler(int irq, void *data)
 
 static ssize_t show_headphone(struct device_driver *dev, char *buf)
 {
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 	struct platform_device *pdev = priv->pdev;
 	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
 	u16 hp_status;
@@ -412,7 +397,7 @@ static int sgtl5000_set_spk(struct snd_kcontrol *kcontrol,
 static int spk_amp_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 	struct platform_device *pdev = priv->pdev;
 	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
 
@@ -427,7 +412,7 @@ static int spk_amp_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-/* imx_3stack machine dapm widgets */
+/* imx_3stack card dapm widgets */
 static const struct snd_soc_dapm_widget imx_3stack_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_LINE("Line In Jack", NULL),
@@ -521,11 +506,12 @@ static struct snd_soc_dai_link imx_3stack_dai = {
 	.codec_dai = &sgtl5000_dai,
 	.init = imx_3stack_sgtl5000_init,
 	.ops = &imx_3stack_ops,
+	.symmetric_rates = 1,
 };
 
-static int imx_3stack_machine_remove(struct platform_device *pdev)
+static int imx_3stack_card_remove(struct platform_device *pdev)
 {
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 	struct mxc_audio_platform_data *plat;
 	if (priv->reg_vddio)
 		regulator_disable(priv->reg_vddio);
@@ -548,17 +534,16 @@ static int imx_3stack_machine_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/* imx_3stack audio machine driver */
-static struct snd_soc_card snd_soc_machine_imx_3stack = {
+static struct snd_soc_card snd_soc_card_imx_3stack = {
 	.name = "imx-3stack",
 	.platform = &imx_soc_platform,
 	.dai_link = &imx_3stack_dai,
 	.num_links = 1,
-	.remove = imx_3stack_machine_remove,
+	.remove = imx_3stack_card_remove,
 };
 
 static struct snd_soc_device imx_3stack_snd_devdata = {
-	.card = &snd_soc_machine_imx_3stack,
+	.card = &snd_soc_card_imx_3stack,
 	.codec_dev = &soc_codec_dev_sgtl5000,
 };
 
@@ -566,13 +551,15 @@ static int __devinit imx_3stack_sgtl5000_probe(struct platform_device *pdev)
 {
 	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
 	struct regulator *reg;
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 	struct sgtl5000_platform_data *codec_data;
 	int ret = 0;
 
 	priv->sysclk = plat->sysclk;
 	priv->pdev = pdev;
+
 	imx_ssi_dai.private_data = plat;
+	imx_ssi_dai.dev = &pdev->dev;
 
 	codec_data = kzalloc(sizeof(struct sgtl5000_platform_data), GFP_KERNEL);
 	if (!codec_data) {
@@ -591,6 +578,9 @@ static int __devinit imx_3stack_sgtl5000_probe(struct platform_device *pdev)
 		imx_ssi_dai.name = "imx-ssi-3";
 	else
 		imx_ssi_dai.name = "imx-ssi-1";
+
+	imx_ssi_dai.symmetric_rates = 1;
+	snd_soc_register_dai(&imx_ssi_dai);
 
 	ret = driver_create_file(pdev->dev.driver, &driver_attr_headphone);
 	if (ret < 0) {
@@ -681,7 +671,7 @@ err_codec_data:
 static int imx_3stack_sgtl5000_remove(struct platform_device *pdev)
 {
 	struct mxc_audio_platform_data *plat = pdev->dev.platform_data;
-	struct imx_3stack_priv *priv = &machine_priv;
+	struct imx_3stack_priv *priv = &card_priv;
 
 	free_irq(plat->hp_irq, priv);
 
