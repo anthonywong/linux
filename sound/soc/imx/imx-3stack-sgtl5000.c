@@ -622,6 +622,7 @@ static int __devinit imx_3stack_sgtl5000_probe(struct platform_device *pdev)
 	ret = -EINVAL;
 	if (plat->init && plat->init())
 		goto err_plat_init;
+#if 0
 	if (plat->vddio_reg) {
 		reg = regulator_get(&pdev->dev, plat->vddio_reg);
 		if (IS_ERR(reg))
@@ -655,7 +656,7 @@ static int __devinit imx_3stack_sgtl5000_probe(struct platform_device *pdev)
 		regulator_set_voltage(priv->reg_vddd, plat->vddd, plat->vddd);
 		regulator_enable(priv->reg_vddd);
 	}
-
+#endif
 	/* The SGTL5000 has an internal reset that is deasserted 8 SYS_MCLK
 	   cycles after all power rails have been brought up. After this time
 	   communication can start */
