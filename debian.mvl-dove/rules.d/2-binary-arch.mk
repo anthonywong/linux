@@ -31,6 +31,7 @@ $(stampdir)/stamp-build-%: prepare-%
 
 # Install the finished build
 install-%: pkgdir = $(CURDIR)/debian/$(bin_pkg_name)-$*
+install-%: bindoc = $(pkgdir)/usr/share/doc/$(bin_pkg_name)-$*
 install-%: dbgpkgdir = $(CURDIR)/debian/$(dbg_pkg_name)-$*
 install-%: basepkg = $(hdrs_pkg_name)
 install-%: hdrdir = $(CURDIR)/debian/$(basepkg)-$*/usr/src/$(basepkg)-$*
@@ -92,6 +93,14 @@ endif
 	       $(DEBIAN)/control-scripts/$$script > $(pkgdir)/DEBIAN/$$script;	\
 	  chmod 755 $(pkgdir)/DEBIAN/$$script;					\
 	done
+
+	# Install the full changelog.
+ifeq ($(do_doc_package),true)
+	install -d $(bindoc)
+	cat $(DEBIAN)/changelog $(DEBIAN)/changelog.historical | \
+		gzip -9 >$(bindoc)/changelog.Debian.old.gz
+	chmod 644 $(bindoc)/changelog.Debian.old.gz
+endif
 
 ifneq ($(skipsub),true)
 	for sub in $($(*)_sub); do					\
