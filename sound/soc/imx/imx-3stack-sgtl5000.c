@@ -288,6 +288,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static int sgtl5000_jack_func;
 static int sgtl5000_spk_func;
+static int sgtl5000_line_in_func;
 
 static void headphone_detect_handler(struct work_struct *work)
 {
@@ -334,14 +335,16 @@ static ssize_t show_headphone(struct device_driver *dev, char *buf)
 
 static DRIVER_ATTR(headphone, S_IRUGO | S_IWUSR, show_headphone, NULL);
 
-static const char *jack_function[] = { "off", "on"
-};
+static const char *jack_function[] = { "off", "on"};
 
 static const char *spk_function[] = { "off", "on" };
+
+static const char *line_in_function[] = { "off", "on" };
 
 static const struct soc_enum sgtl5000_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
+	SOC_ENUM_SINGLE_EXT(2, line_in_function),
 };
 
 static int sgtl5000_get_jack(struct snd_kcontrol *kcontrol,
@@ -394,6 +397,31 @@ static int sgtl5000_set_spk(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
+static int sgtl5000_get_line_in(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.enumerated.item[0] = sgtl5000_line_in_func;
+	return 0;
+}
+
+static int sgtl5000_set_line_in(struct snd_kcontrol *kcontrol,
+			     struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	if (sgtl5000_line_in_func == ucontrol->value.enumerated.item[0])
+		return 0;
+
+	sgtl5000_line_in_func = ucontrol->value.enumerated.item[0];
+	if (sgtl5000_line_in_func)
+		snd_soc_dapm_enable_pin(codec, "Line In Jack");
+	else
+		snd_soc_dapm_disable_pin(codec, "Line In Jack");
+
+	snd_soc_dapm_sync(codec);
+	return 1;
+}
+
 static int spk_amp_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
@@ -425,6 +453,8 @@ static const struct snd_kcontrol_new sgtl5000_machine_controls[] = {
 		     sgtl5000_set_jack),
 	SOC_ENUM_EXT("Speaker Function", sgtl5000_enum[1], sgtl5000_get_spk,
 		     sgtl5000_set_spk),
+	SOC_ENUM_EXT("Line In Function", sgtl5000_enum[1], sgtl5000_get_line_in,
+		     sgtl5000_set_line_in),
 };
 
 #if defined(CONFIG_MXC_ASRC) || defined(CONFIG_MXC_ASRC_MODULE)
@@ -474,7 +504,6 @@ static int imx_3stack_sgtl5000_init(struct snd_soc_codec *codec)
 			return ret;
 	}
 	asrc_ssi_data.output_sample_rate = sgtl5000_rates[asrc_func];
-
 #endif
 
 	/* Add imx_3stack specific controls */
@@ -492,6 +521,8 @@ static int imx_3stack_sgtl5000_init(struct snd_soc_codec *codec)
 
 	/* Set up imx_3stack specific audio path audio_map */
 	snd_soc_dapm_add_routes(codec, audio_map, ARRAY_SIZE(audio_map));
+
+	snd_soc_dapm_disable_pin(codec, "Line In Jack");
 
 	snd_soc_dapm_sync(codec);
 
@@ -645,6 +676,7 @@ static int __devinit imx_3stack_sgtl5000_probe(struct platform_device *pdev)
 
 	sgtl5000_jack_func = 1;
 	sgtl5000_spk_func = 1;
+	sgtl5000_line_in_func = 0;
 
 	return 0;
 
