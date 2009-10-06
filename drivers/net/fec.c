@@ -40,6 +40,7 @@
 #include <linux/workqueue.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
+#include <linux/platform_device.h>
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -3106,34 +3107,87 @@ fec_stop(struct net_device *dev)
 	fecp->fec_mii_speed = fep->phy_speed;
 }
 
-static int __init fec_enet_module_init(void)
+static int __init fec_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
-	int i, err;
+	int err;
 	DECLARE_MAC_BUF(mac);
+
+	dev = alloc_etherdev(sizeof(struct fec_enet_private));
+	if (!dev) {
+		pr_debug("%s: alloc_etherdev failed\n", __func__);
+		return -ENOMEM;
+	}
+	err = fec_enet_init(dev);
+	if (err) {
+		pr_debug("%s: fec_enet_init failed (%d)\n",
+				__func__, err);
+		free_netdev(dev);
+		return err;
+	}
+
+	SET_NETDEV_DEV(dev, &pdev->dev);
+	err = register_netdev(dev);
+	if (err) {
+		/* XXX: missing cleanup here */
+		pr_debug("%s: register_netdev failed (%d)\n",
+				__func__, err);
+		free_netdev(dev);
+		return -EIO;
+	}
+
+	printk("%s: ethernet %s\n",
+	       dev->name, print_mac(mac, dev->dev_addr));
+
+	return 0;
+}
+
+static struct platform_driver fec_driver = {
+	.driver	= {
+		.name = "fec",
+		.owner = THIS_MODULE,
+	},
+	.probe = fec_probe,
+};
+
+static struct platform_device fec_devices[] = {
+	{
+		.name		= "fec",
+		.id		= 0,
+		.num_resources	= 0,
+	},
+#ifdef CONFIG_FEC2
+	{
+		.name		= "fec",
+		.id		= 1,
+		.num_resources	= 0,
+	},
+#endif
+};
+
+static int __init fec_enet_module_init(void)
+{
+	int i, rc = 0;
 
 	printk("FEC ENET Version 0.2\n");
 	fec_arch_init();
 
-	for (i = 0; (i < FEC_MAX_PORTS); i++) {
-		dev = alloc_etherdev(sizeof(struct fec_enet_private));
-		if (!dev)
-			return -ENOMEM;
-		err = fec_enet_init(dev);
-		if (err) {
-			free_netdev(dev);
-			continue;
+	for (i = 0; i < ARRAY_SIZE(fec_devices); i++) {
+		rc = platform_device_register(&fec_devices[i]);
+		if (rc) {
+			printk("%s: error [%d] registering device %d",
+					__func__, rc, i);
+			break;
 		}
-		if (register_netdev(dev) != 0) {
-			/* XXX: missing cleanup here */
-			free_netdev(dev);
-			return -EIO;
-		}
-
-		printk("%s: ethernet %s\n",
-		       dev->name, print_mac(mac, dev->dev_addr));
 	}
-	return 0;
+
+	if (rc) {
+		for (i--; i >= 0; i--)
+			platform_device_unregister(&fec_devices[i]);
+		return rc;
+	}
+
+	return platform_driver_probe(&fec_driver, fec_probe);
 }
 
 module_init(fec_enet_module_init);
