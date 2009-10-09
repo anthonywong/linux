@@ -4,6 +4,49 @@ linux-fsl-imx51 (2.6.31-103.12) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Ubuntu: 2.6.31-13.42 ]
+
+  * SAUCE: (drop after 2.6.31) input: Add support for filtering input
+    events
+    - LP: #430809
+  * SAUCE: (drop after 2.6.31) dell-laptop: Trigger rfkill updates on wifi
+    toggle switch press
+    - LP: #430809
+  * SAUCE: Raise the default console 'quiet' level to 2
+    This supresses all but critical and emergency level messages.
+    https://lists.ubuntu.com/archives/kernel-team/2009-October/007476.html
+  * TTY: fix typos
+  * Linux 2.6.31.3
+  * V4L/DVB (12439): cx88: add support for WinFast DTV2000H rev. J
+    - LP: #433904
+
+  [ Ubuntu: 2.6.31-12.41 ]
+
+  * [Config] CONFIG_GFS2_FS_LOCKING_DLM=y
+    - LP: #416325
+  * SAUCE: Fix MODULE_IMPORT/MODULE_EXPORT
+    The original patch failed to work for amd64.
+    - LP: #430694
+  * ALSA: hda - Add a white-list for MSI option
+    Upstream cherry-pick: Infrastructure support for #445580
+  * ALSA: hda - Add HP Pavilion dv4t-1300 to MSI whitelist
+    - LP: #445580
+  * ALSA: intel8x0 - Mute External Amplifier by default for Sony VAIO
+    VGN-T350P
+    - LP: #410933
+  * ALSA: intel8x0 - Mute External Amplifier by default for Sony VAIO
+    VGN-B1VP
+    - LP: #410933
+
+  [ Ubuntu: 2.6.31-12.40 ]
+
+  * SAUCE: Created MODULE_EXPORT/MODULE_IMPORT macros
+    - LP: #430694
+  * SAUCE: Use MODULE_IMPORT macro to tie intel_agp to i915
+    - LP: #430694
+  * V4L/DVB (12352): gspca - vc032x: Fix mi1310_soc preview and LED
+    - LP: #310760
+
  -- Andy Whitcroft <apw@canonical.com>  Fri, 09 Oct 2009 14:50:27 +0100
 
 linux-fsl-imx51 (2.6.31-103.11) karmic; urgency=low
