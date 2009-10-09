@@ -4,6 +4,6 @@ desc="I.MX51-based systems"
 target="Babbage boards"
 bootloader="flash-kernel"
 provides=""
-section_image="universe/base"
+section_image="universe/admin"
 do_debug="Yes"
 
