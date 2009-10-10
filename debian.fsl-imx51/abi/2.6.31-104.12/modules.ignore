@@ -1,0 +1,10 @@
+snd
+snd-page-alloc
+snd-pcm
+snd-soc-core
+snd-soc-imx
+snd-soc-imx-3stack-sgtl5000
+snd-soc-imx-ssi
+snd-soc-sgtl5000
+snd-timer
+soundcore
