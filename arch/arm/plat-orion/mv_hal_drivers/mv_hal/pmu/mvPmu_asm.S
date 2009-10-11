@@ -523,6 +523,7 @@ dix_ddr_active:
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
+	bic	r5, r5, #0x1f
 	mcr 	p15, 0, r4, c13, c0, 0		@ restore CP15 - FCSE
 	mcr 	p15, 0, r3, c3, c0, 0		@ restore CP15 - DACR
 	adr	r3, dix_resume_after_mmu	@ physical resume address
@@ -743,6 +744,7 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
+	bic	r5, r5, #0x1f
 	mcr 	p15, 0, r4, c13, c0, 0		@ restore CP15 - FCSE
 	mcr 	p15, 0, r3, c3, c0, 0		@ restore CP15 - DACR
 	adr	r3, sbx_resume_after_mmu	@ physical resume address
