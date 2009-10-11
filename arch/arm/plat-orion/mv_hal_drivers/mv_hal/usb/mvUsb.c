@@ -361,6 +361,10 @@ static void    mvUsbPhy6781Y0Init(int dev)
     /* bit[12]	(REG_RCAL_START) = 1 */ 
     regVal |= (0x1 << 12);
 
+    /* bits[16:14]	(IMPCAL_VTH[2:0] = 101) */
+    regVal &= ~(0x7 << 14);
+    regVal |= (0x5 << 14);
+
     /* bit[21]	(TX_BLOCK_EN)	= 0 */ 
     regVal &= ~(0x1 << 21);
 
