@@ -141,6 +141,9 @@ static void orion_usb_phy_v2_setup(struct usb_hcd *hcd)
 	reg = rdl(USB_PHY_TX_CTRL);
 	reg |= 1 << 11; /* LOWVDD_EN */
 	reg |= 1 << 12; /* REG_RCAL_START */
+	/* bits[16:14]     (IMPCAL_VTH[2:0] = 101) */
+	reg &= ~(0x7 << 14);
+	reg |= (0x5 << 14);
 	reg &= ~(1 << 21); /* TX_BLOCK_EN */
 	reg &= ~(1 << 31); /* HS_STRESS_CTRL */
 	wrl(USB_PHY_TX_CTRL, reg);
