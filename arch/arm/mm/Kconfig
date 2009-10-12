@@ -833,7 +833,7 @@ config CPU_PJ4_PMC_ACCESS_IN_USERMODE
 
 config DOVE_DEBUGGER_MODE_V6
 	bool "Dove debugger mode is V6"
-	depends on ARCH_DOVE && CPU_32v7
+	depends on ARCH_DOVE
 	default y
 	help
 	  Say Y if Debugger mode of the cpu is v6.
