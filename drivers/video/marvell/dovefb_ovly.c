@@ -731,6 +731,7 @@ static int dovefb_ovly_open(struct fb_info *fi, int user)
 	dfli->surface.viewPortInfo.srcHeight = var->yres;
 	dfli->surface.viewPortInfo.zoomXSize = var->xres;
 	dfli->surface.viewPortInfo.zoomYSize = var->yres;
+	dfli->surface.videoBufferAddr.startAddr = fi->fix.smem_start;
 	dovefb_set_pix_fmt(var, dfli->pix_fmt);
 	dovefb_ovly_set_par(fi);
 
@@ -1110,6 +1111,7 @@ int dovefb_ovly_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 	atomic_set(&dfli->tasklet.count, 0);
 	dfli->tasklet.func = dovefb_do_tasklet;
 	dfli->tasklet.data = (unsigned long)fi;
+	dfli->surface.videoBufferAddr.startAddr = fi->fix.smem_start; 
 
 	init_waitqueue_head(&dfli->w_intr_wq);
 	mutex_init(&dfli->access_ok);
