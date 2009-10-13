@@ -208,7 +208,6 @@ com20020-pci
 com90io
 com90xx
 comm
-configfs
 coretemp
 cpcihp_generic
 cpcihp_zt5550
@@ -264,7 +263,6 @@ digi_acceleport
 diskonchip
 display
 dlci
-dlm
 dm9601
 dm-crypt
 dme1737
@@ -297,6 +295,7 @@ ds2760_battery
 dscc4
 dstr
 dtl1_cs
+dummy_hcd
 dv1394
 e100
 e1000
@@ -527,15 +526,11 @@ i5000_edac
 i5100_edac
 i5k_amb
 i6300esb
-i810
-i810fb
 i82092
 i82860_edac
 i82875p_edac
 i82975x_edac
-i830
 i8k
-i915
 ib700wdt
 ib_addr
 ib_cm
@@ -567,7 +562,6 @@ inexio
 inftl
 initio
 input-polldev
-intel-agp
 intel-rng
 intel_vr_nor
 interact
@@ -848,7 +842,6 @@ ndiswrapper
 ne2k-pci
 neofb
 net1080
-net2280
 netconsole
 netrom
 netsc520
