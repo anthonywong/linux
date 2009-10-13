@@ -331,6 +331,12 @@ __v7_setup:
 #else
 	ldr	r6, =0x40e040e0			@ NMRR
 #endif
+#ifdef	CONFIG_CPU_WA_ENABLE
+	bic	r6, r6, #0x80
+	bic	r6, r6, #0x800000
+#elif	CONFIG_CPU_L1WAONLY_ENABLE
+	bic	r6, r6, #0x80
+#endif
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 #endif
