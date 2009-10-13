@@ -1130,7 +1130,6 @@ smsmdtv
 smssdio
 smsusb
 sn9c102
-snd
 snd-ak4117
 snd-dummy
 snd-hrtimer
@@ -1140,8 +1139,6 @@ snd-mpu401
 snd-mpu401-uart
 snd-mtpav
 snd-mts64
-snd-page-alloc
-snd-pcm
 snd-pcm-oss
 snd-pdaudiocf
 snd-portman2x4
@@ -1154,13 +1151,7 @@ snd-seq-midi-event
 snd-seq-oss
 snd-seq-virmidi
 snd-serial-u16550
-snd-soc-core
-snd-soc-imx
-snd-soc-imx-3stack-sgtl5000
-snd-soc-imx-ssi
-snd-soc-sgtl5000
 snd-spdif
-snd-timer
 snd-usb-audio
 snd-usb-caiaq
 snd-usb-lib
@@ -1170,7 +1161,6 @@ snd-vxpocket
 soc_camera
 soc_camera_platform
 softdog
-soundcore
 spaceball
 spaceorb
 spcp8x5
