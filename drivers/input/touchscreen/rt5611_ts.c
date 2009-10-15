@@ -4,7 +4,7 @@
  * 
  * 
  * Author	: Brian Hsu bhsu@marvell.com)
- * Date		: 04-06-2009
+ * Date		: 14-10-2009
  */
 
 //#define DEBUG
@@ -13,7 +13,9 @@
 
 
 //#define SWAP_X
-#define SWAP_Y
+//#define SWAP_Y
+
+static const u16 rt5611_reg_defalt_00h = 0x59b4; 
 
 
 static int abs_x[3] = {0,4096, 0};
@@ -44,12 +46,12 @@ int rt5611_ts_reg_read(struct rt5611_ts *rt, u16 reg)
 		int val=0;
 		val= soc_ac97_ops.read(rt->codec->ac97, reg);
 
-//		printk("RT5611 TS:rt5611_ts_reg_read: (reg,val)=(%x,%x)\n",reg,val);
+		printk("RT5611 TS:rt5611_ts_reg_read: (reg,val)=(%x,%x)\n",reg,val);
 		return val;
 }
 void rt5611_ts_reg_write(struct rt5611_ts *rt, u16 reg, u16 val)
 {
-//	printk("RT5611 TS:rt5611_ts_reg_write: (reg,val)=(%x,%x)\n",reg,val);
+	printk("RT5611 TS:rt5611_ts_reg_write: (reg,val)=(%x,%x)\n",reg,val);
 	soc_ac97_ops.write(rt->codec->ac97, reg, val); return;
 	
 }
@@ -470,6 +472,20 @@ static void rt5611_ts_input_close(struct input_dev *idev)
 	rt5611_ts_enable(rt, RT_TP_DISABLE);
 }
 
+static int rt5611_ts_reset(struct snd_soc_codec *codec, int try_warm)
+{
+	if (try_warm && soc_ac97_ops.warm_reset) {
+		soc_ac97_ops.warm_reset(codec->ac97);
+		if (soc_ac97_ops.read(codec->ac97, 0) == rt5611_reg_defalt_00h)
+			return 1;
+	}
+
+	soc_ac97_ops.reset(codec->ac97);
+	if(soc_ac97_ops.read(codec->ac97, 0) != rt5611_reg_defalt_00h)
+		return -EIO;
+	return 0;
+
+}
 
 static int rt5611_ts_probe(struct platform_device *pdev)
 	
@@ -494,7 +510,15 @@ static int rt5611_ts_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rt);
 	
 	rt->pen_irq=platform_get_irq(pdev, 0);
-//	printk("RT5611 TS: Pendown IRQ=%x\n",rt->pen_irq);
+	printk("RT5611 TS: Pendown IRQ=%x\n",rt->pen_irq);
+
+
+	rt5611_ts_reset(rt->codec, 0); //Cold RESET
+	ret = rt5611_ts_reset(rt->codec, 1); //Warm RESET
+	if (ret < 0) {
+		printk(KERN_ERR "FAIL to reset rt5611\n");
+		goto reset_err;
+	}
 	
 	rt->id = rt5611_ts_reg_read(rt, RT_VENDOR_ID2);
 	printk("RT5611 TS: Vendor id=%08X\n", rt->id);
@@ -544,7 +568,8 @@ static int rt5611_ts_probe(struct platform_device *pdev)
 
 	return ret;
 
-
+reset_err:
+	snd_soc_free_ac97_codec(rt->codec);
  dev_alloc_err:
 	input_free_device(rt->input_dev);
  alloc_err:

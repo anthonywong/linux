@@ -61,11 +61,10 @@ void dove_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 void dove_sd_card_int_wa_setup(int port);
 void dove_xor0_init(void);
 void dove_xor1_init(void);
-void dove_ac97_setup(void);
 void dove_cesa_init(void);
 void dove_hwmon_init(void);
 void dove_ssp_init(struct dove_ssp_platform_data *pdata);
-
+void dove_ac97_setup(void);
 /*
  * Basic Dove PM functions
  */

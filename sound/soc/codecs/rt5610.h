@@ -1,21 +1,8 @@
-/*
- * rt5610.h  --  audio driver for RT5610
- *
- * Copyright 2008 Realtek Microelectronics
- *
- * Author: flove <flove@realtek.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- */
- 
 #ifndef _RT5610_H
 #define _RT5610_H
 
 
+//Index of Codec Register definition
 #define RT5610_RESET						0X00			//RESET CODEC TO DEFAULT
 #define RT5610_SPK_OUT_VOL					0X02			//SPEAKER OUT VOLUME
 #define RT5610_HP_OUT_VOL					0X04			//HEADPHONE OUTPUT VOLUME
@@ -30,10 +17,12 @@
 #define RT5610_OUTPUT_MIXER_CTRL			0X1C			//OUTPUT MIXER CONTROL
 #define RT5610_MIC_CTRL						0X22			//MICROPHONE CONTROL
 #define RT5610_PD_CTRL_STAT					0X26			//POWER DOWN CONTROL/STATUS
-#define RT5610_TONE_CTRL					0X2A			//TONE CONTROL
-#define RT5610_STEREO_DAC_RATE				0X2C			//AC97 STEREO DAC RATE, DPE RATE
-#define RT5610_STEREO_ADC_RATE				0X32			//AC97 STEREO ADC RATE, DPE RATE
-#define RT5610_EXT_SDP_CTRL					0X36			//EXTEND SERIAL DATA PORT CONTROL(VOICE I2S/PCM)
+#define RT5610_TONE_CTRL                               0x2a                       //tone control
+#define RT5610_DAC_DPE_RATE                         0x2c                      //ac97's dac/dpe rate
+#define RT5610_ADC_RATE                                 0x32                      //ac97's adc rate
+//#define	RT5610_MAIN_SDP_CTRL				0X34			//MAIN SERIAL DATA PORT CONTROL(STEREO I2S)
+
+#define RT5610_EXTEND_SDP_CTRL				0X36			//EXTEND SERIAL DATA PORT CONTROL(VOICE I2S/PCM)
 #define	RT5610_PWR_MANAG_ADD1				0X3A			//POWER MANAGMENT ADDITION 1
 #define RT5610_PWR_MANAG_ADD2				0X3C			//POWER MANAGMENT ADDITION 2
 #define RT5610_PWR_MANAG_ADD3				0X3E			//POWER MANAGMENT ADDITION 3
@@ -49,15 +38,15 @@
 #define	RT5610_OVER_TEMP_CURR_STATUS		0X58			//OVER TEMPERATURE AND CURRENT STATUS
 #define RT5610_GPIO_OUT_CTRL				0X5C			//GPIO OUTPUT PIN CONTRL
 #define RT5610_MISC_CTRL					0X5E			//MISC CONTROL
+//#define	RT5610_STEREO_DAC_CLK_CTRL1			0X60			//STEREO DAC CLOCK CONTROL 1
+//#define RT5610_STEREO_DAC_CLK_CTRL2			0X62			//STEREO DAC CLOCK CONTROL 2
 #define RT5610_VOICE_DAC_PCMCLK_CTRL1		0X64			//VOICE/PCM DAC CLOCK CONTROL 1
 #define RT5610_VOICE_DAC_PCMCLK_CTRL2		0X66			//VOICE/PCM DAC CLOCK CONTROL 2
 #define RT5610_PSEDUEO_SPATIAL_CTRL			0X68			//PSEDUEO STEREO /SPATIAL EFFECT BLOCK CONTROL
 #define RT5610_INDEX_ADDRESS				0X6A			//INDEX ADDRESS
-#define RT5610_INDEX_DATA					0X6C			//INDEX DATA
+#define RT5610_INDEX_DATA					0X6C			//INDEX DATA 
 #define RT5610_EQ_STATUS					0X6E			//EQ STATUS
-#define RT5610_TP_CTRL_BYTE1				0X74			//TOUCH PANEL CONTROL BYTE 1
-#define RT5610_TP_CTRL_BYTE2				0X76			//TOUCH PANEL CONTROL BYTE 2
-#define RT5610_TP_INDICATION				0X78			//TOUCH PANEL INDICATION
+#define RT5610_TOUCH_PANEL_STATUS              0x78                    //touche panel indiction
 #define RT5610_VENDOR_ID1	  		    	0x7C			//VENDOR ID1
 #define RT5610_VENDOR_ID2	  		    	0x7E			//VENDOR ID2
 
@@ -65,7 +54,6 @@
 //*************************************************************************************************
 //Bit define of Codec Register
 //*************************************************************************************************
-
 //global definition
 #define RT_L_MUTE						(0x1<<15)		//Mute Left Control
 #define RT_L_ZC							(0x1<<14)		//Mute Left Zero-Cross Detector Control
@@ -80,6 +68,7 @@
 #define M_PHONEIN_TO_SPK_MIXER			(0x1<<14)		//Mute Phone In volume to speaker mixer
 #define M_MONO_OUT_VOL					(0x1<<7)		//Mute Mono output volume
 
+
 //Mic Routing Control(0x10)
 #define M_MIC1_TO_HP_MIXER				(0x1<<15)		//Mute MIC1 to HP mixer
 #define M_MIC1_TO_SPK_MIXER				(0x1<<14)		//Mute MiC1 to SPK mixer
@@ -89,7 +78,6 @@
 #define M_MIC2_TO_SPK_MIXER				(0x1<<6)		//Mute MiC2 to SPK mixer
 #define M_MIC2_TO_MONO_MIXER			(0x1<<5)		//Mute MIC2 to MONO mixer
 #define MIC2_DIFF_INPUT_CTRL			(0x1<<4)		//MIC2 different input control
-
 
 //ADC Record Gain(0x12)
 #define M_ADC_L_TO_HP_MIXER				(0x1<<15)		//Mute left of ADC to HP Mixer
@@ -105,7 +93,6 @@
 #define M_V_DAC_TO_HP_MIXER				(0x1<<15)
 #define M_V_DAC_TO_SPK_MIXER			(0x1<<14)
 #define M_V_DAC_TO_MONO_MIXER			(0x1<<13)
-
 
 //Output Mixer Control(0x1C)
 #define	SPKL_INPUT_SEL_MASK				(0x3<<14)
@@ -131,7 +118,6 @@
 #define MONO_INPUT_SEL_SPK_MIXER		(0x2<<6)
 #define MONO_INPUT_SEL_HP_MIXER			(0x1<<6)
 #define MONO_INPUT_SEL_VMID				(0x0<<6)
-
 
 //Micphone Control define(0x22)
 #define MIC1		1
@@ -164,7 +150,6 @@
 #define RT_PWR_PR7					(0x1<<15)	//write this bit to power down the Speaker Amplifier
 #define RT_PWR_PR6					(0x1<<14)	//write this bit to power down the Headphone Out and MonoOut
 #define RT_PWR_PR5					(0x1<<13)	//write this bit to power down the internal clock(without PLL)
-#define RT_PWR_PR4					(0x1<<12)	//write this bit to power down the AC-link
 #define RT_PWR_PR3					(0x1<<11)	//write this bit to power down the mixer(vref/vrefout out off)
 #define RT_PWR_PR2					(0x1<<10)	//write this bit to power down the mixer(vref/vrefout still on)
 #define RT_PWR_PR1					(0x1<<9) 	//write this bit to power down the dac
@@ -175,8 +160,9 @@
 #define RT_PWR_ADC					(0x1)		//read only
 
 
-//Extend Serial Data Port Control(0x36)
 
+
+//Extend Serial Data Port Control(0x36)
 #define EXT_I2S_FUNC_ENABLE			(0x1<<15)		//Enable PCM interface on GPIO 1,3,4,5  0:GPIO function,1:Voice PCM interface
 #define EXT_I2S_MODE_SEL			(0x1<<14)		//0:Master	,1:Slave
 #define EXT_I2S_VOICE_ADC_EN		(0x1<<8)		//ADC_L=Stereo, ADC_R=Voice
@@ -197,13 +183,11 @@
 #define	EXT_I2S_DF_LEFT				(0x2)			//LEFT JUSTIFIED  format
 #define EXT_I2S_DF_PCM				(0x3)			//PCM format
 
-
-//Power managment addition 1 (0x3A),0:Disable,1:Enable		
+//Power managment addition 1 (0x3A),0:Disable,1:Enable
 #define PWR_HI_R_LOAD_MONO			(0x1<<15)
 #define PWR_HI_R_LOAD_HP			(0x1<<14)	
 #define PWR_ZC_DET_PD				(0x1<<13)
-#define PWR_PRE_MEASURE				(0x1<<12)	
-#define PWR_ZC_TIMEOUT_EN			(0x1<<11)	
+#define PWR_MAIN_I2S				(0x1<<11)	
 #define	PWR_MIC_BIAS1_DET			(0x1<<5)
 #define	PWR_MIC_BIAS2_DET			(0x1<<4)
 #define PWR_MIC_BIAS1				(0x1<<3)	
@@ -217,7 +201,6 @@
 #define PWR_CLASS_AB				(0x1<<14)
 #define PWR_MIXER_VREF				(0x1<<13)
 #define PWR_PLL						(0x1<<12)
-#define PWR_TP_ADC					(0x1<<11)
 #define PWR_VOICE_CLOCK				(0x1<<10)
 #define PWR_L_DAC_CLK				(0x1<<9)
 #define PWR_R_DAC_CLK				(0x1<<8)
@@ -247,7 +230,6 @@
 #define PWR_MIC2_VOL_CTRL			(0x1<<2)
 #define PWR_MIC1_BOOST				(0x1<<1)
 #define PWR_MIC2_BOOST				(0x1)
-
 
 //General Purpose Control Register 1(0x40)
 #define GP_CLK_FROM_PLL					(0x1<<15)	//Clock source from PLL output
@@ -309,8 +291,8 @@
 
 
 
-//Voice DAC PCM Clock Control 1(0x64)
 
+//Voice DAC PCM Clock Control 1(0x64)
 #define VOICE_MCLK_SEL_MASK			(0x1<<15)
 #define VOICE_MCLK_SEL_MCLK_INPUT	(0x0<<15)
 #define VOICE_MCLK_SEL_PLL_OUTPUT	(0x1<<15)
@@ -364,7 +346,7 @@
 #define VOICE_FILTER_CLK_F_MCLK		(0x0<<14)
 #define VOICE_FILTER_CLK_F_VBCLK	(0X1<<14)
 
-#define VOICE_AD_DA_FILTER_SEL_MASK (0x1<<13)
+#define VOICE_AD_DA_FILTER_SEL_MASK  (0x1<<13)
 #define VOICE_AD_DA_FILTER_SEL_128X	(0x0<<13)
 #define VOICE_AD_DA_FILTER_SEL_64X	(0x1<<13)
 
@@ -398,7 +380,7 @@
 #define SPATIAL_CTRL_EN				(0x1<<15)
 #define ALL_PASS_FILTER_EN			(0x1<<14)
 #define PSEUDO_STEREO_EN			(0x1<<13)
-#define STEREO_EXPENSION_EN			(0x1<<12)	
+#define STEREO_EXPENSION_EN			(0x1<<12)
 
 #define SPATIAL_GAIN_MASK			(0x3<<6)
 #define SPATIAL_GAIN_1_0			(0x0<<6)
@@ -415,85 +397,18 @@
 #define APF_FOR_44_1K				(0x2)
 #define APF_FOR_32K					(0x1)
 
-//*************************************************************************************************
-//Index register of codec
-//*************************************************************************************************
-//Index(0x10) for EQ Control and Status Register
-#define ENABLE_HW_EQ_BLOCK		(0x1<<15)
-#define ENABLE_HW_EQ_HPF		(0x1<<4)
-#define ENABLE_HW_EQ_BP3		(0x1<<3)
-#define ENABLE_HW_EQ_BP2		(0x1<<2)
-#define ENABLE_HW_EQ_BP1		(0x1<<1)
-#define ENABLE_HW_EQ_LPF		(0x1<<0)
 
 
-//Index(0x20) for Auto Volume Control 
-#define	AVC_CH_SEL_MASK				(0x1)
-#define AVC_CH_SEL_L_CH				(0x0)
-#define AVC_CH_SEL_R_CH				(0x1)
-#define ENABLE_AVC_GAIN_CTRL		(0x1<<15)
-
-#define RT5610_DAI_AC97_HIFI	0
-
-//WaveOut channel for realtek codec
-enum 
-{
-	RT_WAVOUT_SPK  				=(0x1<<0),
-	RT_WAVOUT_SPK_R				=(0x1<<1),
-	RT_WAVOUT_SPK_L				=(0x1<<2),
-	RT_WAVOUT_HP				=(0x1<<3),
-	RT_WAVOUT_HP_R				=(0x1<<4),
-	RT_WAVOUT_HP_L				=(0x1<<5),	
-	RT_WAVOUT_MONO				=(0x1<<6),
-	RT_WAVOUT_AUXOUT			=(0x1<<7),
-	RT_WAVOUT_AUXOUT_R			=(0x1<<8),
-	RT_WAVOUT_AUXOUT_L			=(0x1<<9),
-	RT_WAVOUT_LINEOUT			=(0x1<<10),
-	RT_WAVOUT_LINEOUT_R			=(0x1<<11),
-	RT_WAVOUT_LINEOUT_L			=(0x1<<12),	
-	RT_WAVOUT_DAC				=(0x1<<13),		
-	RT_WAVOUT_ALL_ON			=(0x1<<14),
+struct rt5610_setup_data {
+	unsigned short i2c_address;
+	unsigned short i2c_bus;
 };
 
-//WaveIn channel for realtek codec
-enum
-{
-	RT_WAVIN_R_MONO_MIXER		=(0x1<<0),
-	RT_WAVIN_R_SPK_MIXER		=(0x1<<1),
-	RT_WAVIN_R_HP_MIXER			=(0x1<<2),
-	RT_WAVIN_R_PHONE			=(0x1<<3),
-	RT_WAVIN_R_AUXIN			=(0x1<<3),	
-	RT_WAVIN_R_LINE_IN			=(0x1<<4),
-	RT_WAVIN_R_MIC2				=(0x1<<5),
-	RT_WAVIN_R_MIC1				=(0x1<<6),
 
-	RT_WAVIN_L_MONO_MIXER		=(0x1<<8),
-	RT_WAVIN_L_SPK_MIXER		=(0x1<<9),
-	RT_WAVIN_L_HP_MIXER			=(0x1<<10),
-	RT_WAVIN_L_PHONE			=(0x1<<11),
-	RT_WAVIN_L_AUXIN			=(0x1<<11),
-	RT_WAVIN_L_LINE_IN			=(0x1<<12),
-	RT_WAVIN_L_MIC2				=(0x1<<13),
-	RT_WAVIN_L_MIC1				=(0x1<<14),
-};
+#define RT5610_PLL_FR_MCLK			0
 
-enum 
-{
-	POWER_STATE_D0=0,
-	POWER_STATE_D1,
-	POWER_STATE_D1_PLAYBACK,
-	POWER_STATE_D1_RECORD,
-	POWER_STATE_D2,
-	POWER_STATE_D2_PLAYBACK,
-	POWER_STATE_D2_RECORD,
-	POWER_STATE_D3,
-	POWER_STATE_D4
 
-}; 
-
+extern struct snd_soc_dai rt5610_dai[2];	
 extern struct snd_soc_codec_device soc_codec_dev_rt5610;
-extern struct snd_soc_dai rt5610_dai;
-
-int rt5610_reset(struct snd_soc_codec *codec,  int try_warm);
-
+extern int rt5610_reset(struct snd_soc_codec *codec, int try_warm);
 #endif
