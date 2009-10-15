@@ -1642,19 +1642,20 @@ void __init dove_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 }
 
 static struct resource dove_ac97_resources[] = {
-	[0] = {
-		.start  = DOVE_AC97_PHYS_BASE,
-		.end	= DOVE_AC97_PHYS_BASE + 0xfff,
-		.flags  = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start  = IRQ_AC97,
-		.end    = IRQ_AC97,
-		.flags  = IORESOURCE_IRQ,
-	},
+        [0] = {
+                .start  = DOVE_AC97_PHYS_BASE,
+                .end    = DOVE_AC97_PHYS_BASE + 0xfff,
+                .flags  = IORESOURCE_MEM,
+        },
+        [1] = {
+                .start  = IRQ_AC97,
+                .end    = IRQ_AC97,
+                .flags  = IORESOURCE_IRQ,
+        },
 };
 
 static u64 dove_ac97_dmamask = DMA_BIT_MASK(32);
+
 
 struct platform_device dove_device_ac97 = {
 	.name           = "pxa2xx-ac97",
@@ -1680,6 +1681,7 @@ void __init dove_ac97_setup(void)
 
 	platform_device_register(&dove_device_ac97);
 }
+
 #ifdef CONFIG_PM
 static u32 dove_arbitration_regs[] = {
 	DOVE_MC_VIRT_BASE + 0x280,

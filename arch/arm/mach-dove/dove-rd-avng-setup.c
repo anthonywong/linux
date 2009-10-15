@@ -43,6 +43,8 @@
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
 #include "pdma/mvPdma.h"
+#include <ctrlEnv/mvCtrlEnvRegs.h>
+#include <audio/mvAudioRegs.h>
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
 extern int mvmpp_sys_init(void);
@@ -540,6 +542,78 @@ static int __init dove_rd_avng_pm_init(void)
 __initcall(dove_rd_avng_pm_init);
 
 /*****************************************************************************
+ * AC97 Interface
+ ****************************************************************************/
+
+void __init dove_avng_ac97_init(void)
+{
+	uint32_t reg;
+
+	/* Enable AC97 Control 			*/
+	reg = readl(DOVE_SB_REGS_VIRT_BASE + MPP_GENERAL_CONTROL_REG);
+	
+	reg = (reg |0x10000);
+	writel(reg, DOVE_SB_REGS_VIRT_BASE + MPP_GENERAL_CONTROL_REG);
+
+	/* Set DCO clock to 24.576		*/
+	reg = readl(DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
+	reg = (reg & ~0x3) | 0x2;
+	writel(reg, DOVE_SB_REGS_VIRT_BASE + MV_AUDIO_DCO_CTRL_REG(0));
+
+}
+
+/*****************************************************************************
+ * AC97 Touch Panel Control
+ ****************************************************************************/
+
+#define DOVE_AVNG_AC97_TS_PEN_GPIO	(19)
+#define DOVE_AVNG_AC97_TS_PEN_IRQ	(DOVE_AVNG_AC97_TS_PEN_GPIO+IRQ_DOVE_GPIO_START)
+
+int __init dove_avng_ac97_ts_gpio_setup(void)
+{
+     
+	//IRQ
+	set_irq_chip(DOVE_AVNG_AC97_TS_PEN_IRQ, &orion_gpio_irq_chip);
+	set_irq_handler(DOVE_AVNG_AC97_TS_PEN_IRQ, handle_level_irq);
+	set_irq_type(DOVE_AVNG_AC97_TS_PEN_IRQ, IRQ_TYPE_LEVEL_HIGH);
+
+	orion_gpio_set_valid(DOVE_AVNG_AC97_TS_PEN_GPIO, 1);
+	if (gpio_request(DOVE_AVNG_AC97_TS_PEN_GPIO, "DOVE_AVNG_AC97_TS_PEN_IRQ") != 0)
+		pr_err("Dove: failed to setup TS IRQ GPIO\n");
+	if (gpio_direction_input(DOVE_AVNG_AC97_TS_PEN_GPIO) != 0) {
+		printk(KERN_ERR "%s failed "
+		       "to set output pin %d\n", __func__,
+		       DOVE_AVNG_AC97_TS_PEN_GPIO);
+		gpio_free(DOVE_AVNG_AC97_TS_PEN_GPIO);
+		return -1;
+	}
+	return 0;
+}
+
+static struct resource dove_ac97_ts_resources[] = {
+
+	[0] = {
+		.start	= DOVE_AVNG_AC97_TS_PEN_IRQ,
+		.end		= DOVE_AVNG_AC97_TS_PEN_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+static struct platform_device dove_ac97_touch = {
+	.name           = "rt5611_ts",
+	.id             = 0,
+	.num_resources  = 1,
+	.resource       = dove_ac97_ts_resources,
+};
+
+
+void __init dove_ac97_ts_init(void)
+{
+	dove_avng_ac97_ts_gpio_setup();
+	platform_device_register(&dove_ac97_touch);
+}
+
+
+/*****************************************************************************
  * Board Init
  ****************************************************************************/
 static void __init dove_rd_avng_init(void)
@@ -558,8 +632,9 @@ static void __init dove_rd_avng_init(void)
 	dove_sd_card_int_wa_setup(1);
 
 	/* Initialize AC'97 related regs. */
+	dove_avng_ac97_init();
 	dove_ac97_setup();
-
+	dove_ac97_ts_init();
 	dove_rtc_init();
 	pxa_init_dma_wins(&dove_mbus_dram_info);
 	pxa_init_dma(16);
