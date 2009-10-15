@@ -42,7 +42,7 @@ static struct snd_soc_dai_link dove_ac97_dai[] = {
 };
 
 static struct snd_soc_card dove = {
-	.name = "Dove",
+	.name = "Dove-AC97-RT5611",
 	.platform = &pxa2xx_soc_platform,
 	.dai_link = dove_ac97_dai,
 	.num_links = ARRAY_SIZE(dove_ac97_dai),
