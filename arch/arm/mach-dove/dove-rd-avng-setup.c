@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-#include <linux/delay.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/nand.h>
 #include <linux/timer.h>
@@ -36,20 +35,19 @@
 #include <mach/dove.h>
 #include <asm/hardware/pxa-dma.h>
 #include <mach/dove_nand.h>
+#include <mach/pm.h>
 #include <plat/cafe-orion.h>
 #include "common.h"
 #include "clock.h"
 #include "mpp.h"
-#include <mach/pm.h>
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
 #include "pdma/mvPdma.h"
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
-extern void (*arm_shut_down)(void);
 extern int mvmpp_sys_init(void);
 
-#ifdef CONFIG_CPU_BE8
+#ifdef CONFIG_CPU_ENDIAN_BE8
 static unsigned int use_hal_giga = 1;
 #else
 /* FIXME:GE00 in BE8 mode still can't work now. 
@@ -425,7 +423,7 @@ static struct dove_mpp_mode dove_rd_avng_mpp_modes[] __initdata = {
 /*****************************************************************************
  * GPIO
  ****************************************************************************/
-static void dove_rd_avng_shutdown(void)
+static void dove_rd_avng_power_off(void)
 {
 	/* XXX, need to tell MCU via I2C command */
 }
@@ -546,14 +544,14 @@ __initcall(dove_rd_avng_pm_init);
  ****************************************************************************/
 static void __init dove_rd_avng_init(void)
 {
-	arm_shut_down = dove_rd_avng_shutdown;
-
 	/*
 	 * Basic Dove setup. Needs to be called early.
 	 */
 	dove_init();
 	dove_mpp_conf(dove_rd_avng_mpp_modes);
 	dove_rd_avng_gpio_init();
+
+	pm_power_off = dove_rd_avng_power_off;
 
 	/* sdio card interrupt workaround using GPIOs */
 	dove_sd_card_int_wa_setup(0);
