@@ -50,6 +50,7 @@ snd-soc-wm-hubs-objs := wm_hubs.o
 snd-soc-max9877-objs := max9877.o
 snd-soc-rt5623-objs := rt5623.o
 snd-soc-rt5610-objs := rt5610.o
+snd-soc-rt5630-objs := rt5630.o
 
 obj-$(CONFIG_SND_SOC_AC97_CODEC)	+= snd-soc-ac97.o
 obj-$(CONFIG_SND_SOC_AD1836)	+= snd-soc-ad1836.o
@@ -97,12 +98,10 @@ obj-$(CONFIG_SND_SOC_WM9081)	+= snd-soc-wm9081.o
 obj-$(CONFIG_SND_SOC_WM9705)	+= snd-soc-wm9705.o
 obj-$(CONFIG_SND_SOC_WM9712)	+= snd-soc-wm9712.o
 obj-$(CONFIG_SND_SOC_WM9713)	+= snd-soc-wm9713.o
-<<<<<<< HEAD:sound/soc/codecs/Makefile
 obj-$(CONFIG_SND_SOC_WM_HUBS)	+= snd-soc-wm-hubs.o
 
 # Amp
 obj-$(CONFIG_SND_SOC_MAX9877)	+= snd-soc-max9877.o
-=======
 obj-$(CONFIG_SND_SOC_RT5623)    += snd-soc-rt5623.o
 obj-$(CONFIG_SND_SOC_RT5610)    += snd-soc-rt5610.o
->>>>>>> update avengers driver ds2782 / tsc2005 / rt5623 / rt5611:sound/soc/codecs/Makefile
+obj-$(CONFIG_SND_SOC_RT5630)    += snd-soc-rt5630.o
