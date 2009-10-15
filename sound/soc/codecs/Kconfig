@@ -232,6 +232,12 @@ config SND_SOC_RT5623
        tristate
        depends on SND_SOC
 
+# Realtek RT5610 Codec
 config SND_SOC_RT5610
+        tristate
+        depends on SND_SOC
+
+# Realtek RT5630 Codec
+config SND_SOC_RT5630
         tristate
         depends on SND_SOC
