@@ -145,7 +145,7 @@ static int rt5610_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u16 *cache = codec->reg_cache;
 
-	printk(KERN_INFO "%s reg=0x%x, val=0x%x\n", __func__, reg, val);
+	dbg("%s reg=0x%x, val=0x%x\n", __func__, reg, val);
 	if (reg == 0x80) {
 		reg80 = val;
 		return 0;

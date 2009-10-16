@@ -22,6 +22,15 @@
 
 #define RT5630_VERSION "0.03"
 #define USE_DAPM_CTRL 0
+
+/*
+#define RT5630_DEBUG(format, args...) \
+	printk(KERN_DEBUG "%s(%d): "format"\n", __FUNCTION__, __LINE__, ##args)
+*/
+
+#define RT5630_DEBUG(format, args...)
+
+
 struct rt5630_priv {
 	unsigned int stereo_sysclk;
 	unsigned int voice_sysclk;
@@ -215,12 +224,12 @@ static unsigned int rt5630_read_hw_reg(struct snd_soc_codec *codec, unsigned int
 	{
 		codec->hw_read(codec->control_data, data, 2);
 		value = (data[0] << 8) | data[1];
-//		printk(KERN_DEBUG "%s read reg%x = %x\n", __func__, reg, value);
+//		RT5630_DEBUG("%s read reg%x = %x\n", reg, value);
 		return value;
 	}
 	else
 	{
-		printk(KERN_DEBUG "%s failed\n", __func__);
+		RT5630_DEBUG("%s failed\n");
 		return -EIO;
 	}
 }
@@ -265,18 +274,18 @@ static int rt5630_write(struct snd_soc_codec *codec, unsigned int reg,
 	{		
 		regvalue = ((reg == 0x80) ? &reg80 : ((reg == 0x82) ? &reg82 : &reg84));
 		*regvalue = value;
-		printk(KERN_INFO "rt5630_write ok, reg = %x, value = %x\n", reg, value);
+		RT5630_DEBUG("rt5630_write ok, reg = %x, value = %x\n", reg, value);
 		return 0;
 	}
 	rt5630_write_reg_cache(codec, reg, value);
 	if (codec->hw_write(codec->control_data, data, 3) == 3)
 	{
-		printk(KERN_INFO "rt5630_write ok, reg = %x, value = %x\n", reg, value);
+		RT5630_DEBUG("rt5630_write ok, reg = %x, value = %x\n", reg, value);
 		return 0;
 	}
 	else 
 	{
-		printk(KERN_ERR "rt5630_write fail\n");
+		RT5630_DEBUG("rt5630_write fail\n");
 		return -EIO;
 	}
 }
@@ -844,7 +853,7 @@ static int mixer_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, in
 	struct snd_soc_codec *codec = w->codec;
 	unsigned int l, r;
 
-	printk(KERN_INFO "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 
 	l= rt5630_read(codec, HPL_MIXER);
 	r = rt5630_read(codec, HPR_MIXER);
@@ -891,7 +900,7 @@ static int spk_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, 
 	struct snd_soc_codec *codec = w->codec;
 	int reg;
 	
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 	reg = rt5630_read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & (0x3 << 4);
 	if ((reg >> 4) != 0x3 && reg != 0)
 		return 0;
@@ -901,13 +910,13 @@ static int spk_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, 
 	switch (event)
 	{
 		case SND_SOC_DAPM_POST_PMU:
-			printk(KERN_INFO "after virtual spk power up!\n");
+			RT5630_DEBUG("after virtual spk power up!\n");
 			rt5630_write_mask(codec, 0x3e, 0x3000, 0x3000);
 			rt5630_write_mask(codec, 0x02, 0x0000, 0x8080);
 			rt5630_write_mask(codec, 0x3a, 0x0400, 0x0400);                  //power on spk amp
 			break;
 		case SND_SOC_DAPM_POST_PMD:
-			printk(KERN_INFO "aftet virtual spk power down!\n");
+			RT5630_DEBUG("aftet virtual spk power down!\n");
 			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0400);//power off spk amp
 			rt5630_write_mask(codec, 0x02, 0x8080, 0x8080);
 			rt5630_write_mask(codec, 0x3e, 0x0000, 0x3000);                 
@@ -927,7 +936,7 @@ static int hp_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, i
 	struct snd_soc_codec *codec = w->codec;
 	int reg;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 	reg = rt5630_read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & (0x3 << 6);
 	if ((reg >> 6) != 0x3 && reg != 0)
 		return 0;
@@ -935,13 +944,13 @@ static int hp_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, i
 	switch (event)
 	{
 		case SND_SOC_DAPM_POST_PMD:
-			printk(KERN_INFO "aftet virtual hp power down!\n");
+			RT5630_DEBUG("aftet virtual hp power down!\n");
 			rt5630_write_mask(codec, 0x04, 0x8080, 0x8080);
 			rt5630_write_mask(codec, 0x3e, 0x0000, 0x0600);
 			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0030);
 			break;
 		case SND_SOC_DAPM_POST_PMU:	
-			printk(KERN_INFO "after virtual hp power up!\n");
+			RT5630_DEBUG("after virtual hp power up!\n");
 			hp_depop_mode2(codec);
 			rt5630_write_mask(codec ,0x04, 0x0000, 0x8080);
 			break;
@@ -1234,7 +1243,7 @@ static int rt5630_pcm_hw_prepare(struct snd_pcm_substream *substream, struct snd
 	switch (stream)
 	{
 		case SNDRV_PCM_STREAM_PLAYBACK:
-			printk(KERN_INFO "enter %s\n", __func__);
+			RT5630_DEBUG("enter %s\n");
 			rt5630_write_mask(codec, 0x3c, 0x0300, 0x0300);        /*power daclr*/
 			rt5630_write_mask(codec, 0x3c, 0x0030, 0x0030);       /*power hp mixerlr*/
 			hp_depop_mode2(codec);
@@ -1353,7 +1362,7 @@ static int get_coeff(unsigned int mclk, unsigned int rate, int mode)
 {
 	int i;
 
-	printk("get_coeff mclk = %d, rate = %d\n", mclk, rate);
+	RT5630_DEBUG("get_coeff mclk = %d, rate = %d\n", mclk, rate);
 	if (!mode){
 		for (i = 0; i < ARRAY_SIZE(coeff_div_stereo); i++) {
 			if ((coeff_div_stereo[i].rate == rate) && (coeff_div_stereo[i].mclk == mclk))
@@ -1368,7 +1377,7 @@ static int get_coeff(unsigned int mclk, unsigned int rate, int mode)
 	}
 
 	return -EINVAL;
-	printk(KERN_ERR "can't find a matched mclk and rate in %s\n", 
+	RT5630_DEBUG("can't find a matched mclk and rate in %s\n", 
 				(mode ? "coeff_div_voice[]" : "coeff_div_audio[]"));
 }
 
@@ -1378,7 +1387,7 @@ int rt5630_codec_set_pll1(struct snd_soc_codec *codec, int pll_id,
 	int i;
 	int ret = -EINVAL;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 
 	if (pll_id < RT5630_PLL1_FROM_MCLK || pll_id > RT5630_PLL1_FROM_VBCLK)
 		return -EINVAL;
@@ -1475,14 +1484,14 @@ static int rt5630_hifi_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5630_priv * rt5630 = codec->private_data;
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 	
 	if ((freq >= (256 * 8000)) && (freq <= (512 * 48000))) {
 		rt5630->stereo_sysclk = freq;
 		return 0;
 	}
 	
-	printk(KERN_ERR "unsupported sysclk freq %u for audio i2s\n", freq);
+	RT5630_DEBUG("unsupported sysclk freq %u for audio i2s\n", freq);
 	return -EINVAL;
 }
 
@@ -1498,7 +1507,7 @@ static int rt5630_voice_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return 0;
 	}			
 
-	printk(KERN_ERR "unsupported sysclk freq %u for voice pcm\n", freq);
+	RT5630_DEBUG("unsupported sysclk freq %u for voice pcm\n", freq);
 	return -EINVAL;
 }
 
@@ -1517,7 +1526,7 @@ static int rt5630_hifi_pcm_hw_params(struct snd_pcm_substream *substream,
 	int rate = params_rate(params);
 //	int coeff = get_coeff(rt5630->stereo_sysclk, rate, 0);
 	
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		list_for_each_entry(w, &codec->dapm_widgets, list)
@@ -1569,7 +1578,7 @@ static int rt5630_voice_pcm_hw_params(struct snd_pcm_substream *substream,
 	int rate = params_rate(params);
 //	int coeff = get_coeff(rt5630->voice_sysclk, rate, 1);
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		list_for_each_entry(w, &codec->dapm_widgets, list)
@@ -1611,7 +1620,7 @@ static int rt5630_hifi_codec_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned
 	struct rt5630_priv *rt5630 = codec->private_data;
 	u16 iface = 0;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 
 	/*set master/slave interface*/
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK)
@@ -1668,7 +1677,7 @@ static int rt5630_voice_codec_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigne
 	struct rt5630_priv *rt5630 = codec->private_data;
 	int iface;
 
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	RT5630_DEBUG("enter %s\n");
 	/*set slave/master mode*/
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK)
 	{
@@ -1932,7 +1941,7 @@ static int rt5630_init(struct snd_soc_device *socdev)
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0 )
 	{
-		printk(KERN_ERR "rt5630:  failed to create pcms\n");
+		RT5630_DEBUG("rt5630:  failed to create pcms\n");
 		goto pcm_err;
 	}
 	
@@ -1955,10 +1964,10 @@ static int rt5630_init(struct snd_soc_device *socdev)
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
 	{
-		printk(KERN_ERR "rt5630: failed to register card\n");
+		RT5630_DEBUG("rt5630: failed to register card\n");
 		goto card_err;
 	}
-	printk(KERN_DEBUG "rt5630: initial ok\n");
+	RT5630_DEBUG("rt5630: initial ok\n");
 	return ret;
 
 	card_err:
