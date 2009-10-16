@@ -1,3 +1,11 @@
+linux (2.6.24-25.62netbook01) netbook-common; urgency=low
+
+  [ Steve Conklin]
+
+  * Rebase onto hardy distro SRU release Ubuntu-2.6.24-25.62
+
+ -- sconklin <sconklin@canonical.com>  Fri, 16 Oct 2009 14:11:25 +0000
+
 linux (2.6.24-24.59netbook02) netbook-common; urgency=low
 
   [Steve Conklin]
