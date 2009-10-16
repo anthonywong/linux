@@ -378,7 +378,7 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 		u32 irq_ena = readl(dfli->reg_base + SPU_IRQ_ENA);
 		int rc = 0;
 
-		writel(irq_ena | GRA_FRAME_IRQ0_ENA_MASK, 
+		writel(irq_ena | DOVEFB_GFX_INT_MASK, 
 		       dfli->reg_base + SPU_IRQ_ENA);
 		
 		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
@@ -522,7 +522,7 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	fi->fix.line_length = var->xres_virtual * var->bits_per_pixel / 8;
 
 	x = readl(dfli->reg_base + SPU_IRQ_ENA);
-	if ((x & GRA_FRAME_IRQ0_ENA_MASK))
+	if (x & DOVEFB_GFX_INT_MASK)
 		wait_for_vsync(dfli);
 
 	/*
@@ -1012,7 +1012,7 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 	writel(0x80000001, dfli->reg_base + LCD_CFG_SCLK_DIV);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_BLANKCOLOR);
 	/* known h/w issue. The bit [18:19] might make h/w irq not workable. */
-	writel(dfli->info->io_pin_allocation,
+	writel(dfli->info->io_pin_allocation | (0x3 << 18),
 			dfli->reg_base + SPU_IOPAD_CONTROL);
 	writel(0x00000000, dfli->reg_base + LCD_CFG_GRA_START_ADDR1);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_GRA_OVSA_HPXL_VLN);
