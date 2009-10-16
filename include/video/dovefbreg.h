@@ -490,7 +490,15 @@
 #define     GRA_FF_ALLEMPTY_MASK		0x00000002
 #define     PWRDN_IRQ_LEVEL_MASK		0x00000001
 
-
+/*
+ * interrupt definition.
+ */
+#define DOVEFB_VSYNC_INT_MASK  (VSYNC_IRQ_ENA_MASK)
+#define DOVEFB_VID_INT_MASK  (DOVEFB_VSYNC_INT_MASK |\
+	DMA_FRAME_IRQ0_ENA_MASK |\
+	DMA_FRAME_IRQ1_ENA_MASK)
+#define DOVEFB_GFX_INT_MASK  (GRA_FRAME_IRQ0_ENA_MASK |\
+	GRA_FRAME_IRQ1_ENA_MASK)
 
 /*
  * defined Video Memory Color format for DMA control 0 register
