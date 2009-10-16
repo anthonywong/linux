@@ -46,7 +46,10 @@
 
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
-#define DOVEFB_INT_MASK  DMA_FRAME_IRQ0_ENA(0x1)
+
+#define DOVEFB_INT_MASK  (DOVEFB_GFX_INT_MASK |\
+	DOVEFB_VID_INT_MASK\
+	)
 
 #if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
     defined(CONFIG_DOVEFB_DISPLAY_MODE)
@@ -405,14 +408,20 @@ static irqreturn_t dovefb_handle_irq(int irq, void *dev_id)
 
 	isr = readl(dfi->reg_base + SPU_IRQ_ISR);
 
-	if (isr & GRA_FRAME_IRQ0_ENA_MASK) {
-		ret += dovefb_gfx_handle_irq(isr, dfi->gfx_plane);
-		isr &= ~GRA_FRAME_IRQ0_ENA_MASK;
-	}
-
-	if (isr & DMA_FRAME_IRQ0_ENA_MASK) {
+	/*
+	 * Fix me:
+	 * Currently, hardware won't generate video layer IRQ to
+	 * bit31 while setting reg, IOPAD_CONTROL, bit [19:18]
+	 * to 0x3. We check vsync to make a workaround version. 
+	 */
+	if (isr & DOVEFB_VID_INT_MASK) {
 		ret += dovefb_ovly_handle_irq(isr, dfi->vid_plane);
-		isr &= ~DMA_FRAME_IRQ0_ENA_MASK;
+		isr &= ~DOVEFB_VID_INT_MASK;
+	}
+	
+	if (isr & DOVEFB_GFX_INT_MASK) {
+		ret += dovefb_gfx_handle_irq(isr, dfi->gfx_plane);
+		isr &= ~DOVEFB_GFX_INT_MASK;
 	}
 
 	writel(isr, dfi->reg_base + SPU_IRQ_ISR);
