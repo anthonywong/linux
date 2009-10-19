@@ -1753,7 +1753,7 @@ void __init dove_init(void)
 	if (!noL2)
 		tauros2_init();
 #endif
-	dove_clk_config(NULL, "GCCLK", 250*1000000);
+	dove_clk_config(NULL, "GCCLK", 500*1000000);
 	dove_clk_config(NULL, "AXICLK", 400*1000000);
 
 #if 1
