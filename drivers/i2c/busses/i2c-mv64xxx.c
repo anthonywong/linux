@@ -14,7 +14,6 @@
 #include <linux/spinlock.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
-#include <linux/delay.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/platform_device.h>
 
@@ -114,14 +113,7 @@ struct mv64xxx_i2c_exp_data {
 };
 
 #define	get_adapter(pdata) ((pdata)->adapter)
- /* in micor seconds delay after each write to control register */
-#define MV_WRITE_DELAY		2
-static void
-mv_ctrl_writel(struct mv64xxx_i2c_data *drv_data, u32 val, unsigned int offset)
-{
-	writel(val, drv_data->reg_base + offset);
-	udelay(MV_WRITE_DELAY);
-}
+
 /*
  *****************************************************************************
  *
@@ -139,9 +131,8 @@ mv64xxx_i2c_hw_init(struct mv64xxx_i2c_data *drv_data)
 		drv_data->reg_base + MV64XXX_I2C_REG_BAUD);
 	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_SLAVE_ADDR);
 	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_EXT_SLAVE_ADDR);
-	mv_ctrl_writel(drv_data, MV64XXX_I2C_REG_CONTROL_TWSIEN |
-		       MV64XXX_I2C_REG_CONTROL_STOP,
-		       MV64XXX_I2C_REG_CONTROL);
+	writel(MV64XXX_I2C_REG_CONTROL_TWSIEN | MV64XXX_I2C_REG_CONTROL_STOP,
+		drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 	drv_data->state = MV64XXX_I2C_STATE_IDLE;
 }
 
@@ -251,42 +242,41 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 {
 	switch(drv_data->action) {
 	case MV64XXX_I2C_ACTION_CONTINUE:
-		mv_ctrl_writel(drv_data, drv_data->cntl_bits,
-			       MV64XXX_I2C_REG_CONTROL);
+		writel(drv_data->cntl_bits,
+			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		break;
 
 	case MV64XXX_I2C_ACTION_SEND_START:
-		mv_ctrl_writel(drv_data, drv_data->cntl_bits |
-			       MV64XXX_I2C_REG_CONTROL_START,
-			       MV64XXX_I2C_REG_CONTROL);
+		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_START,
+			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		break;
 
 	case MV64XXX_I2C_ACTION_SEND_ADDR_1:
 		writel(drv_data->addr1,
 			drv_data->reg_base + MV64XXX_I2C_REG_DATA);
-		mv_ctrl_writel(drv_data, drv_data->cntl_bits,
-			       MV64XXX_I2C_REG_CONTROL);
+		writel(drv_data->cntl_bits,
+			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		break;
 
 	case MV64XXX_I2C_ACTION_SEND_ADDR_2:
 		writel(drv_data->addr2,
 			drv_data->reg_base + MV64XXX_I2C_REG_DATA);
-		mv_ctrl_writel(drv_data, drv_data->cntl_bits,
-			       MV64XXX_I2C_REG_CONTROL);
+		writel(drv_data->cntl_bits,
+			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		break;
 
 	case MV64XXX_I2C_ACTION_SEND_DATA:
 		writel(drv_data->msg->buf[drv_data->byte_posn++],
 			drv_data->reg_base + MV64XXX_I2C_REG_DATA);
-		mv_ctrl_writel(drv_data, drv_data->cntl_bits,
-			       MV64XXX_I2C_REG_CONTROL);
+		writel(drv_data->cntl_bits,
+			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		break;
 
 	case MV64XXX_I2C_ACTION_RCV_DATA:
 		drv_data->msg->buf[drv_data->byte_posn++] =
 			readl(drv_data->reg_base + MV64XXX_I2C_REG_DATA);
-		mv_ctrl_writel(drv_data, drv_data->cntl_bits,
-			       MV64XXX_I2C_REG_CONTROL);
+		writel(drv_data->cntl_bits,
+			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		break;
 
 	case MV64XXX_I2C_ACTION_RCV_DATA_STOP:
@@ -298,11 +288,10 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		{//because of combine access, we can't send STOP here.
 		 //But it will occur problem, so need software reset to work around
                         mv64xxx_i2c_hw_init(drv_data);
-		}else{
-			mv_ctrl_writel(drv_data, drv_data->cntl_bits |
-				       MV64XXX_I2C_REG_CONTROL_STOP,
-				       MV64XXX_I2C_REG_CONTROL);
-		}
+		}else
+			writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
+			       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
@@ -316,9 +305,8 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		/* FALLTHRU */
 	case MV64XXX_I2C_ACTION_SEND_STOP:
 		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
-		mv_ctrl_writel(drv_data, drv_data->cntl_bits |
-			       MV64XXX_I2C_REG_CONTROL_STOP, 
-			       MV64XXX_I2C_REG_CONTROL);
+		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
+		       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
