@@ -35,10 +35,10 @@
 #include "audio/mvAudio.h"
 #include "mvSysAudioApi.h"
 
-#ifdef CONFIG_MACH_DOVE_RD_AVNG
-#include <linux/gpio.h>
-#include <asm/mach-types.h>
-#endif
+//#ifdef CONFIG_MACH_DOVE_RD_AVNG
+//#include <linux/gpio.h>
+//#include <asm/mach-types.h>
+//#endif
 
 
 struct mv88fx_i2s_info {
@@ -251,10 +251,9 @@ static int mv88fx_i2s_snd_hw_capture_set(struct mv88fx_snd_chip *chip,
 	MV_AUDIO_RECORD_CTRL pcm_rec_ctrl;
 	MV_I2S_RECORD_CTRL i2s_rec_ctrl;
 	MV_AUDIO_FREQ_DATA dco_ctrl;
-
-#ifdef CONFIG_MACH_DOVE_RD_AVNG
-	int phoneInDetected;
-#endif
+//#ifdef CONFIG_MACH_DOVE_RD_AVNG
+//	int phoneInDetected;
+//#endif
 
 	mv88fx_snd_debug("chip=%p chip->base=%p", chip, chip->base);
 
@@ -345,22 +344,21 @@ static int mv88fx_i2s_snd_hw_capture_set(struct mv88fx_snd_chip *chip,
 	}
 	mv88fx_snd_debug("");
 
-#ifdef CONFIG_MACH_DOVE_RD_AVNG
-	if (machine_is_dove_rd_avng()) {
-		phoneInDetected = gpio_get_value(53);
-
-		if (phoneInDetected < 0)
-			mv88fx_snd_error("Failed to detect phone-in.");
-		else {
-			int input_type;
-			mv88fx_snd_error("detect phone-in.");
-			if (!phoneInDetected)
-				input_type = 2;	/* external MIC */
-			else
-				input_type = 1;	/* internal MIC */
-		}
-	}
-#endif
+//#ifdef CONFIG_MACH_DOVE_RD_AVNG
+//	if (machine_is_dove_rd_avng()) {
+//		phoneInDetected = gpio_get_value(53);
+//		if (phoneInDetected < 0)
+//			mv88fx_snd_error("Failed to detect phone-in.");
+//		else {
+//			int input_type;
+//			mv88fx_snd_error("detect phone-in.");
+//			if (!phoneInDetected)
+//				input_type = 2;	/* external MIC */
+//			else
+//				input_type = 1;	/* internal MIC */
+//		}
+//	}
+//#endif
 	mv88fx_snd_debug("");
 
 	spin_unlock_irq(&chip->reg_lock);
