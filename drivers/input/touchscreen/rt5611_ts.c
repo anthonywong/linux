@@ -4,13 +4,18 @@
  * 
  * 
  * Author	: Brian Hsu bhsu@marvell.com)
- * Date		: 14-10-2009
+ * Date		: 20-10-2009
  */
 
 //#define DEBUG
 
 #include <linux/rt5611_ts.h>
+/*
+#define RT5611_TS_DEBUG(format, args...) \
+	printk(KERN_DEBUG "%s(%d): "format"\n", __FUNCTION__, __LINE__, ##args)
+*/
 
+#define RT5611_TS_DEBUG(format, args...)
 
 //#define SWAP_X
 //#define SWAP_Y
@@ -18,8 +23,8 @@
 static const u16 rt5611_reg_defalt_00h = 0x59b4; 
 
 
-static int abs_x[3] = {0,4096, 0};
-static int abs_y[3] = {0, 4096, 0};
+static int abs_x[3] = {0,4095, 0};
+static int abs_y[3] = {0, 4095, 0};
 static int abs_p[3] = {0, 150, 0};
 
 /*
@@ -31,7 +36,7 @@ static const int delay_table[] = {
 	333,  /*	0x10b=>16 */
 	667,  /*	0x11b=>32 */
 };
-static u16 delay_sel= (CB1_DEL_16F>>7); //default delay selection
+static u16 delay_sel= (CB1_DEL_32F>>7); //default delay selection
 
 static inline void poll_delay(int d)
 {
@@ -46,12 +51,14 @@ int rt5611_ts_reg_read(struct rt5611_ts *rt, u16 reg)
 		int val=0;
 		val= soc_ac97_ops.read(rt->codec->ac97, reg);
 
-		printk("RT5611 TS:rt5611_ts_reg_read: (reg,val)=(%x,%x)\n",reg,val);
+		RT5611_TS_DEBUG("rt5611_ts_reg_read: (reg,val)=(%x,%x)\n",reg,val);
+
 		return val;
 }
 void rt5611_ts_reg_write(struct rt5611_ts *rt, u16 reg, u16 val)
 {
-	printk("RT5611 TS:rt5611_ts_reg_write: (reg,val)=(%x,%x)\n",reg,val);
+	RT5611_TS_DEBUG("rt5611_ts_reg_write: (reg,val)=(%x,%x)\n",reg,val);
+
 	soc_ac97_ops.write(rt->codec->ac97, reg, val); return;
 	
 }
@@ -63,7 +70,7 @@ bool rt5611_ts_reg_write_mask(struct rt5611_ts *rt, u16 reg, u16 val,u16 mask)
 	if(!mask)
 		return RetVal; 
 	
-	//printk("RT5611 TS:rt5611_ts_reg_write_mask: (reg,val,mask)=(%x,%x,%x)\n",reg,val,mask);
+	//RT5611_TS_DEBUG("rt5611_ts_reg_write_mask: (reg,val,mask)=(%x,%x,%x)\n",reg,val,mask);
 
 	if(mask!=0xFFFF) //portion mask
 	 {
@@ -83,7 +90,7 @@ bool rt5611_ts_reg_write_mask(struct rt5611_ts *rt, u16 reg, u16 val,u16 mask)
 
 static void rt5611_ts_phy_init(struct rt5611_ts *rt)
 {
-//	printk("RT5611 TS:rt5611_ts_phy_init\n");
+	RT5611_TS_DEBUG("rt5611_ts_phy_init\n");
 
 	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE1, CB1_DEFALT);
 	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE2, CB2_DEFALT);
@@ -95,8 +102,9 @@ static int rt5611_ts_poll_coord(struct rt5611_ts *rt, struct rt5611_ts_data *dat
 	bool FoundXSample=0, FoundYSample=0, FoundPSample=0;
 	u16 val=0;
 	u8 i=0;
+	RT5611_TS_DEBUG("rt5611_ts_poll_coord\n");
+
 	data->x=MAX_ADC_VAL;data->y=MAX_ADC_VAL;data->p=MAX_ADC_VAL;
-//	printk("RT5611 TS:rt5611_ts_poll_coord\n");
 	for( i=0;i< MAX_CONVERSIONS;i++)
 	{	
 		/*wait some delay- delay for conversion */
@@ -141,7 +149,7 @@ static int rt5611_ts_poll_sample(struct rt5611_ts *rt, int adcsel, int *sample)
 	unsigned short adccr=0;
 
 	*sample=MAX_ADC_VAL;
-//	printk("RT5611 TS:rt5611_ts_poll_sample\n");       
+	RT5611_TS_DEBUG("rt5611_ts_poll_sample(POLLING_MODE)\n");       
 	
  	//enable ADC target    
     	switch(adcsel)
@@ -182,7 +190,7 @@ static int rt5611_ts_poll_sample(struct rt5611_ts *rt, int adcsel, int *sample)
 static int rt5611_ts_poll_touch(struct rt5611_ts *rt, struct rt5611_ts_data *data)
 {
 	int rc=0;
-//		printk("RT5611 TS:rt5611_ts_poll_touch\n");
+	RT5611_TS_DEBUG("rt5611_ts_poll_touch\n");
 
 #ifdef POLLING_MODE//poll mode
 
@@ -204,7 +212,8 @@ static int rt5611_ts_poll_touch(struct rt5611_ts *rt, struct rt5611_ts_data *dat
 }
 static void rt5611_ts_enable(struct rt5611_ts *rt, int enable)
 {
-//		printk("RT5611 TS:rt5611_ts_enable(%d)\n", enable);
+	RT5611_TS_DEBUG("rt5611_ts_enable(%d)\n", enable);
+
 	if (enable) {
 		//power on main BIAS
 		rt5611_ts_reg_write_mask(rt,RT_PWR_MANAG_ADD1,PWR_MAIN_BIAS|PWR_IP_ENA,PWR_MAIN_BIAS|PWR_IP_ENA);
@@ -258,16 +267,15 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 {
 	struct rt5611_ts_data data;
 	int rc=0;
-//		printk("RT5611 TS:rt5611_ts_read_samples\n");
+	RT5611_TS_DEBUG("rt5611_ts_read_samples\n");
+
 	mutex_lock(&rt->codec->mutex);
 
 	rc = rt5611_ts_poll_touch(rt, &data);
 	if (rc & RC_PENUP) {
 		if (rt->pen_is_down) {
 			rt->pen_is_down = 0;
-			dev_dbg(rt->dev, "pen up\n");
-			//printk("RT5611 TS:pen up\n");
-
+			RT5611_TS_DEBUG("rt5611_ts: pen up\n");
 			input_report_abs(rt->input_dev, ABS_PRESSURE, 0);
 			input_report_key(rt->input_dev, BTN_TOUCH, 0);
 			input_sync(rt->input_dev);
@@ -282,7 +290,7 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 			* pen is up and quicky restore it to ~one task
 			* switch when pen is down again.
 			*/
-
+			RT5611_TS_DEBUG("rt5611_ts: rt->pen_is_down=0\n");
 			if (rt->ts_reader_interval < HZ / 10)
 				rt->ts_reader_interval++;		
 		}
@@ -295,8 +303,7 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 #ifdef SWAP_Y
 	data.y = 4096 - data.y;
 #endif
-		//printk("RT5611 TS: pen down: x=%d, y=%d, p=%d\n",
-		dev_dbg(rt->dev, "pen down: x=%d, y=%d, p=%d\n",
+		RT5611_TS_DEBUG("rt5611_ts:pen down: x=%d, y=%d, p=%d\n",
 			data.x, data.y,data.p);
 
 		input_report_abs(rt->input_dev, ABS_X, data.x);
@@ -317,8 +324,9 @@ static void rt5611_ts_reader(struct work_struct *work)
 {
 	int rc=0;
 	struct rt5611_ts *rt = container_of(work, struct rt5611_ts, ts_reader.work);
-//	printk("RT5611 TS:rt5611_ts_reader\n");
-
+	RT5611_TS_DEBUG("rt5611_ts_reader\n");
+	//Insure TSC is enabled.
+	rt5611_ts_enable(rt, RT_TP_ENABLE);
 	do {
 		rc = rt5611_ts_read_samples(rt);
 	} while (rc & RC_AGAIN);
@@ -342,7 +350,8 @@ static void rt5611_ts_reader(struct work_struct *work)
 static irqreturn_t  rt5611_ts_pen_interrupt(int irq, void *dev_id)
 {
 	struct  rt5611_ts *rt = dev_id;
-//	printk("RT5611 TS:rt5611_ts_pen_interrupt\n");
+	RT5611_TS_DEBUG("rt5611_ts_pen_interrupt\n");
+
 	if (!work_pending(&rt->pen_event_work)) {
 		disable_irq_nosync(irq);
 		queue_work(rt->ts_workq, &rt->pen_event_work);
@@ -356,9 +365,10 @@ static void rt5611_ts_pen_irq_worker(struct work_struct *work)
 {
 	struct rt5611_ts *rt = container_of(work, struct rt5611_ts, pen_event_work);
 	int pen_was_down = rt->pen_is_down;
-//	printk("RT5611 TS:rt5611_ts_pen_irq_worker\n");
 
 		u16 status, pol;
+		RT5611_TS_DEBUG("rt5611_ts_pen_irq_worker\n");
+
 		mutex_lock(&rt->codec->mutex);
 		status = rt5611_ts_reg_read(rt, RT_GPIO_PIN_STATUS);
 		pol = rt5611_ts_reg_read(rt, RT_GPIO_PIN_POLARITY);
@@ -393,9 +403,7 @@ static void rt5611_ts_pen_irq_worker(struct work_struct *work)
 static int  rt5611_ts_init_pen_irq(struct  rt5611_ts *rt)
 {
 
-//	printk("RT5611 TS:rt5611_ts_init_pen_irq\n");
-	
-
+	RT5611_TS_DEBUG("rt5611_ts_init_pen_irq\n");
 	/* If an interrupt is supplied an IRQ enable operation must also be
 	 * provided. */
 
@@ -414,8 +422,8 @@ static int  rt5611_ts_init_pen_irq(struct  rt5611_ts *rt)
 static int rt5611_ts_input_open(struct input_dev *idev)
 {
 	struct rt5611_ts *rt = input_get_drvdata(idev);
-//	printk("RT5611 TS:rt5611_ts_input_open\n");
 
+	RT5611_TS_DEBUG("rt5611_ts_input_open\n");
 	rt->ts_workq = create_singlethread_workqueue("rt5611_ts");
 	if (rt->ts_workq == NULL) {
 		dev_err(rt->dev,
@@ -450,7 +458,8 @@ static int rt5611_ts_input_open(struct input_dev *idev)
 static void rt5611_ts_input_close(struct input_dev *idev)
 {
 	struct rt5611_ts *rt = input_get_drvdata(idev);
-//	printk("RT5611 TS:rt5611_ts_input_close\n");
+	RT5611_TS_DEBUG("rt5611_ts_input_close\n");
+
 	if (rt->pen_irq) {
 		/* Return the interrupt to GPIO usage (disabling it) */
 		// Config GPIO2 as GPIO
@@ -474,6 +483,8 @@ static void rt5611_ts_input_close(struct input_dev *idev)
 
 static int rt5611_ts_reset(struct snd_soc_codec *codec, int try_warm)
 {
+	RT5611_TS_DEBUG("rt5611_ts_reset(try warm=%d)\n",try_warm);
+
 	if (try_warm && soc_ac97_ops.warm_reset) {
 		soc_ac97_ops.warm_reset(codec->ac97);
 		if (soc_ac97_ops.read(codec->ac97, 0) == rt5611_reg_defalt_00h)
@@ -492,7 +503,8 @@ static int rt5611_ts_probe(struct platform_device *pdev)
 {
 	struct rt5611_ts *rt;
 	int ret = 0;
-//	printk("RT5611 TS:rt5611_ts_probe\n");
+	RT5611_TS_DEBUG("rt5611_ts_probe\n");
+
 
 	rt = kzalloc(sizeof(struct rt5611_ts), GFP_KERNEL);
 	if (!rt)
@@ -510,7 +522,7 @@ static int rt5611_ts_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, rt);
 	
 	rt->pen_irq=platform_get_irq(pdev, 0);
-	printk("RT5611 TS: Pendown IRQ=%x\n",rt->pen_irq);
+	RT5611_TS_DEBUG("rt5611_ts: Pendown IRQ=%x\n",rt->pen_irq);
 
 
 	rt5611_ts_reset(rt->codec, 0); //Cold RESET
@@ -521,7 +533,7 @@ static int rt5611_ts_probe(struct platform_device *pdev)
 	}
 	
 	rt->id = rt5611_ts_reg_read(rt, RT_VENDOR_ID2);
-	printk("RT5611 TS: Vendor id=%08X\n", rt->id);
+	RT5611_TS_DEBUG("rt5611_ts: Vendor id=%08X\n", rt->id);
 
 
 	/* set up physical characteristics */
@@ -581,9 +593,9 @@ reset_err:
 
 static int rt5611_ts_remove(struct platform_device *pdev)
 {
-//	printk("RT5611 TS:rt5611_ts_remove\n");
-
        struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
+	RT5611_TS_DEBUG("rt5611_ts_remove\n");
+
 	input_unregister_device(rt->input_dev);
 	kfree(rt);
 
@@ -594,9 +606,9 @@ static int rt5611_ts_remove(struct platform_device *pdev)
 static int rt5611_ts_resume(struct platform_device *pdev)
 
 {
-//	printk("RT5611 TS:rt5611_ts_resume\n");
 
        struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
+	RT5611_TS_DEBUG("rt5611_ts_resume\n");
 
 	/* restore TouchPanel and gpios */
 
@@ -630,9 +642,8 @@ static int rt5611_ts_suspend(struct platform_device *pdev,pm_message_t state)
 	u16 reg=0;
 	int suspend_mode=0;
 
-//	printk("RT5611 TS:rt5611_ts_suspend\n");
-	
        struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
+	RT5611_TS_DEBUG("rt5611_ts_suspend\n");
 
 	if (device_may_wakeup(&rt->input_dev->dev))
 		suspend_mode = rt->suspend_mode;
