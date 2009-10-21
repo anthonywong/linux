@@ -378,11 +378,11 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 		u32 irq_ena = readl(dfli->reg_base + SPU_IRQ_ENA);
 		int rc = 0;
 
-		writel(irq_ena | DOVEFB_GFX_INT_MASK, 
+		writel(irq_ena | DOVEFB_GFX_INT_MASK | DOVEFB_VSYNC_INT_MASK, 
 		       dfli->reg_base + SPU_IRQ_ENA);
 		
 		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
-						      atomic_read(&dfli->w_intr), 10);
+						      atomic_read(&dfli->w_intr), 40);
 		
 		if ( rc <= 0)
 			printk(KERN_ERR "%s: wait for vsync timed out, rc %d\n", 
@@ -1077,6 +1077,7 @@ static int dovefb_init_mode(struct fb_info *fi,
 
 	/* try to find best video mode. */
 	m = fb_find_best_mode(&fi->var, &fi->modelist);
+	info->out_vmode = *m;
 	if (m)
 		fb_videomode_to_var(&fi->var, m);
 
