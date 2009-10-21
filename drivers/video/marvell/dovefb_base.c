@@ -38,6 +38,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <asm/irq.h>
+#include <linux/proc_fs.h>
 
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
@@ -47,9 +48,9 @@
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
 
-#define DOVEFB_INT_MASK  (DOVEFB_GFX_INT_MASK |\
-	DOVEFB_VID_INT_MASK\
-	)
+#define DOVEFB_INT_MASK  (DOVEFB_VSYNC_INT_MASK |\
+			  DOVEFB_GFX_INT_MASK |\
+			  DOVEFB_VID_INT_MASK)
 
 #if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
     defined(CONFIG_DOVEFB_DISPLAY_MODE)
@@ -69,6 +70,189 @@ static int dovefb_init_layer(struct platform_device *pdev,
 		enum dovefb_type type, struct dovefb_info *info,
 		struct resource *res);
 static int dovefb_enable_lcd0(struct platform_device *pdev);
+
+struct lcd_debug_data {
+	int id;			/* lcd0 or lcd1 */
+	struct fb_info *fi;	/* fb info data */
+};
+static int
+proc_lcd_write(struct file *file, const char *buffer, unsigned long count, void *data)
+{
+	char *request;
+	unsigned int offset = 0, value = 0;
+	struct lcd_debug_data *db_data = data;
+	struct fb_info *fi;
+	struct dovefb_layer_info *dfli;
+
+	db_data = data;
+	fi = db_data->fi;
+	dfli = fi->par;
+
+	/*
+	 * Get configuration
+	 */
+	request = kmalloc(count, GFP_KERNEL);
+	if (copy_from_user(request, buffer, count))
+		return 0;
+	request[count-1] = '\0';
+
+	/*
+	 * Parse configuration
+	 */
+	offset = simple_strtoul( request, &request, 16);
+	request++;
+	value = simple_strtoul(request, &request, 16);
+
+	/*
+	 * Check offset range.
+	 */
+	if (offset >= 0 && offset <= 0x1C4) {
+		printk(KERN_ERR "write value <0x%08x> to LCD reg offset <0x%08x>\n", value, offset);
+		writel(value, dfli->reg_base + offset);
+	} else {
+		printk(KERN_ERR "usage: echo \"reg_offset value\" > /proc/mv_lcdx\n");
+	}
+
+	kfree(request);
+
+	return count;
+}
+
+static int
+proc_lcd_read(char *page, char **start, off_t off, int count, int *eof,
+			void *data)
+{
+	char *p = page;
+	int len;
+	struct lcd_debug_data *db_data = data;
+	u32 i;
+	u32 reg;
+	u32 x, bit0to15, bit16to31, total_v, total_h, active_h, active_v;
+	u32 orig_buff_x, orig_buff_y, zoomed_x, zoomed_y;
+	struct fb_info *fi;
+	struct dovefb_layer_info *dfli;
+
+	db_data = data;
+	fi = db_data->fi;
+	dfli = fi->par;
+
+	p += sprintf(p, "Inside LCD%d\n", db_data->id);
+	p += sprintf(p, "Physical addr: 0x%08x\n", (unsigned int)fi->fix.mmio_start);
+	p += sprintf(p, "Virtual addr: 0x%08x\n", (unsigned int)dfli->reg_base);
+
+	/*
+	 * Get resolution
+	 */
+	x = readl(dfli->reg_base+0x118);
+	active_h = x & 0x0000ffff;
+	active_v = (x & 0xffff0000) >> 16;
+	p += sprintf(p, "Resolution is: <%dx%d>\n", active_h, active_v);
+
+	/*
+	 * Get total line
+	 */
+	x = readl(dfli->reg_base+0x114);
+	total_h = x & 0x0000ffff;
+	total_v = (x & 0xffff0000) >> 16;
+	p += sprintf(p, "----total--------------------------<%4dx%4d>-------------------------\n", total_h, total_v);
+
+	p += sprintf(p, "----active--------------|");
+	/*
+	 * Get H Timings
+	 */
+	x = readl(dfli->reg_base+0x11c);
+	bit0to15 = x & 0x0000ffff;
+	bit16to31 = (x & 0xffff0000) >> 16;
+	p += sprintf(p, "->front porch(%d)->hsync(%d)->back porch(%d)\n",
+		bit0to15, total_h-bit0to15-bit16to31-active_h, bit16to31);
+
+	p += sprintf(p, "|\t\t\t|\n");
+	p += sprintf(p, "|\t\t\t|\n");
+	p += sprintf(p, "|\t<%4dx%4d>\t|\n", active_h, active_v);
+	p += sprintf(p, "|\t\t\t|\n");
+	p += sprintf(p, "|\t\t\t|\n");
+	p += sprintf(p, "------------------------|\n");
+	/*
+	 * Get V Timings
+	 */
+	x = readl(dfli->reg_base+0x120);
+	bit0to15 = x & 0x0000ffff;
+	bit16to31 = (x & 0xffff0000) >> 16;
+	p += sprintf(p, "|\n|front porch(%d)\n|vsync(%d)\n|back porch(%d)\n",
+		bit0to15, total_v-bit0to15-bit16to31-active_v, bit16to31);
+	p += sprintf(p, "---------------------------------------------------------------------\n", total_h, total_v);
+	/*
+	 * Get Line Pitch
+	 */
+	x = readl(dfli->reg_base+0xfc);
+	bit0to15 = x & 0x0000ffff;
+	p += sprintf(p, "gfx line pitch in memory is <%d>\n",
+		bit0to15);
+
+	/*
+	 * Get scaling info
+	 */
+	x = readl(dfli->reg_base+0x104);
+	orig_buff_x = x & 0x0000ffff;
+	orig_buff_y = (x & 0xffff0000) >> 16;
+	x = readl(dfli->reg_base+0x108);
+	zoomed_x = x & 0x0000ffff;
+	zoomed_y = (x & 0xffff0000) >> 16;
+	
+	p += sprintf(p, "Scaled from <%dx%d> to <%dx%d>\n",
+		orig_buff_x, orig_buff_y, zoomed_x, zoomed_y);
+
+	p += sprintf(p, "============================================\n");
+
+	for (i = 0x0; i <= 0x01C4; i += 4) {
+		reg = readl(dfli->reg_base + i);
+		p += sprintf(p, "0x%08x "
+			"0x%08x\n", i, reg);
+	}
+
+
+	p += sprintf(p, "-------<End>-------\n");
+
+	len = (p - page) - off;
+	if (len < 0)
+		len = 0;
+	
+	*eof = (len <= count) ? 1 : 0;
+	*start = page + off;
+
+	return len;
+}
+
+__init int
+dump_lcd_init_module( int id, struct fb_info *fi)
+{
+#ifdef CONFIG_PROC_FS
+	struct proc_dir_entry *res;
+	struct lcd_debug_data *db_data;
+	char dump_entry[30];
+
+	printk(KERN_INFO "Initialize /proc/mv_dump_lcd%d\n", id);
+	printk(KERN_INFO "use cat /proc/mv_dump_lcd%d to see reg settings\n",
+		id);
+	sprintf( dump_entry, "mv_lcd%d", id);
+	res = create_proc_entry(dump_entry, S_IRUSR, NULL);
+	if (!res)
+		return -ENOMEM;
+
+	/*
+	 * Prepare private data.
+	 */
+	db_data = kzalloc(sizeof(struct lcd_debug_data), GFP_KERNEL);
+	db_data->id = id;
+	db_data->fi = fi;
+	res->read_proc = proc_lcd_read;
+	res->write_proc = proc_lcd_write;
+	res->data = db_data;
+#endif
+
+	return 0;
+}
+
 
 
 int dovefb_determine_best_pix_fmt(struct fb_var_screeninfo *var,
@@ -414,15 +598,18 @@ static irqreturn_t dovefb_handle_irq(int irq, void *dev_id)
 	 * bit31 while setting reg, IOPAD_CONTROL, bit [19:18]
 	 * to 0x3. We check vsync to make a workaround version. 
 	 */
-	if (isr & DOVEFB_VID_INT_MASK) {
+	if (isr & (DOVEFB_VID_INT_MASK|DOVEFB_VSYNC_INT_MASK)) {
 		ret += dovefb_ovly_handle_irq(isr, dfi->vid_plane);
 		isr &= ~DOVEFB_VID_INT_MASK;
 	}
 	
-	if (isr & DOVEFB_GFX_INT_MASK) {
+	if (isr & (DOVEFB_GFX_INT_MASK|DOVEFB_VSYNC_INT_MASK)) {
 		ret += dovefb_gfx_handle_irq(isr, dfi->gfx_plane);
 		isr &= ~DOVEFB_GFX_INT_MASK;
 	}
+
+	if (isr & DOVEFB_VSYNC_INT_MASK)
+		isr &= ~DOVEFB_VSYNC_INT_MASK;
 
 	writel(isr, dfi->reg_base + SPU_IRQ_ISR);
 
@@ -680,9 +867,11 @@ static int dovefb_init_layer(struct platform_device *pdev,
 		goto failed;
 	}
 
-	if (type == DOVEFB_GFX_PLANE)
+	if (type == DOVEFB_GFX_PLANE) {
 		info->gfx_plane = dfli;
-	else
+ 		dump_lcd_init_module( strstr(fi->fix.id, "1") ? 1:0,
+			fi);
+	} else
 		info->vid_plane = dfli;
 
 	return 0;
@@ -744,7 +933,7 @@ static int dovefb_enable_lcd0(struct platform_device *pdev)
 static void dovefb_config_vga_calibration(struct dovefb_info *info)
 {
 	if (info->id == 1) {
-		u32 portB_config = readl(DOVE_LCD1_CONFIG_VIRT);
+//		u32 portB_config = readl(DOVE_LCD1_CONFIG_VIRT);
 		writel(0, DOVE_LCD1_CONFIG_VIRT);
 	}
 }
@@ -1034,7 +1223,6 @@ static int __devinit dovefb_init(void)
 {
 	int rc;
 	rc = platform_driver_register(&dovefb_driver);
-
 	if (rc)
 		return rc;
 
