@@ -92,6 +92,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 	.align 5
 ENTRY(mvPmuSramDdrReconfigFunc)
 	stmfd	sp!, {r4 - r10, lr}	@ save registers on stack
+
 	mov	r9, r0
 	mov	r10, r1
 	mov     r11, r2
@@ -236,7 +237,7 @@ mc_init_done:
 	strne	r7, [r2]			@ restore Arbitor HI
 	ldr	r2, ddfs_arbit_hi_reg
 	cmp	r11, #0
-	strne	r8, [r2]			@ restore Arbitor LOW
+	strne   r8, [r2]                        @ restore Arbitor LOW
 
 	ldmfd	sp!, {r4 - r10, pc}	@ restore regs and return
 
@@ -298,7 +299,7 @@ led_val_off:
 */
 /*********************************************************************/
 ENTRY(mvPmuSramDdrReconfigFuncSZ)
-	.word	. - mvPmuSramDdrReconfigFunc
+	.word	. - mvPmuSramDdrReconfigFunc + 0x4
 
 
 
@@ -410,7 +411,7 @@ die_leave_ddr_active:
 	 * Relocate the Internal Registers Window to h/w default
 	 */
 	ldr	r1, die_irb_reg
-	mov	r0, #0xD0000000
+	mov	r0, #DOVE_SB_REGS_HW_DEF_PHYS_BASE
 	str	r0, [r1]	
 
 	/*
@@ -444,7 +445,7 @@ die_nvram_sp_mask:
 #endif
 
 ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
-	.word	. - mvPmuSramDeepIdleEnterFunc
+	.word	. - mvPmuSramDeepIdleEnterFunc + 0x4
 
 
 
@@ -602,7 +603,7 @@ dix_ddr_sync_val:
 	.word (0x80000000)
 
 ENTRY(mvPmuSramDeepIdleExitFuncSZ)
-	.word	. - mvPmuSramDeepIdleExitFunc
+	.word	. - mvPmuSramDeepIdleExitFunc + 0x4
 
 
 /***************************************************************
@@ -671,6 +672,28 @@ sbe_skip_l2_clean:
 	mcr	p15, 0, r0, c7, c10, 5		@ data memory barrier
 
 	/*
+	 * Set DDR in Self refresh mode and poll status bit
+	 */
+	ldr	r0, sbe_ctrl_reg
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
+	ldr	r2, [r0]
+	orr	r2, r2, r1
+	str	r2, [r0]
+sbe_sr_loop:
+	ldr	r2, [r0]
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
+	beq	sbe_sr_loop
+	
+	/*
+	 * Mask out CKE and M_RESET
+	 */
+	ldr	r0, sbe_sply_ctrl_reg
+	mov	r1, #PMU_PWR_DDR_PHY_RST_MSK_MASK
+	ldr	r2, [r0]
+	orr	r2, r2, r1
+	str	r2, [r0]
+
+	/*
 	 * Initiate standby flow
 	 */
 	ldr	r0, sbe_ctrl_reg
@@ -714,9 +737,11 @@ sbe_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 sbe_mc_ctrl_reg:
 	.word (DOVE_NB_REGS_VIRT_BASE + 0x7E0)
+sbe_sply_ctrl_reg:
+	.word (DOVE_SB_REGS_VIRT_BASE + PMU_PWR_SUPLY_CTRL_REG)
 
 ENTRY(mvPmuSramStandbyEnterFuncSZ)
-	.word	. - mvPmuSramStandbyEnterFunc
+	.word	. - mvPmuSramStandbyEnterFunc + 0x4
 
 
 
@@ -734,6 +759,20 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	mcr	p15, 0, r1, c8, c7, 0		@ TLB invalidate	
 	mcr	p15, 1, r1, c7, c7, 0		@ Invalidate entire L2
 	mcr	p15, 0, r1, c7, c5, 4		@ Prefetch Flush - ISB
+
+	/*
+	 * Exit DDR self refresh mode if active
+	 * CKE and M_RESET already unmasked at BootROM level
+	 */
+	ldr	r0, sbx_ctrl_reg
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
+	ldr	r2, [r0]
+	bic	r2, r2, r1
+	str	r2, [r0]
+sbx_sr_exit_loop:
+	ldr	r2, [r0]
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
+	bne	sbx_sr_exit_loop
 
 	ldr	r0, sbx_saved_sp		@ stack phys addr
 	ldmfd	r0!, {r7-r8}
@@ -800,9 +839,13 @@ sbx_virt_offs:
 	.word (DOVE_SCRATCHPAD_VIRT_BASE)
 sbx_phys_offs:
 	.word (DOVE_SCRATCHPAD_PHYS_BASE)
+sbx_ctrl_reg:
+	.word (DOVE_SB_REGS_PHYS_BASE + PMU_CTRL_REG)
+sbx_sply_ctrl_reg:
+	.word (DOVE_SB_REGS_PHYS_BASE + PMU_PWR_SUPLY_CTRL_REG)
 
 ENTRY(mvPmuSramStandbyExitFuncSZ)
-	.word	. - mvPmuSramStandbyExitFunc
+	.word	. - mvPmuSramStandbyExitFunc + 0x4
 
 
 /***************************************************************
@@ -859,4 +902,4 @@ dfs_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 
 ENTRY(mvPmuSramCpuDfsFuncSZ)
-	.word	. - mvPmuSramCpuDfsFunc
+	.word	. - mvPmuSramCpuDfsFunc + 0x4
