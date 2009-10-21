@@ -147,6 +147,32 @@ typedef struct
 	MV_U32	val;
 } MV_DDR_INIT_POLL_AMV;	/* address/mask/value */
 
+typedef struct
+{
+	MV_U32 	addr;
+	MV_U32	mask;
+} MV_DDR_BIT_CLR_AM; /* address/mask */
+
+#define MV_DDR3_WL_NONE			0x0
+#define MV_DDR3_WL_FIRST_EDGE_1CS	0x11
+#define MV_DDR3_WL_FIRST_EDGE_2CS_CPY	0x12	/* Use same WL value of CS0 on CS1 */
+#define MV_DDR3_WL_FIRST_MEAN_1CS	0x01
+#define MV_DDR3_WL_FIRST_MEAN_2CS	0x02
+#define MV_DDR3_WL_FIRST_MEAN_2CS_CPY	0x03	/* Use same WL value of CS0 on CS1 */
+
+typedef struct
+{
+	MV_U32	type;
+} MV_DDR3_WL_TYP; /* DDR3 WL type */
+
+/* Used in DDR3 Write Levelling SET ONLY */
+typedef struct
+{
+	MV_U32	cs0_enable;
+	MV_U32	cs0_dly_4l;
+	MV_U32	cs1_enable;
+	MV_U32	cs1_dly_4l;
+} MV_DDR3_WL_SET_VAL;
 
 /* mvDramIf.h API list */
 MV_VOID   mvDramIfBasicAsmInit(MV_VOID);
@@ -167,6 +193,9 @@ MV_U32 mvDramIfParamCountGet(MV_VOID);
 MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params, MV_U32 * paramcnt);
 MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARAMS * params, MV_U32 * cnt);
 MV_STATUS mvDramInitPollAmvFill(MV_DDR_INIT_POLL_AMV * amv);
+MV_STATUS mvDramInitMresetMvFill(MV_DDR_BIT_CLR_AM * am);
+MV_STATUS mvDramInitDdr3wlTypeFill(MV_DDR3_WL_TYP * typ);
+MV_STATUS mvDramInitDdr3wlSetFill(MV_DDR3_WL_SET_VAL * val);
 
 MV_VOID mvIntrfaceParamPrint(MV_VOID);
 MV_VOID mvIntrfaceWidthPrint(MV_VOID);
