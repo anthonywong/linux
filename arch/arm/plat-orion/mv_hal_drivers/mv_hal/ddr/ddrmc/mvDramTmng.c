@@ -67,6 +67,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvCommon.h"
 #include "mvOs.h"
 #include "ctrlEnv/mvCtrlEnvSpec.h"
+#include "ctrlEnv/mvCtrlEnvRegs.h"
 #include "mvSysDdrConfig.h"
 #include "mvDramIfConfig.h"
 #include "mvDramIfRegs.h"
@@ -223,7 +224,7 @@ MV_STATUS mvDramIfParamFill(MV_U32 ddrFreq, MV_DDR_MC_PARAMS * params, MV_U32 * 
 
 	/* Copy the parameters in 32bit access */
 	for (i=0; i<*paramcnt; i++) {
-		params->addr = mv_dram_init_info.reg_init[reg_index].reg_addr;
+		params->addr = ((mv_dram_init_info.reg_init[reg_index].reg_addr & 0x00FFFFFF) | DOVE_SB_REGS_HW_DEF_PHYS_BASE);
 		params->val = mv_dram_init_info.reg_init[reg_index].reg_value;
 		reg_index++;
 		params++;
@@ -329,11 +330,11 @@ MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARA
 
 
 /*******************************************************************************
-* mvDramInitPollAmvFill - Fill in the Address/Value couples
+* mvDramInitPollAmvFill - Fill in the Address/Mask/Value 
 *
 * DESCRIPTION:
-*       This function fills in the addr/val couples needed to init the DDR
-*       controller based on the requesed frequency
+*       This function fills in the addr/mask/val needed to poll the DDR
+*       init done
 *
 * INPUT:
 *       None.
@@ -350,9 +351,159 @@ MV_STATUS mvDramReconfigParamFill(MV_U32 ddrFreq, MV_U32 cpuFreq, MV_DDR_MC_PARA
 *******************************************************************************/
 MV_STATUS mvDramInitPollAmvFill(MV_DDR_INIT_POLL_AMV * amv)
 {
-	amv->addr = (DOVE_SB_REGS_PHYS_BASE|SDRAM_STATUS_REG)/*mvOsIoVirtToPhy(NULL, (void*)(INTER_REGS_BASE|SDRAM_STATUS_REG))*/;
+	amv->addr = (DOVE_SB_REGS_HW_DEF_PHYS_BASE | SDRAM_STATUS_REG);
 	amv->mask = SDRAM_STATUS_INIT_DONE_MASK;
 	amv->val = SDRAM_STATUS_INIT_DONE;
+
+	return MV_OK;
+}
+
+
+/*******************************************************************************
+* mvDramInitMresetMvFill - Fill in the M_RESET mask bit clear Address/Mask
+*
+* DESCRIPTION:
+*       This function fills in the addr/mask needed to clear the M_RESET and CKE
+*       masking at the DDR phy level
+*
+* INPUT:
+*       None.
+*
+* OUTPUT:
+*	am - address/mask
+*		amv->addr: Physical adddress of the init done register
+*		amv->mask: Bit mask to poll for init done
+*
+* RETURN:
+*	STATUS
+*
+*******************************************************************************/
+MV_STATUS mvDramInitMresetMvFill(MV_DDR_BIT_CLR_AM * am)
+{
+	am->addr = (DOVE_SB_REGS_HW_DEF_PHYS_BASE | PMU_PWR_SUPLY_CTRL_REG);
+	am->mask = PMU_PWR_DDR_PHY_RST_MSK_MASK;
+
+	return MV_OK;
+}
+
+/*******************************************************************************
+* mvDramWlValGet - Read from the H/W the DDR3 WL results
+*
+* DESCRIPTION:
+*       Read from the H/W the DDR3 WL results
+*
+* INPUT:
+*       CS#: 0 or 1
+*
+* OUTPUT:
+*	None
+*
+* RETURN:
+*	WL value for all 4 lanes
+*
+*******************************************************************************/
+static MV_U32 mvDramWlValGet(MV_U32 cs_num)
+{
+	MV_U32 reg;
+	MV_U32 wl_val;
+	MV_U32 cs_offs;
+
+	if (cs_num)
+		cs_offs = SDRAM_PHY_CTRL_WLS_CS_1;
+	else
+		cs_offs = SDRAM_PHY_CTRL_WLS_CS_0;
+
+	/* Obtain WL values for CS0 */
+	wl_val = 0;
+	MV_REG_WRITE(SDRAM_PHY_CTRL_WLS_REG, (cs_offs | SDRAM_PHY_CTRL_WLS_BS_L0));
+	reg = MV_REG_READ(SDRAM_PHY_CTRL_WLC_REG);
+	wl_val |= ((reg & 0xFF) << 0);
+	MV_REG_WRITE(SDRAM_PHY_CTRL_WLS_REG, (cs_offs | SDRAM_PHY_CTRL_WLS_BS_L1));
+	reg = MV_REG_READ(SDRAM_PHY_CTRL_WLC_REG);
+	wl_val |= ((reg & 0xFF) << 8);
+	MV_REG_WRITE(SDRAM_PHY_CTRL_WLS_REG, (cs_offs | SDRAM_PHY_CTRL_WLS_BS_L2));
+	reg = MV_REG_READ(SDRAM_PHY_CTRL_WLC_REG);
+	wl_val |= ((reg & 0xFF) << 16);
+	MV_REG_WRITE(SDRAM_PHY_CTRL_WLS_REG, (cs_offs | SDRAM_PHY_CTRL_WLS_BS_L3));
+	reg = MV_REG_READ(SDRAM_PHY_CTRL_WLC_REG);
+	wl_val |= ((reg & 0xFF) << 24);
+
+	return wl_val;
+}
+
+/*******************************************************************************
+* mvDramInitDdr3wlTypeFill - Fill in the Type of DDR3
+*
+* DESCRIPTION:
+*       This function fills in the DDR3 type based on the SAR
+*
+* INPUT:
+*       None.
+*
+* OUTPUT:
+*	typ->type: DDR3 type [0x0] DDR2 [0x1] DDR3 1CS [0x2] DDR3 2CS
+*
+* RETURN:
+*	STATUS
+*
+*******************************************************************************/
+MV_STATUS mvDramInitDdr3wlTypeFill(MV_DDR3_WL_TYP * typ)
+{
+	MV_U32 reg;
+	reg = MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0);
+
+	if ((reg & MPP_SAMPLE_AT_RESET_DDR_TYPE_MASK) == MPP_SAMPLE_AT_RESET_DDR_TYPE_DDR3)
+		if (mvDramWlValGet(1) == 0x0)
+			typ->type = MV_DDR3_WL_FIRST_EDGE_1CS;		/* OLD DDR3 WL with single CS */
+		else
+			typ->type = MV_DDR3_WL_FIRST_EDGE_2CS_CPY;	/* OLD DDR3 WL with2 CS (copy 1->2) */
+	else
+		typ->type = MV_DDR3_WL_NONE;				/* DDR2: no need for WL */
+
+	return MV_OK;
+}
+
+/*******************************************************************************
+* mvDramInitDdr3wlSetFill - Fill in the values to set for DDR3 WL
+*
+* DESCRIPTION:
+*       This function fills in the DDR3 WL values to set in resume
+*
+* INPUT:
+*       None.
+*
+* OUTPUT:
+*	CS0,1 WL values per lane
+*
+* RETURN:
+*	STATUS
+*
+*******************************************************************************/
+MV_STATUS mvDramInitDdr3wlSetFill(MV_DDR3_WL_SET_VAL * val)
+{
+	/* Obtain WL values for CS0 */
+	if (mvDramWlValGet(0))
+	{
+		val->cs0_enable = 1;
+		val->cs0_dly_4l = mvDramWlValGet(0);
+	}
+	else /* DDR2 */
+	{
+		val->cs0_enable = 0;
+		val->cs0_dly_4l = 0;
+	}
+
+	/* Obtain WL values for CS1 */
+	if (mvDramWlValGet(1))
+	{
+		val->cs1_enable = 1;
+		val->cs1_dly_4l = mvDramWlValGet(1);
+	}
+	else /* Either DDR2 or CS1 not used */
+	{
+		val->cs1_enable = 0;
+		val->cs1_dly_4l = 0;
+	}
 
 	return MV_OK;
 }
