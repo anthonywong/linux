@@ -73,18 +73,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* Constants */
 #define PMU_MAX_DESCR_CNT		7		
-#define PMU_STANDBY_DESCR_CNT		2
+#define PMU_STANDBY_DESCR_CNT		5
 #define PMU_DEEPIDLE_DESCR_CNT		0
 #ifndef CONFIG_DOVE_REV_Z0
  #define PMU_SP_TARGET_ID		0xD
  #define PMU_SP_ATTRIBUTE		0x0
 #endif
 
+#define MV_PMU_FULL_DDR3_WL
+
 /* DDR parameters pointer */
 static MV_VOID * _mvPmuSramDdrParamPtr;		/* External Read-only access */
 static MV_VOID * _mvPmuSramDdrParamPtrInt;	/* Internale Read-write access */
 static MV_VOID * _mvPmuSramDdrInitPollPtr;	/* External Read-only access */
 static MV_VOID * _mvPmuSramDdrInitPollPtrInt;	/* Internale Read-write access */
+static MV_VOID * _mvPmuSramDdrMresetPtr;	/* External Read-only access */
+static MV_VOID * _mvPmuSramDdrMresetPtrInt;	/* Internale Read-write access */
+static MV_VOID * _mvPmuSramDdr3wlPtr;		/* External Read-only access */
+static MV_VOID * _mvPmuSramDdr3wlPtrInt;	/* Internale Read-write access */
 
 /* Sram Markers */
 static unsigned long mvPmuSramOffs = PMU_SCRATCHPAD_RSRV;
@@ -123,12 +129,7 @@ static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
 	MV_U32 * dst;
 	MV_U32 i;
 	MV_U32 orig_size = size;
-/*
-	if (size & 0x3) {
-		dbg_print("Function relocated with non-alligned size\n");
-		return NULL;
-	}
-*/
+
 	/* Round up the size to a complete cache line */
 	size += 31;
 	size &= ~31;
@@ -286,13 +287,38 @@ MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 					    (PMU_SCRATCHPAD_INT_BASE));
 #endif
 
-	/* Allocate enough space for the DDR paramters */
+	/* Allocate enough space for the DDR init poll Address/Mask/Value */
 	if ((_mvPmuSramDdrInitPollPtr = mvPmuSramRelocate(NULL, 
 					sizeof(MV_DDR_INIT_POLL_AMV))) == NULL)
 		return MV_FAIL;
 
-	/* Convert DDR base address from External to Internal Space */
+	/* Convert DDR init poll address from External to Internal Space */
 	_mvPmuSramDdrInitPollPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdrInitPollPtr &
+					     (PMU_SCRATCHPAD_SIZE-1)) |
+					    (PMU_SCRATCHPAD_INT_BASE));
+
+	/* Allocate enough space for the DDR M_RESET unmaks Address/Mask */
+	if ((_mvPmuSramDdrMresetPtr = mvPmuSramRelocate(NULL, 
+					sizeof(MV_DDR_BIT_CLR_AM))) == NULL)
+		return MV_FAIL;
+
+	/* Convert DDR M_RESET address from External to Internal Space */
+	_mvPmuSramDdrMresetPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdrMresetPtr &
+					     (PMU_SCRATCHPAD_SIZE-1)) |
+					    (PMU_SCRATCHPAD_INT_BASE));
+
+	/* Allocate enough space for the DDR3 WL Type */
+#ifdef MV_PMU_FULL_DDR3_WL
+	if ((_mvPmuSramDdr3wlPtr = mvPmuSramRelocate(NULL, 
+					sizeof(MV_DDR3_WL_TYP))) == NULL)
+		return MV_FAIL;
+#else
+	if ((_mvPmuSramDdr3wlPtr = mvPmuSramRelocate(NULL, 
+					sizeof(MV_DDR3_WL_SET_VAL))) == NULL)
+		return MV_FAIL;
+#endif
+	/* Convert DDR WL address from External to Internal Space */
+	_mvPmuSramDdr3wlPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdr3wlPtr &
 					     (PMU_SCRATCHPAD_SIZE-1)) |
 					    (PMU_SCRATCHPAD_INT_BASE));
 
@@ -450,27 +476,76 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 #endif
 	MV_REG_WRITE(PMU_RESUME_CTRL_REG, reg);
 
+	/**************************************/
+	/* Discriptor 0: DDR timing parametrs */
+	/**************************************/
+
 	/* Prepare DDR paramters in the scratch pad for BootROM */
 	for (i=0; i<(clear_size/4); i++)	
 		ptr[i] = 0x0;
 	if (mvDramIfParamFill(ddrFreq, (MV_DDR_MC_PARAMS*)_mvPmuSramDdrParamPtrInt, &cnt) != MV_OK)
 		return MV_FAIL;
-
-	/* Discriptor 0: DDR timing parametrs */
+	
 	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
-	reg |= ((cnt << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	reg |= (((cnt-3) << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
 	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(0), reg);
-	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr + 0x18));
+
+	/*****************************************/
+	/* Descriptor 1: DDR Initiaization delay */
+	/*****************************************/
 
 	/* Prepare the DDR init done polling descriptor */
 	if (mvDramInitPollAmvFill((MV_DDR_INIT_POLL_AMV*)_mvPmuSramDdrInitPollPtrInt) != MV_OK)
 		return MV_FAIL;
 
-	/* Descriptor 1: DDR Initiaization delay */
 	reg = PMU_RD_CTRL_DISC_TYPE_POLL;
 	reg |= ((1 << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
 	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(1), reg);
 	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(1), PmuSpVirt2Phys(_mvPmuSramDdrInitPollPtr));
+
+	/***************************************/
+	/* Descriptor 2: M_RESET mask clearing */
+	/***************************************/
+
+	/* Prepare DDR Phy Mask clearing */
+	if (mvDramInitMresetMvFill((MV_DDR_BIT_CLR_AM*)_mvPmuSramDdrMresetPtrInt) != MV_OK)
+		return MV_FAIL;
+	
+	reg = PMU_RD_CTRL_DISC_TYPE_32BC;
+	reg |= ((1 << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(2), reg);
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(2), PmuSpVirt2Phys(_mvPmuSramDdrMresetPtr));
+
+	/*************************************/
+	/* Descriptor 3: DDR3 write leveling */
+	/*************************************/
+
+	/* Prepare DDR Phy Mask clearing */
+#ifdef MV_PMU_FULL_DDR3_WL
+	if (mvDramInitDdr3wlTypeFill((MV_DDR3_WL_TYP*)_mvPmuSramDdr3wlPtrInt) != MV_OK)
+		return MV_FAIL;
+
+	reg = PMU_RD_CTRL_DISC_TYPE_DDR3WL;
+	reg |= ((1 << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(3), reg);
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(3), PmuSpVirt2Phys(_mvPmuSramDdr3wlPtr));	
+#else
+	if (mvDramInitDdr3wlSetFill((MV_DDR3_WL_SET_VAL*)_mvPmuSramDdr3wlPtrInt) != MV_OK)
+		return MV_FAIL;
+
+	reg = PMU_RD_CTRL_DISC_TYPE_DDR3WL_SET;
+	reg |= ((1 << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(3), reg);
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(3), PmuSpVirt2Phys(_mvPmuSramDdr3wlPtr));	
+#endif
+	/****************************************/
+	/* Descriptor 4: Window initialization  */
+	/****************************************/
+	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
+	reg |= ((3 << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(4), reg);
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(4), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
 	
 	/* Clear out all non used descriptors */
 	for (i=PMU_STANDBY_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
