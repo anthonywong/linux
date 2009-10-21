@@ -774,7 +774,7 @@ static int rt5610_set_dai_pll(struct snd_soc_dai *codec_dai,
 
 	ret = rt5610_set_pll(codec, pll_id, freq_in, freq_out);
 	if (ret < 0) {
-		printk(KERN_ERR "pll unmatched\n");
+		err( "pll unmatched\n");
 		return ret;
 	}
 	
@@ -800,7 +800,7 @@ static int rt5610_vpcm_set_dai_pll(struct snd_soc_dai *codec_dai,
 
 	ret = rt5610_set_pll(codec, pll_id, freq_in, freq_out);
 	if (ret < 0){
-		printk(KERN_ERR "pll unmatched\n");
+		err("pll unmatched\n");
 		return ret;
 	}
 	
@@ -834,7 +834,7 @@ static int get_coeff_vpcm(int mclk, int rate)
 {
 	int i;
 
-	printk("%s mclk=%d,rate=%d\n",__func__,mclk,rate);
+	dbg("%s mclk=%d,rate=%d\n",__func__,mclk,rate);
 
 	for (i = 0; i < ARRAY_SIZE(coeff_div_vpcm); i++) {
 		if ((coeff_div_vpcm[i].rate == rate) && (coeff_div_vpcm[i].mclk == mclk))
@@ -919,7 +919,7 @@ static int rt5610_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dapm_widget *w;
 	int stream = substream->stream;
 
-	printk("rt5610_pcm_hw_params\n");
+	dbg("rt5610_pcm_hw_params\n");
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		list_for_each_entry(w, &codec->dapm_widgets, list)
 		{
@@ -948,7 +948,7 @@ static int rt5610_vpcm_hw_params(struct snd_pcm_substream *substream,
 	u16 iface = rt5610_read(codec, RT5610_EXTEND_SDP_CTRL) & 0xfff3;
 	int coeff = get_coeff_vpcm(rt5610->vpcm_sysclk, params_rate(params));
 	
-	printk(KERN_DEBUG "enter %s\n", __func__);
+	dbg("rt5610_vpcm_hw_params\n");
 
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		list_for_each_entry(w, &codec->dapm_widgets, list)
@@ -986,7 +986,7 @@ static int rt5610_vpcm_hw_params(struct snd_pcm_substream *substream,
 	}
 	else
 	{
-		printk(KERN_ERR "cant find matched sysclk and rate config\n");
+		err("cant find matched sysclk and rate config\n");
 		return -EINVAL;
 	}
 	return 0;	
@@ -1159,7 +1159,7 @@ static int rt5610_resume(struct platform_device *pdev)
 
 	ret = rt5610_reset(codec, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "could not reset AC97 codec\n");
+		err("could not reset AC97 codec\n");
 		return ret;
 	}
 
@@ -1197,7 +1197,7 @@ static int rt5610_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	int ret;
 
-	printk(KERN_INFO "rt5610 SOC codec\n");
+	dbg("rt5610 SOC codec\n");
 
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
 	if (codec == NULL)
@@ -1242,7 +1242,7 @@ static int rt5610_probe(struct platform_device *pdev)
 	rt5610_reset(codec, 0);
 	ret = rt5610_reset(codec, 1);
 	if (ret < 0) {
-		printk(KERN_ERR "FAIL to reset rt5610\n");
+		err("FAIL to reset rt5610\n");
 		goto reset_err;
 	}
 #endif
