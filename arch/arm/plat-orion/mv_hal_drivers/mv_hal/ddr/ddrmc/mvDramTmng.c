@@ -95,11 +95,14 @@ MV_U32 ddr_freq_mask[][2] = {{100, MV_DDR_100},
 #define MV_DRAM_FREQ_MASK_CNT	(sizeof(ddr_freq_mask)/sizeof(ddr_freq_mask[0]))
 
 /* Mandatory address decoding configurations */
-MV_DDR_MC_PARAMS dove_windows[]={{0xD0800010, 0xF1800000},	/* Set DDR register space */
-                                 {0xD00D025C, 0x000F1890},	/* Set NB register space */
-				 {0xD0020080, 0xF1000000},	/* Set SB register space */
-				 };
-#define MV_DRAM_ADDR_DEC_CNT	(sizeof(dove_windows)/sizeof(dove_windows[0]))
+MV_DDR_MC_PARAMS dove_windows[MV_DDR_MC_WINDOW_CNT] = {
+				{0xD0800770, 0x0100000A},	/* Set DDR ODT */
+				{0xD0800010, 0xF1800000},	/* Set DDR register space */
+                                {0xD00D025C, 0x000F1890},	/* Set NB register space */
+				{0xD0020080, 0xF1000000},	/* Set SB register space */
+				};
+//#define MV_DRAM_ADDR_DEC_CNT	(sizeof(dove_windows)/sizeof(dove_windows[0]))
+#define MV_DRAM_ADDR_DEC_CNT	MV_DDR_MC_WINDOW_CNT
 
 /* Mandatory DDR reconfig configurations */
 MV_DDR_MC_PARAMS ddr_reconfig[]={{0x00120, 0x03000100},	/* Load Mode Register */
