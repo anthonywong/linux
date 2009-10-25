@@ -417,7 +417,10 @@ static int __init dove_rd_avng_pm_init(void)
 
 	/* Initialize the PMU HAL */
 	if (mvPmuInit(&pmuInitInfo) != MV_OK)
-		printk(KERN_NOTICE "Failed to initialive the PMU!\n");
+	{
+		printk(KERN_NOTICE "Failed to initialise the PMU!\n");
+		BUG();
+	}
 
 	/* Configure wakeup events */
 	mvPmuWakeupEventSet(PMU_STBY_WKUP_CTRL_EXT0_FALL | PMU_STBY_WKUP_CTRL_RTC_MASK);

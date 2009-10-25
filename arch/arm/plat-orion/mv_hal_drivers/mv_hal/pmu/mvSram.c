@@ -80,7 +80,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  #define PMU_SP_ATTRIBUTE		0x0
 #endif
 
-#define MV_PMU_FULL_DDR3_WL
+//#define MV_PMU_FULL_DDR3_WL
 
 /* DDR parameters pointer */
 static MV_VOID * _mvPmuSramDdrParamPtr;		/* External Read-only access */
@@ -157,7 +157,7 @@ static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
 	fncptr = (MV_VOID *)(PMU_SCRATCHPAD_EXT_BASE + mvPmuSramOffs);
 	mvPmuSramOffs += size;	
 	
-	dbg_print("mvPmuSramRelocate: From %08x to %08x (exec %08x), Size = %x\n", (MV_U32)start, (MV_U32)dst, fncptr, size);
+	printk(KERN_WARNING "mvPmuSramRelocate: From %08x to %08x (exec %08x), Size = %x\n", (MV_U32)start, (MV_U32)dst, fncptr, size);
 	return fncptr;
 }
 
@@ -487,9 +487,9 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 		return MV_FAIL;
 	
 	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
-	reg |= (((cnt-3) << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	reg |= (((cnt - MV_DDR_MC_WINDOW_CNT) << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
 	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(0), reg);
-	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr + 0x18));
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr + (MV_DDR_MC_WINDOW_CNT * 0x8)));
 
 	/*****************************************/
 	/* Descriptor 1: DDR Initiaization delay */
@@ -543,7 +543,7 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 	/* Descriptor 4: Window initialization  */
 	/****************************************/
 	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
-	reg |= ((3 << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	reg |= ((MV_DDR_MC_WINDOW_CNT << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
 	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(4), reg);
 	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(4), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
 	
