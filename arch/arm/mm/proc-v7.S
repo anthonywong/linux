@@ -327,7 +327,7 @@ __v7_setup:
 						@ not working when TRE=1
 						@ Set write-through, noWA instead
 						@ Impact: D$ performance
-	ldr	r6, =0x40a040a0
+	ldr	r6, =0x40e840e8
 #else
 	ldr	r6, =0x40e040e0			@ NMRR
 #endif
