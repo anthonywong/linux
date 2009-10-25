@@ -89,7 +89,7 @@ extern "C" {
 #define ECC_DISABLE         1   /* Force ECC to Disable                      */
 #define ECC_ENABLE          0   /* Force ECC to ENABLE                       */
 
-
+#define MV_DDR_MC_WINDOW_CNT	4	/* Number of configurations needed to */ 
 /* typedefs */
 
 
