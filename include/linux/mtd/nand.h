@@ -392,6 +392,9 @@ struct nand_chip {
 #ifdef CONFIG_MV_MTD_GANG_SUPPORT
 	unsigned int	num_devs;
 #endif
+#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
+	unsigned int	ecc_8bit_1k;
+#endif
 	int		page_shift;
 	int		phys_erase_shift;
 	int		bbt_erase_shift;
@@ -471,6 +474,9 @@ struct nand_manufacturers {
 
 extern struct nand_flash_dev nand_flash_ids[];
 extern struct nand_manufacturers nand_manuf_ids[];
+#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
+extern struct nand_flash_dev nand_flash_8bit_1k_ids[];
+#endif
 
 /**
  * struct nand_bbt_descr - bad block table descriptor

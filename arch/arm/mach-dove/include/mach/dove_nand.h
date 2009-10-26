@@ -13,7 +13,10 @@ struct dove_nand_platform_data {
 						   chip-selects.	  */
 	unsigned int		use_dma;	/* Enable/Disable DMA 1/0 */
 	unsigned int 		use_ecc;	/* Enable/Disable ECC 1/0 */
-	unsigned int		use_bch;	/* Enable/Disable BCH 1/0 (if ECC enabled) */
+	unsigned int		use_bch;	/* Enable/Disable BCH 1/0
+						   (if ECC enabled) */
+	unsigned int		use_8bit_ecc;	/* Enable/Disable 8bit per
+						   1KB ecc support */
 	struct mtd_partition *	parts;
 	unsigned int		nr_parts;	
 };

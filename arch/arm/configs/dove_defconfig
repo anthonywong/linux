@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.31.5
-# Wed Oct 28 11:02:36 2009
+# Wed Oct 28 11:03:34 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -689,6 +689,7 @@ CONFIG_MTD_NAND_IDS=y
 CONFIG_MTD_NAND_DOVE=y
 CONFIG_MTD_NAND_HAL_DOVE=y
 CONFIG_MV_MTD_GANG_SUPPORT=y
+CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT=y
 # CONFIG_MTD_ONENAND is not set
 
 #
