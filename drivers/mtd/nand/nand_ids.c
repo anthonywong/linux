@@ -111,7 +111,6 @@ struct nand_flash_dev nand_flash_ids[] = {
 
 	/* 32 Gigabit */
 	{"NAND 4GiB 3,3V 8-bit",	0xD7, 0, 4096, 0, LP_OPTIONS},
-
 	/*
 	 * Renesas AND 1 Gigabit. Those chips do not support extended id and
 	 * have a strange page/block layout !  The chosen minimum erasesize is
@@ -129,6 +128,17 @@ struct nand_flash_dev nand_flash_ids[] = {
 
 	{NULL,}
 };
+
+#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
+struct nand_flash_dev nand_flash_8bit_1k_ids[] = {
+
+	/* Same device ID with different parameters */
+	/* 32 Gigabit */
+	{"NAND 4GiB 3,3V 8-bit",	0xD7, 4096, 4096, 524288, LP_OPTIONS},
+	{NULL,}
+};
+EXPORT_SYMBOL(nand_flash_8bit_1k_ids);
+#endif
 
 /*
 *	Manufacturer ID list
