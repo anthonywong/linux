@@ -152,7 +152,7 @@ extern "C" {
 /********************************/
 
 /* Maximum Chain length */
-#define MV_NFC_MAX_DESC_CHAIN		0x100
+#define MV_NFC_MAX_DESC_CHAIN		0x800
 
 /* Supported page sizes */
 #define MV_NFC_512B_PAGE		512
@@ -191,7 +191,8 @@ extern "C" {
 /* ECC mode options.			*/
 typedef enum {
 	MV_NFC_ECC_HAMMING,
-	MV_NFC_ECC_BCH,
+	MV_NFC_ECC_BCH_1K,
+	MV_NFC_ECC_BCH_2K,
 	MV_NFC_ECC_DISABLE
 }MV_NFC_ECC_MODE;
 
@@ -364,6 +365,7 @@ typedef struct {
 	MV_U32		numSgBuffs;
 	MV_U32		sgBuffAddr[MV_NFC_RW_MAX_BUFF_NUM];
 	MV_U32		sgBuffSize[MV_NFC_RW_MAX_BUFF_NUM];
+	MV_U32		length;
 }MV_NFC_MULTI_CMD;
 
 typedef struct {
