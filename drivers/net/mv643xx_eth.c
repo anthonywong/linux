@@ -408,7 +408,6 @@ struct mv643xx_eth_private {
 	u8 work_rx;
 	u8 work_rx_refill;
 
-	u32 interrupt_mask;
 	int skb_size;
 	struct sk_buff_head rx_recycle;
 
@@ -2422,9 +2421,8 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int i;
 
-	mp->interrupt_mask = 0;
-	wrlp(mp, INT_MASK, mp->interrupt_mask);
 	wrlp(mp, INT_MASK_EXT, 0x00000000);
+	wrlp(mp, INT_MASK, 0x00000000);
 	rdlp(mp, INT_MASK);
 
 	napi_disable(&mp->napi);
@@ -3040,8 +3038,7 @@ static void mv643xx_eth_shutdown(struct platform_device *pdev)
 	struct mv643xx_eth_private *mp = platform_get_drvdata(pdev);
 
 	/* Mask all interrupts on ethernet port */
-	mp->interrupt_mask = 0;
-	wrlp(mp, INT_MASK, mp->interrupt_mask);
+	wrlp(mp, INT_MASK, 0);
 	rdlp(mp, INT_MASK);
 
 	if (netif_running(mp->dev))
@@ -3092,7 +3089,7 @@ static int mv643xx_eth_resume(struct platform_device *pdev)
 		port_start(mp);
 
 		wrlp(mp, INT_MASK_EXT, INT_EXT_LINK_PHY | INT_EXT_TX);
-		wrlp(mp, INT_MASK, mp->interrupt_mask);
+		wrlp(mp, INT_MASK, mp->int_mask);
 		netif_device_attach(mp->dev);
 	} else {
 		init_pscr(mp, pd->speed, pd->duplex);
