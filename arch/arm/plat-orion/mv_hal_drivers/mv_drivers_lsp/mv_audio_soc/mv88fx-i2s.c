@@ -634,7 +634,7 @@ static int mv88fx_i2s_dai_probe(struct platform_device *pdev,
 {
 	struct mv88fx_snd_machine_data *machine_data = pdev->dev.platform_data;
 
-	mv88fx_snd_debug("");
+	mv88fx_snd_debug(">%s machine_data=0x%p", __FUNCTION__, machine_data);
 
 	mv88fx_i2s_info.base = machine_data->base;
 	mv88fx_i2s_info.port = machine_data->port;
@@ -738,9 +738,9 @@ static struct snd_soc_dai_ops mv88fx_i2s_dai_ops = {
 	.set_fmt = mv88fx_i2s_set_fmt,
 };
 
-struct snd_soc_dai mv88fx_i2s_dai = {
-	.name = "mv88fx-i2s",
-	.id = 0,
+struct snd_soc_dai mv88fx_i2s_dai0 = {
+	.name = "mv88fx-i2s0",
+//	.id = 0,
 	.probe = mv88fx_i2s_dai_probe,
 	.remove = mv88fx_i2s_dai_remove,
 	.suspend = mv88fx_i2s_suspend,
@@ -776,7 +776,47 @@ struct snd_soc_dai mv88fx_i2s_dai = {
 	.dma_data = NULL,
 	.private_data = NULL,
 };
-EXPORT_SYMBOL_GPL(mv88fx_i2s_dai);
+EXPORT_SYMBOL_GPL(mv88fx_i2s_dai0);
+
+struct snd_soc_dai mv88fx_i2s_dai1 = {
+	.name = "mv88fx-i2s1",
+//	.id = 0,
+	.probe = mv88fx_i2s_dai_probe,
+	.remove = mv88fx_i2s_dai_remove,
+	.suspend = mv88fx_i2s_suspend,
+	.resume = mv88fx_i2s_resume,
+	.ops = &mv88fx_i2s_dai_ops,
+	.capture = {
+		    .stream_name = "i2s-capture",
+		    .formats = (SNDRV_PCM_FMTBIT_S16_LE |
+				SNDRV_PCM_FMTBIT_S24_LE |
+				SNDRV_PCM_FMTBIT_S32_LE),
+		    .rate_min = 44100,
+		    .rate_max = 96000,
+		    .rates = (SNDRV_PCM_RATE_44100 |
+			      SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000),
+		    .channels_min = 1,
+		    .channels_max = 2,
+		    },
+	.playback = {
+		     .stream_name = "i2s-playback",
+		     .formats = (SNDRV_PCM_FMTBIT_S16_LE |
+				 SNDRV_PCM_FMTBIT_S24_LE |
+				 SNDRV_PCM_FMTBIT_S32_LE),
+		     .rate_min = 44100,
+		     .rate_max = 96000,
+		     .rates = (SNDRV_PCM_RATE_44100 |
+			       SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000),
+		     .channels_min = 1,
+		     .channels_max = 2,
+		     },
+
+	.runtime = NULL,
+	.active = 0,
+	.dma_data = NULL,
+	.private_data = NULL,
+};
+EXPORT_SYMBOL_GPL(mv88fx_i2s_dai1);
 
 
 
@@ -784,21 +824,35 @@ EXPORT_SYMBOL_GPL(mv88fx_i2s_dai);
 
 static int mv88fx_i2s_probe(struct platform_device *pdev)
 {
-	mv88fx_snd_debug("");
-	mv88fx_i2s_dai.dev = &pdev->dev;
-	return snd_soc_register_dai(&mv88fx_i2s_dai);
+	int ret;
+	struct snd_soc_dai *soc_dai;
+
+	if (pdev->id)
+		soc_dai = &mv88fx_i2s_dai1;
+	else
+		soc_dai = &mv88fx_i2s_dai0;
+
+	mv88fx_snd_debug(">%s\n",__FUNCTION__);
+	soc_dai->id = pdev->id;
+	soc_dai->dev = &pdev->dev;
+	mv88fx_snd_debug("pdev->dev = 0x%p\n pdev->id=%d",&pdev->dev, pdev->id);
+	ret = snd_soc_register_dai(soc_dai);
+	mv88fx_snd_debug("ret=%d",ret);
+	return ret;
 }
 
 static int __devexit mv88fx_i2s_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_dai(&mv88fx_i2s_dai);
+	if (pdev->id)
+		snd_soc_unregister_dai(&mv88fx_i2s_dai1);
+	else
+		snd_soc_unregister_dai(&mv88fx_i2s_dai0);
 	return 0;
 }
 
 static struct platform_driver mv88fx_i2s_driver = {
 	.probe = mv88fx_i2s_probe,
 	.remove = __devexit_p(mv88fx_i2s_remove),
-
 	.driver = {
 		.name = "mv88fx-i2s",
 		.owner = THIS_MODULE,
