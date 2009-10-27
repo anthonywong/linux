@@ -260,6 +260,11 @@ static struct orion_i2s_platform_data i2s1_data = {
 	.spdif_play	= 1,
 };
 
+static struct orion_i2s_platform_data i2s0_data = {
+	.i2s_play	= 1,
+	.i2s_rec	= 1,
+};
+
 #if 1
 static struct mv643xx_eth_platform_data dove_db_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR_DEFAULT,
@@ -776,7 +781,23 @@ static void __init dove_db_init(void)
 	dove_cesa_init();
 	dove_hwmon_init();
 
+#if defined(CONFIG_SND_DOVE_AC97)
+#if !defined(CONFIG_CPU_ENDIAN_BE8)
+	/* FIXME:
+	 * we need fix __AC97(x) definition in
+	 * arch/arm/mach-dove/include/mach/pxa-regs.h
+	 * to resolve endian access.
+	 */
+	/* Initialize AC'97 related regs.	*/
+	dove_ac97_setup();
+#endif
+#else
+	dove_i2s_init(0, &i2s0_data);
+#endif
+
 	dove_i2s_init(1, &i2s1_data);
+
+
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
 	spi_register_board_info(dove_db_spi_flash_info,

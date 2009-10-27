@@ -15,6 +15,6 @@
 #ifndef _MV88FX_I2S_H
 #define _MV88FX_I2S_H
 
-extern struct snd_soc_dai mv88fx_i2s_dai;
+extern struct snd_soc_dai mv88fx_i2s_dai0, mv88fx_i2s_dai1;
 
 #endif
