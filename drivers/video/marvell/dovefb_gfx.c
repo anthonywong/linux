@@ -140,6 +140,9 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 	u32 i, borders;
 	u64 rem;
 	u64 temp;
+	int override = 0; 	/* Used to mark special cases where the LCD */
+	int div_2_skip = 3;	/* divider value is not recommended.	    */
+				/* (in our case it's divider 3).	    */
 
 	/* Calculate required dividor */
 	req_div = AXI_BASE_CLK;
@@ -158,22 +161,28 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 			do_div(tmp_lcd_div, i);
 			do_div(tmp_lcd_div, tar_freq);
 			rem = calc_diff(AXI_BASE_CLK, (temp * tmp_lcd_div));
-			if (rem < best_rem) {
+			if ((rem < best_rem) ||
+			    ((override == 1) && (rem == best_rem))) {
 				best_rem = rem;
 				best_axi_div = i;
 				best_lcd_div = tmp_lcd_div;
+				override = ((best_lcd_div == div_2_skip) ?
+						1 : 0);
 			}
-			if (best_rem == 0)
+			if ((best_rem == 0) && (override == 0))
 				break;
 			/* Check the next LCD divider */
 			tmp_lcd_div++;
 			rem = calc_diff((temp * tmp_lcd_div), AXI_BASE_CLK);
-			if (rem < best_rem) {
+			if ((rem < best_rem) ||
+			    ((override == 1) && (rem == best_rem))) {
 				best_rem = rem;
 				best_axi_div = i;
 				best_lcd_div = tmp_lcd_div;
+				override = ((best_lcd_div == div_2_skip) ?
+						1 : 0);
 			}
-			if (best_rem == 0)
+			if ((best_rem == 0) && (override == 0))
 				break;
 		}
 	}
@@ -197,26 +206,32 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 				rem = calc_diff(AXI_BASE_CLK * 10,
 						(tmp_lcd_div * temp));
 				do_div(rem, 10);
-				if (rem < best_rem) {
+				if ((rem < best_rem) ||
+				    ((override == 1) && (rem == best_rem))) {
 					ext_rem = 1;
 					best_rem = rem;
 					best_axi_div = i / 10;
 					best_lcd_div = tmp_lcd_div;
+					override = ((best_lcd_div == div_2_skip)
+							? 1 : 0);
 				}
-				if (best_rem == 0)
+				if ((best_rem == 0) && (override == 0))
 					break;
 				/* Check next LCD divider */
 				tmp_lcd_div++;
 				rem = calc_diff((tmp_lcd_div * temp),
 						AXI_BASE_CLK * 10);
 				do_div(rem, 10);
-				if (rem < best_rem) {
+				if ((rem < best_rem) ||
+				    ((override == 1) && (rem == best_rem))) {
 					ext_rem = 1;
 					best_rem = rem;
 					best_axi_div = i / 10;
 					best_lcd_div = tmp_lcd_div;
+					override = ((best_lcd_div == div_2_skip)
+							? 1 : 0);
 				}
-				if (best_rem == 0)
+				if ((best_rem == 0) && (override == 0))
 					break;
 			}
 		}
@@ -248,7 +263,12 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	u64 div_result;
 	u32 x = 0;
 	struct dovefb_info *info = dfli->info;
+#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
+	u32 axi_div, lcd_div, is_ext;
+#else
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
+#endif
+
 
 	/*
 	 * Notice: The field pixclock is used by linux fb
@@ -282,6 +302,12 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	do_div(div_result, m->pixclock);
 	needed_pixclk = (u32)div_result;
 
+#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
+	calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
+	printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
+			needed_pixclk, axi_div, lcd_div, is_ext);
+	divider_int = lcd_div;
+#else
 	divider_int = dmi->sclk_clock / needed_pixclk;
 	/* check whether divisor is too small. */
 	if (divider_int < 2) {
@@ -289,11 +315,15 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 				 "Try smaller resolution\n");
 		divider_int = 2;
 	}
+#endif
 
 #ifndef CONFIG_DOVE_REV_Z0
-	set_external_lcd_clock(2, 0);
-#endif /* !CONFIG_DOVE_REV_Z0 */
-
+#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
+	set_external_lcd_clock(axi_div, is_ext);
+#else
+	set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+#endif
+#endif
 	/*
 	 * Set setting to reg.
 	 */
