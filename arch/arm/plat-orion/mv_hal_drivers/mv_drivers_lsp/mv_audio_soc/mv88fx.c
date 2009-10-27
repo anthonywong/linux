@@ -457,15 +457,27 @@ static int mv88fx_cs42l51_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_dai_link mv88fx_dai[] = {
+
+static struct snd_soc_dai_link mv88fx_dai0[] = {
 	{
 	 .name = "CS42L51",
 	 .stream_name = "CS42L51",
-	 .cpu_dai = &mv88fx_i2s_dai,
+	 .cpu_dai = &mv88fx_i2s_dai0,
 	 .codec_dai = &cs42l51_dai,
 	 .init = mv88fx_cs42l51_init,
 	 },
 };
+
+static struct snd_soc_dai_link mv88fx_dai1[] = {
+	{
+	 .name = "CS42L51",
+	 .stream_name = "CS42L51",
+	 .cpu_dai = &mv88fx_i2s_dai1,
+	 .codec_dai = &cs42l51_dai,
+	 .init = mv88fx_cs42l51_init,
+	 },
+};
+
 
 static int mv88fx_probe(struct platform_device *pdev)
 {
@@ -483,8 +495,8 @@ static struct snd_soc_card dove = {
 	.probe = mv88fx_probe,
 	.remove = mv88fx_remove,
 	/* CPU <--> Codec DAI links */
-	.dai_link = mv88fx_dai,
-	.num_links = ARRAY_SIZE(mv88fx_dai),
+	.dai_link = mv88fx_dai0,
+	.num_links = ARRAY_SIZE(mv88fx_dai0),
 };
 
 struct cs42l51_setup_data mv88fx_codec_setup_data = {
@@ -493,6 +505,22 @@ struct cs42l51_setup_data mv88fx_codec_setup_data = {
 
 static struct snd_soc_device mv88fx_snd_devdata = {
 	.card = &dove,
+	.codec_dev = &soc_codec_dev_cs42l51,
+	.codec_data = &mv88fx_codec_setup_data,
+};
+
+static struct snd_soc_card dove1 = {
+	.name = "mv_i2s1",
+	.platform = &mv88fx_soc_platform,
+	.probe = mv88fx_probe,
+	.remove = mv88fx_remove,
+	/* CPU <--> Codec DAI links */
+	.dai_link = mv88fx_dai1,
+	.num_links = ARRAY_SIZE(mv88fx_dai1),
+};
+
+static struct snd_soc_device mv88fx_snd_devdata1 = {
+	.card = &dove1,
 	.codec_dev = &soc_codec_dev_cs42l51,
 	.codec_data = &mv88fx_codec_setup_data,
 };
@@ -557,20 +585,26 @@ error:
 static int mv88fx_snd_probe(struct platform_device *pdev)
 {
 	int ret = 0;
+	struct snd_soc_device	*soc_device;
 
-	mv88fx_snd_debug("");
+	mv88fx_snd_debug("pdev->id=%d\n",pdev->id);
 
 	if (mv88fx_initalize_machine_data(pdev) != 0)
 		goto error;
 
-	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", 1);
+	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", pdev->id);
 	if (!mv88fx_machine_data.snd_dev) {
 		ret = -ENOMEM;
 		goto error;
 	}
 
-	platform_set_drvdata(mv88fx_machine_data.snd_dev, &mv88fx_snd_devdata);
-	mv88fx_snd_devdata.dev = &mv88fx_machine_data.snd_dev->dev;
+	if (pdev->id)
+		soc_device = &mv88fx_snd_devdata1;
+	else
+		soc_device = &mv88fx_snd_devdata;
+
+	platform_set_drvdata(mv88fx_machine_data.snd_dev, soc_device);
+	soc_device->dev = &mv88fx_machine_data.snd_dev->dev;
 
 	mv88fx_machine_data.snd_dev->dev.platform_data = &mv88fx_machine_data;
 
