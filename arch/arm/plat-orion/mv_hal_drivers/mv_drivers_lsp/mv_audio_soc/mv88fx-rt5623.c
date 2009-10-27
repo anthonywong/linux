@@ -173,7 +173,7 @@ static struct snd_soc_ops mv88fx_rt5623_machine_ops =
 static struct snd_soc_dai_link mv88fx_dai = {
 	.name = "RT5623",
 	.stream_name = "RT5623",
-	.cpu_dai = &mv88fx_i2s_dai,
+	.cpu_dai = &mv88fx_i2s_dai0,
 	.codec_dai = &rt5623_dai,
 	.ops = &mv88fx_rt5623_machine_ops,
 	.init = mv88fx_rt5623_init,
@@ -274,7 +274,7 @@ static int mv88fx_snd_probe(struct platform_device *pdev)
 	if (mv88fx_initalize_machine_data(pdev) != 0)
 		goto error;
 
-	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", -1);
+	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", pdev->id);
 	if (!mv88fx_machine_data.snd_dev) {
 		ret = -ENOMEM;
 		goto error;
