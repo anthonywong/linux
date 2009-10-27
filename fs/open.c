@@ -37,6 +37,9 @@
 DEFINE_TRACE(fs_open);
 DEFINE_TRACE(fs_close);
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/fs.h>
+
 int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
 	struct file *filp)
 {
@@ -909,6 +912,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, int mode)
 			} else {
 				fsnotify_open(f);
 				fd_install(fd, f);
+				trace_do_sys_open(tmp, flags, mode);
 			}
 			trace_fs_open(fd, tmp);
 		}
