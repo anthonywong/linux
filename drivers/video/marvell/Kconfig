@@ -121,9 +121,17 @@ config FB_DOVE_CLCD_DEFAULT_OPTION
 config DOVEFB_DISPLAY_MODE
 	tristate "Support display configuration."
 	depends on FB_DOVE && FB_DOVE_CLCD && FB_DOVE_CLCD1
-	default y if ARCH_DOVE
+	default n if ARCH_DOVE
 	---help---
 	Say Y here if you want to build driver into kernel. Default is N.
+
+config DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
+	tristate "Support accurate pixel clock calculation (single display)."
+	depends on FB_DOVE && FB_DOVE_CLCD && FB_DOVE_CLCD1
+	default y if ARCH_DOVE
+	---help---
+	Say Y here if you want to change first level LCD clock
+	divider for specific resolution of LCD0 or LCD1. Default is Y.
 
 config FB_DOVE_CLCD_FLAREON_GV
 	tristate "Marvell DOVE Color LCD - Flareon GV"
