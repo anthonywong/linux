@@ -1138,23 +1138,28 @@ static struct platform_device dove_i2s1 = {
 	.resource       = dove_i2s1_resources,
 };
 
-static struct platform_device dove_mv88fx_i2s = {
+static struct platform_device dove_mv88fx_i2s0 = {
 	.name           = "mv88fx-i2s",
-	.id             = -1,
+	.id             = 0,
 };
 
+static struct platform_device dove_mv88fx_i2s1 = {
+	.name           = "mv88fx-i2s",
+	.id             = 1,
+};
 
 
 void __init dove_i2s_init(int port, struct orion_i2s_platform_data *i2s_data)
 {
-	platform_device_register(&dove_mv88fx_i2s);
 	switch(port){
 	case 0:
+		platform_device_register(&dove_mv88fx_i2s0);
 		i2s_data->dram = &dove_mbus_dram_info;
 		dove_i2s0.dev.platform_data = i2s_data;
 		platform_device_register(&dove_i2s0);
 		return;
 	case 1:
+		platform_device_register(&dove_mv88fx_i2s1);
 		i2s_data->dram = &dove_mbus_dram_info;
 		dove_i2s1.dev.platform_data = i2s_data;
 		platform_device_register(&dove_i2s1);
@@ -1162,7 +1167,8 @@ void __init dove_i2s_init(int port, struct orion_i2s_platform_data *i2s_data)
 	default:
 		BUG();
 	}
-	
+
+		
 }
 
 /*****************************************************************************
@@ -1661,7 +1667,6 @@ struct platform_device dove_device_ac97 = {
 void __init dove_ac97_setup(void)
 {
 	uint32_t reg;
-
 	/* Enable AC97 Control 			*/
 	reg = readl(DOVE_SB_REGS_VIRT_BASE + MPP_GENERAL_CONTROL_REG);
 	if ((reg & 0x10000) == 0) {
