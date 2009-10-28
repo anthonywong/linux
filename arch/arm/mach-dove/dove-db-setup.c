@@ -741,8 +741,17 @@ static void __init dove_db_init(void)
 			return;
 	}
 
+#if defined(CONFIG_SND_DOVE_AC97)
+#if !defined(CONFIG_CPU_ENDIAN_BE8)
+	/* FIXME:
+	 * we need fix __AC97(x) definition in
+	 * arch/arm/mach-dove/include/mach/pxa-regs.h
+	 * to resolve endian access.
+	 */
 	/* Initialize AC'97 related regs.	*/
 	dove_ac97_setup();
+#endif
+#endif
 
 	dove_rtc_init();
 
@@ -793,22 +802,10 @@ static void __init dove_db_init(void)
 	dove_cesa_init();
 	dove_hwmon_init();
 
-#if defined(CONFIG_SND_DOVE_AC97)
-#if !defined(CONFIG_CPU_ENDIAN_BE8)
-	/* FIXME:
-	 * we need fix __AC97(x) definition in
-	 * arch/arm/mach-dove/include/mach/pxa-regs.h
-	 * to resolve endian access.
-	 */
-	/* Initialize AC'97 related regs.	*/
-	dove_ac97_setup();
-#endif
-#else
+#if !defined(CONFIG_SND_DOVE_AC97)
 	dove_i2s_init(0, &i2s0_data);
 #endif
-
 	dove_i2s_init(1, &i2s1_data);
-
 
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
