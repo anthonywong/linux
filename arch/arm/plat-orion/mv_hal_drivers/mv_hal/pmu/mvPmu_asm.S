@@ -89,7 +89,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * Outputs:
  *    None
  **************************************************************/
-	.align 5
+ENTRY(mvPmuSramFuncSTART)
 ENTRY(mvPmuSramDdrReconfigFunc)
 	stmfd	sp!, {r4 - r10, lr}	@ save registers on stack
 
@@ -298,8 +298,6 @@ led_val_off:
 	.word (0x2048B500)
 */
 /*********************************************************************/
-ENTRY(mvPmuSramDdrReconfigFuncSZ)
-	.word	. - mvPmuSramDdrReconfigFunc + 0x4
 
 
 
@@ -310,9 +308,12 @@ ENTRY(mvPmuSramDdrReconfigFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
-	.align 5
 ENTRY(mvPmuSramDeepIdleEnterFunc)
 	stmfd	sp!, {r4-r12, lr}		@ save general regs
+
+	/*
+	 * Save the CP15 context
+	 */
 	mrc 	p15, 0, r2, c1, c0, 0		@ save CP15 - CR
 	mrc 	p15, 0, r3, c3, c0, 0		@ save CP15 - DACR
 	mrc 	p15, 0, r4, c13, c0, 0		@ save CP15 - FCSE
@@ -388,15 +389,15 @@ die_sr_loop:
 	 */
 	ldr	r0, die_term_ctrl_addr
 	ldr	r0, [r0]
-	cmp	r0, #1
-	bne	die_leave_ddr_active
+	cmp	r0, #0x0
+	beq	die_leave_ddr_active
 	ldr	r2, die_term_mask_addr
 	ldr	r2, [r2]
 	ldr	r0, die_gpio_out_val_reg
 	ldr	r1, [r0]
 	bic	r1, r1, r2
 	str	r1, [r0]
-	
+
 die_leave_ddr_active:
 	/*
 	 * Initiate Deep Idle flow
@@ -434,19 +435,15 @@ die_irb_reg:
 die_gpio_out_val_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + 0xD0400)
 die_term_ctrl_addr:
-	.word (PMU_SP_TERM_EN_CTRL_ADDR)
+	.word (PMU_SP_TERM_OFF_CTRL_ADDR)
 die_term_mask_addr:
-	.word (PMU_SP_TERM_GPIO_MASK_ADDR)
+	.word (PMU_SP_TERM_OFF_MASK_ADDR)
 #ifndef CONFIG_DOVE_REV_Z0
 die_nvram_int_base:
 	.word (PMU_SCRATCHPAD_INT_BASE)
 die_nvram_sp_mask:
 	.word (0x7FF)
 #endif
-
-ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
-	.word	. - mvPmuSramDeepIdleEnterFunc + 0x4
-
 
 
 /***************************************************************
@@ -456,7 +453,6 @@ ENTRY(mvPmuSramDeepIdleEnterFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
-	.align 5
 ENTRY(mvPmuSramDeepIdleExitFunc)
 	/*
 	 * Move back Internal regs to Linux base
@@ -499,8 +495,8 @@ dix_sr_exit_loop:
 	 */
 	ldr	r0, dix_term_ctrl_addr
 	ldr	r0, [r0]
-	cmp	r0, #1
-	bne	dix_ddr_active
+	cmp	r0, #0x0
+	beq	dix_ddr_active
 	ldr	r2, dix_term_mask_addr
 	ldr	r2, [r2]
 	ldr	r0, dix_gpio_out_val_reg
@@ -594,16 +590,13 @@ dix_phys_offs:
 dix_gpio_out_val_reg:
 	.word (DOVE_SB_REGS_PHYS_BASE + 0xD0400)
 dix_term_ctrl_addr:
-	.word (PMU_SP_TERM_EN_CTRL_ADDR_PHYS)
+	.word (PMU_SP_TERM_OFF_CTRL_ADDR_PHYS)
 dix_term_mask_addr:
-	.word (PMU_SP_TERM_GPIO_MASK_ADDR_PHYS)
+	.word (PMU_SP_TERM_OFF_MASK_ADDR_PHYS)
 dix_ddr_sync_reg:
 	.word (0xF1800240)
 dix_ddr_sync_val:
 	.word (0x80000000)
-
-ENTRY(mvPmuSramDeepIdleExitFuncSZ)
-	.word	. - mvPmuSramDeepIdleExitFunc + 0x4
 
 
 /***************************************************************
@@ -613,7 +606,6 @@ ENTRY(mvPmuSramDeepIdleExitFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
-	.align 5
 ENTRY(mvPmuSramStandbyEnterFunc)
 
 	stmfd	sp!, {r4-r12, lr}		@ save general regs
@@ -740,9 +732,6 @@ sbe_mc_ctrl_reg:
 sbe_sply_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_PWR_SUPLY_CTRL_REG)
 
-ENTRY(mvPmuSramStandbyEnterFuncSZ)
-	.word	. - mvPmuSramStandbyEnterFunc + 0x4
-
 
 
 /***************************************************************
@@ -752,7 +741,6 @@ ENTRY(mvPmuSramStandbyEnterFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
-	.align 5
 ENTRY(mvPmuSramStandbyExitFunc)
 	mov	r1, #0
 	mcr	p15, 0, r1, c5, c7, 0		@ Invalidate both caches, BTC, BTAC
@@ -844,9 +832,6 @@ sbx_ctrl_reg:
 sbx_sply_ctrl_reg:
 	.word (DOVE_SB_REGS_PHYS_BASE + PMU_PWR_SUPLY_CTRL_REG)
 
-ENTRY(mvPmuSramStandbyExitFuncSZ)
-	.word	. - mvPmuSramStandbyExitFunc + 0x4
-
 
 /***************************************************************
  * mvPmuSramCpuDfsFunc: Change the CPU frequency
@@ -855,7 +840,6 @@ ENTRY(mvPmuSramStandbyExitFuncSZ)
  * Outputs:
  *    None
  **************************************************************/
-	.align 5
 ENTRY(mvPmuSramCpuDfsFunc)
 	stmfd	sp!, {r0 - r10, lr}	@ save registers on stack
 
@@ -901,5 +885,5 @@ dfs_sr_exit_loop:
 dfs_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 
-ENTRY(mvPmuSramCpuDfsFuncSZ)
-	.word	. - mvPmuSramCpuDfsFunc + 0x4
+ENTRY(mvPmuSramFuncSZ)
+	.word	. - mvPmuSramFuncSTART + 0x4

@@ -79,24 +79,65 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  #define PMU_SP_TARGET_ID		0xD
  #define PMU_SP_ATTRIBUTE		0x0
 #endif
+#define MV_PMU_POST_CFG_CNT		4			/* 3 window cfgs and DDR3 WL ODT fix */
 
-//#define MV_PMU_FULL_DDR3_WL
+/* Defines */
+//#define MV_PMU_FULL_DDR3_WL					/* Enable FULL DDR3 write leveling */
+
+/* Type Definitions */
+typedef struct
+{
+	MV_U32	addr;						/* Addres fo read/modify/write */
+	MV_U32	mask;						/* mask of bits to overide */
+	MV_U32	off_val;					/* value to powerr off terminations */
+} DDR_TERM_CTRL;
+
+typedef struct
+{
+	MV_U32	addr;
+	MV_U32	val;
+} MV_PMU_AV_CFGS;
+
+typedef struct
+{
+	DDR_TERM_CTRL		term_ctrl;			/* Space Holder for DDR termination ctrl */
+	MV_DDR_INIT_POLL_AMV	init_poll;			/* DDR initialization polling info */
+	MV_DDR_BIT_CLR_AM	mask_clr;			/* CKE and M_RESET cleaing info */
+#ifdef MV_PMU_FULL_DDR3_WL
+	MV_DDR3_WL_TYP		ddr3_wl;			/* DDR3 full write leveling info */
+#else
+	MV_DDR3_WL_SET_VAL	ddr3_wl;			/* DDR3 write leveling set info */ 
+#endif
+	MV_PMU_AV_CFGS		post_cfg[MV_PMU_POST_CFG_CNT];	/* Post DDR init configurations */
+} MV_PMU_SRAM_DATA;
+
+/* Statics */
+static MV_PMU_AV_CFGS post_init_cfgs[MV_PMU_POST_CFG_CNT] = {
+				{0xD0800770, 0x0100000A},	/* Set DDR ODT settings */
+				{0xD0800010, 0xF1800000},	/* Set DDR register space */
+                        	{0xD00D025C, 0x000F1890},	/* Set NB register space */
+				{0xD0020080, 0xF1000000},	/* Set SB register space */
+				};
+
+/* SRAM allocated data pointers */
+static MV_VOID * _mvPmuSramDataPtr;				/* Pointer to start of data section */
+static MV_VOID * _mvPmuSramDdrTermCtrlPtr;			/* External Read-only access */
+static MV_VOID * _mvPmuSramDdrTermCtrlPtrInt;			/* Internal Read-write access */
+static MV_VOID * _mvPmuSramDdrInitPollPtr;			/* External Read-only access */
+static MV_VOID * _mvPmuSramDdrInitPollPtrInt;			/* Internal Read-write access */
+static MV_VOID * _mvPmuSramDdrMresetPtr;			/* External Read-only access */
+static MV_VOID * _mvPmuSramDdrMresetPtrInt;			/* Internal Read-write access */
+static MV_VOID * _mvPmuSramDdr3wlPtr;				/* External Read-only access */
+static MV_VOID * _mvPmuSramDdr3wlPtrInt;			/* Internal Read-write access */
+static MV_VOID * _mvPmuSramPostInitPtr;				/* External Read-only access */
+static MV_VOID * _mvPmuSramPostInitPtrInt;			/* Internal Read-write access */
 
 /* DDR parameters pointer */
-static MV_VOID * _mvPmuSramDdrParamPtr;		/* External Read-only access */
-static MV_VOID * _mvPmuSramDdrParamPtrInt;	/* Internale Read-write access */
-static MV_VOID * _mvPmuSramDdrInitPollPtr;	/* External Read-only access */
-static MV_VOID * _mvPmuSramDdrInitPollPtrInt;	/* Internale Read-write access */
-static MV_VOID * _mvPmuSramDdrMresetPtr;	/* External Read-only access */
-static MV_VOID * _mvPmuSramDdrMresetPtrInt;	/* Internale Read-write access */
-static MV_VOID * _mvPmuSramDdr3wlPtr;		/* External Read-only access */
-static MV_VOID * _mvPmuSramDdr3wlPtrInt;	/* Internale Read-write access */
-
-/* Sram Markers */
-static unsigned long mvPmuSramOffs = PMU_SCRATCHPAD_RSRV;
-static unsigned long mvPmuSramSize = (PMU_SCRATCHPAD_SIZE - PMU_SCRATCHPAD_RSRV);
+static MV_VOID * _mvPmuSramDdrParamPtr;				/* External Read-only access */
+static MV_VOID * _mvPmuSramDdrParamPtrInt;			/* Internal Read-write access */
 
 /* SRAM functions pointer */
+static MV_VOID * _mvPmuSramPtr;					/* Pointer to start of code section */
 static MV_VOID (*_mvPmuSramDdrReconfigPtr)(MV_U32 cplPtr, MV_U32 cplCnt, MV_U32 dryRun);
 static MV_VOID (*_mvPmuSramDeepIdleEnterPtr)(MV_U32 ddrSelfRefresh);
 static MV_VOID (*_mvPmuSramDeepIdleExitPtr)(MV_VOID);
@@ -104,9 +145,15 @@ static MV_VOID (*_mvPmuSramStandbyEnterPtr)(MV_VOID);
 static MV_VOID (*_mvPmuSramStandbyExitPtr)(MV_VOID);
 static MV_VOID (*_mvPmuSramCpuDfsPtr)(MV_VOID);
 
+/* Sram Markers */
+static unsigned long mvPmuSramOffs = 0x0;
+static unsigned long mvPmuSramSize = PMU_SCRATCHPAD_SIZE;
+
 /* Macros */
 #define PmuSpVirt2Phys(addr)	(((MV_U32)addr - DOVE_SCRATCHPAD_VIRT_BASE) + DOVE_SCRATCHPAD_PHYS_BASE)
-#define dbg_print(...)		
+#define dbg_print(args...)
+//#define dbg_print(args...)	printk(KERN_WARNING args)
+#define PmuExt2Int(addr) 	((MV_VOID*)(((MV_U32)addr & (PMU_SCRATCHPAD_SIZE-1)) | (PMU_SCRATCHPAD_INT_BASE)))
 
 /*******************************************************************************
 * mvPmuSramRelocate - Relocate a function into the PMU SRAM
@@ -157,7 +204,7 @@ static MV_VOID * mvPmuSramRelocate(MV_VOID * start, MV_U32 size)
 	fncptr = (MV_VOID *)(PMU_SCRATCHPAD_EXT_BASE + mvPmuSramOffs);
 	mvPmuSramOffs += size;	
 	
-	printk(KERN_WARNING "mvPmuSramRelocate: From %08x to %08x (exec %08x), Size = %x\n", (MV_U32)start, (MV_U32)dst, fncptr, size);
+	dbg_print("\nmvPmuSramRelocate: From %08x to %08x (exec %08x), Size = %x\n", (MV_U32)start, (MV_U32)dst, (MV_U32)fncptr, (MV_U32)size);
 	return fncptr;
 }
 
@@ -275,93 +322,104 @@ MV_VOID mvPmuSramStandby(MV_VOID)
 *******************************************************************************/
 MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 {
-	/* Allocate enough space for the DDR paramters */
-	if ((_mvPmuSramDdrParamPtr = mvPmuSramRelocate(NULL,
-		(mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS)))) == NULL)
+	/* Allocate all data needed in the SRAM */
+	if ((_mvPmuSramDataPtr = mvPmuSramRelocate(NULL, sizeof(MV_PMU_SRAM_DATA))) == NULL)
+	{
+		dbg_print("Failed to allocate space for DATA on SRAM!\n");
 		return MV_FAIL;
+	}
 
-#ifndef CONFIG_DOVE_REV_Z0	
-	/* Convert DDR base address from External to Internal Space */
-	_mvPmuSramDdrParamPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdrParamPtr &
-					     (PMU_SCRATCHPAD_SIZE-1)) |
-					    (PMU_SCRATCHPAD_INT_BASE));
-#endif
-
-	/* Allocate enough space for the DDR init poll Address/Mask/Value */
-	if ((_mvPmuSramDdrInitPollPtr = mvPmuSramRelocate(NULL, 
-					sizeof(MV_DDR_INIT_POLL_AMV))) == NULL)
-		return MV_FAIL;
+	/* Point out the extenal location of each field */
+	_mvPmuSramDdrTermCtrlPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, term_ctrl));
+	_mvPmuSramDdrInitPollPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, init_poll));
+	_mvPmuSramDdrMresetPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, mask_clr));
+	_mvPmuSramDdr3wlPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, ddr3_wl));
+	_mvPmuSramPostInitPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, post_cfg));
 
 	/* Convert DDR init poll address from External to Internal Space */
-	_mvPmuSramDdrInitPollPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdrInitPollPtr &
-					     (PMU_SCRATCHPAD_SIZE-1)) |
-					    (PMU_SCRATCHPAD_INT_BASE));
+	_mvPmuSramDdrTermCtrlPtrInt = PmuExt2Int(_mvPmuSramDdrTermCtrlPtr);
+	_mvPmuSramDdrInitPollPtrInt = PmuExt2Int(_mvPmuSramDdrInitPollPtr);
+	_mvPmuSramDdrMresetPtrInt = PmuExt2Int(_mvPmuSramDdrMresetPtr);
+	_mvPmuSramDdr3wlPtrInt = PmuExt2Int(_mvPmuSramDdr3wlPtr);
+	_mvPmuSramPostInitPtrInt = PmuExt2Int(_mvPmuSramPostInitPtr);
 
-	/* Allocate enough space for the DDR M_RESET unmaks Address/Mask */
-	if ((_mvPmuSramDdrMresetPtr = mvPmuSramRelocate(NULL, 
-					sizeof(MV_DDR_BIT_CLR_AM))) == NULL)
+	dbg_print("_mvPmuSramDataPtr          = %08x\n", (MV_U32)_mvPmuSramDataPtr);
+	dbg_print("_mvPmuSramDdrTermCtrlPtr   = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdrTermCtrlPtr, (MV_U32)_mvPmuSramDdrTermCtrlPtrInt);
+	dbg_print("_mvPmuSramDdrInitPollPtr   = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdrInitPollPtr, (MV_U32)_mvPmuSramDdrInitPollPtrInt);
+	dbg_print("_mvPmuSramDdrMresetPtr     = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdrMresetPtr, (MV_U32)_mvPmuSramDdrMresetPtrInt);
+	dbg_print("_mvPmuSramDdr3wlPtr        = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdr3wlPtr, (MV_U32)_mvPmuSramDdr3wlPtrInt);
+	dbg_print("_mvPmuSramPostInitPtr      = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramPostInitPtr, (MV_U32)_mvPmuSramPostInitPtrInt);
+
+	/* Allocate enough space for the DDR paramters */
+	if ((_mvPmuSramDdrParamPtr = mvPmuSramRelocate(NULL, (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS)))) == NULL)
+	{
+		dbg_print("Failed to allocate space for DDR CONFIGURATIONS on SRAM!\n");
 		return MV_FAIL;
+	}
 
-	/* Convert DDR M_RESET address from External to Internal Space */
-	_mvPmuSramDdrMresetPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdrMresetPtr &
-					     (PMU_SCRATCHPAD_SIZE-1)) |
-					    (PMU_SCRATCHPAD_INT_BASE));
+	/* Convert DDR base address from External to Internal Space */
+	_mvPmuSramDdrParamPtrInt =  PmuExt2Int(_mvPmuSramDdrParamPtr);
 
-	/* Allocate enough space for the DDR3 WL Type */
-#ifdef MV_PMU_FULL_DDR3_WL
-	if ((_mvPmuSramDdr3wlPtr = mvPmuSramRelocate(NULL, 
-					sizeof(MV_DDR3_WL_TYP))) == NULL)
+	dbg_print("_mvPmuSramDdrParamPtr      = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdrParamPtr, (MV_U32)_mvPmuSramDdrParamPtrInt);
+
+	/* Relocate all PMU routines fom the DDR to the SRAM */
+	if ((_mvPmuSramPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramFuncSTART, mvPmuSramFuncSZ)) == NULL)
+	{
+		dbg_print("Failed to allocate space for CODE on SRAM!\n");
 		return MV_FAIL;
-#else
-	if ((_mvPmuSramDdr3wlPtr = mvPmuSramRelocate(NULL, 
-					sizeof(MV_DDR3_WL_SET_VAL))) == NULL)
-		return MV_FAIL;
-#endif
-	/* Convert DDR WL address from External to Internal Space */
-	_mvPmuSramDdr3wlPtrInt =  (MV_VOID*)(((MV_U32)_mvPmuSramDdr3wlPtr &
-					     (PMU_SCRATCHPAD_SIZE-1)) |
-					    (PMU_SCRATCHPAD_INT_BASE));
+	}
 
-	/* CODE SECTION STARTS HERE - ALLIGN TO CACHE LINE */
-	mvPmuSramOffs += 31;
-	mvPmuSramOffs &= ~31;
-	
-	/* Relocate the DDR reconfiguration function */
-	if ((_mvPmuSramDdrReconfigPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDdrReconfigFunc,
-		mvPmuSramDdrReconfigFuncSZ)) == NULL)
-		return MV_FAIL;
-
+	/* Relocate the DDR DFS routine */
+	_mvPmuSramDdrReconfigPtr = (MV_VOID(*)) ((MV_U32)_mvPmuSramPtr + 
+					((MV_U32)mvPmuSramDdrReconfigFunc - (MV_U32)mvPmuSramFuncSTART));
 	/* Relocate the DeepIdle functions */
-	if ((_mvPmuSramDeepIdleEnterPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDeepIdleEnterFunc,
-		mvPmuSramDeepIdleEnterFuncSZ)) == NULL)
-		return MV_FAIL;
-	if ((_mvPmuSramDeepIdleExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramDeepIdleExitFunc,
-		mvPmuSramDeepIdleExitFuncSZ)) == NULL)
-		return MV_FAIL;
+	_mvPmuSramDeepIdleEnterPtr = (MV_VOID(*)) ((MV_U32)_mvPmuSramPtr + 
+					((MV_U32)mvPmuSramDeepIdleEnterFunc - (MV_U32)mvPmuSramFuncSTART));
+	_mvPmuSramDeepIdleExitPtr = (MV_VOID(*)) ((MV_U32)_mvPmuSramPtr + 
+					((MV_U32)mvPmuSramDeepIdleExitFunc - (MV_U32)mvPmuSramFuncSTART));
 
 	/* Relocate the Standby functions */
-	if ((_mvPmuSramStandbyEnterPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyEnterFunc,
-		mvPmuSramStandbyEnterFuncSZ)) == NULL)
-		return MV_FAIL;
-	if ((_mvPmuSramStandbyExitPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramStandbyExitFunc,
-		mvPmuSramStandbyExitFuncSZ)) == NULL)
-		return MV_FAIL;
+	_mvPmuSramStandbyEnterPtr = (MV_VOID(*)) ((MV_U32)_mvPmuSramPtr + 
+					((MV_U32)mvPmuSramStandbyEnterFunc - (MV_U32)mvPmuSramFuncSTART));
+	_mvPmuSramStandbyExitPtr = (MV_VOID(*)) ((MV_U32)_mvPmuSramPtr + 
+					((MV_U32)mvPmuSramStandbyExitFunc - (MV_U32)mvPmuSramFuncSTART));
 
 	/* Relocate the CPU DFS function */
-	if ((_mvPmuSramCpuDfsPtr = mvPmuSramRelocate((MV_VOID*)mvPmuSramCpuDfsFunc,
-		mvPmuSramCpuDfsFuncSZ)) == NULL)
-		return MV_FAIL;
+	_mvPmuSramCpuDfsPtr = (MV_VOID(*)) ((MV_U32)_mvPmuSramPtr + 
+					((MV_U32)mvPmuSramCpuDfsFunc - (MV_U32)mvPmuSramFuncSTART));
 
-	/* Save the DDR termination GPIO information */
+	dbg_print("_mvPmuSramPtr              = %08x\n", (MV_U32)_mvPmuSramPtr);
+	dbg_print("_mvPmuSramDdrReconfigPtr   = %08x\n", (MV_U32)_mvPmuSramDdrReconfigPtr);
+	dbg_print("_mvPmuSramDeepIdleEnterPtr = %08x\n", (MV_U32)_mvPmuSramDeepIdleEnterPtr);
+	dbg_print("_mvPmuSramDeepIdleExitPtr  = %08x\n", (MV_U32)_mvPmuSramDeepIdleExitPtr);
+	dbg_print("_mvPmuSramStandbyEnterPtr  = %08x\n", (MV_U32)_mvPmuSramStandbyEnterPtr);
+	dbg_print("_mvPmuSramStandbyExitPtr   = %08x\n", (MV_U32)_mvPmuSramStandbyExitPtr);
+	dbg_print("_mvPmuSramCpuDfsPtr        = %08x\n", (MV_U32)_mvPmuSramCpuDfsPtr);
+
+	/* Fill in the Post configurations in the SRAM */
+	memcpy(_mvPmuSramPostInitPtr, (MV_VOID*)post_init_cfgs, sizeof(post_init_cfgs));
+
+	/* Sanity check that the DDR temination control A/M/V info was located at the SRAM start */
+	if (((MV_U32)&((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->addr != PMU_SP_TERM_OFF_CTRL_ADDR) || 
+	    ((MV_U32)&((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->mask != PMU_SP_TERM_OFF_MASK_ADDR) ||
+	    ((MV_U32)&((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->off_val != PMU_SP_TERM_OFF_VAL_ADDR))
+	{
+		dbg_print("DDR Termination control information mislocated in SRAM!\n");
+		return MV_FAIL;
+	}
+
+	/* Fill in the DDR termination control information */	
 	if ((ddrTermGpioCtrl >= 0) | (ddrTermGpioCtrl <= 31))
 	{	
-		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_EN_CTRL_ADDR, 0x1);
-		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_GPIO_MASK_ADDR, (0x1 << ddrTermGpioCtrl));
+		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->addr = 0x1;
+		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->mask = (0x1 << ddrTermGpioCtrl);
+		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->off_val = 0x0;
 	}
 	else
 	{
-		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_EN_CTRL_ADDR, 0x0);
-		MV_MEMIO_LE32_WRITE(PMU_SP_TERM_GPIO_MASK_ADDR, 0x0);
+		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->addr = 0x0;
+		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->mask = 0x0;
+		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->off_val = 0x0;
 	}
 
 	return MV_OK;
@@ -487,9 +545,9 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 		return MV_FAIL;
 	
 	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
-	reg |= (((cnt - MV_DDR_MC_WINDOW_CNT) << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	reg |= ((cnt << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
 	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(0), reg);
-	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr + (MV_DDR_MC_WINDOW_CNT * 0x8)));
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(0), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
 
 	/*****************************************/
 	/* Descriptor 1: DDR Initiaization delay */
@@ -543,9 +601,9 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 	/* Descriptor 4: Window initialization  */
 	/****************************************/
 	reg = PMU_RD_CTRL_DISC_TYPE_32AV;
-	reg |= ((MV_DDR_MC_WINDOW_CNT << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
+	reg |= ((MV_PMU_POST_CFG_CNT << PMU_RD_CTRL_CFG_CNT_OFFS) & PMU_RD_CTRL_CFG_CNT_MASK);
 	MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(4), reg);
-	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(4), PmuSpVirt2Phys(_mvPmuSramDdrParamPtr));
+	MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(4), PmuSpVirt2Phys(_mvPmuSramPostInitPtr));
 	
 	/* Clear out all non used descriptors */
 	for (i=PMU_STANDBY_DESCR_CNT; i<PMU_MAX_DESCR_CNT; i++)
