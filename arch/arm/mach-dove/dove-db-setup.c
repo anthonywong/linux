@@ -695,8 +695,8 @@ static int __init dove_db_pm_init(void)
 	/* Initialize the PMU HAL */
 	if (mvPmuInit(&pmuInitInfo) != MV_OK)
 	{
-		printk(KERN_NOTICE "Failed to initialise the PMU!\n");
-		BUG();
+		printk(KERN_ERR "ERROR: Failed to initialise the PMU!\n");
+		return 0;
 	}
 
 	/* Configure wakeup events */
