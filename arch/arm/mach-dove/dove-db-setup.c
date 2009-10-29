@@ -566,11 +566,11 @@ static void __init dove_db_nfc_init(void)
 
 	if(useHalDrivers || useNandHal) {
 		dove_nfc.name = "dove-nand-hal";
-		if (strncmp(useNandHal, "ganged", 6) == 0) {
+		if (useNandHal && (strncmp(useNandHal, "ganged", 6) == 0)) {
 			ganged = 1;
 			useNandHal += 7;
 		}
-		if (strcmp(useNandHal, "8bitecc") == 0)
+		if (useNandHal && (strcmp(useNandHal, "8bitecc") == 0))
 			ecc_8bit = 1;
 		if (useNandHal && ganged) {
 			dove_db_nfc_gang_hal_data.tclk = dove_tclk_get();
