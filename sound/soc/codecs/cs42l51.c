@@ -401,7 +401,10 @@ static int cs42l51_init(struct snd_soc_device *socdev)
 	codec->owner = THIS_MODULE;
 	codec->name = "CS42L51";
 	codec->dai = &cs42l51_dai;
+#warning "fixme"
+#if 0
 	codec->set_bias_level = cs42l51_set_bias_level;
+#endif
 	codec->num_dai = 1;
 	codec->reg_cache_size = CS42L51_CACHE_SIZE;
 	codec->reg_cache = kzalloc(codec->reg_cache_size, GFP_KERNEL);
