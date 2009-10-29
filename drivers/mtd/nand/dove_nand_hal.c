@@ -40,6 +40,7 @@
 
 #define NFC_SR_MASK		(0xfff)
 #define NFC_SR_BBD_MASK		(NFC_SR_CS0_BBD_MASK | NFC_SR_CS1_BBD_MASK)
+static int pax3xx_nand_block_markbad(struct mtd_info *mtd, loff_t ofs);
 
 /* error code and state */
 enum {
@@ -658,10 +659,8 @@ static int pxa3xx_nand_dev_ready(struct mtd_info *mtd)
 static inline int is_buf_blank(uint8_t *buf, size_t len)
 {
 	for (; len > 0; len--)
-		if (*buf++ != 0xff) {
-			printk(KERN_INFO "is_blank: %d.\n", len);
+		if (*buf++ != 0xff)
 			return 0;
-		}
 	return 1;
 }
 
@@ -1076,6 +1075,41 @@ static struct nand_bbt_descr mvbbt_mirror_descr = {
 	.pattern = mv_mirror_pattern
 };
 
+
+static int pax3xx_nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
+{
+	struct nand_chip *chip = mtd->priv;
+	uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
+	int block, ret = 0;
+	loff_t page_addr;
+
+	/* Get block number */
+	block = (int)(ofs >> chip->bbt_erase_shift);
+	if (chip->bbt)
+		chip->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
+	ret = nand_update_bbt(mtd, ofs);
+
+	if (ret == 0) {
+		/* Get address of the next block */
+		ofs += mtd->erasesize;
+		ofs &= ~(mtd->erasesize - 1);
+
+		/* Get start of oob in last page */
+		ofs -= mtd->oobsize;
+
+		page_addr = ofs;
+		do_div(page_addr, mtd->writesize);
+
+		pxa3xx_nand_cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize,
+				page_addr);
+		pxa3xx_nand_write_buf(mtd, buf, 6);
+		pxa3xx_nand_cmdfunc(mtd, NAND_CMD_PAGEPROG, 0, page_addr);
+	}
+
+	return ret;
+}
+
+
 static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 				 struct pxa3xx_nand_info *info)
 {
@@ -1098,6 +1132,7 @@ static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 	this->read_buf		= pxa3xx_nand_read_buf;
 	this->write_buf		= pxa3xx_nand_write_buf;
 	this->verify_buf	= pxa3xx_nand_verify_buf;
+	this->block_markbad	= pax3xx_nand_block_markbad;
 
 	this->ecc.mode		= NAND_ECC_HW;
 	this->ecc.hwctl		= pxa3xx_nand_ecc_hwctl;
