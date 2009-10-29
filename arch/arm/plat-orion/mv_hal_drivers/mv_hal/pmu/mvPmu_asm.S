@@ -476,19 +476,13 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 	mcr	p15, 0, r1, c7, c5, 4		@ Prefetch Flush - ISB
 
 	/*
-	 * Exit DDR self refresh mode if active
+	 * Check if DDR in self refresh mode
 	 */
 	ldr	r0, dix_ctrl_reg
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
 	beq	dix_ddr_active
-	bic	r2, r2, r1
-	str	r2, [r0]
-dix_sr_exit_loop:
-	ldr	r2, [r0]
-	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
-	bne	dix_sr_exit_loop		
 
 	/*
 	 * Re-enable DDR terminations
@@ -496,7 +490,7 @@ dix_sr_exit_loop:
 	ldr	r0, dix_term_ctrl_addr
 	ldr	r0, [r0]
 	cmp	r0, #0x0
-	beq	dix_ddr_active
+	beq	dix_sr_exit
 	ldr	r2, dix_term_mask_addr
 	ldr	r2, [r2]
 	ldr	r0, dix_gpio_out_val_reg
@@ -504,11 +498,25 @@ dix_sr_exit_loop:
 	orr	r1, r1, r2
 	str	r1, [r0]
 
-	mov	r1, #0x40
+	mov	r1, #0x8000
 dix_term_enable_delay:
 	sub	r1, r1, #1
 	cmp	r1, #0
-	bne	dix_term_enable_delay	
+	bne	dix_term_enable_delay
+
+dix_sr_exit:
+	/*
+	 * Exit DDR Self refresh mode
+	 */
+	ldr	r0, dix_ctrl_reg
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
+	ldr	r2, [r0]
+	bic	r2, r2, r1
+	str	r2, [r0]
+dix_sr_exit_loop:
+	ldr	r2, [r0]
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
+	bne	dix_sr_exit_loop
 
 dix_ddr_active:	
 	ldr	r0, dix_saved_sp		@ stack phys addr
