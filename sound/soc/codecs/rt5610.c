@@ -20,10 +20,10 @@
 #include "rt5610.h"
 #define AUDIO_NAME "rt5610"
 #define RT5610_VERSION "0.03"
-
+//#define RT5610_DEBUG
 #ifdef RT5610_DEBUG
-#define dbg(format, arg...) \
-	printk(KERN_DEBUG AUDIO_NAME ": " format "\n" , ## arg)
+#define dbg(format, args...) \
+	printk(KERN_ERR "%s(%d): "format"\n", __FUNCTION__, __LINE__, ##args)
 #else
 #define dbg(format, arg...) do {} while (0)
 #endif
@@ -34,7 +34,7 @@
 #define warn(format, arg...) \
 	printk(KERN_WARNING AUDIO_NAME ": " format "\n" , ## arg)
 	
-
+static struct snd_soc_codec *codec;
 
 /* codec private data */
 struct rt5610_priv {
@@ -145,7 +145,7 @@ static int rt5610_write(struct snd_soc_codec *codec, unsigned int reg,
 {
 	u16 *cache = codec->reg_cache;
 
-	dbg("%s reg=0x%x, val=0x%x\n", __func__, reg, val);
+	dbg("reg=0x%x, val=0x%x\n", reg, val);
 	if (reg == 0x80) {
 		reg80 = val;
 		return 0;
@@ -186,7 +186,6 @@ static int rt5610_reg_init(struct snd_soc_codec *codec)
 
 	for (i = 0; i < RT5610_INIT_REG_NUM; i++)
 		rt5610_write(codec, init_data_list[i].reg_index, init_data_list[i].reg_value);
-
 	return 0;
 }
 
@@ -265,17 +264,17 @@ SOC_DOUBLE("Speaker Playback Volume", 	RT5610_SPK_OUT_VOL, 8, 0, 31, 1),
 SOC_DOUBLE("Speaker Playback Switch", 	RT5610_SPK_OUT_VOL, 15, 7, 1, 1),
 SOC_DOUBLE("Headphone Playback Volume", RT5610_HP_OUT_VOL, 8, 0, 31, 1),
 SOC_DOUBLE("Headphone Playback Switch", RT5610_HP_OUT_VOL,15, 7, 1, 1),
-SOC_SINGLE("Mono Playback Volume", 		RT5610_PHONEIN_MONO_OUT_VOL, 0, 31, 1),
-SOC_SINGLE("Mono Playback Switch", 		RT5610_PHONEIN_MONO_OUT_VOL, 7, 1, 1),
+//SOC_SINGLE("Mono Playback Volume", 		RT5610_PHONEIN_MONO_OUT_VOL, 0, 31, 1),
+//SOC_SINGLE("Mono Playback Switch", 		RT5610_PHONEIN_MONO_OUT_VOL, 7, 1, 1),
 SOC_DOUBLE("PCM Playback Volume", 		RT5610_STEREO_DAC_VOL, 8, 0, 31, 1),
 SOC_DOUBLE("PCM Playback Switch", 		RT5610_STEREO_DAC_VOL,15, 7, 1, 1),
-SOC_DOUBLE("Line In Volume", 			RT5610_LINE_IN_VOL, 8, 0, 31, 1),
+//SOC_DOUBLE("Line In Volume", 			RT5610_LINE_IN_VOL, 8, 0, 31, 1),
 SOC_SINGLE("Mic 1 Volume", 				RT5610_MIC_VOL, 8, 31, 1),
-SOC_SINGLE("Mic 2 Volume", 				RT5610_MIC_VOL, 0, 31, 1),
+//SOC_SINGLE("Mic 2 Volume", 				RT5610_MIC_VOL, 0, 31, 1),
 SOC_ENUM("Mic 1 Boost", 				rt5610_enum[5]),
-SOC_ENUM("Mic 2 Boost", 				rt5610_enum[6]),
+//SOC_ENUM("Mic 2 Boost", 				rt5610_enum[6]),
 SOC_ENUM_EXT("Speaker Amp Type",			rt5610_enum[7], snd_soc_get_enum_double, rt5610_amp_sel_put),
-SOC_SINGLE("Phone In Volume", 			RT5610_PHONEIN_MONO_OUT_VOL, 8, 31, 1),
+//SOC_SINGLE("Phone In Volume", 			RT5610_PHONEIN_MONO_OUT_VOL, 8, 31, 1),
 SOC_DOUBLE("Capture Volume", 			RT5610_ADC_REC_GAIN, 7, 0, 31, 0),
 SOC_SINGLE_EXT("Voice PCM Switch", HPL_MIXER, 15, 1, 1, snd_soc_get_volsw, rt5610_vpcm_state_put),
 };
@@ -649,6 +648,7 @@ static int rt5610_pcm_hw_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int stream = substream->stream;
+	dbg("");
 
 	switch (stream)
 	{
@@ -674,6 +674,7 @@ static int rt5610_vpcm_hw_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int stream = substream->stream;
+	dbg("");
 
 	switch (stream)
 	{
@@ -771,6 +772,7 @@ static int rt5610_set_dai_pll(struct snd_soc_dai *codec_dai,
 	int ret = -EINVAL;
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5610_priv *rt5610 = codec->private_data;
+	dbg("");
 
 	ret = rt5610_set_pll(codec, pll_id, freq_in, freq_out);
 	if (ret < 0) {
@@ -797,6 +799,7 @@ static int rt5610_vpcm_set_dai_pll(struct snd_soc_dai *codec_dai,
 	int ret = -EINVAL;
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5610_priv *rt5610 = codec->private_data;
+	dbg("");
 
 	ret = rt5610_set_pll(codec, pll_id, freq_in, freq_out);
 	if (ret < 0){
@@ -834,8 +837,6 @@ static int get_coeff_vpcm(int mclk, int rate)
 {
 	int i;
 
-	dbg("%s mclk=%d,rate=%d\n",__func__,mclk,rate);
-
 	for (i = 0; i < ARRAY_SIZE(coeff_div_vpcm); i++) {
 		if ((coeff_div_vpcm[i].rate == rate) && (coeff_div_vpcm[i].mclk == mclk))
 			return i;
@@ -850,6 +851,7 @@ static int rt5610_vpcm_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5610_priv *rt5610 = codec->private_data;
+	dbg("");
 
 	rt5610->vpcm_sysclk= freq;
 	return 0;
@@ -863,6 +865,7 @@ static int rt5610_vpcm_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	u16 iface = 0;
 
 	iface |= 0x8000;				/*vopcm interace*/
+	dbg("");
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK)
 	{
@@ -919,7 +922,7 @@ static int rt5610_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dapm_widget *w;
 	int stream = substream->stream;
 
-	dbg("rt5610_pcm_hw_params\n");
+	dbg("");
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		list_for_each_entry(w, &codec->dapm_widgets, list)
 		{
@@ -948,7 +951,7 @@ static int rt5610_vpcm_hw_params(struct snd_pcm_substream *substream,
 	u16 iface = rt5610_read(codec, RT5610_EXTEND_SDP_CTRL) & 0xfff3;
 	int coeff = get_coeff_vpcm(rt5610->vpcm_sysclk, params_rate(params));
 	
-	dbg("rt5610_vpcm_hw_params\n");
+	dbg("");
 
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
 		list_for_each_entry(w, &codec->dapm_widgets, list)
@@ -996,6 +999,7 @@ static int rt5610_pcm_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *codec_dai)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	dbg("");
 
 	#if !USE_DAPM_CONTROL
 	rt5610_write_mask(codec, 0x02, 0x8080, 0x8080);
@@ -1005,6 +1009,7 @@ static int rt5610_pcm_shutdown(struct snd_pcm_substream *substream,
 	rt5610_write(codec, 0x3c, 0x2000);
 	rt5610_write(codec, 0x3e, 0x0000);		
 	#endif
+
 	return 0;
 }
 
@@ -1012,6 +1017,7 @@ static int rt5610_vpcm_shutdown(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *codec_dai)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	dbg("");
 
 	rt5610_write(codec, 0x2e, 0x0000);
 #if !USE_DAPM_CONTROL
@@ -1134,6 +1140,25 @@ struct snd_soc_dai rt5610_dai[2] = {
 
 EXPORT_SYMBOL_GPL(rt5610_dai);
 
+//Power On SPK Amplifeir, this is just for Avenger-Dove-RT5630 Amplifier control.
+//The Apm enable pin is connected to ALC5610-GPIO1 because of no enough DOVE GPIO numbers can be used.
+//Remove the code if the board is not Avenger-Dove
+int spk_amplifier_enable(bool enable)
+{
+	dbg("enable=%d\n",enable);
+
+	rt5610_write_mask(codec, 0x4c, 0x0000, 0x0002); //Config GPIO1 as output
+
+	if (enable)
+		 rt5610_write_mask(codec, 0x5c, 0x0002, 0x0002); //ON
+	else
+		 rt5610_write_mask(codec, 0x5c, 0x0000, 0x0002); //OFF
+	return 0;
+
+}
+EXPORT_SYMBOL_GPL(spk_amplifier_enable);
+
+
 
 
 static int rt5610_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1191,13 +1216,12 @@ static int rt5610_resume(struct platform_device *pdev)
  * register the mixer and dsp interfaces with the kernel
  */
 
+
 static int rt5610_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-	struct snd_soc_codec *codec;
+//	struct snd_soc_codec *codec;
 	int ret;
-
-	dbg("rt5610 SOC codec\n");
 
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
 	if (codec == NULL)
@@ -1260,6 +1284,7 @@ static int rt5610_probe(struct platform_device *pdev)
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
 		goto reset_err;
+	dbg("rt5610: initial ok\n");
 	return 0;
 	
 reset_err:
