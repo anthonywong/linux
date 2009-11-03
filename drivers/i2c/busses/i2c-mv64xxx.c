@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/mv643xx_i2c.h>
 #include <linux/platform_device.h>
 
@@ -95,6 +96,7 @@ struct mv64xxx_i2c_data {
 	int			rc;
 	u32			freq_m;
 	u32			freq_n;
+	u32			delay_after_stop;
 	wait_queue_head_t	waitq;
 	spinlock_t		lock;
 	struct device		*dev;
@@ -122,6 +124,25 @@ struct mv64xxx_i2c_exp_data {
  *****************************************************************************
  */
 
+static void
+mv64xxx_i2c_wait_after_stop(struct mv64xxx_i2c_data *drv_data)
+{
+	int i = 0;
+
+	udelay(drv_data->delay_after_stop);
+
+	/* wait for the stop bit up to 100 usec more */
+	while (readl(drv_data->reg_base + MV64XXX_I2C_REG_CONTROL) &
+	       MV64XXX_I2C_REG_CONTROL_STOP){
+		udelay(1);
+		if (i++ > 100) {
+			dev_err(drv_data->dev,
+				" I2C bus locked, stop bit not cleared\n");
+			break;
+		}
+	}
+
+}
 /* Reset hardware and initialize FSM */
 static void
 mv64xxx_i2c_hw_init(struct mv64xxx_i2c_data *drv_data)
@@ -133,6 +154,7 @@ mv64xxx_i2c_hw_init(struct mv64xxx_i2c_data *drv_data)
 	writel(0, drv_data->reg_base + MV64XXX_I2C_REG_EXT_SLAVE_ADDR);
 	writel(MV64XXX_I2C_REG_CONTROL_TWSIEN | MV64XXX_I2C_REG_CONTROL_STOP,
 		drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+	mv64xxx_i2c_wait_after_stop(drv_data);
 	drv_data->state = MV64XXX_I2C_STATE_IDLE;
 }
 
@@ -286,7 +308,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 
 		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
 		       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
-
+		mv64xxx_i2c_wait_after_stop(drv_data);
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
@@ -307,6 +329,7 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		}else{
 			writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
 			       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+			mv64xxx_i2c_wait_after_stop(drv_data);
 		}
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
@@ -556,6 +579,8 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 #endif
 	drv_data->freq_m = pdata->freq_m;
 	drv_data->freq_n = pdata->freq_n;
+	drv_data->delay_after_stop = pdata->delay_after_stop ?
+		pdata->delay_after_stop : 10;
 	drv_data->irq = platform_get_irq(pd, 0);
 	if (drv_data->irq < 0) {
 		rc = -ENXIO;
