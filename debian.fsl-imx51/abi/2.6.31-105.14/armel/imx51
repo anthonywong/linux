@@ -931,7 +931,7 @@ EXPORT_SYMBOL net/9p/9pnet 0xfb9b1892	p9_client_auth
 EXPORT_SYMBOL net/9p/9pnet 0xfe1bf427	v9fs_register_trans
 EXPORT_SYMBOL net/appletalk/appletalk 0x526fe55e	atrtr_get_dev
 EXPORT_SYMBOL net/appletalk/appletalk 0x527824eb	alloc_ltalkdev
-EXPORT_SYMBOL net/appletalk/appletalk 0xb95e1312	aarp_send_ddp
+EXPORT_SYMBOL net/appletalk/appletalk 0x6b5ac227	aarp_send_ddp
 EXPORT_SYMBOL net/appletalk/appletalk 0xd3a9df13	atalk_find_dev_addr
 EXPORT_SYMBOL net/ax25/ax25 0x242852b9	ax25_uid_policy
 EXPORT_SYMBOL net/ax25/ax25 0x4502c65a	asc2ax
