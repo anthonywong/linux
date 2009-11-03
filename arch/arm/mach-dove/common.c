@@ -931,6 +931,7 @@ void __init dove_lcd_spi_init(void)
 static struct mv64xxx_i2c_pdata dove_i2c_data = {
 	.freq_m		= 10, /* assumes 166 MHz TCLK gets 94.3kHz */
 	.freq_n		= 3,
+	.delay_after_stop = 3, /* 3 ms delay needed when freq is 94.3kHz */
 	.timeout	= 1000, /* Default timeout of 1 second */
 #ifdef CONFIG_I2C_MV64XXX_PORT_EXPANDER
 	.select_exp_port = dove_select_exp_port,
