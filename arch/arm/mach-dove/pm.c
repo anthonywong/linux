@@ -30,7 +30,7 @@
 #include "common.h"
 #include "mpp.h"
 #include <asm/cpu-single.h>
-
+#include "twsi.h"
 #define CONFIG_PMU_PROC
 
 /*
@@ -700,6 +700,8 @@ void dove_standby(void)
 	pm_registers_action(RESTORE);
 
 	dove_restore_pcie_regs(); /* Should be done after restoring cpu configuration registers */
+	/* reset the current i2c expander port id to sync with hw settings */
+	dove_reset_exp_port();
 
 	/* Put off the Led on MPP7 */
 	reg = MV_REG_READ(PMU_SIG_SLCT_CTRL_0_REG);
