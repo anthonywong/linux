@@ -53,18 +53,13 @@ static void dove_twsi_option_set(dove_twsi_option option, unsigned int enable)
 int dove_select_exp_port(unsigned int port_id)
 {
 #ifndef CONFIG_DOVE_REV_Z0
-	static unsigned int port_id_old = 0xff;
-	if(port_id_old != port_id)
-	{	       
-		/* disable all*/
-		dove_twsi_option_set(DOVE_TWSI_OPTION1, 0);
-		dove_twsi_option_set(DOVE_TWSI_OPTION2, 0);
-		dove_twsi_option_set(DOVE_TWSI_OPTION3, 0);
+	/* disable all*/
+	dove_twsi_option_set(DOVE_TWSI_OPTION1, 0);
+	dove_twsi_option_set(DOVE_TWSI_OPTION2, 0);
+	dove_twsi_option_set(DOVE_TWSI_OPTION3, 0);
 
-		/* enable requested port*/
-		dove_twsi_option_set(port_id, 1);
-		port_id_old != port_id;
-	}
+	/* enable requested port*/
+	dove_twsi_option_set(port_id, 1);
 #endif
 	return 0;
 }
