@@ -162,7 +162,7 @@ static struct snd_soc_ops mv88fx_rt5630_machine_ops[] ={
 static struct snd_soc_dai_link mv88fx_dai = {
 	.name = "RT5630",
 	.stream_name = "RT5630 HIFI",
-	.cpu_dai = &mv88fx_i2s_dai0,
+	.cpu_dai = &mv88fx_i2s_dai1,
 	.codec_dai = &rt5630_dai, //HiFi
 	.ops = &mv88fx_rt5630_machine_ops,
 };
