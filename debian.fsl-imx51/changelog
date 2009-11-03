@@ -4,6 +4,47 @@ linux-fsl-imx51 (2.6.31-600.1) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Ubuntu: 2.6.31-15.49 ]
+
+  * [Upstream] (drop after 2.6.31) usb-storage: Workaround devices with
+    bogus sense size
+    - LP: #446146
+  * SAUCE: AppArmor: AppArmor wrongly reports allow perms as denied
+    - LP: #453335
+  * SAUCE: AppArmor: Policy load and replacement can fail to alloc mem
+    - LP: #458299
+  * SAUCE: AppArmor: AppArmor fails to audit change_hat correctly
+    - LP: #462824
+  * SAUCE: AppArmor: AppArmor disallows truncate of deleted files.
+    - LP: #451375
+  * SAUCE: [x86] fix report of cs-limit nx-emulation
+    - LP: #454285
+  * Revert "SAUCE: trace: add trace_event for the open() syscall"
+  * SAUCE: trace: add trace events for open(), exec() and uselib()
+    - LP: #462111
+  * SAUCE: Fix sub-flavour script to not stop on missing directories
+    - LP: #453073
+  * [Upstream] (drop after 2.6.31) Input: synaptics - add another Protege
+    M300 to rate blacklist
+    - LP: #433801
+  * PM: Make warning in suspend_test_finish() less likely to happen
+    - LP: #464552
+
+  [ Ubuntu: 2.6.31-14.48 ]
+
+  * Add more e100 firmware to nic-modules
+    - LP: #451872
+  * Add qla1280 firmware to scsi-modules
+    - LP: #381037
+
+  [ Ubuntu: 2.6.31-14.47 ]
+
+  * SAUCE: dell-laptop: Store the HW switch status internally rather than
+    requerying every time
+    - LP: #430809
+  * SAUCE: dell-laptop: Blacklist machines not supporting dell-laptop
+    - LP: #430809
+
  -- Andy Whitcroft <apw@canonical.com>  Tue, 03 Nov 2009 11:20:59 +0000
 
 linux-fsl-imx51 (2.6.31-105.14) karmic; urgency=low
