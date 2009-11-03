@@ -284,8 +284,13 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 			readl(drv_data->reg_base + MV64XXX_I2C_REG_DATA);
 		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
 
-		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
-		       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+		if(drv_data->combine_access)
+		{//because of combine access, we can't send STOP here.
+		 //But it will occur problem, so need software reset to work around
+                        mv64xxx_i2c_hw_init(drv_data);
+		}else
+			writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
+			       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
@@ -300,14 +305,8 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		/* FALLTHRU */
 	case MV64XXX_I2C_ACTION_SEND_STOP:
 		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
-		if(drv_data->combine_access)
-		{//because of combine access, we can't send STOP here.
-		 //But it will occur problem, so need software reset to work around
-                        mv64xxx_i2c_hw_init(drv_data);
-		}else{
-			writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
-			       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
-		}
+		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
+		       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
@@ -462,17 +461,9 @@ mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	int	i, rc;
 
 	for (i=0; i<num; i++)
-	{
-		if(num > 1 && (i != num-1))
-                {//if comebine access, we don't send stop signal between msgs.
-			drv_data->combine_access = 1;
-                }else{
-			drv_data->combine_access = 0;
-                }
-
 		if ((rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[i])) < 0)
 			return rc;
-	}
+
 	return num;
 }
 
