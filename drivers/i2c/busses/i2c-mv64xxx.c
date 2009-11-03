@@ -644,9 +644,23 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 	return rc;
 }
 
+#ifdef CONFIG_PM
+static int
+mv64xxx_i2c_resume(struct platform_device *dev)
+{
+	struct mv64xxx_i2c_data	*drv_data = platform_get_drvdata(dev);
+	mv64xxx_i2c_hw_init(drv_data);
+	return 0;
+}
+
+#else
+#define mv64xxx_i2c_resume NULL
+#endif
+
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
 	.remove	= __devexit_p(mv64xxx_i2c_remove),
+	.resume = mv64xxx_i2c_resume,
 	.driver	= {
 		.owner	= THIS_MODULE,
 		.name	= MV64XXX_I2C_CTLR_NAME,
