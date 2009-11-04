@@ -25,7 +25,7 @@
 
 /*
 #define RT5630_DEBUG(format, args...) \
-	printk(KERN_ERR "%s(%d): "format"\n", __FUNCTION__, __LINE__, ##args)
+	printk(KERN_DEBUG "%s(%d): "format"\n", __FUNCTION__, __LINE__, ##args)
 */
 
 #define RT5630_DEBUG(format, args...)
@@ -1550,6 +1550,7 @@ static const struct _coeff_div_stereo coeff_div_stereo[] = {
 		{18432000, 48000, 0x2174, 0x1111},
 		{36864000, 48000, 0x2274, 0x2020},
 		{49152000, 48000, 0xf074, 0x3030},
+		{11289600, 44100, 0x1174, 0x0000},
 		{0, 0, 0, 0},
 };
 
@@ -1687,7 +1688,7 @@ static int rt5630_hifi_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct rt5630_priv * rt5630 = codec->private_data;
-	RT5630_DEBUG("");
+	RT5630_DEBUG("freq=%d\n",freq);
 	
 	if ((freq >= (256 * 8000)) && (freq <= (512 * 48000))) {
 		rt5630->stereo_sysclk = freq;
@@ -2042,7 +2043,7 @@ static int rt5630_hifi_shutdown(struct snd_pcm_substream *substream, struct snd_
 }
 
 
-#define RT5630_STEREO_RATES (SNDRV_PCM_RATE_48000)
+#define RT5630_STEREO_RATES (SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000)
 #define RT5626_VOICE_RATES (SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000)
 
 #define RT5630_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
