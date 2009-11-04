@@ -57,6 +57,9 @@ static int __init dove_ac97_snd_init(void)
 {
 	int ret = 0;
 
+        if (!machine_is_dove_rd_avng() && !machine_is_dove_rd_avng_z0())
+                return -ENODEV;
+
 	dove_ac97_snd_device = platform_device_alloc("soc-audio", 0);
 	if (!dove_ac97_snd_device)
 		return -ENOMEM;
