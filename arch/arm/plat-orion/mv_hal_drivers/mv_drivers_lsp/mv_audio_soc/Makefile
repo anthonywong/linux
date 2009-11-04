@@ -15,8 +15,10 @@ snd-mv88fx-pcm-soc-objs		      += mv88fx-pcm.o
 
 ifneq ("$(CONFIG_SND_SOC_RT5623)","")
 snd-mv88fx-soc-objs                  += mv88fx-rt5623.o
-else ifneq ("$(CONFIG_SND_SOC_RT5630)","")
+endif
+ifneq ("$(CONFIG_SND_SOC_RT5630)","")
 snd-mv88fx-soc-objs                  += mv88fx-rt5630.o
-else ifneq ("$(CONFIG_SND_SOC_CS42L51)","")
+endif
+ifneq ("$(CONFIG_SND_SOC_CS42L51)","")
 snd-mv88fx-soc-objs                  += mv88fx.o
 endif
