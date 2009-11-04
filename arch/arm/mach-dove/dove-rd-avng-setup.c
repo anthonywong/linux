@@ -478,10 +478,7 @@ static void dove_rd_avng_gpio_init(void)
 	if (gpio_request(17, "LCM_BL_CTRL") != 0)
 		printk(KERN_ERR "Dove: failed to setup GPIO for LCM_BL_CTRL\n");	
 	gpio_direction_output(17, 1);	/* Enable LCD back light */
-	orion_gpio_set_valid(19, 1);
-	if (gpio_request(19, "AU_IRQOUT") != 0)
-		printk(KERN_ERR "Dove: failed to setup GPIO for AU_IRQOUT\n");	
-	gpio_direction_input(19);	/* Interrupt from ALC5611's touch */
+
 	orion_gpio_set_valid(20, 1);
 	if (gpio_request(20, "GP_WLAN_RSTn") != 0)
 		printk(KERN_ERR "Dove: failed to setup GPIO for GP_WLAN_RSTn\n");	
