@@ -39,10 +39,8 @@ config SND_DOVE_SOC_MRVL_AUDIO
 	  Say Y if you want to add support for SoC audio on Marvell
 	  Dove Development Board.
 
-choice
-        prompt "Choose Codec"
-        depends on SND_DOVE_SOC_MRVL_AUDIO
-        default CODEC_RT5630
+menu "Select Codecs for the mv88fx i2s"
+     depends on SND_DOVE_SOC_MRVL_AUDIO
 
 config CODEC_CS42L51
         bool "CS42L51 codec"
@@ -58,8 +56,7 @@ config CODEC_RT5630
         bool "RT5630 codec"
         depends on SND_DOVE_SOC_MRVL_AUDIO
         select SND_SOC_RT5630
-endchoice
 
-
+endmenu
 endmenu
 
