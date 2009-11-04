@@ -130,10 +130,10 @@ struct mpp_config dove_mpp_table[] =
 	{{{MPP_GPIO, 0}, {MPP_NB_CLOCK, 4}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST3},
 	 dove_mpp_legacy_config},
 	/* MPP 21 */
-	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
+	{{{MPP_GPIO, 0}, {MPP_UART1, 1}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST3},
 	 dove_mpp_legacy_config},
 	/* MPP 22 */
-	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
+	{{{MPP_GPIO, 0}, {MPP_UART1, 1}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST3},
 	 dove_mpp_legacy_config},
 	/* MPP 23 */
 	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
