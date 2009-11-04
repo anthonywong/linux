@@ -569,11 +569,6 @@ void __init dove_avng_ac97_init(void)
 int __init dove_avng_ac97_ts_gpio_setup(void)
 {
      
-	//IRQ
-	set_irq_chip(DOVE_AVNG_AC97_TS_PEN_IRQ, &orion_gpio_irq_chip);
-	set_irq_handler(DOVE_AVNG_AC97_TS_PEN_IRQ, handle_level_irq);
-	set_irq_type(DOVE_AVNG_AC97_TS_PEN_IRQ, IRQ_TYPE_LEVEL_HIGH);
-
 	orion_gpio_set_valid(DOVE_AVNG_AC97_TS_PEN_GPIO, 1);
 	if (gpio_request(DOVE_AVNG_AC97_TS_PEN_GPIO, "DOVE_AVNG_AC97_TS_PEN_IRQ") != 0)
 		pr_err("Dove: failed to setup TS IRQ GPIO\n");
@@ -584,6 +579,11 @@ int __init dove_avng_ac97_ts_gpio_setup(void)
 		gpio_free(DOVE_AVNG_AC97_TS_PEN_GPIO);
 		return -1;
 	}
+	/* IRQ */
+	set_irq_chip(DOVE_AVNG_AC97_TS_PEN_IRQ, &orion_gpio_irq_chip);
+	set_irq_handler(DOVE_AVNG_AC97_TS_PEN_IRQ, handle_level_irq);
+	set_irq_type(DOVE_AVNG_AC97_TS_PEN_IRQ, IRQ_TYPE_LEVEL_HIGH);
+
 	return 0;
 }
 
