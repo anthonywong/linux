@@ -191,6 +191,10 @@ static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
 	{
 		I2C_BOARD_INFO("i2s_i2c", 0x1F),
 	},
+	{
+		I2C_BOARD_INFO("bma020", 0x38),	//JP
+		.irq = IRQ_DOVE_GPIO_16_23,	//JP
+	},
 #if 0
 	{
 		I2C_BOARD_INFO("pic-16f887", 0x??),

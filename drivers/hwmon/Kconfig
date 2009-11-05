@@ -39,6 +39,14 @@ config HWMON_DEBUG_CHIP
 
 comment "Native drivers"
 
+####################################################
+config BMA020
+	tristate "BOSH bma020 acceleration sensor"
+	depends on I2C
+	help
+	support for bosch g-sensor
+####################################################
+
 config SENSORS_ABITUGURU
 	tristate "Abit uGuru (rev 1 & 2)"
 	depends on X86 && EXPERIMENTAL
