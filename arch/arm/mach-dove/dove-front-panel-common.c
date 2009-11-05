@@ -25,7 +25,12 @@
 /*
  * LCD input clock.
  */
+#ifndef CONFIG_FB_DOVE_CLCD_SCLK_VALUE
+#define LCD_SCLK	(1000*1000*1000)
+#else
 #define LCD_SCLK	(CONFIG_FB_DOVE_CLCD_SCLK_VALUE*1000*1000)
+#endif
+
 
 static struct dovefb_mach_info dove_lcd0_dmi = {
 	.id_gfx			= "GFX Layer 0",
