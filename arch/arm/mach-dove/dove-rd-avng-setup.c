@@ -294,7 +294,7 @@ static struct dove_nand_platform_data dove_rd_avng_nfc_hal_data = {
 static struct dove_nand_platform_data dove_rd_avng_nfc_gang_hal_data = {
 	.nfc_width      = 16,
 	.num_devs       = 2,
-	.num_cs         = 1,
+	.num_cs         = 2,
 	.use_dma	= 1,
 	.use_ecc	= 1,
 	.use_bch	= 1,
@@ -378,11 +378,11 @@ static struct dove_mpp_mode dove_rd_avng_mpp_modes[] __initdata = {
 	{ 4, MPP_PMU },		/* Core power good indication */
 	{ 5, MPP_PMU },		/* DeepIdle power control */
 	{ 6, MPP_GPIO },	/* PMU - DDR termination control */
-	{ 7, MPP_GPIO },	/* I2S_nRESET */
+	{ 7, MPP_PMU  },	/* Standby led */
 
 	{ 8, MPP_GPIO },	/* OFF_CTRL */
 
-	{ 9, MPP_PMU },		/* Cpu power good indication */
+	{ 9, MPP_GPIO },	/* HUB_RESETn */
 	{ 10, MPP_PMU },	/* DVS SDI control */
 
 	{ 11, MPP_GPIO },	/* LCM_DCM */
@@ -446,14 +446,14 @@ static void dove_rd_avng_gpio_init(void)
 	if (gpio_request(6, "MPP_DDR_TERM") != 0)
 		printk(KERN_ERR "Dove: failed to setup GPIO for MPP_DDR_TERM\n");	
 	gpio_direction_output(6, 1);	/* Enable DDR 1.8v */
-	orion_gpio_set_valid(7, 1);
-	if (gpio_request(7, "I2S_nRESET") != 0)
-		printk(KERN_ERR "Dove: failed to setup GPIO for I2S_nRESET\n");	
-	gpio_direction_output(7, 1);	/* I2S_nRESET */
 	orion_gpio_set_valid(8, 1);
 	if (gpio_request(8, "OFF_CTRL") != 0)
 		printk(KERN_ERR "Dove: failed to setup GPIO for OFF_CTRL\n");	
 	gpio_direction_output(8, 0);	/* Power off */
+	orion_gpio_set_valid(9, 1);
+	if (gpio_request(9, "HUB_RESETn") != 0)
+		printk(KERN_ERR "Dove: failed to setup GPIO for HUB_RESETn\n");	
+	gpio_direction_output(9, 1);	/* HUB_RESETn */
 
 	orion_gpio_set_valid(11, 1);
 	if (gpio_request(11, "LCM_DCM") != 0)
