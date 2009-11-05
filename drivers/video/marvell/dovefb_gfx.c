@@ -415,7 +415,7 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 						      atomic_read(&dfli->w_intr), 40);
 		
 		if ( rc <= 0)
-			printk(KERN_ERR "%s: wait for vsync timed out, rc %d\n", 
+			printk(KERN_ERR "%s: gfx wait for vsync timed out, rc %d\n",
 			       __func__, rc);
 		
 		writel(irq_ena, 
