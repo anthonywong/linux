@@ -51,6 +51,10 @@
 
 #include "cafe_ccic-regs.h"
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+#include <linux/debugfs.h>
+#endif
+
 #define DRV_NAME "cafe1000-ccic"
 #define CAFE_VERSION 0x000004
 
@@ -193,6 +197,11 @@ struct cafe_camera
 	/* Misc */
 	wait_queue_head_t smbus_wait;	/* Waiting on i2c events */
 	wait_queue_head_t iowait;	/* Waiting on frame data */
+
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	struct dentry *dfs_regs;
+	struct dentry *dfs_cam_regs;
+#endif
 
 #if defined(CONFIG_HAVE_CLK)
 	struct clk		*clk;
@@ -1953,6 +1962,168 @@ static irqreturn_t cafe_irq(int irq, void *data)
 
 
 /* -------------------------------------------------------------------------- */
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+/*
+ * Debugfs stuff.
+ */
+
+static char cafe_debug_buf[1024];
+static struct dentry *cafe_dfs_root;
+
+static void cafe_dfs_setup(void)
+{
+	cafe_dfs_root = debugfs_create_dir("cafe_ccic", NULL);
+	if (IS_ERR(cafe_dfs_root)) {
+		cafe_dfs_root = NULL;  /* Never mind */
+		printk(KERN_NOTICE "cafe_ccic unable to set up debugfs\n");
+	}
+}
+
+static void cafe_dfs_shutdown(void)
+{
+	if (cafe_dfs_root)
+		debugfs_remove(cafe_dfs_root);
+}
+
+static int cafe_dfs_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
+}
+
+static ssize_t cafe_dfs_read_regs(struct file *file,
+		char __user *buf, size_t count, loff_t *ppos)
+{
+	struct cafe_camera *cam = file->private_data;
+	char *s = cafe_debug_buf;
+	int offset;
+
+	for (offset = 0; offset < 0x44; offset += 4)
+		s += sprintf(s, "%02x: %08x\n", offset,
+				cafe_reg_read(cam, offset));
+	for (offset = 0x88; offset <= 0x90; offset += 4)
+		s += sprintf(s, "%02x: %08x\n", offset,
+				cafe_reg_read(cam, offset));
+	for (offset = 0xb4; offset <= 0xbc; offset += 4)
+		s += sprintf(s, "%02x: %08x\n", offset,
+				cafe_reg_read(cam, offset));
+#ifndef CONFIG_ARCH_DOVE
+	for (offset = 0x3000; offset <= 0x300c; offset += 4)
+		s += sprintf(s, "%04x: %08x\n", offset,
+				cafe_reg_read(cam, offset));
+#endif
+	return simple_read_from_buffer(buf, count, ppos, cafe_debug_buf,
+			s - cafe_debug_buf);
+}
+
+static const struct file_operations cafe_dfs_reg_ops = {
+	.owner = THIS_MODULE,
+	.read = cafe_dfs_read_regs,
+	.open = cafe_dfs_open
+};
+
+static ssize_t cafe_dfs_read_cam(struct file *file,
+		char __user *buf, size_t count, loff_t *ppos)
+{
+	struct cafe_camera *cam = file->private_data;
+	char *s = cafe_debug_buf;
+	int offset;
+
+	if (! cam->sensor)
+		return -EINVAL;
+
+	if (! cam->powered_on) {
+		s += sprintf(s, "Camera sensor is poewred down\n");
+	} else {
+		for (offset = 0x0; offset < 0xff; offset++)
+		{
+			u8 v;
+
+			cafe_smbus_read_data(cam, cam->sensor_addr, offset, &v);
+			s += sprintf(s, "%02x: %02x\n", offset, v);
+		}
+	}
+
+	return simple_read_from_buffer(buf, count, ppos, cafe_debug_buf,
+			s - cafe_debug_buf);
+}
+
+/**
+ *  @brief proc write function
+ *
+ *  @param file    file pointer
+ *  @param buf     pointer to data buffer
+ *  @param count   data number to write
+ *  @param data    data to write
+ *  @return 	   number of data
+ */
+static ssize_t cafe_dfs_write_cam(struct file *file, const char __user *buf,
+			    size_t count, loff_t *ppos)
+{
+	unsigned int offset, value;
+	char *pdata;
+	struct cafe_camera *cam = file->private_data;
+
+	pdata = (char *)kmalloc(count, GFP_KERNEL);
+	if (pdata == NULL)
+		return 0;
+
+	if (copy_from_user(pdata, buf, count)) {
+		cam_warn(cam, "Copy from user failed\n");
+		kfree(pdata);
+		return 0;
+	}
+
+	if (sscanf(pdata, "%x=%x", &offset, &value) != 2)
+		return 0;
+
+	cafe_smbus_write_data(cam, cam->sensor_addr, (offset & 0xFF), (value & 0xFF));
+
+	kfree(pdata);
+
+	return (ssize_t)count;
+}
+
+static const struct file_operations cafe_dfs_cam_ops = {
+	.owner = THIS_MODULE,
+	.read = cafe_dfs_read_cam,
+	.write = cafe_dfs_write_cam,
+	.open = cafe_dfs_open
+};
+
+
+
+static void cafe_dfs_cam_setup(struct cafe_camera *cam)
+{
+	char fname[40];
+
+	if (!cafe_dfs_root)
+		return;
+	sprintf(fname, "regs-%d", cam->vdev.minor);
+	cam->dfs_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
+			cam, &cafe_dfs_reg_ops);
+	sprintf(fname, "cam-%d", cam->vdev.minor);
+	cam->dfs_cam_regs = debugfs_create_file(fname, 0444, cafe_dfs_root,
+			cam, &cafe_dfs_cam_ops);
+}
+
+
+static void cafe_dfs_cam_shutdown(struct cafe_camera *cam)
+{
+	if (! IS_ERR(cam->dfs_regs))
+		debugfs_remove(cam->dfs_regs);
+	if (! IS_ERR(cam->dfs_cam_regs))
+		debugfs_remove(cam->dfs_cam_regs);
+}
+
+#else
+
+#define cafe_dfs_setup()
+#define cafe_dfs_shutdown()
+#define cafe_dfs_cam_setup(cam)
+#define cafe_dfs_cam_shutdown(cam)
+#endif    /* CONFIG_VIDEO_ADV_DEBUG */
+
 
 static struct cafe_camera *alloc_init_cam_struct(struct device *dev)
 {
@@ -2049,6 +2220,9 @@ static int cafe_init_cam(struct cafe_camera *cam)
 					" will try again later.");
 	}
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	cafe_dfs_cam_setup(cam);
+#endif
 	mutex_unlock(&cam->s_mutex);
 	return 0;
 
@@ -2065,6 +2239,9 @@ out:
 static void cafe_shutdown(struct cafe_camera *cam)
 {
 /* FIXME: Make sure we take care of everything here */
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	cafe_dfs_cam_shutdown(cam);
+#endif
 	if (cam->n_sbufs > 0)
 		/* What if they are still mapped?  Shouldn't be, but... */
 		cafe_free_sio_buffers(cam);
@@ -2374,6 +2551,9 @@ static int __init cafe_init(void)
 		return ret;
 	}
 
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	cafe_dfs_setup();
+#endif
 	return ret;
 }
 
@@ -2382,6 +2562,9 @@ static void __exit cafe_exit(void)
 {
 	pci_unregister_driver(&cafe_pci_driver);
 	platform_driver_unregister(&cafe_platform_driver);
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+	cafe_dfs_shutdown();
+#endif
 }
 
 module_init(cafe_init);
