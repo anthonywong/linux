@@ -1068,9 +1068,9 @@ static int __init dovefb_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * Enable interrupts
+	 * Disable interrupts in default.
 	 */
-	writel(DOVEFB_INT_MASK, info->reg_base + SPU_IRQ_ENA);
+	writel( 0x0, info->reg_base + SPU_IRQ_ENA);
 
 	/*
 	 * Register framebuffers.
@@ -1137,10 +1137,8 @@ static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 	printk(KERN_INFO "dovefb_suspend(): state = %d.\n", mesg.event);
 
-	/* Disable interrupts */
-	reg = readl(dfi->reg_base+SPU_IRQ_ENA);
-	reg &= ~DOVEFB_INT_MASK;
-	writel(reg, dfi->reg_base+SPU_IRQ_ENA);
+	/* Disable all interrupts */
+	writel( 0x0, dfi->reg_base+SPU_IRQ_ENA);
 
 	acquire_console_sem();
 
@@ -1196,9 +1194,8 @@ static int dovefb_resume(struct platform_device *pdev)
 		return -1;
 	}
 
-	/* Enable interrupts */
-	writel(readl(dfi->reg_base + SPU_IRQ_ENA) | DOVEFB_INT_MASK,
-			dfi->reg_base + SPU_IRQ_ENA);
+	/* Disable all interrupts */
+	writel( 0x0, dfi->reg_base + SPU_IRQ_ENA);
 
 	release_console_sem();
 
