@@ -33,6 +33,15 @@ struct pcie_port {
 static struct pcie_port pcie_port[2];
 static int num_pcie_ports;
 
+/*
+ * Optimal setting for PCIe clocks current drive - 13.5mA
+ */
+static int __init dove_pcie_clk_out_config(int nr)
+{
+	u32 reg = readl(DOVE_PCIE_PORT_CONTROL);
+	reg |= 3 << nr;
+	writel(reg, DOVE_PCIE_PORT_CONTROL);
+}
 
 static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 {
@@ -43,6 +52,9 @@ static int __init dove_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	pp = &pcie_port[nr];
 	pp->root_bus_nr = sys->busnr;
+
+	/* dove specific clock settings */
+	dove_pcie_clk_out_config(nr);
 
 	/*
 	 * Generic PCIe unit setup.
@@ -257,6 +269,7 @@ void dove_restore_pcie_regs(void)
 	{
 		orion_pcie_set_local_bus_nr(pcie_port[i].base, pcie_port[i].root_bus_nr);
 		orion_pcie_setup(pcie_port[i].base, &dove_mbus_dram_info);
+		dove_pcie_clk_out_config(i);
 	}
 
 	/* Enable Link on both ports */
