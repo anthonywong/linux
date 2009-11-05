@@ -541,6 +541,10 @@ static int dovefb_ovly_ioctl(struct fb_info *fi, unsigned int cmd,
 			x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0) |
 				CFG_DMA_ENA(0x1);
 			writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL0);
+			/* Enable VID & VSync. */
+			x = readl(dfli->reg_base + SPU_IRQ_ENA) |
+				DOVEFB_VID_INT_MASK | DOVEFB_VSYNC_INT_MASK;
+			writel( x, dfli->reg_base + SPU_IRQ_ENA);
 		}
 		break;
 	case DOVEFB_IOCTL_SWITCH_GRA_OVLY:
@@ -751,6 +755,9 @@ static int dovefb_release(struct fb_info *fi, int user)
 {
 	struct dovefb_layer_info *dfli = fi->par;
 
+	/* Disable all interrupts. */
+	writel( 0x0, dfli->reg_base + SPU_IRQ_ENA);
+
 	/* clear buffer list. */
 	mutex_lock(&dfli->access_ok);
 	clearFreeBuf(filterBufList, RESET_BUF);
@@ -899,8 +906,21 @@ static void set_dma_control1(struct dovefb_layer_info *dfli, int sync)
 static int wait_for_vsync(struct dovefb_layer_info *dfli)
 {
 	if (dfli) {
-		wait_event_interruptible(dfli->w_intr_wq,
-		atomic_read(&dfli->w_intr));
+		u32 irq_ena = readl(dfli->reg_base + SPU_IRQ_ENA);
+		int rc = 0;
+
+		writel(irq_ena | DOVEFB_VID_INT_MASK | DOVEFB_VSYNC_INT_MASK,
+		       dfli->reg_base + SPU_IRQ_ENA);
+
+		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
+						      atomic_read(&dfli->w_intr), 40);
+
+		if ( rc <= 0)
+			printk(KERN_ERR "%s: vid wait for vsync timed out, rc %d\n",
+			       __func__, rc);
+
+		writel(irq_ena,
+		       dfli->reg_base + SPU_IRQ_ENA);
 		atomic_set(&dfli->w_intr, 0);
 		return 0;
 	}
