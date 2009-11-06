@@ -75,6 +75,10 @@ int intel_ddc_get_modes(struct intel_encoder *intel_encoder)
 	int ret = 0;
 
 	intel_i2c_quirk_set(intel_encoder->base.dev, true);
+	if (intel_encoder->edid && intel_encoder->type == INTEL_OUTPUT_LVDS) {
+		printk(KERN_INFO "Skipping EDID probe due to cached edid\n");
+		return ret;
+	}
 	edid = drm_get_edid(&intel_encoder->base, intel_encoder->ddc_bus);
 	intel_i2c_quirk_set(intel_encoder->base.dev, false);
 	if (edid) {
@@ -82,7 +86,10 @@ int intel_ddc_get_modes(struct intel_encoder *intel_encoder)
 							edid);
 		ret = drm_add_edid_modes(&intel_encoder->base, edid);
 		intel_encoder->base.display_info.raw_edid = NULL;
-		kfree(edid);
+		if (intel_encoder->type == INTEL_OUTPUT_LVDS)
+			intel_encoder->edid = edid;
+		else
+			kfree(edid);
 	}
 
 	return ret;
