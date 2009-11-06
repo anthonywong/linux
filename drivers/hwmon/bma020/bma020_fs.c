@@ -888,7 +888,7 @@ static int bma020_get_xyz_axis_adjusted(int *x, int *y, int *z)
 
 static int bma020_poweroff(void)
 {
-	printk(KERN_INFO"bma020 poweroff.\n");
+	//printk(KERN_INFO"bma020 poweroff.\n");
 	bma020_set_mode(BMA020_MODE_SLEEP);/* set to sleep mode instead of power off */
 	return 0;
 }
@@ -897,7 +897,7 @@ static int bma020_poweron(void)
 {
 	unsigned char data1, data2;
 	int ret = 0;
-	printk(KERN_INFO"bma020 poweron.\n");
+	//printk(KERN_INFO"bma020 poweron.\n");
 
 	ret |= bma020_set_mode(BMA020_MODE_NORMAL);	/* set to normal mode */
 	msleep(2);		/* delay for 1ms */
@@ -919,7 +919,7 @@ static int bma020_poweron(void)
 		return ret;
 
 	if ((0x55 != data1) || (0xAA != data2)) {
-		printk(KERN_ERR"bma020 poweron err.\n");
+		//printk(KERN_ERR"bma020 poweron err.\n");
 		bma020_set_mode(BMA020_MODE_SLEEP);	/* set to normal mode */
 		return -1;
 	}
@@ -1463,7 +1463,6 @@ static void __exit bma020_i2c_exit(void)
 /*====================================================================*/
 
 MODULE_DESCRIPTION("BOSCH BMA020 three-axis digital accelerometer (I2C) driver");
-MODULE_AUTHOR("Tony Teng <ylteng@marvell.com>");
 MODULE_LICENSE("GPL");
 
 module_init(bma020_i2c_init);
