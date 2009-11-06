@@ -575,11 +575,15 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+
 
 	if (dev_priv->lid_notifier.notifier_call)
 		acpi_lid_notifier_unregister(&dev_priv->lid_notifier);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
+	kfree(intel_encoder->edid);
 	kfree(connector);
 }
 
@@ -1002,5 +1006,7 @@ failed:
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
 	kfree(intel_lvds);
+	kfree(intel_encoder->edid);
+	kfree(intel_encoder);
 	kfree(intel_connector);
 }
