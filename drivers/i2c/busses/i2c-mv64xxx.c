@@ -64,6 +64,7 @@ enum {
 	MV64XXX_I2C_STATE_WAITING_FOR_ADDR_2_ACK,
 	MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_ACK,
 	MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_DATA,
+	MV64XXX_I2C_STATE_WAITING_FOR_REPEATED_START,
 };
 
 /* Driver actions */
@@ -77,6 +78,7 @@ enum {
 	MV64XXX_I2C_ACTION_RCV_DATA,
 	MV64XXX_I2C_ACTION_RCV_DATA_STOP,
 	MV64XXX_I2C_ACTION_SEND_STOP,
+	MV64XXX_I2C_ACTION_NO_STOP,
 };
 
 struct mv64xxx_i2c_data {
@@ -191,11 +193,15 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 		/* FALLTHRU */
 	case MV64XXX_I2C_STATUS_MAST_WR_ADDR_2_ACK: /* 0xd0 */
 	case MV64XXX_I2C_STATUS_MAST_WR_ACK: /* 0x28 */
-		if ((drv_data->bytes_left == 0)
-				|| (drv_data->aborting
-					&& (drv_data->byte_posn != 0))) {
-			drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
-			drv_data->state = MV64XXX_I2C_STATE_IDLE;
+		if (drv_data->bytes_left == 0) {
+				if ((drv_data->aborting
+				     && (drv_data->byte_posn != 0)) || !drv_data->combine_access) {
+					drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
+					drv_data->state = MV64XXX_I2C_STATE_IDLE;
+				} else {
+					drv_data->action = MV64XXX_I2C_ACTION_NO_STOP;
+					drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_REPEATED_START;
+				}
 		} else {
 			drv_data->action = MV64XXX_I2C_ACTION_SEND_DATA;
 			drv_data->state =
@@ -312,6 +318,15 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
+	case MV64XXX_I2C_ACTION_NO_STOP:
+		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
+		writel(drv_data->cntl_bits,
+		       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+		readl(drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+		udelay(100);
+		drv_data->block = 0;
+		wake_up_interruptible(&drv_data->waitq);
+		break;
 
 	case MV64XXX_I2C_ACTION_INVALID:
 	default:
@@ -322,15 +337,9 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		/* FALLTHRU */
 	case MV64XXX_I2C_ACTION_SEND_STOP:
 		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
-		if(drv_data->combine_access)
-		{//because of combine access, we can't send STOP here.
-		 //But it will occur problem, so need software reset to work around
-                        mv64xxx_i2c_hw_init(drv_data);
-		}else{
-			writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
-			       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
-			mv64xxx_i2c_wait_after_stop(drv_data);
-		}
+		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_STOP,
+		       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+		mv64xxx_i2c_wait_after_stop(drv_data);
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
@@ -352,6 +361,8 @@ mv64xxx_i2c_intr(int irq, void *dev_id)
 		mv64xxx_i2c_fsm(drv_data, status);
 		mv64xxx_i2c_do_action(drv_data);
 		rc = IRQ_HANDLED;
+		if (drv_data->state == MV64XXX_I2C_STATE_WAITING_FOR_REPEATED_START)
+			break;
 	}
 	spin_unlock_irqrestore(&drv_data->lock, flags);
 
