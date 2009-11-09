@@ -236,8 +236,6 @@ struct kgsl_sharedmem_free {
 
 #define IOCTL_KGSL_SHAREDMEM_FREE \
 	_IOW(KGSL_IOC_TYPE, 0x21, struct kgsl_sharedmem_free)
-
-
 struct kgsl_gmem_desc {
 	unsigned int x;
 	unsigned int y;
@@ -303,5 +301,4 @@ int kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
 }
 
 #endif
-
 #endif /* _MSM_KGSL_H */
