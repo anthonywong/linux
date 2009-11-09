@@ -21,4 +21,11 @@ config DISPLAY_SUPPORT
 comment "Display hardware drivers"
 	depends on DISPLAY_SUPPORT
 
+config CH7025_COMPOSITE
+    tristate "TV-OUT support (Chrontel CH7025/CH7026 TV Composite)"
+    default y
+    help
+       The device is able to encode the video signals and generate
+       synchronization signals SDTV format for NTSC and PAL standards.
+
 endmenu
