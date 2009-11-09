@@ -45,7 +45,7 @@
 #include <video/dovefb_display.h>
 
 #include "dovefb_if.h"
-
+#include <video/ch7025_composite.h>
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
 
@@ -659,7 +659,21 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	 */
 	x = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL);
 	writel(x | 1, dfli->reg_base + LCD_SPU_DUMB_CTRL);
+#ifdef CONFIG_CH7025_COMPOSITE
+	{
+		struct input_stream_info info;
 
+		info.xres = var->xres;
+		info.yres = var->yres;
+		info.iformat = CH7025_RGB888;
+		info.oformat = CH7025_NTSC_M;
+		info.swap = CH7025_RGB_ORDER;
+
+		printk("video ch7025 enable.......\n");
+		ch7025_set_input_stream(&info);
+		ch7025_enable(1);
+	}
+#endif
 	return 0;
 }
 
