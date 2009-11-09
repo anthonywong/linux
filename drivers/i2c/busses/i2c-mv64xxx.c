@@ -9,6 +9,7 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
+//#define DEBUG
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -99,6 +100,7 @@ struct mv64xxx_i2c_data {
 	u32			freq_m;
 	u32			freq_n;
 	u32			delay_after_stop;
+	int			irq_disabled;
 	wait_queue_head_t	waitq;
 	spinlock_t		lock;
 	struct device		*dev;
@@ -268,6 +270,9 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 static void
 mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 {
+	dev_dbg(drv_data->dev,
+		"do_action:  state: 0x%x,  action: 0x%x\n",
+		drv_data->state, drv_data->action);
 	switch(drv_data->action) {
 	case MV64XXX_I2C_ACTION_CONTINUE:
 		writel(drv_data->cntl_bits,
@@ -277,6 +282,11 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 	case MV64XXX_I2C_ACTION_SEND_START:
 		writel(drv_data->cntl_bits | MV64XXX_I2C_REG_CONTROL_START,
 			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
+		if (drv_data->irq_disabled){
+			udelay(3);
+			drv_data->irq_disabled = 0;
+			enable_irq(drv_data->irq);
+		}
 		break;
 
 	case MV64XXX_I2C_ACTION_SEND_ADDR_1:
@@ -319,11 +329,11 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 		wake_up_interruptible(&drv_data->waitq);
 		break;
 	case MV64XXX_I2C_ACTION_NO_STOP:
-		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
-		writel(drv_data->cntl_bits,
-		       drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
-		readl(drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
-		udelay(100);
+		/* can't mask interrupts by clearing the INTEN as this 
+		 * triggers the controller to send the data.
+		 */
+		drv_data->irq_disabled = 1;
+		disable_irq_nosync(drv_data->irq);
 		drv_data->block = 0;
 		wake_up_interruptible(&drv_data->waitq);
 		break;
@@ -358,6 +368,9 @@ mv64xxx_i2c_intr(int irq, void *dev_id)
 	while (readl(drv_data->reg_base + MV64XXX_I2C_REG_CONTROL) &
 						MV64XXX_I2C_REG_CONTROL_IFLG) {
 		status = readl(drv_data->reg_base + MV64XXX_I2C_REG_STATUS);
+		dev_dbg(drv_data->dev,
+			"intr:  status: 0x%x, \n", status);
+
 		mv64xxx_i2c_fsm(drv_data, status);
 		mv64xxx_i2c_do_action(drv_data);
 		rc = IRQ_HANDLED;
@@ -500,6 +513,9 @@ mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 		if(num > 1 && (i != num-1))
                 {//if comebine access, we don't send stop signal between msgs.
 			drv_data->combine_access = 1;
+			dev_dbg(drv_data->dev,
+				"xfer:  combine_access\n");
+
                 }else{
 			drv_data->combine_access = 0;
                 }
@@ -597,6 +613,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 		rc = -ENXIO;
 		goto exit_unmap_regs;
 	}
+	drv_data->irq_disabled = 0;
 	drv_data->dev = &pd->dev;
 #ifndef CONFIG_I2C_MV64XXX_PORT_EXPANDER
 	strlcpy(drv_data->adapter->name, MV64XXX_I2C_CTLR_NAME " adapter",
@@ -694,6 +711,8 @@ mv64xxx_i2c_exp_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 		if(num > 1 && (i != num-1))
                 {//if comebine access, we don't send stop signal between msgs.
 			drv_data->combine_access = 1;
+			dev_dbg(drv_data->dev,
+				"xfer:  combine_access\n");
                 }else{
 			drv_data->combine_access = 0;
                 }
