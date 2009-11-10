@@ -649,6 +649,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 
 static struct dove_mpp_mode dove_db_tact_int_mpp_modes[] __initdata = {
 	{ 57, MPP_GPIO_AUDIO1 }, /* use this mpp for the tact irq line */
+	{ -1 },
 };
 
 static void dove_db_power_off(void)
