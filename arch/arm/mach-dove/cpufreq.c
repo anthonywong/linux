@@ -250,8 +250,11 @@ static int dove_cpufreq_cpu_init(struct cpufreq_policy *policy)
                         dove_freqs[DOVE_CPUFREQ_HIGH].frequency,
                         dove_freqs[DOVE_CPUFREQ_DDR].frequency);
 
-	/* FIXME: How to calibrate ? */
-	policy->cpuinfo.transition_latency = 10000; /* in nano seconds */
+	/* 
+	 * The voltage regulator needs ~60us to step up voltage depending on the
+	 * current consumption. So as to be on the safe side, 100us is used.
+	 */
+	policy->cpuinfo.transition_latency = 100000; /* in nano seconds */
 	policy->cur = cpuClk;
 
 	cpufreq_frequency_table_get_attr(dove_freqs, policy->cpu);
