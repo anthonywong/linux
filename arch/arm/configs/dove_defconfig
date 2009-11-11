@@ -1681,6 +1681,7 @@ CONFIG_BACKLIGHT_DOVE=y
 # Display device support
 #
 # CONFIG_DISPLAY_SUPPORT is not set
+CONFIG_CH7025_COMPOSITE=y
 
 #
 # Console display driver support
