@@ -662,16 +662,17 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 #ifdef CONFIG_CH7025_COMPOSITE
 	{
 		struct input_stream_info info;
+		if (strstr(fi->fix.id, "GFX Layer 0")) {
+			info.xres = var->xres;
+			info.yres = var->yres;
+			info.iformat = CH7025_RGB888;
+			info.oformat = CH7025_NTSC_M;
+			info.swap = CH7025_RGB_ORDER;
 
-		info.xres = var->xres;
-		info.yres = var->yres;
-		info.iformat = CH7025_RGB888;
-		info.oformat = CH7025_NTSC_M;
-		info.swap = CH7025_RGB_ORDER;
-
-		printk("video ch7025 enable.......\n");
-		ch7025_set_input_stream(&info);
-		ch7025_enable(1);
+			printk(KERN_INFO "video ch7025 enable.......\n");
+			ch7025_set_input_stream(&info);
+			ch7025_enable(1);
+		}
 	}
 #endif
 	return 0;
