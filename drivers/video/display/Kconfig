@@ -28,4 +28,10 @@ config CH7025_COMPOSITE
        The device is able to encode the video signals and generate
        synchronization signals SDTV format for NTSC and PAL standards.
 
+config KG2_ANX7150
+	tristate "KG2_ANX7150 support"
+	default y
+	help
+	  KG2/ANX7150 device driver support.
+
 endmenu
