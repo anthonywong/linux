@@ -1765,7 +1765,7 @@ void __init dove_init(void)
 		tauros2_init();
 #endif
 	dove_clk_config(NULL, "GCCLK", 500*1000000);
-	dove_clk_config(NULL, "AXICLK", 400*1000000);
+	dove_clk_config(NULL, "AXICLK", 333*1000000);
 
 #if 1
 	dove_ge00_shared_data.t_clk = tclk;
