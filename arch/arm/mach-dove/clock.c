@@ -295,22 +295,36 @@ static void __lcd_clk_disable(struct clk *clk)
 	return;
 }
 
+u32 axi_divider[] = {-1, 2, 1, 3, 4, 6, 5, 7, 8, 10, 9};
+
 static unsigned long axi_get_clock(struct clk *clk)
 {
 	u32 divider;
 	u32 c;
 
 	divider = dove_clocks_get_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 1, 6);
-	c = dove_clocks_divide(2000, divider);
+	c = 2000 / axi_divider[divider];
 
         return c * 1000000UL;
 }
 
 static int axi_set_clock(struct clk *clk, unsigned long rate)
 {
-	u32 divider;
+	u32 divider = 0, i;
 
-	divider = dove_clocks_divide(2000, rate/1000000);
+	for (i = 1; i < 11; i++) {
+		if ((2000/axi_divider[i]) == (rate/1000000)) {
+			divider = i;
+			break;
+		}
+	}
+
+	if (i == 11) {
+		printk(KERN_ERR "Unsupported AXI clock %lu\n",
+			 rate);
+
+		return -1;
+	}
 	printk(KERN_INFO "Setting axi clock to %lu (divider: %u)\n",
 		 rate, divider);
 	dove_clocks_set_axi_clock(divider);
