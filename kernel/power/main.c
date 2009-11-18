@@ -163,7 +163,6 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
   goto Exit;
 	}
 
-	return n; //TODO: Fix me
 #ifdef CONFIG_SUSPEND
 	for (s = &pm_states[state]; state < PM_SUSPEND_MAX; s++, state++) {
 		if (*s && len == strlen(*s) && !strncmp(buf, *s, len))
