@@ -46,6 +46,7 @@
 #include "socinfo.h"
 #include "msm-keypad-devices.h"
 #include "pm.h"
+#include <linux/smsc911x.h>
 
 #define TOUCHPAD_SUSPEND 	34
 #define TOUCHPAD_IRQ 		38
@@ -67,6 +68,33 @@
 #define MSM_PMEM_GPU0_SIZE	(MSM_SMI_SIZE - MSM_FB_SIZE - MSM_GPU_PHYS_SIZE)
 
 #define PMEM_KERNEL_EBI1_SIZE	(CONFIG_PMEM_KERNEL_SIZE * 1024 * 1024)
+
+static struct resource smsc911x_resources[] = {
+	[0] = {
+		.name	= "smsc911x-memory",
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct smsc911x_platform_config smsc911x_config = {
+	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
+	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
+	.flags		= SMSC911X_USE_16BIT,
+	.phy_interface	= PHY_INTERFACE_MODE_MII,
+};
+
+static struct platform_device smsc911x_device = {
+	.name           = "smsc911x",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(smsc911x_resources),
+	.resource       = smsc911x_resources,
+	.dev		= {
+		.platform_data		= &smsc911x_config,
+	},
+};
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -650,6 +678,63 @@ static struct mmc_platform_data qsd8x50_sdcc_data = {
 	.translate_vdd	= msm_sdcc_setup_power,
 };
 
+#define SMSC911X_ENET_CLK_EN_GPIO 33
+#define SMSC911X_IRQ_GPIO 156
+
+static int __init qsd8x50_cfg_smsc911x(void)
+{
+	int rc = 0;
+	u8 enet_clk_en_gpio = SMSC911X_ENET_CLK_EN_GPIO;
+	u8 irq_gpio = SMSC911X_IRQ_GPIO;
+
+	rc = gpio_request(enet_clk_en_gpio, "smsc911x_enet_clk_en");
+	if (rc) {
+		pr_err("Failed to request GPIO pin %d (rc=%d)\n",
+			enet_clk_en_gpio, rc);
+		goto err;
+	}
+
+	rc = gpio_request(irq_gpio, "smsc911x_irq");
+	if (rc) {
+		pr_err("Failed to request GPIO pin %d (rc=%d)\n",
+			irq_gpio, rc);
+		goto err;
+	}
+
+	smsc911x_resources[0].start = 0x70000000;
+	smsc911x_resources[0].end = 0x700002ff;
+	smsc911x_resources[1].start = MSM_GPIO_TO_INT(irq_gpio);
+	smsc911x_resources[1].end = MSM_GPIO_TO_INT(irq_gpio);
+
+	rc = gpio_tlmm_config(GPIO_CFG(irq_gpio, 0, GPIO_INPUT,
+					GPIO_PULL_UP, GPIO_2MA),
+					GPIO_ENABLE);
+	if (rc) {
+		printk(KERN_ERR "smsc911x: Could not configure IRQ gpio\n");
+		goto err;
+	}
+
+	gpio_direction_output(irq_gpio, 1);
+	gpio_direction_input(irq_gpio);
+
+	rc = gpio_tlmm_config(GPIO_CFG(enet_clk_en_gpio, 0, GPIO_OUTPUT,
+					GPIO_PULL_UP, GPIO_16MA),
+					GPIO_ENABLE);
+	if (rc) {
+		printk(KERN_ERR
+			"smsc911x: Could not configure ENET_CLK_EN gpio\n");
+		goto err;
+	}
+
+	gpio_direction_output(enet_clk_en_gpio, 1);
+
+	platform_device_register(&smsc911x_device);
+err:
+	gpio_free(enet_clk_en_gpio);
+	gpio_free(irq_gpio);
+	return -ENODEV;
+}
+
 static void __init qsd8x50_cfg_smc91x(void)
 {
 	int rc = 0;
@@ -775,7 +860,10 @@ static void __init qsd8x50_init(void)
 	if (socinfo_init() < 0)
 		printk(KERN_ERR "%s: socinfo_init() failed!\n",
 		       __func__);
-	qsd8x50_cfg_smc91x();
+	if (machine_is_qsd8x50_st1())
+		qsd8x50_cfg_smsc911x();
+	else
+		qsd8x50_cfg_smc91x();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gp6_init();
 	msm_fb_add_devices();
