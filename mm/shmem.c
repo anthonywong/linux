@@ -2614,7 +2614,7 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
  * @size: size to be set for the file
  * @flags: VM_NORESERVE suppresses pre-accounting of the entire object size
  */
-struct file *shmem_file_setup(const char *name, loff_t size, unsigned long flags)
+struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags)
 {
 	int error;
 	struct file *file;
@@ -2699,7 +2699,6 @@ int shmem_zero_setup(struct vm_area_struct *vma)
 		fput(vma->vm_file);
 	vma->vm_file = file;
 	vma->vm_ops = &shmem_vm_ops;
-	ima_shm_check(file);
 	shmem_set_file(vma, file);
 	return 0;
 }
