@@ -281,6 +281,7 @@ static void suspend(struct work_struct *work)
 	sys_sync();
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("suspend: enter suspend\n");
+        return; //FIXME: suspend does not work right now.
 	ret = pm_suspend(requested_suspend_state);
 	if (debug_mask & DEBUG_EXIT_SUSPEND) {
 		struct timespec ts;
