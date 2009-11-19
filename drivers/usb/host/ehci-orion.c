@@ -173,7 +173,7 @@ static void orion_usb_phy_v2_setup(struct usb_hcd *hcd)
 	 * USB PHY IVREF Control
 	 * TXVDD12[9:8]=0x3
 	 */
-	wrl(USB_PHY_IVREF_CTRL, rdl(USB_PHY_IVREF_CTRL) | 0x3);
+	wrl(USB_PHY_IVREF_CTRL, rdl(USB_PHY_IVREF_CTRL) | (0x3 << 8));
 
 
 	/*
