@@ -236,6 +236,8 @@ struct kgsl_sharedmem_free {
 
 #define IOCTL_KGSL_SHAREDMEM_FREE \
 	_IOW(KGSL_IOC_TYPE, 0x21, struct kgsl_sharedmem_free)
+
+
 struct kgsl_gmem_desc {
 	unsigned int x;
 	unsigned int y;
