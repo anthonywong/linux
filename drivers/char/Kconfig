@@ -1132,6 +1132,11 @@ config MSM_KGSL_DRM
 	bool "Build a DRM interface for the MSM_KGSL driver"
 	depends on MSM_KGSL && DRM
 
+config MSM_KGSL_MMU
+        bool "Enable the GPU MMU in the MSM_KGSL driver"
+        depends on MSM_KGSL && MMU
+        default n
+
 source "drivers/s390/char/Kconfig"
 
 config MSM_Q6VDEC
