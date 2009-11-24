@@ -167,6 +167,24 @@ int i;
     ANX7150_i2c_write_p0_reg(0x11, 0x00);//ALex: must be 0x00
     ANX7150_i2c_write_p0_reg(0x12, 0x3c);
 
+// Config Audio
+//Single tone
+/*
+            ANX7150_i2c_write_p1_reg(ANX7150_ACR_N1_SW_REG, 0x00);
+            ANX7150_i2c_write_p1_reg(ANX7150_ACR_N2_SW_REG, 0x18);
+            ANX7150_i2c_write_p1_reg(ANX7150_ACR_N3_SW_REG, 0x00);
+            //Enable control of ACR
+            ANX7150_i2c_write_p1_reg(ANX7150_INFO_PKTCTRL1_REG, 0x01);
+            //audio enable: 
+            ANX7150_i2c_write_p0_reg(ANX7150_HDMI_AUDCTRL1_REG, 0x81);
+            ANX7150_i2c_write_p0_reg(ANX7150_HDMI_AUDCTRL0_REG, 0x01);
+            ANX7150_i2c_write_p0_reg(ANX7150_HDMI_AUDBIST_CTRL_REG, 0xCF);
+*/
+//pass through
+            ANX7150_i2c_write_p0_reg(ANX7150_HDMI_AUDCTRL0_REG, 0x01);
+            ANX7150_i2c_write_p0_reg(ANX7150_HDMI_AUDCTRL1_REG, 0xC1);
+            ANX7150_i2c_write_p0_reg(ANX7150_SPDIFCH_STATUS_REG, 0x00);//0x55, 0xXY
+
 }
 
 int BIST(void)
