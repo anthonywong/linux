@@ -25,11 +25,11 @@
                                                                 //0x01:use falling edge to latch even numbered pixel data 
 
 //select audio hardware interface
-#define ANX7150_AUD_HW_INTERFACE 0x01//0x01:audio input comes from I2S
+#define ANX7150_AUD_HW_INTERFACE 0x02//0x01:audio input comes from I2S
                                                                   //0x02:audio input comes from SPDIF
                                                                   //0x04:audio input comes from one bit audio
 //select MCLK and Fs relationship if audio HW interface is I2S
-#define ANX7150_MCLK_Fs_RELATION 0x00//0x00:MCLK = 128 * Fs
+#define ANX7150_MCLK_Fs_RELATION 0x01//0x00:MCLK = 128 * Fs
                                                                 //0x01:MCLK = 256 * Fs
                                                                 //0x02:MCLK = 384 * Fs
                                                                 //0x03:MCLK = 512 * Fs			//wen updated error
