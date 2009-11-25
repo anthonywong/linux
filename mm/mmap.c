@@ -1890,8 +1890,10 @@ static void unmap_region(struct mm_struct *mm,
 
 static inline void unmap_vma(struct vm_area_struct *vma)
 {
+#ifdef CONFIG_XEN
 	if (unlikely(vma->vm_ops && vma->vm_ops->unmap))
 		vma->vm_ops->unmap(vma);
+#endif
 }
 
 /*
@@ -2208,8 +2210,10 @@ void exit_mmap(struct mm_struct *mm)
 
 	arch_exit_mmap(mm);
 
+#ifdef CONFIG_XEN
 	for (vma = mm->mmap; vma; vma = vma->vm_next)
 		unmap_vma(vma);
+#endif
 
 	vma = mm->mmap;
 	if (!vma)	/* Can happen if dup_mmap() received an OOM */
