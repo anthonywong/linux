@@ -62,12 +62,6 @@ extern void mm_pin(struct mm_struct *mm);
 extern void mm_unpin(struct mm_struct *mm);
 void mm_pin_all(void);
 
-static inline void load_cr3(pgd_t *pgd)
-{
-	asm volatile("movq %0,%%cr3" :: "r" (phys_to_machine(__pa(pgd))) :
-		     "memory");
-}
-
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
 			     struct task_struct *tsk)
 {
@@ -97,7 +91,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		op++;
 		
 		if (unlikely(next->context.ldt != prev->context.ldt)) {
-			/* load_LDT_nolock(&next->context, cpu) */
+			/* load_LDT_nolock(&next->context) */
 			op->cmd = MMUEXT_SET_LDT;
 			op->arg1.linear_addr = (unsigned long)next->context.ldt;
 			op->arg2.nr_ents     = next->context.size;
@@ -110,7 +104,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	else {
 		write_pda(mmu_state, TLBSTATE_OK);
 		if (read_pda(active_mm) != next)
-			out_of_line_bug();
+			BUG();
 		if (!cpu_test_and_set(cpu, next->cpu_vm_mask)) {
 			/* We were in lazy tlb mode and leave_mm disabled 
 			 * tlb flush IPI delivery. We must reload CR3
@@ -118,7 +112,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			 */
                         load_cr3(next->pgd);
                         xen_new_user_pt(__pa(__user_pgd(next->pgd)));		
-			load_LDT_nolock(&next->context, cpu);
+			load_LDT_nolock(&next->context);
 		}
 	}
 #endif
