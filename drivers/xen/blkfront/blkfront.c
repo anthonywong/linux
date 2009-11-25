@@ -119,12 +119,12 @@ static int blkfront_probe(struct xenbus_device *dev,
 
 	/* Front end dir is a number, which is used as the id. */
 	info->handle = simple_strtoul(strrchr(dev->nodename,'/')+1, NULL, 0);
-	dev->dev.driver_data = info;
+	dev_set_drvdata(&dev->dev, info);
 
 	err = talk_to_backend(dev, info);
 	if (err) {
 		kfree(info);
-		dev->dev.driver_data = NULL;
+		dev_set_drvdata(&dev->dev, NULL);
 		return err;
 	}
 
@@ -140,7 +140,7 @@ static int blkfront_probe(struct xenbus_device *dev,
  */
 static int blkfront_resume(struct xenbus_device *dev)
 {
-	struct blkfront_info *info = dev->dev.driver_data;
+	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 	int err;
 
 	DPRINTK("blkfront_resume: %s\n", dev->nodename);
@@ -265,7 +265,7 @@ fail:
 static void backend_changed(struct xenbus_device *dev,
 			    enum xenbus_state backend_state)
 {
-	struct blkfront_info *info = dev->dev.driver_data;
+	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 	struct block_device *bd;
 
 	DPRINTK("blkfront:backend_changed.\n");
@@ -387,7 +387,7 @@ static void connect(struct blkfront_info *info)
  */
 static void blkfront_closing(struct xenbus_device *dev)
 {
-	struct blkfront_info *info = dev->dev.driver_data;
+	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 	unsigned long flags;
 
 	DPRINTK("blkfront_closing: %s removed\n", dev->nodename);
@@ -416,7 +416,7 @@ static void blkfront_closing(struct xenbus_device *dev)
 
 static int blkfront_remove(struct xenbus_device *dev)
 {
-	struct blkfront_info *info = dev->dev.driver_data;
+	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 
 	DPRINTK("blkfront_remove: %s removed\n", dev->nodename);
 
@@ -638,7 +638,7 @@ static int blkif_queue_request(struct request *req)
 	info->shadow[id].request = (unsigned long)req;
 
 	ring_req->id = id;
-	ring_req->sector_number = (blkif_sector_t)req->sector;
+	ring_req->sector_number = (blkif_sector_t)blk_rq_pos(req);
 	ring_req->handle = info->handle;
 
 	ring_req->operation = rq_data_dir(req) ?
@@ -694,25 +694,25 @@ void do_blkif_request(struct request_queue *rq)
 
 	queued = 0;
 
-	while ((req = elv_next_request(rq)) != NULL) {
+	while ((req = blk_peek_request(rq)) != NULL) {
 		info = req->rq_disk->private_data;
-		if (!blk_fs_request(req)) {
-			end_request(req, 0);
-			continue;
-		}
 
 		if (RING_FULL(&info->ring))
 			goto wait;
 
+		blk_start_request(req);
+
+		if (!blk_fs_request(req)) {
+			__blk_end_request_all(req, -EIO);
+			continue;
+		}
+
 		DPRINTK("do_blk_req %p: cmd %p, sec %llx, "
-			"(%u/%li) buffer:%p [%s]\n",
-			req, req->cmd, (long long)req->sector,
-			req->current_nr_sectors,
-			req->nr_sectors, req->buffer,
-			rq_data_dir(req) ? "write" : "read");
+			"(%u/%u) buffer:%p [%s]\n",
+			req, req->cmd, (long long)blk_rq_pos(req),
+			blk_rq_cur_sectors(req), blk_rq_sectors(req),
+			req->buffer, rq_data_dir(req) ? "write" : "read");
 
-
-		blkdev_dequeue_request(req);
 		if (blkif_queue_request(req)) {
 			blk_requeue_request(rq, req);
 		wait:
@@ -777,8 +777,7 @@ static irqreturn_t blkif_int(int irq, void *dev_id)
 				DPRINTK("Bad return from blkdev data "
 					"request: %x\n", bret->status);
 
-			ret = __blk_end_request(req, ret, blk_rq_bytes(req));
-			BUG_ON(ret);
+			__blk_end_request_all(req, ret);
 			break;
 		default:
 			BUG();
@@ -904,7 +903,7 @@ static void blkif_recover(struct blkfront_info *info)
 
 int blkfront_is_ready(struct xenbus_device *dev)
 {
-	struct blkfront_info *info = dev->dev.driver_data;
+	struct blkfront_info *info = dev_get_drvdata(&dev->dev);
 
 	return info->is_ready;
 }
