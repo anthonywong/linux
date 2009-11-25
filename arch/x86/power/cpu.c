@@ -128,7 +128,6 @@ static void do_fpu_end(void)
 
 static void fix_processor_context(void)
 {
-#ifndef CONFIG_X86_NO_TSS
 	int cpu = smp_processor_id();
 	struct tss_struct *t = &per_cpu(init_tss, cpu);
 
@@ -141,10 +140,7 @@ static void fix_processor_context(void)
 
 #ifdef CONFIG_X86_64
 	get_cpu_gdt_table(cpu)[GDT_ENTRY_TSS].type = 9;
-#endif
-#endif
 
-#ifdef CONFIG_X86_64
 	syscall_init();				/* This sets MSR_*STAR and related */
 #endif
 	load_TR_desc();				/* This does ltr */
