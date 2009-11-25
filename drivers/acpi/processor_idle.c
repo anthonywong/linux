@@ -438,7 +438,8 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 				 */
 				cx.entry_method = ACPI_CSTATE_HALT;
 				snprintf(cx.desc, ACPI_CX_DESC_LEN, "ACPI HLT");
-			} else {
+			/* This doesn't apply to external control case */
+			} else if (!processor_pm_external()) {
 				continue;
 			}
 			if (cx.type == ACPI_STATE_C1 &&
@@ -476,6 +477,12 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 			continue;
 
 		cx.power = obj->integer.value;
+
+#ifdef CONFIG_PROCESSOR_EXTERNAL_CONTROL
+		/* cache control methods to notify external logic */
+		if (processor_pm_external())
+			memcpy(&cx.reg, reg, sizeof(*reg));
+#endif
 
 		current_count++;
 		memcpy(&(pr->power.states[current_count]), &cx, sizeof(cx));
@@ -1236,6 +1243,11 @@ int __cpuinit acpi_processor_power_init(struct acpi_processor *pr,
 	if (!entry)
 		return -EIO;
 #endif
+
+	if (processor_pm_external())
+		processor_notify_external(pr,
+			PROCESSOR_PM_INIT, PM_TYPE_IDLE);
+
 	return 0;
 }
 
