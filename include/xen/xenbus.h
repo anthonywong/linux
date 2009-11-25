@@ -322,7 +322,9 @@ void xenbus_dev_error(struct xenbus_device *dev, int err, const char *fmt,
 void xenbus_dev_fatal(struct xenbus_device *dev, int err, const char *fmt,
 		      ...);
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 int xenbus_dev_init(void);
+#endif
 
 const char *xenbus_strstate(enum xenbus_state state);
 int xenbus_dev_is_online(struct xenbus_device *dev);

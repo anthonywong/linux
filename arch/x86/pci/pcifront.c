@@ -8,8 +8,8 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <asm/acpi.h>
+#include <asm/pci_x86.h>
 #include <xen/evtchn.h>
-#include "pci.h"
 
 static int pcifront_enable_irq(struct pci_dev *dev)
 {
