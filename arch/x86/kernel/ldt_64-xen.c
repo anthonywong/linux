@@ -114,6 +114,8 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	memset(&mm->context, 0, sizeof(mm->context));
 	init_MUTEX(&mm->context.sem);
 	old_mm = current->mm;
+	if (old_mm)
+		mm->context.vdso = old_mm->context.vdso;
 	if (old_mm && old_mm->context.size > 0) {
 		down(&old_mm->context.sem);
 		retval = copy_ldt(&mm->context, &old_mm->context);
@@ -146,7 +148,7 @@ void destroy_context(struct mm_struct *mm)
 			kfree(mm->context.ldt);
 		mm->context.size = 0;
 	}
-	if (!mm->context.pinned) {
+	if (!PagePinned(virt_to_page(mm->pgd))) {
 		spin_lock(&mm_unpinned_lock);
 		list_del(&mm->context.unpinned);
 		spin_unlock(&mm_unpinned_lock);

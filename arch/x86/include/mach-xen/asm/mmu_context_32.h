@@ -16,7 +16,7 @@ void mm_pin_all(void);
 static inline void xen_activate_mm(struct mm_struct *prev,
 				   struct mm_struct *next)
 {
-	if (!test_bit(PG_pinned, &virt_to_page(next->pgd)->flags))
+	if (!PagePinned(virt_to_page(next->pgd)))
 		mm_pin(next);
 }
 
@@ -51,6 +51,8 @@ static inline void __prepare_arch_switch(void)
 		: : "r" (0) );
 }
 
+void leave_mm(unsigned long cpu);
+
 static inline void switch_mm(struct mm_struct *prev,
 			     struct mm_struct *next,
 			     struct task_struct *tsk)
@@ -60,7 +62,7 @@ static inline void switch_mm(struct mm_struct *prev,
 
 	if (likely(prev != next)) {
 		BUG_ON(!xen_feature(XENFEAT_writable_page_tables) &&
-		       !test_bit(PG_pinned, &virt_to_page(next->pgd)->flags));
+		       !PagePinned(virt_to_page(next->pgd)));
 
 		/* stop flush ipis for the previous mm */
 		cpu_clear(cpu, prev->cpu_vm_mask);

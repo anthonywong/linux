@@ -26,9 +26,6 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 
-/* Is this pagetable pinned? */
-#define PG_pinned	PG_arch_1
-
 struct vm_area_struct;
 
 /*
@@ -82,7 +79,7 @@ void paging_init(void);
  * area for the same reason. ;)
  */
 #define VMALLOC_OFFSET	(8*1024*1024)
-#define VMALLOC_START	(((unsigned long) high_memory + vmalloc_earlyreserve + \
+#define VMALLOC_START	(((unsigned long) high_memory + \
 			2*VMALLOC_OFFSET-1) & ~(VMALLOC_OFFSET-1))
 #ifdef CONFIG_HIGHMEM
 # define VMALLOC_END	(PKMAP_BASE-2*PAGE_SIZE)
@@ -231,8 +228,6 @@ extern unsigned long pg0[];
  * The following only work if pte_present() is true.
  * Undefined behaviour if not..
  */
-static inline int pte_user(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
-static inline int pte_read(pte_t pte)		{ return (pte).pte_low & _PAGE_USER; }
 static inline int pte_dirty(pte_t pte)		{ return (pte).pte_low & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return (pte).pte_low & _PAGE_ACCESSED; }
 static inline int pte_write(pte_t pte)		{ return (pte).pte_low & _PAGE_RW; }
@@ -243,13 +238,9 @@ static inline int pte_huge(pte_t pte)		{ return (pte).pte_low & _PAGE_PSE; }
  */
 static inline int pte_file(pte_t pte)		{ return (pte).pte_low & _PAGE_FILE; }
 
-static inline pte_t pte_rdprotect(pte_t pte)	{ (pte).pte_low &= ~_PAGE_USER; return pte; }
-static inline pte_t pte_exprotect(pte_t pte)	{ (pte).pte_low &= ~_PAGE_USER; return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ (pte).pte_low &= ~_PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkold(pte_t pte)	{ (pte).pte_low &= ~_PAGE_ACCESSED; return pte; }
 static inline pte_t pte_wrprotect(pte_t pte)	{ (pte).pte_low &= ~_PAGE_RW; return pte; }
-static inline pte_t pte_mkread(pte_t pte)	{ (pte).pte_low |= _PAGE_USER; return pte; }
-static inline pte_t pte_mkexec(pte_t pte)	{ (pte).pte_low |= _PAGE_USER; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ (pte).pte_low |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ (pte).pte_low |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |= _PAGE_RW; return pte; }
@@ -295,20 +286,18 @@ static inline pte_t xen_local_ptep_get_and_clear(pte_t *ptep, pte_t res)
 #define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
 ({									\
 	int __changed = !pte_same(*(ptep), entry);			\
-	if (__changed && (dirty))					\
-		ptep_establish(vma, address, ptep, entry);		\
+	if (__changed && (dirty)) {					\
+		if ( likely((vma)->vm_mm == current->mm) ) {		\
+			BUG_ON(HYPERVISOR_update_va_mapping(address,	\
+				entry,					\
+				(unsigned long)(vma)->vm_mm->cpu_vm_mask.bits| \
+					UVMF_INVLPG|UVMF_MULTI));	\
+		} else {						\
+			xen_l1_entry_update(ptep, entry);		\
+			flush_tlb_page(vma, address);			\
+		}							\
+	}								\
 	__changed;							\
-})
-
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-#define ptep_test_and_clear_dirty(vma, addr, ptep) ({			\
-	int __ret = 0;							\
-	if (pte_dirty(*(ptep)))						\
-		__ret = test_and_clear_bit(_PAGE_BIT_DIRTY,		\
-						&(ptep)->pte_low);	\
-	if (__ret)							\
-		pte_update((vma)->vm_mm, addr, ptep);			\
-	__ret;								\
 })
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
@@ -322,44 +311,13 @@ static inline pte_t xen_local_ptep_get_and_clear(pte_t *ptep, pte_t res)
 	__ret;								\
 })
 
-/*
- * Rules for using ptep_establish: the pte MUST be a user pte, and
- * must be a present->present transition.
- */
-#define __HAVE_ARCH_PTEP_ESTABLISH
-#define ptep_establish(vma, address, ptep, pteval)			\
-do {									\
-	if ( likely((vma)->vm_mm == current->mm) ) {			\
-		BUG_ON(HYPERVISOR_update_va_mapping(address,		\
-			pteval,						\
-			(unsigned long)(vma)->vm_mm->cpu_vm_mask.bits|	\
-				UVMF_INVLPG|UVMF_MULTI));		\
-	} else {							\
-		xen_l1_entry_update(ptep, pteval);			\
-		flush_tlb_page(vma, address);				\
-	}								\
-} while (0)
-
-#define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
-#define ptep_clear_flush_dirty(vma, address, ptep)			\
-({									\
-	pte_t __pte = *(ptep);						\
-	int __dirty = pte_dirty(__pte);					\
-	__pte = pte_mkclean(__pte);					\
-	if (test_bit(PG_pinned, &virt_to_page((vma)->vm_mm->pgd)->flags)) \
-		(void)ptep_set_access_flags(vma, address, ptep, __pte, __dirty); \
-	else if (__dirty)						\
-		(ptep)->pte_low = __pte.pte_low;			\
-	__dirty;							\
-})
-
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
 #define ptep_clear_flush_young(vma, address, ptep)			\
 ({									\
 	pte_t __pte = *(ptep);						\
 	int __young = pte_young(__pte);					\
 	__pte = pte_mkold(__pte);					\
-	if (test_bit(PG_pinned, &virt_to_page((vma)->vm_mm->pgd)->flags)) \
+	if (PagePinned(virt_to_page((vma)->vm_mm->pgd)))		\
 		(void)ptep_set_access_flags(vma, address, ptep, __pte, __young); \
 	else if (__young)						\
 		(ptep)->pte_low = __pte.pte_low;			\
@@ -383,7 +341,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 #define ptep_get_and_clear_full(mm, addr, ptep, full)			\
 	((full) ? ({							\
 		pte_t __res = *(ptep);					\
-		if (test_bit(PG_pinned, &virt_to_page((mm)->pgd)->flags)) \
+		if (PagePinned(virt_to_page((mm)->pgd)))		\
 			xen_l1_entry_update(ptep, __pte(0));		\
 		else							\
 			*(ptep) = __pte(0);				\
