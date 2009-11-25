@@ -40,6 +40,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include <linux/list.h>
 #include <asm/hypervisor.h>
 #include "common.h"
