@@ -104,7 +104,9 @@ int bind_ipi_to_irqhandler(
  */
 void unbind_from_irqhandler(unsigned int irq, void *dev_id);
 
+#ifndef CONFIG_XEN
 void irq_resume(void);
+#endif
 
 /* Entry point for notifications into Linux subsystems. */
 asmlinkage void evtchn_do_upcall(struct pt_regs *regs);
