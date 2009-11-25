@@ -80,8 +80,12 @@ VM_MASK		= 0x00020000
 NMI_MASK	= 0x80000000
 
 #ifndef CONFIG_XEN
-#define DISABLE_INTERRUPTS	cli
-#define ENABLE_INTERRUPTS	sti
+/* These are replaces for paravirtualization */
+#define DISABLE_INTERRUPTS		cli
+#define ENABLE_INTERRUPTS		sti
+#define ENABLE_INTERRUPTS_SYSEXIT	sti; sysexit
+#define INTERRUPT_RETURN		iret
+#define GET_CR0_INTO_EAX		movl %cr0, %eax
 #else
 /* Offsets into shared_info_t. */
 #define evtchn_upcall_pending		/* 0 */
@@ -99,15 +103,29 @@ NMI_MASK	= 0x80000000
 
 #define __DISABLE_INTERRUPTS	movb $1,evtchn_upcall_mask(%esi)
 #define __ENABLE_INTERRUPTS	movb $0,evtchn_upcall_mask(%esi)
+#define __TEST_PENDING		testb $0xFF,evtchn_upcall_pending(%esi)
 #define DISABLE_INTERRUPTS	GET_VCPU_INFO				; \
 				__DISABLE_INTERRUPTS
 #define ENABLE_INTERRUPTS	GET_VCPU_INFO				; \
 				__ENABLE_INTERRUPTS
-#define __TEST_PENDING		testb $0xFF,evtchn_upcall_pending(%esi)
+#define ENABLE_INTERRUPTS_SYSEXIT __ENABLE_INTERRUPTS			; \
+sysexit_scrit:	/**** START OF SYSEXIT CRITICAL REGION ****/		; \
+	__TEST_PENDING							; \
+	jnz  14f		# process more events if necessary...	; \
+	movl ESI(%esp), %esi						; \
+	sysexit								; \
+14:	__DISABLE_INTERRUPTS						; \
+	TRACE_IRQS_OFF							; \
+sysexit_ecrit:	/**** END OF SYSEXIT CRITICAL REGION ****/		; \
+	push %esp							; \
+	call evtchn_do_upcall						; \
+	add  $4,%esp							; \
+	jmp  ret_from_intr
+#define INTERRUPT_RETURN	iret
 #endif
 
 #ifdef CONFIG_PREEMPT
-#define preempt_stop		cli; TRACE_IRQS_OFF
+#define preempt_stop		DISABLE_INTERRUPTS; TRACE_IRQS_OFF
 #else
 #define preempt_stop
 #define resume_kernel		restore_nocheck
@@ -206,18 +224,21 @@ NMI_MASK	= 0x80000000
 
 #define RING0_INT_FRAME \
 	CFI_STARTPROC simple;\
+	CFI_SIGNAL_FRAME;\
 	CFI_DEF_CFA esp, 3*4;\
 	/*CFI_OFFSET cs, -2*4;*/\
 	CFI_OFFSET eip, -3*4
 
 #define RING0_EC_FRAME \
 	CFI_STARTPROC simple;\
+	CFI_SIGNAL_FRAME;\
 	CFI_DEF_CFA esp, 4*4;\
 	/*CFI_OFFSET cs, -2*4;*/\
 	CFI_OFFSET eip, -3*4
 
 #define RING0_PTREGS_FRAME \
 	CFI_STARTPROC simple;\
+	CFI_SIGNAL_FRAME;\
 	CFI_DEF_CFA esp, OLDESP-EBX;\
 	/*CFI_OFFSET cs, CS-OLDESP;*/\
 	CFI_OFFSET eip, EIP-OLDESP;\
@@ -263,8 +284,9 @@ ret_from_intr:
 check_userspace:
 	movl EFLAGS(%esp), %eax		# mix EFLAGS and CS
 	movb CS(%esp), %al
-	testl $(VM_MASK | 2), %eax
-	jz resume_kernel
+	andl $(VM_MASK | SEGMENT_RPL_MASK), %eax
+	cmpl $USER_RPL, %eax
+	jb resume_kernel		# not returning to v8086 or userspace
 ENTRY(resume_userspace)
 	DISABLE_INTERRUPTS		# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
@@ -277,7 +299,7 @@ ENTRY(resume_userspace)
 
 #ifdef CONFIG_PREEMPT
 ENTRY(resume_kernel)
-	cli
+	DISABLE_INTERRUPTS
 	cmpl $0,TI_preempt_count(%ebp)	# non-zero preempt_count ?
 	jnz restore_nocheck
 need_resched:
@@ -297,6 +319,7 @@ need_resched:
 	# sysenter call handler stub
 ENTRY(sysenter_entry)
 	CFI_STARTPROC simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA esp, 0
 	CFI_REGISTER esp, ebp
 	movl SYSENTER_stack_esp0(%esp),%esp
@@ -305,7 +328,7 @@ sysenter_past_esp:
 	 * No need to follow this irqs on/off section: the syscall
 	 * disabled irqs and here we enable it straight after entry:
 	 */
-	sti
+	ENABLE_INTERRUPTS
 	pushl $(__USER_DS)
 	CFI_ADJUST_CFA_OFFSET 4
 	/*CFI_REL_OFFSET ss, 0*/
@@ -359,26 +382,8 @@ sysenter_past_esp:
 	movl EIP(%esp), %edx
 	movl OLDESP(%esp), %ecx
 	xorl %ebp,%ebp
-#ifdef CONFIG_XEN
 	TRACE_IRQS_ON
-	__ENABLE_INTERRUPTS
-sysexit_scrit:	/**** START OF SYSEXIT CRITICAL REGION ****/
-	__TEST_PENDING
-	jnz  14f			# process more events if necessary...
-	movl ESI(%esp), %esi
-	sysexit
-14:	__DISABLE_INTERRUPTS
-	TRACE_IRQS_OFF
-sysexit_ecrit:	/**** END OF SYSEXIT CRITICAL REGION ****/
-	push %esp
-	call evtchn_do_upcall
-	add  $4,%esp
-	jmp  ret_from_intr
-#else
-	TRACE_IRQS_ON
-	sti
-	sysexit
-#endif /* !CONFIG_XEN */
+	ENABLE_INTERRUPTS_SYSEXIT
 	CFI_ENDPROC
 
 	# pv sysenter call handler stub
@@ -444,8 +449,8 @@ restore_all:
 	# See comments in process.c:copy_thread() for details.
 	movb OLDSS(%esp), %ah
 	movb CS(%esp), %al
-	andl $(VM_MASK | (4 << 8) | 3), %eax
-	cmpl $((4 << 8) | 3), %eax
+	andl $(VM_MASK | (SEGMENT_TI_MASK << 8) | SEGMENT_RPL_MASK), %eax
+	cmpl $((SEGMENT_LDT << 8) | USER_RPL), %eax
 	CFI_REMEMBER_STATE
 	je ldt_ss			# returning to user-space with LDT SS
 restore_nocheck:
@@ -467,12 +472,11 @@ restore_nocheck_notrace:
 	RESTORE_REGS
 	addl $4, %esp
 	CFI_ADJUST_CFA_OFFSET -4
-1:	iret
+1:	INTERRUPT_RETURN
 .section .fixup,"ax"
 iret_exc:
 #ifndef CONFIG_XEN
-	TRACE_IRQS_ON
-	sti
+	ENABLE_INTERRUPTS
 #endif
 	pushl $0			# no error code
 	pushl $do_iret_error
@@ -498,7 +502,7 @@ ldt_ss:
 	 * dosemu and wine happy. */
 	subl $8, %esp		# reserve space for switch16 pointer
 	CFI_ADJUST_CFA_OFFSET 8
-	cli
+	DISABLE_INTERRUPTS
 	TRACE_IRQS_OFF
 	movl %esp, %eax
 	/* Set up the 16bit stack frame with switch32 pointer on top,
@@ -508,7 +512,7 @@ ldt_ss:
 	TRACE_IRQS_IRET
 	RESTORE_REGS
 	lss 20+4(%esp), %esp	# switch to 16bit stack
-1:	iret
+1:	INTERRUPT_RETURN
 .section __ex_table,"a"
 	.align 4
 	.long 1b,iret_exc
@@ -524,7 +528,7 @@ scrit:	/**** START OF CRITICAL REGION ****/
 	RESTORE_REGS
 	addl $4, %esp
 	CFI_ADJUST_CFA_OFFSET -4
-1:	iret
+1:	INTERRUPT_RETURN
 .section __ex_table,"a"
 	.align 4
 	.long 1b,iret_exc
@@ -713,11 +717,9 @@ ENTRY(name)				\
 #define UNWIND_ESPFIX_STACK
 #endif
 
-ENTRY(divide_error)
-	RING0_INT_FRAME
-	pushl $0			# no error code
-	CFI_ADJUST_CFA_OFFSET 4
-	pushl $do_divide_error
+KPROBE_ENTRY(page_fault)
+	RING0_EC_FRAME
+	pushl $do_page_fault
 	CFI_ADJUST_CFA_OFFSET 4
 	ALIGN
 error_code:
@@ -767,6 +769,7 @@ error_code:
 	call *%edi
 	jmp ret_from_exception
 	CFI_ENDPROC
+KPROBE_END(page_fault)
 
 #ifdef CONFIG_XEN
 # A note on the "critical region" in our callback handler.
@@ -790,9 +793,11 @@ ENTRY(hypervisor_callback)
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
-	testb $2,CS(%esp)
+	movl CS(%esp),%ecx
 	movl EIP(%esp),%eax
-	jnz  .Ldo_upcall
+	andl $SEGMENT_RPL_MASK,%ecx
+	cmpl $USER_RPL,%ecx
+	jae  .Ldo_upcall
 	cmpl $scrit,%eax
 	jb   0f
 	cmpl $ecrit,%eax
@@ -928,7 +933,7 @@ ENTRY(device_not_available)
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
 #ifndef CONFIG_XEN
-	movl %cr0, %eax
+	GET_CR0_INTO_EAX
 	testl $0x4, %eax		# EM (math emulation bit)
 	je device_available_emulate
 	pushl $0			# temporary storage for ORIG_EIP
@@ -963,9 +968,15 @@ device_available_emulate:
 	jne ok;					\
 label:						\
 	movl SYSENTER_stack_esp0+offset(%esp),%esp;	\
+	CFI_DEF_CFA esp, 0;			\
+	CFI_UNDEFINED eip;			\
 	pushfl;					\
+	CFI_ADJUST_CFA_OFFSET 4;		\
 	pushl $__KERNEL_CS;			\
-	pushl $sysenter_past_esp
+	CFI_ADJUST_CFA_OFFSET 4;		\
+	pushl $sysenter_past_esp;		\
+	CFI_ADJUST_CFA_OFFSET 4;		\
+	CFI_REL_OFFSET eip, 0
 #endif /* CONFIG_XEN */
 
 KPROBE_ENTRY(debug)
@@ -984,7 +995,8 @@ debug_stack_correct:
 	call do_debug
 	jmp ret_from_exception
 	CFI_ENDPROC
-	.previous .text
+KPROBE_END(debug)
+
 #ifndef CONFIG_XEN
 /*
  * NMI is doubly nasty. It can happen _while_ we're handling
@@ -994,7 +1006,7 @@ debug_stack_correct:
  * check whether we got an NMI on the debug path where the debug
  * fault happened on the sysenter path.
  */
-ENTRY(nmi)
+KPROBE_ENTRY(nmi)
 	RING0_INT_FRAME
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
@@ -1019,6 +1031,7 @@ ENTRY(nmi)
 	cmpl $sysenter_entry,12(%esp)
 	je nmi_debug_stack_check
 nmi_stack_correct:
+	/* We have a RING0_INT_FRAME here */
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
@@ -1029,9 +1042,12 @@ nmi_stack_correct:
 	CFI_ENDPROC
 
 nmi_stack_fixup:
+	RING0_INT_FRAME
 	FIX_STACK(12,nmi_stack_correct, 1)
 	jmp nmi_stack_correct
+
 nmi_debug_stack_check:
+	/* We have a RING0_INT_FRAME here */
 	cmpw $__KERNEL_CS,16(%esp)
 	jne nmi_stack_correct
 	cmpl $debug,(%esp)
@@ -1042,8 +1058,10 @@ nmi_debug_stack_check:
 	jmp nmi_stack_correct
 
 nmi_16bit_stack:
-	RING0_INT_FRAME
-	/* create the pointer to lss back */
+	/* We have a RING0_INT_FRAME here.
+	 *
+	 * create the pointer to lss back
+	 */
 	pushl %ss
 	CFI_ADJUST_CFA_OFFSET 4
 	pushl %esp
@@ -1064,14 +1082,14 @@ nmi_16bit_stack:
 	call do_nmi
 	RESTORE_REGS
 	lss 12+4(%esp), %esp		# back to 16bit stack
-1:	iret
+1:	INTERRUPT_RETURN
 	CFI_ENDPROC
 .section __ex_table,"a"
 	.align 4
 	.long 1b,iret_exc
 .previous
 #else
-ENTRY(nmi)
+KPROBE_ENTRY(nmi)
 	RING0_INT_FRAME
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
@@ -1083,6 +1101,7 @@ ENTRY(nmi)
 	jmp restore_all
 	CFI_ENDPROC
 #endif
+KPROBE_END(nmi)
 
 KPROBE_ENTRY(int3)
 	RING0_INT_FRAME
@@ -1094,7 +1113,7 @@ KPROBE_ENTRY(int3)
 	call do_int3
 	jmp ret_from_exception
 	CFI_ENDPROC
-	.previous .text
+KPROBE_END(int3)
 
 ENTRY(overflow)
 	RING0_INT_FRAME
@@ -1159,7 +1178,7 @@ KPROBE_ENTRY(general_protection)
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
-	.previous .text
+KPROBE_END(general_protection)
 
 ENTRY(alignment_check)
 	RING0_EC_FRAME
@@ -1168,13 +1187,14 @@ ENTRY(alignment_check)
 	jmp error_code
 	CFI_ENDPROC
 
-KPROBE_ENTRY(page_fault)
-	RING0_EC_FRAME
-	pushl $do_page_fault
+ENTRY(divide_error)
+	RING0_INT_FRAME
+	pushl $0			# no error code
+	CFI_ADJUST_CFA_OFFSET 4
+	pushl $do_divide_error
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
-	.previous .text
 
 #ifdef CONFIG_X86_MCE
 ENTRY(machine_check)
@@ -1235,6 +1255,19 @@ ENTRY(fixup_4gb_segment)
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
+
+ENTRY(kernel_thread_helper)
+	pushl $0		# fake return address for unwinder
+	CFI_STARTPROC
+	movl %edx,%eax
+	push %edx
+	CFI_ADJUST_CFA_OFFSET 4
+	call *%ebx
+	push %eax
+	CFI_ADJUST_CFA_OFFSET 4
+	call do_exit
+	CFI_ENDPROC
+ENDPROC(kernel_thread_helper)
 
 .section .rodata,"a"
 #include "syscall_table.S"

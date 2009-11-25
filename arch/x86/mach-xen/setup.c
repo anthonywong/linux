@@ -103,8 +103,10 @@ void __init pre_setup_arch_hook(void)
 
 	setup_xen_features();
 
-	if (HYPERVISOR_xen_version(XENVER_platform_parameters, &pp) == 0)
-		set_fixaddr_top(pp.virt_start);
+	if (HYPERVISOR_xen_version(XENVER_platform_parameters, &pp) == 0) {
+		hypervisor_virt_start = pp.virt_start;
+		reserve_top_address(0UL - pp.virt_start);
+	}
 
 	if (HYPERVISOR_memory_op(XENMEM_machphys_mapping, &mapping) == 0) {
 		machine_to_phys_mapping = (unsigned long *)mapping.v_start;

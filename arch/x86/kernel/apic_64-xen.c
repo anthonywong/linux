@@ -43,7 +43,7 @@ int apic_verbosity;
  */
 void ack_bad_irq(unsigned int irq)
 {
-	printk("unexpected IRQ trap at vector %02x\n", irq);
+	printk("unexpected IRQ trap at irq %02x\n", irq);
 	/*
 	 * Currently unexpected vectors happen only on SMP and APIC.
 	 * We _must_ ack these because every local APIC has only N
@@ -62,19 +62,19 @@ int setup_profiling_timer(unsigned int multiplier)
 	return -EINVAL;
 }
 
-void smp_local_timer_interrupt(struct pt_regs *regs)
+void smp_local_timer_interrupt(void)
 {
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 #ifndef CONFIG_XEN
 #ifdef CONFIG_SMP
-		update_process_times(user_mode(regs));
+	update_process_times(user_mode(get_irq_regs()));
 #endif
 #endif
 	/*
 	 * We take the 'long' return path, and there every subsystem
 	 * grabs the appropriate locks (kernel lock/ irq lock).
 	 *
-	 * we might want to decouple profiling from the 'long path',
+	 * We might want to decouple profiling from the 'long path',
 	 * and do the profiling totally in assembly.
 	 *
 	 * Currently this isn't too much of an issue (performance wise),
@@ -92,6 +92,8 @@ void smp_local_timer_interrupt(struct pt_regs *regs)
  */
 void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
 	/*
 	 * the NMI deadlock-detector uses this.
 	 */
@@ -109,8 +111,9 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 */
 	exit_idle();
 	irq_enter();
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 /*
@@ -188,9 +191,8 @@ int disable_apic;
 int __init APIC_init_uniprocessor (void)
 {
 #ifdef CONFIG_X86_IO_APIC
-	if (smp_found_config)
-		if (!skip_ioapic_setup && nr_ioapics)
-			setup_IO_APIC();
+	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
+		setup_IO_APIC();
 #endif
 
 	return 1;

@@ -695,7 +695,7 @@ static void net_rx_action(unsigned long unused)
 		id = meta[npo.meta_cons].id;
 		flags = nr_frags ? NETRXF_more_data : 0;
 
-		if (skb->ip_summed == CHECKSUM_HW) /* local packet? */
+		if (skb->ip_summed == CHECKSUM_PARTIAL) /* local packet? */
 			flags |= NETRXF_csum_blank | NETRXF_data_validated;
 		else if (skb->proto_data_valid) /* remote but checksummed? */
 			flags |= NETRXF_data_validated;
@@ -1488,7 +1488,7 @@ static void netif_page_release(struct page *page, unsigned int order)
 	netif_idx_release(idx);
 }
 
-irqreturn_t netif_be_int(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t netif_be_int(int irq, void *dev_id)
 {
 	netif_t *netif = dev_id;
 
@@ -1555,7 +1555,7 @@ static netif_rx_response_t *make_rx_response(netif_t *netif,
 }
 
 #ifdef NETBE_DEBUG_INTERRUPT
-static irqreturn_t netif_be_dbg(int irq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t netif_be_dbg(int irq, void *dev_id)
 {
 	struct list_head *ent;
 	netif_t *netif;

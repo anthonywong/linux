@@ -5,9 +5,6 @@
  *  Copyright (C) 2000 Pavel Machek <pavel@suse.cz>
  *  Copyright (C) 2000 Karsten Keil <kkeil@suse.de>
  *  Copyright (C) 2001,2002 Andi Kleen <ak@suse.de>
- *
- *  $Id: head.S,v 1.49 2002/03/19 17:39:25 ak Exp $
- *
  *  Jun Nakajima <jun.nakajima@intel.com>
  *    Modified for Xen                                
  */
@@ -146,7 +143,7 @@ ENTRY(cpu_gdt_table)
 	.quad	0,0			/* TSS */
 	.quad	0,0			/* LDT */
 	.quad   0,0,0			/* three TLS descriptors */
-	.quad	0			/* unused */
+	.quad	0x0000f40000000000	/* node/CPU stored in limit */
 gdt_end:
 	/* asm/segment.h:GDT_ENTRIES must match this */
 	/* This should be a multiple of the cache line size */

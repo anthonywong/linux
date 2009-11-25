@@ -4,9 +4,6 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002  Andi Kleen SuSE Labs
  *  Copyright (C) 2000  Pavel Machek <pavel@suse.cz>
- * 
- *  $Id$
- *
  *  Jun Nakajima <jun.nakajima@intel.com>
  *  Asit Mallick <asit.k.mallick@intel.com>
  *      Modified for Xen
@@ -26,15 +23,25 @@
  * at the top of the kernel process stack.	
  * - partial stack frame: partially saved registers upto R11.
  * - full stack frame: Like partial stack frame, but all register saved. 
- *	
- * TODO:	 
- * - schedule it carefully for the final hardware.
+ *
+ * Some macro usage:
+ * - CFI macros are used to generate dwarf2 unwind information for better
+ * backtraces. They don't change any code.
+ * - SAVE_ALL/RESTORE_ALL - Save/restore all registers
+ * - SAVE_ARGS/RESTORE_ARGS - Save/restore registers that C functions modify.
+ * There are unfortunately lots of special cases where some registers
+ * not touched. The macro is a big mess that should be cleaned up.
+ * - SAVE_REST/RESTORE_REST - Handle the registers not saved by SAVE_ARGS.
+ * Gives a full stack frame.
+ * - ENTRY/END Define functions in the symbol table.
+ * - FIXUP_TOP_OF_STACK/RESTORE_TOP_OF_STACK - Fix up the hardware stack
+ * frame that is otherwise undefined after a SYSCALL
+ * - TRACE_IRQ_* - Trace hard interrupt state for lock debugging.
+ * - errorentry/paranoidentry/zeroentry - Define exception entry points.
  */
 
-#define ASSEMBLY 1
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/smp.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/dwarf2.h>
@@ -117,6 +124,7 @@ NMI_MASK = 0x80000000
 	.macro	CFI_DEFAULT_STACK start=1,adj=0
 	.if \start
 	CFI_STARTPROC	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8 - \adj*ARGOFFSET
 	.else
 	CFI_DEF_CFA_OFFSET SS+8 - \adj*ARGOFFSET
@@ -207,6 +215,7 @@ END(ret_from_fork)
  */
 	.macro _frame ref
 	CFI_STARTPROC simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA rsp,SS+8-\ref
 	/*CFI_REL_OFFSET ss,SS-\ref*/
 	CFI_REL_OFFSET rsp,RSP-\ref
@@ -334,6 +343,8 @@ tracesys:
 	LOAD_ARGS ARGOFFSET  /* reload args from stack in case ptrace changed it */
 	RESTORE_REST
 	cmpq $__NR_syscall_max,%rax
+	movq $-ENOSYS,%rcx
+	cmova %rcx,%rax
 	ja  1f
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
@@ -349,6 +360,7 @@ END(system_call)
  */ 	
 ENTRY(int_ret_from_sys_call)
 	CFI_STARTPROC	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-ARGOFFSET
 	/*CFI_REL_OFFSET	ss,SS-ARGOFFSET*/
 	CFI_REL_OFFSET	rsp,RSP-ARGOFFSET
@@ -583,8 +595,7 @@ retint_signal:
 #ifdef CONFIG_PREEMPT
 	/* Returning to kernel space. Check if we need preemption */
 	/* rcx:	 threadinfo. interrupts off. */
-	.p2align
-retint_kernel:	
+ENTRY(retint_kernel)
 	cmpl $0,threadinfo_preempt_count(%rcx)
 	jnz  retint_restore_args
 	bt  $TIF_NEED_RESCHED,threadinfo_flags(%rcx)
@@ -644,7 +655,6 @@ ENTRY(call_function_interrupt)
 END(call_function_interrupt)
 #endif
 
-#ifdef CONFIG_X86_LOCAL_APIC	
 ENTRY(apic_timer_interrupt)
 	apicinterrupt LOCAL_TIMER_VECTOR,smp_apic_timer_interrupt
 END(apic_timer_interrupt)
@@ -656,7 +666,6 @@ END(error_interrupt)
 ENTRY(spurious_interrupt)
 	apicinterrupt SPURIOUS_APIC_VECTOR,smp_spurious_interrupt
 END(spurious_interrupt)
-#endif
 #endif /* !CONFIG_XEN */
 				
 /*
@@ -755,7 +764,9 @@ paranoid_exit\trace:
 	testl $3,CS(%rsp)
 	jnz   paranoid_userspace\trace
 paranoid_swapgs\trace:
+	.if \trace
 	TRACE_IRQS_IRETQ 0
+	.endif
 	swapgs
 paranoid_restore\trace:
 	RESTORE_ALL 8
@@ -802,7 +813,7 @@ paranoid_schedule\trace:
  * Exception entry point. This expects an error code/orig_rax on the stack
  * and the exception handler in %rax.	
  */ 		  				
-ENTRY(error_entry)
+KPROBE_ENTRY(error_entry)
 	_frame RDI
 	CFI_REL_OFFSET rax,0
 	/* rdi slot contains rax, oldrax contains error code */
@@ -896,7 +907,7 @@ error_kernelspace:
 	jmp  error_sti
 #endif
 	CFI_ENDPROC
-END(error_entry)
+KPROBE_END(error_entry)
 	
 ENTRY(hypervisor_callback)
 	zeroentry do_hypervisor_callback
@@ -935,26 +946,6 @@ ENTRY(do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 	jmp  error_exit
 	CFI_ENDPROC
 END(do_hypervisor_callback)
-
-#ifdef CONFIG_X86_LOCAL_APIC
-KPROBE_ENTRY(nmi)
-	zeroentry do_nmi_callback
-ENTRY(do_nmi_callback)
-	CFI_STARTPROC
-        addq $8, %rsp
-	CFI_ENDPROC
-	CFI_DEFAULT_STACK
-        call do_nmi
-        orl  $NMI_MASK,EFLAGS(%rsp)
-        RESTORE_REST
-        XEN_BLOCK_EVENTS(%rsi)
-	TRACE_IRQS_OFF
-        GET_THREAD_INFO(%rcx)
-        jmp  retint_restore_args
-	CFI_ENDPROC
-	.previous .text
-END(nmi)
-#endif
 
         ALIGN
 restore_all_enable_events:  
@@ -1121,7 +1112,7 @@ ENDPROC(child_rip)
  * do_sys_execve asm fallback arguments:
  *	rdi: name, rsi: argv, rdx: envp, fake frame on the stack
  */
-ENTRY(execve)
+ENTRY(kernel_execve)
 	CFI_STARTPROC
 	FAKE_STACK_FRAME $0
 	SAVE_ALL	
@@ -1135,12 +1126,11 @@ ENTRY(execve)
 	UNFAKE_STACK_FRAME
 	ret
 	CFI_ENDPROC
-ENDPROC(execve)
+ENDPROC(kernel_execve)
 
 KPROBE_ENTRY(page_fault)
 	errorentry do_page_fault
-END(page_fault)
-	.previous .text
+KPROBE_END(page_fault)
 
 ENTRY(coprocessor_error)
 	zeroentry do_coprocessor_error
@@ -1162,25 +1152,25 @@ KPROBE_ENTRY(debug)
 	zeroentry do_debug
 /*	paranoidexit
 	CFI_ENDPROC */
-END(debug)
-	.previous .text
+KPROBE_END(debug)
 
-#if 0
-	/* runs on exception stack */	
 KPROBE_ENTRY(nmi)
-	INTR_FRAME
-	pushq $-1
-	CFI_ADJUST_CFA_OFFSET 8
-	paranoidentry do_nmi, 0, 0
-#ifdef CONFIG_TRACE_IRQFLAGS
-	paranoidexit 0
-#else
-	jmp paranoid_exit1
- 	CFI_ENDPROC
-#endif
-END(nmi)
-	.previous .text
-#endif        
+	zeroentry do_nmi_callback
+KPROBE_END(nmi)
+do_nmi_callback:
+	CFI_STARTPROC
+	addq $8, %rsp
+	CFI_ENDPROC
+	CFI_DEFAULT_STACK
+	call do_nmi
+	orl  $NMI_MASK,EFLAGS(%rsp)
+	RESTORE_REST
+	XEN_BLOCK_EVENTS(%rsi)
+	TRACE_IRQS_OFF
+	GET_THREAD_INFO(%rcx)
+	jmp  retint_restore_args
+	CFI_ENDPROC
+END(do_nmi_callback)
 
 KPROBE_ENTRY(int3)
 /* 	INTR_FRAME
@@ -1189,8 +1179,7 @@ KPROBE_ENTRY(int3)
  	zeroentry do_int3
 /* 	jmp paranoid_exit1
  	CFI_ENDPROC */
-END(int3)
-	.previous .text
+KPROBE_END(int3)
 
 ENTRY(overflow)
 	zeroentry do_overflow
@@ -1241,8 +1230,7 @@ END(stack_segment)
 
 KPROBE_ENTRY(general_protection)
 	errorentry do_general_protection
-END(general_protection)
-	.previous .text
+KPROBE_END(general_protection)
 
 ENTRY(alignment_check)
 	errorentry do_alignment_check
