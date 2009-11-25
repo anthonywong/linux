@@ -13,14 +13,13 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/version.h>
-#include <linux/pci.h>
 #include <asm/io.h>
 #include <xen/balloon.h>
 #include <xen/gnttab.h>
 #include <asm/swiotlb.h>
 #include <asm/tlbflush.h>
-#include <asm-i386/mach-xen/asm/swiotlb.h>
-#include <asm-i386/mach-xen/asm/gnttab_dma.h>
+#include <asm/swiotlb_32.h>
+#include <asm/gnttab_dma.h>
 #include <asm/bug.h>
 
 #ifdef __x86_64__
@@ -106,27 +105,29 @@ int range_straddles_page_boundary(paddr_t p, size_t size)
 }
 
 int
-dma_map_sg(struct device *hwdev, struct scatterlist *sg, int nents,
+dma_map_sg(struct device *hwdev, struct scatterlist *sgl, int nents,
 	   enum dma_data_direction direction)
 {
 	int i, rc;
 
 	BUG_ON(!valid_dma_direction(direction));
-	WARN_ON(nents == 0 || sg[0].length == 0);
+	WARN_ON(nents == 0 || sgl->length == 0);
 
 	if (swiotlb) {
-		rc = swiotlb_map_sg(hwdev, sg, nents, direction);
+		rc = swiotlb_map_sg(hwdev, sgl, nents, direction);
 	} else {
-		for (i = 0; i < nents; i++ ) {
-			BUG_ON(!sg[i].page);
-			sg[i].dma_address =
-				gnttab_dma_map_page(sg[i].page) + sg[i].offset;
-			sg[i].dma_length  = sg[i].length;
+		struct scatterlist *sg;
+
+		for_each_sg(sgl, sg, nents, i) {
+			BUG_ON(!sg_page(sg));
+			sg->dma_address =
+				gnttab_dma_map_page(sg_page(sg)) + sg->offset;
+			sg->dma_length  = sg->length;
 			IOMMU_BUG_ON(address_needs_mapping(
-				hwdev, sg[i].dma_address));
+				hwdev, sg->dma_address));
 			IOMMU_BUG_ON(range_straddles_page_boundary(
-				page_to_pseudophys(sg[i].page) + sg[i].offset,
-				sg[i].length));
+				page_to_pseudophys(sg_page(sg)) + sg->offset,
+				sg->length));
 		}
 		rc = nents;
 	}
@@ -137,17 +138,19 @@ dma_map_sg(struct device *hwdev, struct scatterlist *sg, int nents,
 EXPORT_SYMBOL(dma_map_sg);
 
 void
-dma_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
+dma_unmap_sg(struct device *hwdev, struct scatterlist *sgl, int nents,
 	     enum dma_data_direction direction)
 {
 	int i;
 
 	BUG_ON(!valid_dma_direction(direction));
 	if (swiotlb)
-		swiotlb_unmap_sg(hwdev, sg, nents, direction);
+		swiotlb_unmap_sg(hwdev, sgl, nents, direction);
 	else {
-		for (i = 0; i < nents; i++ )
-			gnttab_dma_unmap_page(sg[i].dma_address);
+		struct scatterlist *sg;
+
+		for_each_sg(sgl, sg, nents, i)
+			gnttab_dma_unmap_page(sg->dma_address);
 	}
 }
 EXPORT_SYMBOL(dma_unmap_sg);
@@ -258,7 +261,8 @@ void dma_free_coherent(struct device *dev, size_t size,
 {
 	struct dma_coherent_mem *mem = dev ? dev->dma_mem : NULL;
 	int order = get_order(size);
-	
+
+	WARN_ON(irqs_disabled());	/* for portability */
 	if (mem && vaddr >= mem->virt_base && vaddr < (mem->virt_base + (mem->size << PAGE_SHIFT))) {
 		int page = (vaddr - mem->virt_base) >> PAGE_SHIFT;
 
