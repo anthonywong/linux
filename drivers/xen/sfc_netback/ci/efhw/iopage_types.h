@@ -39,13 +39,8 @@
 #ifndef __CI_EFHW_IOPAGE_LINUX_H__
 #define __CI_EFHW_IOPAGE_LINUX_H__
 
-#include <linux/version.h>
 #include <linux/gfp.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,9)
 #include <linux/hardirq.h>
-#else
-#include <asm/hardirq.h>
-#endif
 #include <linux/errno.h>
 #include <ci/efhw/debug.h>
 
