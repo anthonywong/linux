@@ -69,6 +69,8 @@ extern start_info_t *xen_start_info;
 #define is_initial_xendomain() 0
 #endif
 
+#define init_hypervisor(c) ((void)((c)->x86_hyper_vendor = X86_HYPER_VENDOR_XEN))
+
 /* arch/xen/kernel/evtchn.c */
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
@@ -137,7 +139,7 @@ void scrub_pages(void *, unsigned int);
 
 DECLARE_PER_CPU(bool, xen_lazy_mmu);
 
-int xen_multicall_flush(bool);
+void xen_multicall_flush(bool);
 
 int __must_check xen_multi_update_va_mapping(unsigned long va, pte_t,
 					     unsigned long flags);

@@ -150,31 +150,28 @@ static inline void __send_IPI_dest_field(unsigned long mask, int vector)
 /*
  * This is only used on smaller machines.
  */
-void send_IPI_mask_bitmask(cpumask_t cpumask, int vector)
+void send_IPI_mask_bitmask(const struct cpumask *cpumask, int vector)
 {
 #ifndef CONFIG_XEN
-	unsigned long mask = cpus_addr(cpumask)[0];
+	unsigned long mask = cpumask_bits(cpumask)[0];
 #else
-	cpumask_t mask;
 	unsigned int cpu;
 #endif
 	unsigned long flags;
 
 	local_irq_save(flags);
 #ifndef CONFIG_XEN
-	WARN_ON(mask & ~cpus_addr(cpu_online_map)[0]);
+	WARN_ON(mask & ~cpumask_bits(cpu_online_mask)[0]);
 	__send_IPI_dest_field(mask, vector);
 #else
-	cpus_andnot(mask, cpumask, cpu_online_map);
-	WARN_ON(!cpus_empty(mask));
-	for_each_online_cpu(cpu)
-		if (cpu_isset(cpu, cpumask))
-			__send_IPI_one(cpu, vector);
+	WARN_ON(!cpumask_subset(cpumask, cpu_online_mask));
+	for_each_cpu_and(cpu, cpumask, cpu_online_mask)
+		__send_IPI_one(cpu, vector);
 #endif
 	local_irq_restore(flags);
 }
 
-void send_IPI_mask_sequence(cpumask_t mask, int vector)
+void send_IPI_mask_sequence(const struct cpumask *mask, int vector)
 {
 #ifndef CONFIG_XEN
 	unsigned long flags;
@@ -187,16 +184,35 @@ void send_IPI_mask_sequence(cpumask_t mask, int vector)
 	 */
 
 	local_irq_save(flags);
-	for_each_possible_cpu(query_cpu) {
-		if (cpu_isset(query_cpu, mask)) {
-			__send_IPI_dest_field(cpu_to_logical_apicid(query_cpu),
-					      vector);
-		}
-	}
+	for_each_cpu(query_cpu, mask)
+		__send_IPI_dest_field(cpu_to_logical_apicid(query_cpu), vector);
 	local_irq_restore(flags);
 #else
 	send_IPI_mask_bitmask(mask, vector);
 #endif
+}
+
+void send_IPI_mask_allbutself(const struct cpumask *mask, int vector)
+{
+	unsigned long flags;
+	unsigned int query_cpu;
+	unsigned int this_cpu = smp_processor_id();
+
+	/* See Hack comment above */
+
+	local_irq_save(flags);
+#ifndef CONFIG_XEN
+	for_each_cpu(query_cpu, mask)
+		if (query_cpu != this_cpu)
+			__send_IPI_dest_field(cpu_to_logical_apicid(query_cpu),
+					      vector);
+#else
+	WARN_ON(!cpumask_subset(mask, cpu_online_mask));
+	for_each_cpu_and(query_cpu, mask, cpu_online_mask)
+		if (query_cpu != this_cpu)
+			__send_IPI_one(query_cpu, vector);
+#endif
+	local_irq_restore(flags);
 }
 
 #ifndef CONFIG_XEN

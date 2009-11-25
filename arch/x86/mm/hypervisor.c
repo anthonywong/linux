@@ -79,12 +79,12 @@ static void multicall_failed(const multicall_entry_t *mc, int rc)
 	BUG();
 }
 
-int xen_multicall_flush(bool ret_last) {
+static int _xen_multicall_flush(bool ret_last) {
 	struct lazy_mmu *lazy = &__get_cpu_var(lazy_mmu);
 	multicall_entry_t *mc = lazy->mc;
 	unsigned int count = lazy->nr_mc;
 
-	if (!count || !use_lazy_mmu_mode())
+	if (!count)
 		return 0;
 
 	lazy->nr_mc = 0;
@@ -112,6 +112,11 @@ int xen_multicall_flush(bool ret_last) {
 
 	return 0;
 }
+
+void xen_multicall_flush(bool force) {
+	if (force || use_lazy_mmu_mode())
+		_xen_multicall_flush(false);
+}
 EXPORT_SYMBOL(xen_multicall_flush);
 
 int xen_multi_update_va_mapping(unsigned long va, pte_t pte,
@@ -130,7 +135,7 @@ int xen_multi_update_va_mapping(unsigned long va, pte_t pte,
 #endif
 
 	if (unlikely(lazy->nr_mc == NR_MC))
-		xen_multicall_flush(false);
+		_xen_multicall_flush(false);
 
 	mc = lazy->mc + lazy->nr_mc++;
 	mc->op = __HYPERVISOR_update_va_mapping;
@@ -169,7 +174,7 @@ int xen_multi_mmu_update(mmu_update_t *src, unsigned int count,
 	merge = lazy->nr_mc && !commit
 		&& mmu_may_merge(mc - 1, __HYPERVISOR_mmu_update, domid);
 	if (unlikely(lazy->nr_mc == NR_MC) && !merge) {
-		xen_multicall_flush(false);
+		_xen_multicall_flush(false);
 		mc = lazy->mc;
 		commit = count > NR_MMU || success_count;
 	}
@@ -207,7 +212,7 @@ int xen_multi_mmu_update(mmu_update_t *src, unsigned int count,
 			break;
 		}
 
-	return commit ? xen_multicall_flush(true) : 0;
+	return commit ? _xen_multicall_flush(true) : 0;
 }
 
 int xen_multi_mmuext_op(struct mmuext_op *src, unsigned int count,
@@ -291,7 +296,7 @@ int xen_multi_mmuext_op(struct mmuext_op *src, unsigned int count,
 	merge = lazy->nr_mc && !commit
 		&& mmu_may_merge(mc - 1, __HYPERVISOR_mmuext_op, domid);
 	if (unlikely(lazy->nr_mc == NR_MC) && !merge) {
-		xen_multicall_flush(false);
+		_xen_multicall_flush(false);
 		mc = lazy->mc;
 		commit = count > NR_MMUEXT || success_count;
 	}
@@ -338,7 +343,7 @@ int xen_multi_mmuext_op(struct mmuext_op *src, unsigned int count,
 			break;
 		}
 
-	return commit ? xen_multicall_flush(true) : 0;
+	return commit ? _xen_multicall_flush(true) : 0;
 }
 
 void xen_l1_entry_update(pte_t *ptr, pte_t val)
