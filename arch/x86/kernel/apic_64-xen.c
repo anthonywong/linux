@@ -39,7 +39,10 @@ int disable_apic;
 /*
  * Debug level, exported for io_apic.c
  */
-int apic_verbosity;
+unsigned int apic_verbosity;
+
+/* Have we found an MP table */
+int smp_found_config;
 
 /*
  * The guts of the apic timer interrupt

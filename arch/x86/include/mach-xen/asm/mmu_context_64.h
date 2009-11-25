@@ -1,23 +1,6 @@
 #ifndef __X86_64_MMU_CONTEXT_H
 #define __X86_64_MMU_CONTEXT_H
 
-#include <asm/desc.h>
-#include <asm/atomic.h>
-#include <asm/pgalloc.h>
-#include <asm/page.h>
-#include <asm/pda.h>
-#include <asm/pgtable.h>
-#include <asm/tlbflush.h>
-
-void arch_exit_mmap(struct mm_struct *mm);
-void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
-
-/*
- * possibly do the LDT unload here?
- */
-int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
-void destroy_context(struct mm_struct *mm);
-
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 #if defined(CONFIG_SMP) && !defined(CONFIG_XEN)
@@ -57,10 +40,6 @@ static inline void __prepare_arch_switch(void)
 		current->thread.gs = 0;
 	}
 }
-
-extern void mm_pin(struct mm_struct *mm);
-extern void mm_unpin(struct mm_struct *mm);
-void mm_pin_all(void);
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
@@ -123,12 +102,5 @@ do {						\
 	load_gs_index(0);			\
 	asm volatile("movl %0,%%fs"::"r"(0));	\
 } while (0)
-
-static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
-{
-	if (!PagePinned(virt_to_page(next->pgd)))
-		mm_pin(next);
-	switch_mm(prev, next, NULL);
-}
 
 #endif

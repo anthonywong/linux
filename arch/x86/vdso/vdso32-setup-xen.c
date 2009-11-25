@@ -195,50 +195,28 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 	}
 }
 
-/*
- * These symbols are defined by vdso32.S to mark the bounds
- * of the ELF DSO images included therein.
- */
-extern const char vdso32_default_start, vdso32_default_end;
-extern const char vdso32_sysenter_start, vdso32_sysenter_end;
 static struct page *vdso32_pages[1];
 
 #ifdef CONFIG_X86_64
 
-#if CONFIG_XEN_COMPAT < 0x030200
-static int use_int80 = 1;
-#endif
-static int use_sysenter __read_mostly = -1;
+#define	vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SYSENTER32))
+#define	vdso32_syscall()	(boot_cpu_has(X86_FEATURE_SYSCALL32))
 
-#define	vdso32_sysenter()	(use_sysenter > 0)
-
-/* May not be __init: called during resume */
-void syscall32_cpu_init(void)
+void __cpuinit syscall32_cpu_init(void)
 {
-	static const struct callback_register cstar = {
+	static const struct callback_register __cpuinitconst cstar = {
 		.type = CALLBACKTYPE_syscall32,
 		.address = (unsigned long)ia32_cstar_target
 	};
-	static const struct callback_register sysenter = {
+	static const struct callback_register __cpuinitconst sysenter = {
 		.type = CALLBACKTYPE_sysenter,
 		.address = (unsigned long)ia32_sysenter_target
 	};
 
-	if ((HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter) < 0) ||
-	    (HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) < 0))
-#if CONFIG_XEN_COMPAT < 0x030200
-		return;
-	use_int80 = 0;
-#else
-		BUG();
-#endif
-
-	if (use_sysenter < 0) {
-		if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
-			use_sysenter = 1;
-		if (boot_cpu_data.x86_vendor == X86_VENDOR_CENTAUR)
-			use_sysenter = 1;
-	}
+	if (HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter) < 0)
+		setup_clear_cpu_cap(X86_FEATURE_SYSENTER32);
+	if (HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) < 0)
+		setup_clear_cpu_cap(X86_FEATURE_SYSCALL32);
 }
 
 #define compat_uses_vma		1
@@ -250,6 +228,7 @@ static inline void map_compat_vdso(int map)
 #else  /* CONFIG_X86_32 */
 
 #define vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SEP))
+#define vdso32_syscall()	(boot_cpu_has(X86_FEATURE_SYSCALL32))
 
 extern asmlinkage void ia32pv_cstar_target(void);
 static const struct callback_register __cpuinitconst cstar = {
@@ -265,13 +244,13 @@ void __cpuinit enable_sep_cpu(void)
 		.address = { __KERNEL_CS, (unsigned long)ia32pv_sysenter_target },
 	};
 
-	if (boot_cpu_has(X86_FEATURE_SYSCALL)) {
+	if (vdso32_syscall()) {
 		if (HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) != 0)
 			BUG();
 		return;
 	}
 
-	if (!boot_cpu_has(X86_FEATURE_SEP))
+	if (!vdso32_sysenter())
 		return;
 
 	if (xen_feature(XENFEAT_supervisor_mode_kernel))
@@ -341,34 +320,26 @@ int __init sysenter_setup(void)
 
 #ifdef CONFIG_X86_32
 	gate_vma_init();
-#endif
 
-#if defined(CONFIG_X86_64) && CONFIG_XEN_COMPAT < 0x030200
-	if (use_int80) {
-		extern const char vdso32_int80_start, vdso32_int80_end;
-
-		vsyscall = &vdso32_int80_start;
-		vsyscall_len = &vdso32_int80_end - &vdso32_int80_start;
-	} else
-#elif defined(CONFIG_X86_32)
-	if (boot_cpu_has(X86_FEATURE_SYSCALL)
-	    && (boot_cpu_data.x86_vendor != X86_VENDOR_AMD
-		|| HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) != 0))
-		setup_clear_cpu_cap(X86_FEATURE_SYSCALL);
-	barrier(); /* until clear_bit()'s constraints are correct ... */
 	if (boot_cpu_has(X86_FEATURE_SYSCALL)) {
-		extern const char vdso32_syscall_start, vdso32_syscall_end;
-
+		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD
+		    && HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) == 0)
+			setup_force_cpu_cap(X86_FEATURE_SYSCALL32);
+		else {
+			setup_clear_cpu_cap(X86_FEATURE_SYSCALL);
+			setup_clear_cpu_cap(X86_FEATURE_SYSCALL32);
+		}
+	}
+#endif
+	if (vdso32_syscall()) {
 		vsyscall = &vdso32_syscall_start;
 		vsyscall_len = &vdso32_syscall_end - &vdso32_syscall_start;
-	} else
-#endif
-	if (!vdso32_sysenter()) {
-		vsyscall = &vdso32_default_start;
-		vsyscall_len = &vdso32_default_end - &vdso32_default_start;
-	} else {
+	} else if (vdso32_sysenter()){
 		vsyscall = &vdso32_sysenter_start;
 		vsyscall_len = &vdso32_sysenter_end - &vdso32_sysenter_start;
+	} else {
+		vsyscall = &vdso32_int80_start;
+		vsyscall_len = &vdso32_int80_end - &vdso32_int80_start;
 	}
 
 	memcpy(syscall_page, vsyscall, vsyscall_len);

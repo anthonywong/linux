@@ -13,6 +13,7 @@
 #include <linux/pfn.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/mmiotrace.h>
 
 #include <asm/cacheflush.h>
 #include <asm/e820.h>
@@ -274,7 +275,8 @@ int ioremap_check_change_attr(unsigned long mfn, unsigned long size,
 	for (sz = rc = 0; sz < size && !rc; ++mfn, sz += PAGE_SIZE) {
 		unsigned long pfn = mfn_to_local_pfn(mfn);
 
-		if (pfn >= max_pfn_mapped)
+		if (pfn >= max_low_pfn_mapped &&
+		    (pfn < (1UL<<(32 - PAGE_SHIFT)) || pfn >= max_pfn_mapped))
 			continue;
 		rc = ioremap_change_attr((unsigned long)__va(pfn << PAGE_SHIFT),
 					 PAGE_SIZE, prot_val);
@@ -297,11 +299,14 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 {
 	unsigned long mfn, offset, vaddr;
 	resource_size_t last_addr;
+	const resource_size_t unaligned_phys_addr = phys_addr;
+	const unsigned long unaligned_size = size;
 	struct vm_struct *area;
 	unsigned long new_prot_val;
 	pgprot_t prot;
 	int retval;
 	domid_t domid = DOMID_IO;
+	void __iomem *ret_addr;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -318,7 +323,7 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	/*
 	 * Don't remap the low PCI/ISA area, it's always mapped..
 	 */
-	if (is_initial_xendomain() && last_addr < ISA_END_ADDRESS)
+	if (is_initial_xendomain() && is_ISA_range(phys_addr, last_addr))
 		return (__force void __iomem *)isa_bus_to_virt((unsigned long)phys_addr);
 
 	/*
@@ -342,7 +347,7 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
-	retval = reserve_memtype(phys_addr, phys_addr + size,
+	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
 						prot_val, &new_prot_val);
 	if (retval) {
 		pr_debug("Warning: reserve_memtype returned %d\n", retval);
@@ -410,7 +415,10 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 		return NULL;
 	}
 
-	return (void __iomem *) (vaddr + offset);
+	ret_addr = (void __iomem *) (vaddr + offset);
+	mmiotrace_ioremap(unaligned_phys_addr, unaligned_size, ret_addr);
+
+	return ret_addr;
 }
 
 /**
@@ -438,7 +446,7 @@ void __iomem *ioremap_nocache(resource_size_t phys_addr, unsigned long size)
 {
 	/*
 	 * Ideally, this should be:
-	 *	pat_wc_enabled ? _PAGE_CACHE_UC : _PAGE_CACHE_UC_MINUS;
+	 *	pat_enabled ? _PAGE_CACHE_UC : _PAGE_CACHE_UC_MINUS;
 	 *
 	 * Till we fix all X drivers to use ioremap_wc(), we will use
 	 * UC MINUS.
@@ -462,7 +470,7 @@ EXPORT_SYMBOL(ioremap_nocache);
  */
 void __iomem *ioremap_wc(unsigned long phys_addr, unsigned long size)
 {
-	if (pat_wc_enabled)
+	if (pat_enabled)
 		return __ioremap_caller(phys_addr, size, _PAGE_CACHE_WC,
 					__builtin_return_address(0));
 	else
@@ -502,6 +510,14 @@ static void __iomem *ioremap_default(resource_size_t phys_addr,
 }
 #endif
 
+void __iomem *ioremap_prot(resource_size_t phys_addr, unsigned long size,
+				unsigned long prot_val)
+{
+	return __ioremap_caller(phys_addr, size, (prot_val & _PAGE_CACHE_MASK),
+				__builtin_return_address(0));
+}
+EXPORT_SYMBOL(ioremap_prot);
+
 /**
  * iounmap - Free a IO remapping
  * @addr: virtual address from ioremap_*
@@ -526,6 +542,8 @@ void iounmap(volatile void __iomem *addr)
 	addr = (volatile void __iomem *)
 		(PAGE_MASK & (unsigned long __force)addr);
 
+	mmiotrace_iounmap(addr);
+
 	/* Use the vm area unlocked, assuming the caller
 	   ensures there isn't another iounmap for the same address
 	   in parallel. Reuse of the virtual address is prevented by
@@ -533,7 +551,7 @@ void iounmap(volatile void __iomem *addr)
 	   cpa takes care of the direct mappings. */
 	read_lock(&vmlist_lock);
 	for (p = vmlist; p; p = p->next) {
-		if (p->addr == addr)
+		if (p->addr == (void __force *)addr)
 			break;
 	}
 	read_unlock(&vmlist_lock);
@@ -547,7 +565,7 @@ void iounmap(volatile void __iomem *addr)
 	free_memtype(p->phys_addr, p->phys_addr + get_vm_area_size(p));
 
 	/* Finally remove it */
-	o = remove_vm_area((void *)addr);
+	o = remove_vm_area((void __force *)addr);
 	BUG_ON(p != o || o == NULL);
 	kfree(p);
 }
@@ -567,7 +585,7 @@ void *xlate_dev_mem_ptr(unsigned long phys)
 	if (page_is_ram(start >> PAGE_SHIFT))
 		return __va(phys);
 
-	addr = (void *)ioremap_default(start, PAGE_SIZE);
+	addr = (void __force *)ioremap_default(start, PAGE_SIZE);
 	if (addr)
 		addr = (void *)((unsigned long)addr | (phys & ~PAGE_MASK));
 
@@ -595,8 +613,7 @@ static int __init early_ioremap_debug_setup(char *str)
 early_param("early_ioremap_debug", early_ioremap_debug_setup);
 
 static __initdata int after_paging_init;
-static pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)]
-		__section(.bss.page_aligned);
+static pte_t bm_pte[PAGE_SIZE/sizeof(pte_t)] __page_aligned_bss;
 
 #ifdef CONFIG_X86_32
 static inline pmd_t * __init early_ioremap_pmd(unsigned long addr)
@@ -695,10 +712,11 @@ static void __init __early_set_fixmap(enum fixed_addresses idx,
 		return;
 	}
 	pte = early_ioremap_pte(addr);
+
 	if (pgprot_val(flags))
 		set_pte(pte, pfn_pte_ma(phys >> PAGE_SHIFT, flags));
 	else
-		pte_clear(NULL, addr, pte);
+		pte_clear(&init_mm, addr, pte);
 	__flush_tlb_one(addr);
 }
 
@@ -726,13 +744,11 @@ static int __init check_early_ioremap_leak(void)
 {
 	if (!early_ioremap_nested)
 		return 0;
-
-	printk(KERN_WARNING
+	WARN(1, KERN_WARNING
 	       "Debug warning: early ioremap leak of %d areas detected.\n",
-	       early_ioremap_nested);
+		early_ioremap_nested);
 	printk(KERN_WARNING
-	       "please boot with early_ioremap_debug and report the dmesg.\n");
-	WARN_ON(1);
+		"please boot with early_ioremap_debug and report the dmesg.\n");
 
 	return 1;
 }
