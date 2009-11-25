@@ -46,7 +46,7 @@
 #include <xen/interface/arch-x86/xen-mca.h>
 #include <asm/percpu.h>
 #include <asm/ptrace.h>
-#include <asm/page.h>
+#include <asm/pgtable_types.h>
 
 extern shared_info_t *HYPERVISOR_shared_info;
 
@@ -151,20 +151,16 @@ int __must_check xen_multi_mmuext_op(struct mmuext_op *, unsigned int count,
 #define __HAVE_ARCH_ENTER_LAZY_MMU_MODE
 static inline void arch_enter_lazy_mmu_mode(void)
 {
-	__get_cpu_var(xen_lazy_mmu) = true;
+	percpu_write(xen_lazy_mmu, true);
 }
 
 static inline void arch_leave_lazy_mmu_mode(void)
 {
-	__get_cpu_var(xen_lazy_mmu) = false;
+	percpu_write(xen_lazy_mmu, false);
 	xen_multicall_flush(false);
 }
 
-#if defined(CONFIG_X86_32)
-#define arch_use_lazy_mmu_mode() unlikely(x86_read_percpu(xen_lazy_mmu))
-#elif !defined(arch_use_lazy_mmu_mode)
-#define arch_use_lazy_mmu_mode() unlikely(__get_cpu_var(xen_lazy_mmu))
-#endif
+#define arch_use_lazy_mmu_mode() unlikely(percpu_read(xen_lazy_mmu))
 
 #if 0 /* All uses are in places potentially called asynchronously, but
        * asynchronous code should rather not make use of lazy mode at all.
