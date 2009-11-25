@@ -1,7 +1,7 @@
 /*
  *	Intel SMP support routines.
  *
- *	(c) 1995 Alan Cox, Building #3 <alan@redhat.com>
+ *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
  *	(c) 1998-99, 2000 Ingo Molnar <mingo@redhat.com>
  *      (c) 2002,2003 Andi Kleen, SuSE Labs.
  *
@@ -118,30 +118,17 @@ void xen_smp_send_reschedule(int cpu)
 		WARN_ON(1);
 		return;
 	}
-	send_IPI_mask(cpumask_of_cpu(cpu), RESCHEDULE_VECTOR);
+	send_IPI_mask(cpumask_of(cpu), RESCHEDULE_VECTOR);
 }
 
 void xen_send_call_func_single_ipi(int cpu)
 {
-	send_IPI_mask(cpumask_of_cpu(cpu), CALL_FUNC_SINGLE_VECTOR);
+	send_IPI_mask(cpumask_of(cpu), CALL_FUNC_SINGLE_VECTOR);
 }
 
-void xen_send_call_func_ipi(cpumask_t mask)
+void xen_send_call_func_ipi(const struct cpumask *mask)
 {
-	send_IPI_mask(mask, CALL_FUNCTION_VECTOR);
-}
-
-static void stop_this_cpu(void *dummy)
-{
-	local_irq_disable();
-	/*
-	 * Remove this CPU:
-	 */
-	cpu_clear(smp_processor_id(), cpu_online_map);
-	disable_all_local_evtchn();
-	if (hlt_works(smp_processor_id()))
-		for (;;) halt();
-	for (;;);
+	send_IPI_mask_allbutself(mask, CALL_FUNCTION_VECTOR);
 }
 
 /*
@@ -165,11 +152,7 @@ void xen_smp_send_stop(void)
  */
 irqreturn_t smp_reschedule_interrupt(int irq, void *dev_id)
 {
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_resched_count++;
-#else
-	add_pda(irq_resched_count, 1);
-#endif
+	inc_irq_stat(irq_resched_count);
 	return IRQ_HANDLED;
 }
 
@@ -177,11 +160,7 @@ irqreturn_t smp_call_function_interrupt(int irq, void *dev_id)
 {
 	irq_enter();
 	generic_smp_call_function_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 
 	return IRQ_HANDLED;
@@ -191,11 +170,7 @@ irqreturn_t smp_call_function_single_interrupt(int irq, void *dev_id)
 {
 	irq_enter();
 	generic_smp_call_function_single_interrupt();
-#ifdef CONFIG_X86_32
-	__get_cpu_var(irq_stat).irq_call_count++;
-#else
-	add_pda(irq_call_count, 1);
-#endif
+	inc_irq_stat(irq_call_count);
 	irq_exit();
 
 	return IRQ_HANDLED;
