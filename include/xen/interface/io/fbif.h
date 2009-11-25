@@ -150,7 +150,12 @@ struct xenfb_page
      * framebuffer with a max resolution of 12,800x10,240.  Should
      * be enough for a while with room leftover for expansion.
      */
+#ifndef CONFIG_PARAVIRT_XEN
     unsigned long pd[256];
+#else
+	/* Two directory pages should be enough for a while. */
+	unsigned long pd[2];
+#endif
 };
 
 /*
