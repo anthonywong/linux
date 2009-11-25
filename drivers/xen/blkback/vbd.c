@@ -94,7 +94,8 @@ int vbd_create(blkif_t *blkif, blkif_vdev_t handle, unsigned major,
 void vbd_free(struct vbd *vbd)
 {
 	if (vbd->bdev)
-		blkdev_put(vbd->bdev);
+		blkdev_put(vbd->bdev,
+			   vbd->readonly ? FMODE_READ : FMODE_WRITE);
 	vbd->bdev = NULL;
 }
 
