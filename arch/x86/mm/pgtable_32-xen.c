@@ -149,6 +149,8 @@ void __set_fixmap (enum fixed_addresses idx, maddr_t phys, pgprot_t flags)
 void __init reserve_top_address(unsigned long reserve)
 {
 	BUG_ON(fixmaps > 0);
+	printk(KERN_INFO "Reserving virtual address space above 0x%08x\n",
+	       (int)-reserve);
 	__FIXADDR_TOP = -reserve - PAGE_SIZE;
 	__VMALLOC_RESERVE += reserve;
 }
@@ -258,6 +260,12 @@ void pgd_ctor(void *pgd, struct kmem_cache *cache, unsigned long unused)
 				swapper_pg_dir + USER_PTRS_PER_PGD,
 				KERNEL_PGD_PTRS);
 		memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
+
+		/* must happen under lock */
+		paravirt_alloc_pd_clone(__pa(pgd) >> PAGE_SHIFT,
+			__pa(swapper_pg_dir) >> PAGE_SHIFT,
+			USER_PTRS_PER_PGD, PTRS_PER_PGD - USER_PTRS_PER_PGD);
+
 		pgd_list_add(pgd);
 		spin_unlock_irqrestore(&pgd_lock, flags);
 	}
@@ -268,6 +276,7 @@ void pgd_dtor(void *pgd, struct kmem_cache *cache, unsigned long unused)
 {
 	unsigned long flags; /* can be called from interrupt context */
 
+	paravirt_release_pd(__pa(pgd) >> PAGE_SHIFT);
 	spin_lock_irqsave(&pgd_lock, flags);
 	pgd_list_del(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
@@ -292,6 +301,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 			pmd_t *pmd = kmem_cache_alloc(pmd_cache, GFP_KERNEL);
 			if (!pmd)
 				goto out_oom;
+			paravirt_alloc_pd(__pa(pmd) >> PAGE_SHIFT);
 			set_pgd(&pgd[i], __pgd(1 + __pa(pmd)));
 		}
 		return pgd;
@@ -314,6 +324,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 		pmd[i] = kmem_cache_alloc(pmd_cache, GFP_KERNEL);
 		if (!pmd[i])
 			goto out_oom;
+		paravirt_alloc_pd(__pa(pmd) >> PAGE_SHIFT);
 	}
 
 	spin_lock_irqsave(&pgd_lock, flags);
@@ -354,12 +365,17 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 
 out_oom:
 	if (HAVE_SHARED_KERNEL_PMD) {
-		for (i--; i >= 0; i--)
-			kmem_cache_free(pmd_cache,
-					(void *)__va(pgd_val(pgd[i])-1));
+		for (i--; i >= 0; i--) {
+			pgd_t pgdent = pgd[i];
+			void* pmd = (void *)__va(pgd_val(pgdent)-1);
+			paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+			kmem_cache_free(pmd_cache, pmd);
+		}
 	} else {
-		for (i--; i >= 0; i--)
+		for (i--; i >= 0; i--) {
+			paravirt_release_pd(__pa(pmd[i]) >> PAGE_SHIFT);
 			kmem_cache_free(pmd_cache, pmd[i]);
+		}
 		kfree(pmd);
 	}
 	kmem_cache_free(pgd_cache, pgd);
@@ -383,7 +399,9 @@ void pgd_free(pgd_t *pgd)
 	/* in the PAE case user pgd entries are overwritten before usage */
 	if (PTRS_PER_PMD > 1) {
 		for (i = 0; i < USER_PTRS_PER_PGD; ++i) {
-			pmd_t *pmd = (void *)__va(pgd_val(pgd[i])-1);
+			pgd_t pgdent = pgd[i];
+			void* pmd = (void *)__va(pgd_val(pgdent)-1);
+			paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
 			kmem_cache_free(pmd_cache, pmd);
 		}
 

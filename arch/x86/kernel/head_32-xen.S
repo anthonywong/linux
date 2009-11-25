@@ -27,6 +27,7 @@
 #define X86_CAPABILITY	new_cpu_data+CPUINFO_x86_capability
 #define X86_VENDOR_ID	new_cpu_data+CPUINFO_x86_vendor_id
 
+.section .text.head,"ax",@progbits
 #define VIRT_ENTRY_OFFSET 0x0
 .org VIRT_ENTRY_OFFSET
 ENTRY(startup_32)
@@ -60,11 +61,11 @@ ENTRY(startup_32)
 
 	movb $1,X86_HARD_MATH
 
-	xorl %eax,%eax			# Clear FS
-	movl %eax,%fs
+	xorl %eax,%eax		# Clear GS
+	movl %eax,%gs
 
 	movl $(__KERNEL_PDA),%eax
-	mov  %eax,%gs
+	mov  %eax,%fs
 
 	cld			# gcc2 wants the direction flag cleared at all times
 
@@ -75,7 +76,7 @@ ENTRY(startup_32)
  * Point the GDT at this CPU's PDA.  This will be
  * cpu_gdt_table and boot_pda.
  */
-setup_pda:
+ENTRY(setup_pda)
 	/* get the PDA pointer */
 	movl $boot_pda, %eax
 
