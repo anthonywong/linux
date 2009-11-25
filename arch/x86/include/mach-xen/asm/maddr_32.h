@@ -1,6 +1,7 @@
 #ifndef _I386_MADDR_H
 #define _I386_MADDR_H
 
+#include <asm/bug.h>
 #include <xen/features.h>
 #include <xen/interface/xen.h>
 
@@ -151,25 +152,9 @@ static inline paddr_t pte_machine_to_phys(maddr_t machine)
 	phys = (phys << PAGE_SHIFT) | (machine & ~PHYSICAL_PAGE_MASK);
 	return phys;
 }
-#endif
-
-#ifdef CONFIG_X86_PAE
-#define __pte_ma(x)	((pte_t) { (x), (maddr_t)(x) >> 32 } )
-extern unsigned long long __supported_pte_mask;
-static inline pte_t pfn_pte_ma(unsigned long page_nr, pgprot_t pgprot)
-{
-	pte_t pte;
-
-	pte.pte_high = (page_nr >> (32 - PAGE_SHIFT)) | \
-					(pgprot_val(pgprot) >> 32);
-	pte.pte_high &= (__supported_pte_mask >> 32);
-	pte.pte_low = ((page_nr << PAGE_SHIFT) | pgprot_val(pgprot)) & \
-							__supported_pte_mask;
-	return pte;
-}
 #else
-#define __pte_ma(x)	((pte_t) { (x) } )
-#define pfn_pte_ma(pfn, prot)	__pte_ma(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+#define pte_phys_to_machine phys_to_machine
+#define pte_machine_to_phys machine_to_phys
 #endif
 
 #else /* !CONFIG_XEN */
