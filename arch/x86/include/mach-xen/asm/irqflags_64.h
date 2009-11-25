@@ -9,6 +9,7 @@
  */
 #ifndef _ASM_IRQFLAGS_H
 #define _ASM_IRQFLAGS_H
+#include <asm/processor-flags.h>
 
 #ifndef __ASSEMBLY__
 /*
@@ -50,19 +51,19 @@ static inline void raw_local_irq_disable(void)
 {
 	unsigned long flags = __raw_local_save_flags();
 
-	raw_local_irq_restore((flags & ~(1 << 9)) | (1 << 18));
+	raw_local_irq_restore((flags & ~X86_EFLAGS_IF) | X86_EFLAGS_AC);
 }
 
 static inline void raw_local_irq_enable(void)
 {
 	unsigned long flags = __raw_local_save_flags();
 
-	raw_local_irq_restore((flags | (1 << 9)) & ~(1 << 18));
+	raw_local_irq_restore((flags | X86_EFLAGS_IF) & (~X86_EFLAGS_AC));
 }
 
 static inline int raw_irqs_disabled_flags(unsigned long flags)
 {
-	return !(flags & (1<<9)) || (flags & (1 << 18));
+	return !(flags & X86_EFLAGS_IF) || (flags & X86_EFLAGS_AC);
 }
 
 #else /* CONFIG_X86_VSMP */
@@ -118,13 +119,21 @@ static inline int raw_irqs_disabled_flags(unsigned long flags)
  * Used in the idle loop; sti takes one instruction cycle
  * to complete:
  */
-void raw_safe_halt(void);
+void xen_safe_halt(void);
+static inline void raw_safe_halt(void)
+{
+	xen_safe_halt();
+}
 
 /*
  * Used when interrupts are already enabled or to
  * shutdown the processor:
  */
-void halt(void);
+void xen_halt(void);
+static inline void halt(void)
+{
+	xen_halt();
+}
 
 #else /* __ASSEMBLY__: */
 # ifdef CONFIG_TRACE_IRQFLAGS
