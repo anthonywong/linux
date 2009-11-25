@@ -85,6 +85,7 @@ struct xen_memory_reservation {
      */
     domid_t        domid;
 };
+DEFINE_GUEST_HANDLE_STRUCT(xen_memory_reservation);
 typedef struct xen_memory_reservation xen_memory_reservation_t;
 DEFINE_XEN_GUEST_HANDLE(xen_memory_reservation_t);
 
@@ -178,6 +179,7 @@ struct xen_machphys_mfn_list {
      */
     unsigned int nr_extents;
 };
+DEFINE_GUEST_HANDLE_STRUCT(xen_machphys_mfn_list);
 typedef struct xen_machphys_mfn_list xen_machphys_mfn_list_t;
 DEFINE_XEN_GUEST_HANDLE(xen_machphys_mfn_list_t);
 
@@ -217,6 +219,7 @@ struct xen_add_to_physmap {
     /* GPFN where the source mapping page should appear. */
     xen_pfn_t     gpfn;
 };
+DEFINE_GUEST_HANDLE_STRUCT(xen_add_to_physmap);
 typedef struct xen_add_to_physmap xen_add_to_physmap_t;
 DEFINE_XEN_GUEST_HANDLE(xen_add_to_physmap_t);
 
