@@ -160,6 +160,19 @@ static inline void arch_leave_lazy_mmu_mode(void)
 #define arch_use_lazy_mmu_mode() unlikely(__get_cpu_var(xen_lazy_mmu))
 #endif
 
+#if 0 /* All uses are in places potentially called asynchronously, but
+       * asynchronous code should rather not make use of lazy mode at all.
+       * Therefore, all uses of this function get commented out, proper
+       * detection of asynchronous invocations is added whereever needed,
+       * and this function is disabled to catch any new (improper) uses.
+       */
+static inline void arch_flush_lazy_mmu_mode(void)
+{
+	if (arch_use_lazy_mmu_mode())
+		xen_multicall_flush(false);
+}
+#endif
+
 #else /* !CONFIG_XEN || MODULE */
 
 static inline void xen_multicall_flush(bool ignore) {}
@@ -217,7 +230,7 @@ HYPERVISOR_block(
 	return rc;
 }
 
-static inline void /*__noreturn*/
+static inline void __noreturn
 HYPERVISOR_shutdown(
 	unsigned int reason)
 {
