@@ -207,7 +207,7 @@ typedef struct { pgdval_t pgd; } pgd_t;
 #define __pgd_ma(x) ((pgd_t) { (x) } )
 static inline pgd_t xen_make_pgd(pgdval_t val)
 {
-	if (val & _PAGE_PRESENT)
+	if (likely(val & _PAGE_PRESENT))
 		val = pte_phys_to_machine(val);
 	return (pgd_t) { val };
 }
@@ -217,10 +217,10 @@ static inline pgdval_t xen_pgd_val(pgd_t pgd)
 {
 	pgdval_t ret = __pgd_val(pgd);
 #if PAGETABLE_LEVELS == 2 && CONFIG_XEN_COMPAT <= 0x030002
-	if (ret)
+	if (likely(ret))
 		ret = machine_to_phys(ret) | _PAGE_PRESENT;
 #else
-	if (ret & _PAGE_PRESENT)
+	if (likely(ret & _PAGE_PRESENT))
 		ret = pte_machine_to_phys(ret);
 #endif
 	return ret;
@@ -237,7 +237,7 @@ typedef struct { pudval_t pud; } pud_t;
 #define __pud_ma(x) ((pud_t) { (x) } )
 static inline pud_t xen_make_pud(pudval_t val)
 {
-	if (val & _PAGE_PRESENT)
+	if (likely(val & _PAGE_PRESENT))
 		val = pte_phys_to_machine(val);
 	return (pud_t) { val };
 }
@@ -246,7 +246,7 @@ static inline pud_t xen_make_pud(pudval_t val)
 static inline pudval_t xen_pud_val(pud_t pud)
 {
 	pudval_t ret = __pud_val(pud);
-	if (ret & _PAGE_PRESENT)
+	if (likely(ret & _PAGE_PRESENT))
 		ret = pte_machine_to_phys(ret);
 	return ret;
 }
@@ -266,7 +266,7 @@ typedef struct { pmdval_t pmd; } pmd_t;
 #define __pmd_ma(x)	((pmd_t) { (x) } )
 static inline pmd_t xen_make_pmd(pmdval_t val)
 {
-	if (val & _PAGE_PRESENT)
+	if (likely(val & _PAGE_PRESENT))
 		val = pte_phys_to_machine(val);
 	return (pmd_t) { val };
 }
@@ -276,10 +276,10 @@ static inline pmdval_t xen_pmd_val(pmd_t pmd)
 {
 	pmdval_t ret = __pmd_val(pmd);
 #if CONFIG_XEN_COMPAT <= 0x030002
-	if (ret)
+	if (likely(ret))
 		ret = pte_machine_to_phys(ret) | _PAGE_PRESENT;
 #else
-	if (ret & _PAGE_PRESENT)
+	if (likely(ret & _PAGE_PRESENT))
 		ret = pte_machine_to_phys(ret);
 #endif
 	return ret;
@@ -308,7 +308,7 @@ static inline pmdval_t pmd_flags(pmd_t pmd)
 #define __pte_ma(x) ((pte_t) { .pte = (x) } )
 static inline pte_t xen_make_pte(pteval_t val)
 {
-	if ((val & (_PAGE_PRESENT|_PAGE_IOMAP)) == _PAGE_PRESENT)
+	if (likely((val & (_PAGE_PRESENT|_PAGE_IOMAP)) == _PAGE_PRESENT))
 		val = pte_phys_to_machine(val);
 	return (pte_t) { .pte = val };
 }
@@ -317,7 +317,7 @@ static inline pte_t xen_make_pte(pteval_t val)
 static inline pteval_t xen_pte_val(pte_t pte)
 {
 	pteval_t ret = __pte_val(pte);
-	if ((pte.pte_low & (_PAGE_PRESENT|_PAGE_IOMAP)) == _PAGE_PRESENT)
+	if (likely((pte.pte_low & (_PAGE_PRESENT|_PAGE_IOMAP)) == _PAGE_PRESENT))
 		ret = pte_machine_to_phys(ret);
 	return ret;
 }
