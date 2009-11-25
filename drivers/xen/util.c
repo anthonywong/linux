@@ -1,8 +1,5 @@
-#include <linux/mm.h>
+#include <linux/err.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <asm/uaccess.h>
 #include <xen/driver_util.h>
 
 struct class *get_xen_class(void)
@@ -21,45 +18,3 @@ struct class *get_xen_class(void)
 	return xen_class;
 }
 EXPORT_SYMBOL_GPL(get_xen_class);
-
-#ifdef CONFIG_X86
-static int f(pte_t *pte, struct page *pmd_page, unsigned long addr, void *data)
-{
-	/* apply_to_page_range() does all the hard work. */
-	return 0;
-}
-
-struct vm_struct *alloc_vm_area(unsigned long size)
-{
-	struct vm_struct *area;
-
-	area = get_vm_area(size, VM_IOREMAP);
-	if (area == NULL)
-		return NULL;
-
-	/*
-	 * This ensures that page tables are constructed for this region
-	 * of kernel virtual address space and mapped into init_mm.
-	 */
-	if (apply_to_page_range(&init_mm, (unsigned long)area->addr,
-				area->size, f, NULL)) {
-		free_vm_area(area);
-		return NULL;
-	}
-
-	/* Map page directories into every address space. */
-	vmalloc_sync_all();
-
-	return area;
-}
-EXPORT_SYMBOL_GPL(alloc_vm_area);
-
-void free_vm_area(struct vm_struct *area)
-{
-	struct vm_struct *ret;
-	ret = remove_vm_area(area->addr);
-	BUG_ON(ret != area);
-	kfree(area);
-}
-EXPORT_SYMBOL_GPL(free_vm_area);
-#endif /* CONFIG_X86 */

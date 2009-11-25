@@ -90,7 +90,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	unsigned long machine_to_phys_nr_ents;
 	int i;
 
-	setup_xen_features();
+	xen_setup_features();
 
 	xen_start_info = (struct start_info *)real_mode_data;
 	if (!xen_feature(XENFEAT_auto_translated_physmap))

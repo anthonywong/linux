@@ -57,16 +57,20 @@ struct xenbus_watch
 	void (*callback)(struct xenbus_watch *,
 			 const char **vec, unsigned int len);
 
+#if defined(CONFIG_XEN) || defined(HAVE_XEN_PLATFORM_COMPAT_H)
 	/* See XBWF_ definitions below. */
 	unsigned long flags;
+#endif
 };
 
+#if defined(CONFIG_XEN) || defined(HAVE_XEN_PLATFORM_COMPAT_H)
 /*
  * Execute callback in its own kthread. Useful if the callback is long
  * running or heavily serialised, to avoid taking out the main xenwatch thread
  * for a long period of time (or even unwittingly causing a deadlock).
  */
 #define XBWF_new_thread	1
+#endif
 
 /* A xenbus device. */
 struct xenbus_device {
@@ -214,6 +218,7 @@ int xenbus_watch_path(struct xenbus_device *dev, const char *path,
 				       const char **, unsigned int));
 
 
+#if defined(CONFIG_XEN) || defined(HAVE_XEN_PLATFORM_COMPAT_H)
 /**
  * Register a watch on the given path/path2, using the given xenbus_watch
  * structure for storage, and the given callback function as the callback.
@@ -227,7 +232,13 @@ int xenbus_watch_path2(struct xenbus_device *dev, const char *path,
 		       const char *path2, struct xenbus_watch *watch,
 		       void (*callback)(struct xenbus_watch *,
 					const char **, unsigned int));
-
+#else
+int xenbus_watch_pathfmt(struct xenbus_device *dev, struct xenbus_watch *watch,
+			 void (*callback)(struct xenbus_watch *,
+					  const char **, unsigned int),
+			 const char *pathfmt, ...)
+	__attribute__ ((format (printf, 4, 5)));
+#endif
 
 /**
  * Advertise in the store a change of the given driver to the given new_state.
