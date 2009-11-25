@@ -25,8 +25,8 @@
 #include <xen/cpu_hotplug.h>
 #include <xen/xenbus.h>
 
-extern irqreturn_t smp_reschedule_interrupt(int, void *, struct pt_regs *);
-extern irqreturn_t smp_call_function_interrupt(int, void *, struct pt_regs *);
+extern irqreturn_t smp_reschedule_interrupt(int, void *);
+extern irqreturn_t smp_call_function_interrupt(int, void *);
 
 extern int local_setup_timer(unsigned int cpu);
 extern void local_teardown_timer(unsigned int cpu);
@@ -61,8 +61,6 @@ cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
 #if defined(__i386__)
 u8 x86_cpu_to_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = 0xff };
 EXPORT_SYMBOL(x86_cpu_to_apicid);
-#elif !defined(CONFIG_X86_IO_APIC)
-unsigned int maxcpus = NR_CPUS;
 #endif
 
 void __init prefill_possible_map(void)

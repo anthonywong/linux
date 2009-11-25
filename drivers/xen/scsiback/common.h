@@ -147,7 +147,7 @@ typedef struct {
 
 #define VSCSI_TYPE_HOST		1
 
-irqreturn_t scsiback_intr(int, void *, struct pt_regs *);
+irqreturn_t scsiback_intr(int, void *);
 int scsiback_init_sring(struct vscsibk_info *info,
 		unsigned long ring_ref, unsigned int evtchn);
 int scsiback_schedule(void *data);

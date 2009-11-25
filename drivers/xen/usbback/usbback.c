@@ -288,7 +288,7 @@ static void usbbk_notify_work(usbif_t *usbif)
 	wake_up(&usbif->wq);
 }
 
-irqreturn_t usbbk_be_int(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t usbbk_be_int(int irq, void *dev_id)
 {
 	usbbk_notify_work(dev_id);
 	return IRQ_HANDLED;
@@ -318,7 +318,7 @@ static void usbbk_do_response(pending_req_t *pending_req, int32_t status,
 		notify_remote_via_irq(usbif->irq);
 }
 
-static void usbbk_urb_complete(struct urb *urb, struct pt_regs *regs)
+static void usbbk_urb_complete(struct urb *urb)
 {
 	pending_req_t *pending_req = (pending_req_t *)urb->context;
 

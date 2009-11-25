@@ -61,8 +61,6 @@ EXPORT_SYMBOL(__kernel_page_user);
 
 int after_bootmem;
 
-static unsigned long dma_reserve __initdata;
-
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 extern unsigned long start_pfn;
 
@@ -420,7 +418,6 @@ __init void *early_ioremap(unsigned long addr, unsigned long size)
 
 	/* actually usually some more */
 	if (size >= LARGE_PAGE_SIZE) {
-		printk("SMBIOS area too long %lu\n", size);
 		return NULL;
 	}
 	set_pmd(temp_mappings[0].pmd,  __pmd(map | _KERNPG_TABLE | _PAGE_PSE));
@@ -442,16 +439,24 @@ __init void early_iounmap(void *addr, unsigned long size)
 #endif
 
 static void __meminit
-phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
+phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end)
 {
-	int i, k;
+	int i = pmd_index(address);
 
-	for (i = 0; i < PTRS_PER_PMD; pmd++, i++) {
+	for (; i < PTRS_PER_PMD; i++) {
 		unsigned long pte_phys;
+		pmd_t *pmd = pmd_page + i;
 		pte_t *pte, *pte_save;
+		int k;
 
 		if (address >= end)
 			break;
+
+		if (__pmd_val(*pmd)) {
+			address += PMD_SIZE;
+			continue;
+		}
+
 		pte = alloc_static_page(&pte_phys);
 		pte_save = pte;
 		for (k = 0; k < PTRS_PER_PTE; pte++, k++, address += PTE_SIZE) {
@@ -478,40 +483,35 @@ phys_pmd_init(pmd_t *pmd, unsigned long address, unsigned long end)
 static void __meminit
 phys_pmd_update(pud_t *pud, unsigned long address, unsigned long end)
 {
-	pmd_t *pmd = pmd_offset(pud, (unsigned long)__va(address));
-
-	if (pmd_none(*pmd)) {
-		spin_lock(&init_mm.page_table_lock);
-		phys_pmd_init(pmd, address, end);
-		spin_unlock(&init_mm.page_table_lock);
-		__flush_tlb_all();
-	}
+	pmd_t *pmd = pmd_offset(pud,0);
+	spin_lock(&init_mm.page_table_lock);
+	phys_pmd_init(pmd, address, end);
+	spin_unlock(&init_mm.page_table_lock);
+	__flush_tlb_all();
 }
 
-static void __meminit phys_pud_init(pud_t *pud, unsigned long address, unsigned long end)
+static void __meminit phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end)
 { 
-	long i = pud_index(address);
+	int i = pud_index(addr);
 
-	pud = pud + i;
-
-	if (after_bootmem && pud_val(*pud)) {
-		phys_pmd_update(pud, address, end);
-		return;
-	}
-
-	for (; i < PTRS_PER_PUD; pud++, i++) {
-		unsigned long paddr, pmd_phys;
+	for (; i < PTRS_PER_PUD; i++, addr = (addr & PUD_MASK) + PUD_SIZE ) {
+		unsigned long pmd_phys;
+		pud_t *pud = pud_page + pud_index(addr);
 		pmd_t *pmd;
 
-		paddr = (address & PGDIR_MASK) + i*PUD_SIZE;
-		if (paddr >= end)
+		if (addr >= end)
 			break;
+
+		if (__pud_val(*pud)) {
+			phys_pmd_update(pud, addr, end);
+			continue;
+		}
 
 		pmd = alloc_static_page(&pmd_phys);
 
 		spin_lock(&init_mm.page_table_lock);
 		*pud = __pud(pmd_phys | _KERNPG_TABLE);
-		phys_pmd_init(pmd, paddr, end);
+		phys_pmd_init(pmd, addr, end);
 		spin_unlock(&init_mm.page_table_lock);
 
 		early_make_page_readonly(pmd, XENFEAT_writable_page_tables);
@@ -800,69 +800,18 @@ void __cpuinit zap_low_mappings(int cpu)
 #endif
 }
 
-/* Compute zone sizes for the DMA and DMA32 zones in a node. */
-__init void
-size_zones(unsigned long *z, unsigned long *h,
-	   unsigned long start_pfn, unsigned long end_pfn)
-{
- 	int i;
- 	unsigned long w;
-
- 	for (i = 0; i < MAX_NR_ZONES; i++)
- 		z[i] = 0;
-
- 	if (start_pfn < MAX_DMA_PFN)
- 		z[ZONE_DMA] = MAX_DMA_PFN - start_pfn;
- 	if (start_pfn < MAX_DMA32_PFN) {
- 		unsigned long dma32_pfn = MAX_DMA32_PFN;
- 		if (dma32_pfn > end_pfn)
- 			dma32_pfn = end_pfn;
- 		z[ZONE_DMA32] = dma32_pfn - start_pfn;
- 	}
- 	z[ZONE_NORMAL] = end_pfn - start_pfn;
-
- 	/* Remove lower zones from higher ones. */
- 	w = 0;
- 	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		if (z[i])
- 			z[i] -= w;
- 	        w += z[i];
-	}
-
-	/* Compute holes */
-	w = start_pfn;
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		unsigned long s = w;
-		w += z[i];
-		h[i] = e820_hole_size(s, w);
-	}
-
-	/* Add the space pace needed for mem_map to the holes too. */
-	for (i = 0; i < MAX_NR_ZONES; i++)
-		h[i] += (z[i] * sizeof(struct page)) / PAGE_SIZE;
-
-	/* The 16MB DMA zone has the kernel and other misc mappings.
- 	   Account them too */
-	if (h[ZONE_DMA]) {
-		h[ZONE_DMA] += dma_reserve;
-		if (h[ZONE_DMA] >= z[ZONE_DMA]) {
-			printk(KERN_WARNING
-				"Kernel too large and filling up ZONE_DMA?\n");
-			h[ZONE_DMA] = z[ZONE_DMA];
-		}
-	}
-}
-
 #ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
-	unsigned long zones[MAX_NR_ZONES], holes[MAX_NR_ZONES];
+	unsigned long max_zone_pfns[MAX_NR_ZONES];
+	memset(max_zone_pfns, 0, sizeof(max_zone_pfns));
+	max_zone_pfns[ZONE_DMA] = MAX_DMA_PFN;
+	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
+	max_zone_pfns[ZONE_NORMAL] = end_pfn;
 
 	memory_present(0, 0, end_pfn);
 	sparse_init();
-	size_zones(zones, holes, 0, end_pfn);
-	free_area_init_node(0, NODE_DATA(0), zones,
-			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
+	free_area_init_nodes(max_zone_pfns);
 
 	init_mm.context.pinned = 1;
 }
@@ -916,35 +865,22 @@ void online_page(struct page *page)
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
- * XXX: memory_add_physaddr_to_nid() is to find node id from physical address
- *	via probe interface of sysfs. If acpi notifies hot-add event, then it
- *	can tell node id by searching dsdt. But, probe interface doesn't have
- *	node id. So, return 0 as node id at this time.
- */
-#ifdef CONFIG_NUMA
-int memory_add_physaddr_to_nid(u64 start)
-{
-	return 0;
-}
-#endif
-
-/*
  * Memory is added always to NORMAL zone. This means you will never get
  * additional DMA/DMA32 memory.
  */
 int arch_add_memory(int nid, u64 start, u64 size)
 {
 	struct pglist_data *pgdat = NODE_DATA(nid);
-	struct zone *zone = pgdat->node_zones + MAX_NR_ZONES-2;
+	struct zone *zone = pgdat->node_zones + ZONE_NORMAL;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 	int ret;
 
+	init_memory_mapping(start, (start + size -1));
+
 	ret = __add_pages(zone, start_pfn, nr_pages);
 	if (ret)
 		goto error;
-
-	init_memory_mapping(start, (start + size -1));
 
 	return ret;
 error:
@@ -959,7 +895,17 @@ int remove_memory(u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(remove_memory);
 
-#else /* CONFIG_MEMORY_HOTPLUG */
+#if !defined(CONFIG_ACPI_NUMA) && defined(CONFIG_NUMA)
+int memory_add_physaddr_to_nid(u64 start)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+#endif
+
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
+#ifdef CONFIG_MEMORY_HOTPLUG_RESERVE
 /*
  * Memory Hotadd without sparsemem. The mem_maps have been allocated in advance,
  * just online the pages.
@@ -985,7 +931,7 @@ int __add_pages(struct zone *z, unsigned long start_pfn, unsigned long nr_pages)
 	}
 	return err;
 }
-#endif /* CONFIG_MEMORY_HOTPLUG */
+#endif
 
 static struct kcore_list kcore_mem, kcore_vmalloc, kcore_kernel, kcore_modules,
 			 kcore_vsyscall;
@@ -996,12 +942,6 @@ void __init mem_init(void)
 	unsigned long pfn;
 
 	pci_iommu_alloc();
-
-	/* How many end-of-memory variables you have, grandma! */
-	max_low_pfn = end_pfn;
-	max_pfn = end_pfn;
-	num_physpages = end_pfn;
-	high_memory = (void *) __va(end_pfn * PAGE_SIZE);
 
 	/* clear the zero-page */
 	memset(empty_zero_page, 0, PAGE_SIZE);
@@ -1014,13 +954,13 @@ void __init mem_init(void)
 #else
 	totalram_pages = free_all_bootmem();
 #endif
-	/* XEN: init and count pages outside initial allocation. */
+	/* XEN: init pages outside initial allocation. */
 	for (pfn = xen_start_info->nr_pages; pfn < max_pfn; pfn++) {
 		ClearPageReserved(pfn_to_page(pfn));
 		init_page_count(pfn_to_page(pfn));
-		totalram_pages++;
 	}
-	reservedpages = end_pfn - totalram_pages - e820_hole_size(0, end_pfn);
+	reservedpages = end_pfn - totalram_pages -
+					absent_pages_in_range(0, end_pfn);
 
 	after_bootmem = 1;
 
@@ -1127,15 +1067,32 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 void __init reserve_bootmem_generic(unsigned long phys, unsigned len) 
 { 
-	/* Should check here against the e820 map to avoid double free */ 
 #ifdef CONFIG_NUMA
 	int nid = phys_to_nid(phys);
+#endif
+	unsigned long pfn = phys >> PAGE_SHIFT;
+	if (pfn >= end_pfn) {
+		/* This can happen with kdump kernels when accessing firmware
+		   tables. */
+		if (pfn < end_pfn_map)
+			return;
+		printk(KERN_ERR "reserve_bootmem: illegal reserve %lx %u\n",
+				phys, len);
+		return;
+	}
+
+	/* Should check here against the e820 map to avoid double free */
+#ifdef CONFIG_NUMA
   	reserve_bootmem_node(NODE_DATA(nid), phys, len);
 #else       		
 	reserve_bootmem(phys, len);    
 #endif
-	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE)
+#ifndef CONFIG_XEN
+	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE) {
 		dma_reserve += len / PAGE_SIZE;
+		set_dma_reserve(dma_reserve);
+	}
+#endif
 }
 
 int kern_addr_valid(unsigned long addr) 

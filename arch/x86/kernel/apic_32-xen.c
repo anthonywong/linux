@@ -54,7 +54,6 @@ static cpumask_t timer_bcast_ipi;
 /*
  * Knob to control our willingness to enable the local APIC.
  */
-int enable_local_apic __initdata = 0; /* -1=force-disable, +1=force-enable */
 
 /*
  * Debug level
@@ -102,7 +101,7 @@ int get_physical_broadcast(void)
 
 #ifndef CONFIG_XEN
 #ifndef CONFIG_SMP
-static void up_apic_timer_interrupt_call(struct pt_regs *regs)
+static void up_apic_timer_interrupt_call(void)
 {
 	int cpu = smp_processor_id();
 
@@ -111,11 +110,11 @@ static void up_apic_timer_interrupt_call(struct pt_regs *regs)
 	 */
 	per_cpu(irq_stat, cpu).apic_timer_irqs++;
 
-	smp_local_timer_interrupt(regs);
+	smp_local_timer_interrupt();
 }
 #endif
 
-void smp_send_timer_broadcast_ipi(struct pt_regs *regs)
+void smp_send_timer_broadcast_ipi(void)
 {
 	cpumask_t mask;
 
@@ -128,7 +127,7 @@ void smp_send_timer_broadcast_ipi(struct pt_regs *regs)
 		 * We can directly call the apic timer interrupt handler
 		 * in UP case. Minus all irq related functions
 		 */
-		up_apic_timer_interrupt_call(regs);
+		up_apic_timer_interrupt_call();
 #endif
 	}
 }

@@ -99,7 +99,7 @@ int pciback_publish_pci_roots(struct pciback_device *pdev,
 void pciback_release_devices(struct pciback_device *pdev);
 
 /* Handles events from front-end */
-irqreturn_t pciback_handle_event(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t pciback_handle_event(int irq, void *dev_id);
 void pciback_do_op(void *data);
 
 int pciback_xenbus_register(void);

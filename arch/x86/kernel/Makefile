@@ -124,7 +124,7 @@ obj-$(CONFIG_X86_XEN)		+= fixup.o
 ###
 # 64 bit specific files
 ifeq ($(CONFIG_X86_64),y)
-	obj-$(CONFIG_X86_XEN_GENAPIC)	+= genapic_xen_64.o
+	obj-$(CONFIG_X86_XEN_GENAPIC)	+= genapic_64.o genapic_xen_64.o
 	obj-$(CONFIG_X86_UV)		+= tlb_uv.o bios_uv.o uv_irq.o uv_sysfs.o uv_time.o
 	obj-$(CONFIG_X86_PM_TIMER)	+= pmtimer_64.o
 	obj-$(CONFIG_AUDIT)		+= audit_64.o
@@ -140,5 +140,7 @@ ifeq ($(CONFIG_X86_64),y)
 	pci-dma_64-$(CONFIG_XEN)	+= pci-dma_32.o
 endif
 
-disabled-obj-$(CONFIG_XEN) := i8253.o i8259_$(BITS).o reboot.o smpboot_$(BITS).o tsc_$(BITS).o
+disabled-obj-$(CONFIG_XEN) := early-quirks.o i8253.o i8259_$(BITS).o reboot.o \
+	smpboot_$(BITS).o tsc_$(BITS).o
+disabled-obj-$(CONFIG_XEN_UNPRIVILEGED_GUEST) += mpparse_64.o
 %/head_$(BITS).o %/head_$(BITS).s: $(if $(CONFIG_XEN),EXTRA_AFLAGS,dummy) :=

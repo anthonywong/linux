@@ -68,9 +68,14 @@ int acpi_strict;
 
 u8 acpi_sci_flags __initdata;
 int acpi_sci_override_gsi __initdata;
+#ifndef CONFIG_XEN
 int acpi_skip_timer_override __initdata;
 int acpi_use_timer_override __initdata;
 int acpi_fix_pin2_polarity __initdata;
+#else
+#define acpi_skip_timer_override 0
+#define acpi_fix_pin2_polarity 0
+#endif
 
 #ifdef CONFIG_X86_LOCAL_APIC
 static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
@@ -1684,7 +1689,7 @@ int __init acpi_mps_check(void)
 	return 0;
 }
 
-#ifdef CONFIG_X86_IO_APIC
+#if defined(CONFIG_X86_IO_APIC) && !defined(CONFIG_XEN)
 static int __init parse_acpi_skip_timer_override(char *arg)
 {
 	acpi_skip_timer_override = 1;
