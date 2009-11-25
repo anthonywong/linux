@@ -352,4 +352,9 @@ MULTI_grant_table_op(multicall_entry_t *mcl, unsigned int cmd,
 
 #define uvm_multi(cpumask) ((unsigned long)cpumask_bits(cpumask) | UVMF_MULTI)
 
+#ifdef LINUX
+/* drivers/staging/ use Windows-style types, including VOID */
+#undef VOID
+#endif
+
 #endif /* __HYPERVISOR_H__ */
