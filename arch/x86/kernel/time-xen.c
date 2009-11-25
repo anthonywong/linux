@@ -1,6 +1,4 @@
 /*
- *  linux/arch/i386/kernel/time.c
- *
  *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
  *
  * This file contains the PC-specific time handling details:
@@ -74,6 +72,7 @@
 #include <asm/arch_hooks.h>
 
 #include <xen/evtchn.h>
+#include <xen/sysctl.h>
 #include <xen/interface/vcpu.h>
 
 #include <asm/i8253.h>
@@ -526,6 +525,13 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
 	struct vcpu_runstate_info runstate;
 
+	/* Keep nmi watchdog up to date */
+#ifdef __i386__
+	per_cpu(irq_stat, smp_processor_id()).irq0_irqs++;
+#else
+	add_pda(irq0_irqs, 1);
+#endif
+
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
 	 * disabled but we don't know if the timer_bh is running on the other
@@ -977,7 +983,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 	struct cpufreq_freqs *freq = data;
 	struct xen_platform_op op;
 
-	if (cpu_has(&cpu_data[freq->cpu], X86_FEATURE_CONSTANT_TSC))
+	if (cpu_has(&cpu_data(freq->cpu), X86_FEATURE_CONSTANT_TSC))
 		return 0;
 
 	if (val == CPUFREQ_PRECHANGE)
@@ -1015,30 +1021,33 @@ core_initcall(cpufreq_time_setup);
  */
 static ctl_table xen_subtable[] = {
 	{
-		.ctl_name	= 1,
+		.ctl_name	= CTL_XEN_INDEPENDENT_WALLCLOCK,
 		.procname	= "independent_wallclock",
 		.data		= &independent_wallclock,
 		.maxlen		= sizeof(independent_wallclock),
 		.mode		= 0644,
+		.strategy	= sysctl_data,
 		.proc_handler	= proc_dointvec
 	},
 	{
-		.ctl_name	= 2,
+		.ctl_name	= CTL_XEN_PERMITTED_CLOCK_JITTER,
 		.procname	= "permitted_clock_jitter",
 		.data		= &permitted_clock_jitter,
 		.maxlen		= sizeof(permitted_clock_jitter),
 		.mode		= 0644,
+		.strategy	= sysctl_data,
 		.proc_handler	= proc_doulongvec_minmax
 	},
-	{ 0 }
+	{ }
 };
 static ctl_table xen_table[] = {
 	{
-		.ctl_name	= 123,
+		.ctl_name	= CTL_XEN,
 		.procname	= "xen",
 		.mode		= 0555,
-		.child		= xen_subtable},
-	{ 0 }
+		.child		= xen_subtable
+	},
+	{ }
 };
 static int __init xen_sysctl_init(void)
 {
