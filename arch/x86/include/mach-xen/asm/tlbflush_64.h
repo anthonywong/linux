@@ -12,9 +12,6 @@
  */
 #define __flush_tlb_global()	xen_tlb_flush()
 
-
-extern unsigned long pgkern_mask;
-
 #define __flush_tlb_all() __flush_tlb_global()
 
 #define __flush_tlb_one(addr)	xen_invlpg((unsigned long)addr)

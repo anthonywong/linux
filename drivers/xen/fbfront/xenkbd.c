@@ -46,7 +46,7 @@ static void xenkbd_disconnect_backend(struct xenkbd_info *);
  * to do that.
  */
 
-static irqreturn_t input_handler(int rq, void *dev_id, struct pt_regs *regs)
+static irqreturn_t input_handler(int rq, void *dev_id)
 {
 	struct xenkbd_info *info = dev_id;
 	struct xenkbd_page *page = info->page;
