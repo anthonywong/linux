@@ -160,7 +160,12 @@ static void xen_smp_intr_exit(unsigned int cpu)
 
 void __cpuinit cpu_bringup(void)
 {
+#ifdef __i386__
+	cpu_set_gdt(current_thread_info()->cpu);
+	secondary_cpu_init();
+#else
 	cpu_init();
+#endif
 	identify_cpu(cpu_data + smp_processor_id());
 	touch_softlockup_watchdog();
 	preempt_disable();
@@ -299,11 +304,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		if (cpu == 0)
 			continue;
 
+		idle = fork_idle(cpu);
+		if (IS_ERR(idle))
+			panic("failed fork for CPU %d", cpu);
+
 #ifdef __x86_64__
 		gdt_descr = &cpu_gdt_descr[cpu];
-#else
-		gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
-#endif
 		gdt_descr->address = get_zeroed_page(GFP_KERNEL);
 		if (unlikely(!gdt_descr->address)) {
 			printk(KERN_CRIT "CPU%d failed to allocate GDT\n",
@@ -312,6 +318,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		}
 		gdt_descr->size = GDT_SIZE;
 		memcpy((void *)gdt_descr->address, cpu_gdt_table, GDT_SIZE);
+#else
+		if (unlikely(!init_gdt(cpu, idle)))
+			continue;
+		gdt_descr = &per_cpu(cpu_gdt_descr, cpu);
+#endif
 		make_page_readonly(
 			(void *)gdt_descr->address,
 			XENFEAT_writable_descriptor_tables);
@@ -330,10 +341,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 		cpu_2_logical_apicid[cpu] = apicid;
 		x86_cpu_to_apicid[cpu] = apicid;
-
-		idle = fork_idle(cpu);
-		if (IS_ERR(idle))
-			panic("failed fork for CPU %d", cpu);
 
 #ifdef __x86_64__
 		cpu_pda(cpu)->pcurrent = idle;

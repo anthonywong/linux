@@ -12,7 +12,7 @@
 static DEFINE_MUTEX(mtrr_mutex);
 
 void generic_get_mtrr(unsigned int reg, unsigned long *base,
-		      unsigned int *size, mtrr_type * type)
+		      unsigned long *size, mtrr_type * type)
 {
 	struct xen_platform_op op;
 
@@ -115,8 +115,7 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 {
 	unsigned i;
 	mtrr_type ltype;
-	unsigned long lbase;
-	unsigned int lsize;
+	unsigned long lbase, lsize;
 	int error = -EINVAL;
 	struct xen_platform_op op;
 

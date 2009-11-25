@@ -237,19 +237,18 @@ extern unsigned int __kernel_page_user;
 
 static inline unsigned long pgd_bad(pgd_t pgd)
 {
-       unsigned long val = __pgd_val(pgd);
-       val &= ~PTE_MASK;
-       val &= ~(_PAGE_USER | _PAGE_DIRTY);
-       return val & ~(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED);
+	return __pgd_val(pgd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
 }
 
-static inline unsigned long pud_bad(pud_t pud) 
-{ 
-       unsigned long val = __pud_val(pud);
-       val &= ~PTE_MASK; 
-       val &= ~(_PAGE_USER | _PAGE_DIRTY); 
-       return val & ~(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED);      
-} 
+static inline unsigned long pud_bad(pud_t pud)
+{
+	return __pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+}
+
+static inline unsigned long pmd_bad(pmd_t pmd)
+{
+	return __pmd_val(pmd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+}
 
 #define set_pte_at(_mm,addr,ptep,pteval) do {				\
 	if (((_mm) != current->mm && (_mm) != &init_mm) ||		\
@@ -404,8 +403,6 @@ static inline int pmd_large(pmd_t pte) {
 #define pmd_present(x)	(__pmd_val(x) & _PAGE_PRESENT)
 #endif
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
-#define pmd_bad(x) ((__pmd_val(x) & ~(PTE_MASK | _PAGE_USER | _PAGE_PRESENT)) \
-		    != (_KERNPG_TABLE & ~(_PAGE_USER | _PAGE_PRESENT)))
 #define pfn_pmd(nr,prot) (__pmd(((nr) << PAGE_SHIFT) | pgprot_val(prot)))
 #define pmd_pfn(x)  ((pmd_val(x) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 

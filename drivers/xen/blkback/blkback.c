@@ -37,6 +37,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <xen/balloon.h>
