@@ -21,28 +21,28 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  */
-#include <linux/capability.h>
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/smp_lock.h>
-#include <linux/cpumask.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/miscdevice.h>
-#include <linux/spinlock.h>
-#include <linux/mm.h>
-#include <linux/fs.h>
-#include <linux/mutex.h>
-#include <linux/cpu.h>
-#include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/capability.h>
+#include <linux/miscdevice.h>
+#include <linux/firmware.h>
+#include <linux/smp_lock.h>
+#include <linux/spinlock.h>
+#include <linux/cpumask.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/sched.h>
+#include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/cpu.h>
+#include <linux/fs.h>
+#include <linux/mm.h>
 
-#include <asm/msr.h>
-#include <asm/uaccess.h>
-#include <asm/processor.h>
 #include <asm/microcode.h>
+#include <asm/processor.h>
+#include <asm/msr.h>
 
 MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
@@ -51,7 +51,7 @@ MODULE_LICENSE("GPL");
 static int verbose;
 module_param(verbose, int, 0644);
 
-#define MICROCODE_VERSION 	"2.00-xen"
+#define MICROCODE_VERSION	"2.00-xen"
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
 static DEFINE_MUTEX(microcode_mutex);
@@ -143,12 +143,12 @@ static void microcode_dev_exit(void)
 
 MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #else
-#define microcode_dev_init() 0
-#define microcode_dev_exit() do { } while (0)
+#define microcode_dev_init()	0
+#define microcode_dev_exit()	do { } while (0)
 #endif
 
 /* fake device for request_firmware */
-static struct platform_device *microcode_pdev;
+static struct platform_device	*microcode_pdev;
 
 static int request_microcode(const char *name)
 {

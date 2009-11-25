@@ -21,8 +21,14 @@
 # define PA_CONTROL_PAGE	0
 # define VA_CONTROL_PAGE	1
 # define PA_TABLE_PAGE		2
+# ifndef CONFIG_XEN
 # define PA_SWAP_PAGE		3
 # define PAGES_NR		4
+# else /* CONFIG_XEN, see comment above
+#  define VA_TABLE_PAGE		3 */
+#  define PA_SWAP_PAGE		4
+#  define PAGES_NR		5
+# endif /* CONFIG_XEN */
 #endif
 
 # define KEXEC_CONTROL_CODE_MAX_SIZE	2048

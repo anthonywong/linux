@@ -25,6 +25,8 @@
 #include <xen/features.h>
 #include <asm/hypervisor.h>
 
+unsigned int __VMALLOC_RESERVE = 128 << 20;
+
 /*
  * Associate a virtual page frame with a given physical page frame
  * and protection flags for that frame.
@@ -54,7 +56,7 @@ void set_pte_vaddr(unsigned long vaddr, pte_t pteval)
 	}
 	pte = pte_offset_kernel(pmd, vaddr);
 	if (pte_val(pteval))
-		set_pte_present(&init_mm, vaddr, pte, pteval);
+		set_pte_at(&init_mm, vaddr, pte, pteval);
 	else
 		pte_clear(&init_mm, vaddr, pte);
 
@@ -108,21 +110,6 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 unsigned long hypervisor_virt_start = HYPERVISOR_VIRT_START;
 unsigned long __FIXADDR_TOP = (HYPERVISOR_VIRT_START - PAGE_SIZE);
 EXPORT_SYMBOL(__FIXADDR_TOP);
-
-/**
- * reserve_top_address - reserves a hole in the top of kernel address space
- * @reserve - size of hole to reserve
- *
- * Can be used to relocate the fixmap area and poke a hole in the top
- * of kernel address space to make room for a hypervisor.
- */
-void __init reserve_top_address(unsigned long reserve)
-{
-	BUG_ON(fixmaps_set > 0);
-	printk(KERN_INFO "Reserving virtual address space above 0x%08x\n",
-	       (int)-reserve);
-	__FIXADDR_TOP = -reserve - PAGE_SIZE;
-}
 
 /*
  * vmalloc=size forces the vmalloc area to be exactly 'size'
