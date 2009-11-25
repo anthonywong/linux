@@ -747,10 +747,8 @@ void __init xen_init_pt(void)
 	early_make_page_readonly(level1_fixmap_pgt,
 				 XENFEAT_writable_page_tables);
 
-	if (!xen_feature(XENFEAT_writable_page_tables)) {
-		xen_pgd_pin(__pa_symbol(init_level4_pgt));
-		xen_pgd_pin(__pa_symbol(__user_pgd(init_level4_pgt)));
-	}
+	if (!xen_feature(XENFEAT_writable_page_tables))
+		xen_pgd_pin(init_level4_pgt);
 }
 
 void __init xen_finish_init_mapping(void)
