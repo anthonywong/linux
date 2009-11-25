@@ -12,13 +12,11 @@
 
 #ifndef __ia64__
 
+#include <asm/pci.h>
+
 struct pcifront_device;
 struct pci_bus;
-
-struct pcifront_sd {
-	int domain;
-	struct pcifront_device *pdev;
-};
+#define pcifront_sd pci_sysdata
 
 static inline struct pcifront_device *
 pcifront_get_pdev(struct pcifront_sd *sd)
@@ -33,18 +31,6 @@ static inline void pcifront_init_sd(struct pcifront_sd *sd,
 	sd->domain = domain;
 	sd->pdev = pdev;
 }
-
-#if defined(CONFIG_PCI_DOMAINS)
-static inline int pci_domain_nr(struct pci_bus *bus)
-{
-	struct pcifront_sd *sd = bus->sysdata;
-	return sd->domain;
-}
-static inline int pci_proc_domain(struct pci_bus *bus)
-{
-	return pci_domain_nr(bus);
-}
-#endif /* CONFIG_PCI_DOMAINS */
 
 static inline void pcifront_setup_root_resources(struct pci_bus *bus,
 						 struct pcifront_sd *sd)

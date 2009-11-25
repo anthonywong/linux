@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86-64/traps.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *  Copyright (C) 2000, 2001, 2002 Andi Kleen, SuSE Labs
  *
@@ -33,6 +31,7 @@
 #include <linux/uaccess.h>
 #include <linux/bug.h>
 #include <linux/kdebug.h>
+#include <linux/utsname.h>
 
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
@@ -205,7 +204,7 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 #define MSG(txt) ops->warning(data, txt)
 
 /*
- * x86-64 can have upto three kernel stacks: 
+ * x86-64 can have up to three kernel stacks:
  * process stack
  * interrupt stack
  * severe exception (double fault, nmi, stack fault, debug, mce) hardware stack
@@ -219,7 +218,7 @@ static inline int valid_stack_ptr(struct thread_info *tinfo, void *p)
 
 void dump_trace(struct task_struct *tsk, struct pt_regs *regs,
 		unsigned long *stack,
-		struct stacktrace_ops *ops, void *data)
+		const struct stacktrace_ops *ops, void *data)
 {
 	const unsigned cpu = get_cpu();
 	unsigned long *irqstack_end = (unsigned long*)cpu_pda(cpu)->irqstackptr;
@@ -340,7 +339,7 @@ static void print_trace_address(void *data, unsigned long addr)
 	printk_address(addr);
 }
 
-static struct stacktrace_ops print_trace_ops = {
+static const struct stacktrace_ops print_trace_ops = {
 	.warning = print_trace_warning,
 	.warning_symbol = print_trace_warning_symbol,
 	.stack = print_trace_stack,
@@ -404,6 +403,12 @@ void show_stack(struct task_struct *tsk, unsigned long * rsp)
 void dump_stack(void)
 {
 	unsigned long dummy;
+
+	printk("Pid: %d, comm: %.20s %s %s %.*s\n",
+		current->pid, current->comm, print_tainted(),
+		init_utsname()->release,
+		(int)strcspn(init_utsname()->version, " "),
+		init_utsname()->version);
 	show_trace(NULL, NULL, &dummy);
 }
 
@@ -466,7 +471,7 @@ void out_of_line_bug(void)
 EXPORT_SYMBOL(out_of_line_bug);
 #endif
 
-static DEFINE_SPINLOCK(die_lock);
+static raw_spinlock_t die_lock = __RAW_SPIN_LOCK_UNLOCKED;
 static int die_owner = -1;
 static unsigned int die_nest_count;
 
@@ -478,13 +483,13 @@ unsigned __kprobes long oops_begin(void)
 	oops_enter();
 
 	/* racy, but better than risking deadlock. */
-	local_irq_save(flags);
+	raw_local_irq_save(flags);
 	cpu = smp_processor_id();
-	if (!spin_trylock(&die_lock)) { 
+	if (!__raw_spin_trylock(&die_lock)) {
 		if (cpu == die_owner) 
 			/* nested oops. should stop eventually */;
 		else
-			spin_lock(&die_lock);
+			__raw_spin_lock(&die_lock);
 	}
 	die_nest_count++;
 	die_owner = cpu;
@@ -498,12 +503,10 @@ void __kprobes oops_end(unsigned long flags)
 	die_owner = -1;
 	bust_spinlocks(0);
 	die_nest_count--;
-	if (die_nest_count)
-		/* We still own the lock */
-		local_irq_restore(flags);
-	else
+	if (!die_nest_count)
 		/* Nest count reaches zero, release the lock. */
-		spin_unlock_irqrestore(&die_lock, flags);
+		__raw_spin_unlock(&die_lock);
+	raw_local_irq_restore(flags);
 	if (panic_on_oops)
 		panic("Fatal exception");
 	oops_exit();
@@ -636,6 +639,7 @@ asmlinkage void do_##name(struct pt_regs * regs, long error_code) \
 	info.si_errno = 0; \
 	info.si_code = sicode; \
 	info.si_addr = (void __user *)siaddr; \
+	trace_hardirqs_fixup(); \
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) \
 							== NOTIFY_STOP) \
 		return; \
@@ -741,11 +745,8 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 
 	printk(KERN_EMERG "Dazed and confused, but trying to continue\n");
 
-#if 0 /* XEN */
 	/* Clear and disable the memory parity error line. */
-	reason = (reason & 0xf) | 4;
-	outb(reason, 0x61);
-#endif /* XEN */
+	clear_mem_error(reason);
 }
 
 static __kprobes void
@@ -754,14 +755,8 @@ io_check_error(unsigned char reason, struct pt_regs * regs)
 	printk("NMI: IOCK error (debug interrupt?)\n");
 	show_registers(regs);
 
-#if 0 /* XEN */
 	/* Re-enable the IOCK line, wait for a few seconds */
-	reason = (reason & 0xf) | 8;
-	outb(reason, 0x61);
-	mdelay(2000);
-	reason &= ~8;
-	outb(reason, 0x61);
-#endif /* XEN */
+	clear_io_check_error(reason);
 }
 
 static __kprobes void
@@ -821,6 +816,8 @@ asmlinkage __kprobes void default_do_nmi(struct pt_regs *regs)
 /* runs on IST stack. */
 asmlinkage void __kprobes do_int3(struct pt_regs * regs, long error_code)
 {
+	trace_hardirqs_fixup();
+
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP) == NOTIFY_STOP) {
 		return;
 	}
@@ -857,6 +854,8 @@ asmlinkage void __kprobes do_debug(struct pt_regs * regs,
 	unsigned long condition;
 	struct task_struct *tsk = current;
 	siginfo_t info;
+
+	trace_hardirqs_fixup();
 
 	get_debugreg(condition, 6);
 

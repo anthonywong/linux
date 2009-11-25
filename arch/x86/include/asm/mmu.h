@@ -14,6 +14,9 @@
 typedef struct {
 	void *ldt;
 	int size;
+#ifdef CONFIG_XEN
+	unsigned has_foreign_mappings:1;
+#endif
 	struct mutex lock;
 	void *vdso;
 #ifdef CONFIG_X86_32

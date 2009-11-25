@@ -173,7 +173,7 @@ void eisa_set_level_irq(unsigned int irq)
 }
 
 /*
- * Common IRQ routing practice: nybbles in config space,
+ * Common IRQ routing practice: nibbles in config space,
  * offset by some magic constant.
  */
 static unsigned int read_config_nybble(struct pci_dev *router, unsigned offset, unsigned nr)
@@ -496,6 +496,26 @@ static int pirq_amd756_set(struct pci_dev *router, struct pci_dev *dev, int pirq
 	return 1;
 }
 
+/*
+ * PicoPower PT86C523
+ */
+static int pirq_pico_get(struct pci_dev *router, struct pci_dev *dev, int pirq)
+{
+	outb(0x10 + ((pirq - 1) >> 1), 0x24);
+	return ((pirq - 1) & 1) ? (inb(0x26) >> 4) : (inb(0x26) & 0xf);
+}
+
+static int pirq_pico_set(struct pci_dev *router, struct pci_dev *dev, int pirq,
+			int irq)
+{
+	unsigned int x;
+	outb(0x10 + ((pirq - 1) >> 1), 0x24);
+	x = inb(0x26);
+	x = ((pirq - 1) & 1) ? ((x & 0x0f) | (irq << 4)) : ((x & 0xf0) | (irq));
+	outb(x, 0x26);
+	return 1;
+}
+
 #ifdef CONFIG_PCI_BIOS
 
 static int pirq_bios_set(struct pci_dev *router, struct pci_dev *dev, int pirq, int irq)
@@ -569,7 +589,7 @@ static __init int via_router_probe(struct irq_router *r,
 	/* FIXME: We should move some of the quirk fixup stuff here */
 
 	/*
-	 * work arounds for some buggy BIOSes
+	 * workarounds for some buggy BIOSes
 	 */
 	if (device == PCI_DEVICE_ID_VIA_82C586_0) {
 		switch(router->device) {
@@ -725,6 +745,24 @@ static __init int amd_router_probe(struct irq_router *r, struct pci_dev *router,
 	return 1;
 }
 		
+static __init int pico_router_probe(struct irq_router *r, struct pci_dev *router, u16 device)
+{
+	switch (device) {
+	case PCI_DEVICE_ID_PICOPOWER_PT86C523:
+		r->name = "PicoPower PT86C523";
+		r->get = pirq_pico_get;
+		r->set = pirq_pico_set;
+		return 1;
+
+	case PCI_DEVICE_ID_PICOPOWER_PT86C523BBP:
+		r->name = "PicoPower PT86C523 rev. BB+";
+		r->get = pirq_pico_get;
+		r->set = pirq_pico_set;
+		return 1;
+	}
+	return 0;
+}
+
 static __initdata struct irq_router_handler pirq_routers[] = {
 	{ PCI_VENDOR_ID_INTEL, intel_router_probe },
 	{ PCI_VENDOR_ID_AL, ali_router_probe },
@@ -736,6 +774,7 @@ static __initdata struct irq_router_handler pirq_routers[] = {
 	{ PCI_VENDOR_ID_VLSI, vlsi_router_probe },
 	{ PCI_VENDOR_ID_SERVERWORKS, serverworks_router_probe },
 	{ PCI_VENDOR_ID_AMD, amd_router_probe },
+	{ PCI_VENDOR_ID_PICOPOWER, pico_router_probe },
 	/* Someone with docs needs to add the ATI Radeon IGP */
 	{ 0, NULL }
 };
@@ -1014,7 +1053,7 @@ static void __init pcibios_fixup_irqs(void)
  * Work around broken HP Pavilion Notebooks which assign USB to
  * IRQ 9 even though it is actually wired to IRQ 11
  */
-static int __init fix_broken_hp_bios_irq9(struct dmi_system_id *d)
+static int __init fix_broken_hp_bios_irq9(const struct dmi_system_id *d)
 {
 	if (!broken_hp_bios_irq9) {
 		broken_hp_bios_irq9 = 1;
@@ -1027,7 +1066,7 @@ static int __init fix_broken_hp_bios_irq9(struct dmi_system_id *d)
  * Work around broken Acer TravelMate 360 Notebooks which assign
  * Cardbus to IRQ 11 even though it is actually wired to IRQ 10
  */
-static int __init fix_acer_tm360_irqrouting(struct dmi_system_id *d)
+static int __init fix_acer_tm360_irqrouting(const struct dmi_system_id *d)
 {
 	if (!acer_tm360_irqrouting) {
 		acer_tm360_irqrouting = 1;
