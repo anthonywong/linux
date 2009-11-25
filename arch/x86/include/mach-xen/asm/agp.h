@@ -13,18 +13,13 @@
  * page. This avoids data corruption on some CPUs.
  */
 
-/*
- * Caller's responsibility to call global_flush_tlb() for performance
- * reasons
- */
 #define map_page_into_agp(page) ( \
 	xen_create_contiguous_region((unsigned long)page_address(page), 0, 32) \
-	?: change_page_attr(page, 1, PAGE_KERNEL_NOCACHE))
+	?: set_pages_uc(page, 1))
 #define unmap_page_from_agp(page) ( \
 	xen_destroy_contiguous_region((unsigned long)page_address(page), 0), \
 	/* only a fallback: xen_destroy_contiguous_region uses PAGE_KERNEL */ \
-	change_page_attr(page, 1, PAGE_KERNEL))
-#define flush_agp_mappings() global_flush_tlb()
+	set_pages_wb(page, 1))
 
 /*
  * Could use CLFLUSH here if the cpu supports it. But then it would
