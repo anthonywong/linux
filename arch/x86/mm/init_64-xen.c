@@ -193,7 +193,10 @@ static pud_t *fill_pud(pgd_t *pgd, unsigned long vaddr)
 	if (pgd_none(*pgd)) {
 		pud_t *pud = (pud_t *)spp_getpage();
 		make_page_readonly(pud, XENFEAT_writable_page_tables);
-		pgd_populate(&init_mm, pgd, pud);
+		if (!after_bootmem)
+			xen_l4_entry_update(pgd, __pgd(__pa(pud) | _PAGE_TABLE));
+		else
+			pgd_populate(&init_mm, pgd, pud);
 		if (pud != pud_offset(pgd, 0))
 			printk(KERN_ERR "PAGETABLE BUG #00! %p <-> %p\n",
 			       pud, pud_offset(pgd, 0));
@@ -206,7 +209,10 @@ static pmd_t *fill_pmd(pud_t *pud, unsigned long vaddr)
 	if (pud_none(*pud)) {
 		pmd_t *pmd = (pmd_t *) spp_getpage();
 		make_page_readonly(pmd, XENFEAT_writable_page_tables);
-		pud_populate(&init_mm, pud, pmd);
+		if (!after_bootmem)
+			xen_l3_entry_update(pud, __pud(__pa(pmd) | _PAGE_TABLE));
+		else
+			pud_populate(&init_mm, pud, pmd);
 		if (pmd != pmd_offset(pud, 0))
 			printk(KERN_ERR "PAGETABLE BUG #01! %p <-> %p\n",
 			       pmd, pmd_offset(pud, 0));
@@ -535,7 +541,6 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 						   XENFEAT_writable_page_tables);
 			*pmd = __pmd(pte_phys | _PAGE_TABLE);
 		} else {
-			make_page_readonly(pte, XENFEAT_writable_page_tables);
 			spin_lock(&init_mm.page_table_lock);
 			pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
 			spin_unlock(&init_mm.page_table_lock);
@@ -624,7 +629,6 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 			else
 				*pud = __pud(pmd_phys | _PAGE_TABLE);
 		} else {
-			make_page_readonly(pmd, XENFEAT_writable_page_tables);
 			spin_lock(&init_mm.page_table_lock);
 			pud_populate(&init_mm, pud, __va(pmd_phys));
 			spin_unlock(&init_mm.page_table_lock);
@@ -798,7 +802,6 @@ kernel_physical_mapping_init(unsigned long start,
 						   XENFEAT_writable_page_tables);
 			xen_l4_entry_update(pgd, __pgd(pud_phys | _PAGE_TABLE));
 		} else {
-			make_page_readonly(pud, XENFEAT_writable_page_tables);
 			spin_lock(&init_mm.page_table_lock);
 			pgd_populate(&init_mm, pgd, __va(pud_phys));
 			spin_unlock(&init_mm.page_table_lock);
@@ -854,7 +857,7 @@ void __init paging_init(void)
 
 	free_area_init_nodes(max_zone_pfns);
 
-	SetPagePinned(virt_to_page(init_mm.pgd));
+	xen_init_pgd_pin();
 }
 
 /*

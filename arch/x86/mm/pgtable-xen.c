@@ -44,16 +44,16 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 void __pte_free(pgtable_t pte)
 {
 	if (!PageHighMem(pte)) {
-		unsigned long va = (unsigned long)page_address(pte);
-		unsigned int level;
-		pte_t *ptep = lookup_address(va, &level);
+		if (PagePinned(pte)) {
+			unsigned long pfn = page_to_pfn(pte);
 
-		BUG_ON(!ptep || level != PG_LEVEL_4K || !pte_present(*ptep));
-		if (!pte_write(*ptep)
-		    && HYPERVISOR_update_va_mapping(va,
-						    mk_pte(pte, PAGE_KERNEL),
-						    0))
-			BUG();
+			if (HYPERVISOR_update_va_mapping((unsigned long)__va(pfn << PAGE_SHIFT),
+							 pfn_pte(pfn,
+								 PAGE_KERNEL),
+							 0))
+				BUG();
+			ClearPagePinned(pte);
+		}
 	} else
 #ifdef CONFIG_HIGHPTE
 		ClearPagePinned(pte);
@@ -95,14 +95,15 @@ pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 
 void __pmd_free(pgtable_t pmd)
 {
-	unsigned long va = (unsigned long)page_address(pmd);
-	unsigned int level;
-	pte_t *ptep = lookup_address(va, &level);
+	if (PagePinned(pmd)) {
+		unsigned long pfn = page_to_pfn(pmd);
 
-	BUG_ON(!ptep || level != PG_LEVEL_4K || !pte_present(*ptep));
-	if (!pte_write(*ptep)
-	    && HYPERVISOR_update_va_mapping(va, mk_pte(pmd, PAGE_KERNEL), 0))
-		BUG();
+		if (HYPERVISOR_update_va_mapping((unsigned long)__va(pfn << PAGE_SHIFT),
+						 pfn_pte(pfn, PAGE_KERNEL),
+						 0))
+			BUG();
+		ClearPagePinned(pmd);
+	}
 
 	ClearPageForeign(pmd);
 	init_page_count(pmd);
@@ -190,21 +191,20 @@ static inline unsigned int pgd_walk_set_prot(struct page *page, pgprot_t flags,
 {
 	unsigned long pfn = page_to_pfn(page);
 
-	if (PageHighMem(page)) {
-		if (pgprot_val(flags) & _PAGE_RW)
-			ClearPagePinned(page);
-		else
-			SetPagePinned(page);
-	} else {
-		MULTI_update_va_mapping(per_cpu(pb_mcl, cpu) + seq,
-					(unsigned long)__va(pfn << PAGE_SHIFT),
-					pfn_pte(pfn, flags), 0);
-		if (unlikely(++seq == PIN_BATCH)) {
-			if (unlikely(HYPERVISOR_multicall_check(per_cpu(pb_mcl, cpu),
-								PIN_BATCH, NULL)))
-				BUG();
-			seq = 0;
-		}
+	if (pgprot_val(flags) & _PAGE_RW)
+		ClearPagePinned(page);
+	else
+		SetPagePinned(page);
+	if (PageHighMem(page))
+		return seq;
+	MULTI_update_va_mapping(per_cpu(pb_mcl, cpu) + seq,
+				(unsigned long)__va(pfn << PAGE_SHIFT),
+				pfn_pte(pfn, flags), 0);
+	if (unlikely(++seq == PIN_BATCH)) {
+		if (unlikely(HYPERVISOR_multicall_check(per_cpu(pb_mcl, cpu),
+							PIN_BATCH, NULL)))
+			BUG();
+		seq = 0;
 	}
 
 	return seq;
@@ -251,6 +251,16 @@ static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
 		}
 	}
 
+#ifdef CONFIG_X86_PAE
+	for (; g < PTRS_PER_PGD; g++, pgd++) {
+		BUG_ON(pgd_none(*pgd));
+		pud = pud_offset(pgd, 0);
+		BUG_ON(pud_none(*pud));
+		pmd = pmd_offset(pud, 0);
+		seq = pgd_walk_set_prot(virt_to_page(pmd),flags,cpu,seq);
+	}
+#endif
+
 	mcl = per_cpu(pb_mcl, cpu);
 #ifdef CONFIG_X86_64
 	if (unlikely(seq > PIN_BATCH - 2)) {
@@ -284,6 +294,51 @@ static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
 #endif
 
 	put_cpu();
+}
+
+void __init xen_init_pgd_pin(void)
+{
+	pgd_t       *pgd = init_mm.pgd;
+	pud_t       *pud;
+	pmd_t       *pmd;
+	unsigned int g, u, m;
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return;
+
+	SetPagePinned(virt_to_page(pgd));
+	for (g = 0; g < PTRS_PER_PGD; g++, pgd++) {
+#ifndef CONFIG_X86_PAE
+		if (g >= pgd_index(HYPERVISOR_VIRT_START)
+		    && g <= pgd_index(HYPERVISOR_VIRT_END - 1))
+			continue;
+#endif
+		if (!pgd_present(*pgd))
+			continue;
+		pud = pud_offset(pgd, 0);
+		if (PTRS_PER_PUD > 1) /* not folded */
+			SetPagePinned(virt_to_page(pud));
+		for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
+			if (!pud_present(*pud))
+				continue;
+			pmd = pmd_offset(pud, 0);
+			if (PTRS_PER_PMD > 1) /* not folded */
+				SetPagePinned(virt_to_page(pmd));
+			for (m = 0; m < PTRS_PER_PMD; m++, pmd++) {
+#ifdef CONFIG_X86_PAE
+				if (g == pgd_index(HYPERVISOR_VIRT_START)
+				    && m >= pmd_index(HYPERVISOR_VIRT_START))
+					continue;
+#endif
+				if (!pmd_present(*pmd))
+					continue;
+				SetPagePinned(pmd_page(*pmd));
+			}
+		}
+	}
+#ifdef CONFIG_X86_64
+	SetPagePinned(virt_to_page(level3_user_pgt));
+#endif
 }
 
 static void __pgd_pin(pgd_t *pgd)
@@ -476,21 +531,18 @@ static void pgd_dtor(pgd_t *pgd)
 
 void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 {
-	struct page *page = virt_to_page(pmd);
-	unsigned long pfn = page_to_pfn(page);
-
-	paravirt_alloc_pmd(mm, __pa(pmd) >> PAGE_SHIFT);
-
 	/* Note: almost everything apart from _PAGE_PRESENT is
 	   reserved at the pmd (PDPT) level. */
-	if (PagePinned(virt_to_page(mm->pgd))) {
-		BUG_ON(PageHighMem(page));
-		BUG_ON(HYPERVISOR_update_va_mapping(
-			  (unsigned long)__va(pfn << PAGE_SHIFT),
-			  pfn_pte(pfn, PAGE_KERNEL_RO), 0));
-		set_pud(pudp, __pud(__pa(pmd) | _PAGE_PRESENT));
-	} else
-		*pudp = __pud(__pa(pmd) | _PAGE_PRESENT);
+	pud_t pud = __pud(__pa(pmd) | _PAGE_PRESENT);
+
+	paravirt_alloc_pmd(mm, page_to_pfn(virt_to_page(pmd)));
+
+	if (likely(!PagePinned(virt_to_page(pudp)))) {
+		*pudp = pud;
+		return;
+	}
+
+	set_pud(pudp, pud);
 
 	/*
 	 * According to Intel App note "TLBs, Paging-Structure Caches,
@@ -585,13 +637,10 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
 	     i++, pud++, addr += PUD_SIZE) {
 		pmd_t *pmd = pmds[i];
 
-		if (i >= KERNEL_PGD_BOUNDARY) {
+		if (i >= KERNEL_PGD_BOUNDARY)
 			memcpy(pmd,
 			       (pmd_t *)pgd_page_vaddr(swapper_pg_dir[i]),
 			       sizeof(pmd_t) * PTRS_PER_PMD);
-			make_lowmem_page_readonly(
-				pmd, XENFEAT_writable_page_tables);
-		}
 
 		/* It is safe to poke machine addresses of pmds under the pgd_lock. */
 		pud_populate(mm, pud, pmd);
