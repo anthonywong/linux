@@ -125,12 +125,12 @@ enum pageflags {
 	PG_fscache = PG_private_2,	/* page backed by cache */
 
 	/* XEN */
-#ifdef CONFIG_XEN
+#if defined(CONFIG_XEN)
 	PG_pinned = PG_locked,	/* Cannot alias with PG_owner_priv_1 since
 				 * bad_page() checks should include this bit.
 				 * Should not use PG_arch_1 as that may have
 				 * a different purpose elsewhere. */
-#else
+#elif defined(CONFIG_PARAVIRT_XEN)
 	PG_pinned = PG_owner_priv_1,
 	PG_savepinned = PG_dirty,
 #endif
@@ -219,8 +219,12 @@ PAGEFLAG(Active, active) __CLEARPAGEFLAG(Active, active)
 	TESTCLEARFLAG(Active, active)
 __PAGEFLAG(Slab, slab)
 PAGEFLAG(Checked, checked)		/* Used by some filesystems */
+#if defined(CONFIG_XEN) || defined(CONFIG_PARAVIRT_XEN)
 PAGEFLAG(Pinned, pinned) TESTSCFLAG(Pinned, pinned)	/* Xen */
+#endif
+#ifdef CONFIG_PARAVIRT_XEN
 PAGEFLAG(SavePinned, savepinned);			/* Xen */
+#endif
 PAGEFLAG(Reserved, reserved) __CLEARPAGEFLAG(Reserved, reserved)
 PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
 

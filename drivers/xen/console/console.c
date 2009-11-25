@@ -431,9 +431,7 @@ static void __xencons_tx_flush(void)
 
 	if (work_done && (xencons_tty != NULL)) {
 		wake_up_interruptible(&xencons_tty->write_wait);
-		if ((xencons_tty->flags & (1 << TTY_DO_WRITE_WAKEUP)) &&
-		    (xencons_tty->ldisc.write_wakeup != NULL))
-			(xencons_tty->ldisc.write_wakeup)(xencons_tty);
+		tty_wakeup(xencons_tty);
 	}
 }
 
@@ -634,8 +632,8 @@ static void xencons_close(struct tty_struct *tty, struct file *filp)
 	tty->closing = 1;
 	tty_wait_until_sent(tty, 0);
 	tty_driver_flush_buffer(tty);
-	if (tty->ldisc.flush_buffer != NULL)
-		tty->ldisc.flush_buffer(tty);
+	if (tty->ldisc.ops->flush_buffer != NULL)
+		tty->ldisc.ops->flush_buffer(tty);
 	tty->closing = 0;
 	spin_lock_irqsave(&xencons_lock, flags);
 	xencons_tty = NULL;
