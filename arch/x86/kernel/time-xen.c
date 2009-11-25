@@ -679,19 +679,17 @@ int xen_update_persistent_clock(void)
 }
 
 /* Dynamically-mapped IRQ. */
-DEFINE_PER_CPU(int, timer_irq);
+static int __read_mostly timer_irq = -1;
+static struct irqaction timer_action = {
+	.handler = timer_interrupt,
+	.flags   = IRQF_DISABLED|IRQF_TIMER,
+	.name    = "timer"
+};
 
 static void __init setup_cpu0_timer_irq(void)
 {
-	per_cpu(timer_irq, 0) =
-		bind_virq_to_irqhandler(
-			VIRQ_TIMER,
-			0,
-			timer_interrupt,
-			IRQF_DISABLED|IRQF_TIMER|IRQF_NOBALANCING,
-			"timer0",
-			NULL);
-	BUG_ON(per_cpu(timer_irq, 0) < 0);
+	timer_irq = bind_virq_to_irqaction(VIRQ_TIMER, 0, &timer_action);
+	BUG_ON(timer_irq < 0);
 }
 
 void __init time_init(void)
@@ -819,8 +817,6 @@ void xen_halt(void)
 EXPORT_SYMBOL(xen_halt);
 
 #ifdef CONFIG_SMP
-static char timer_name[NR_CPUS][15];
-
 int __cpuinit local_setup_timer(unsigned int cpu)
 {
 	int seq, irq;
@@ -846,16 +842,10 @@ int __cpuinit local_setup_timer(unsigned int cpu)
 		init_missing_ticks_accounting(cpu);
 	} while (read_seqretry(&xtime_lock, seq));
 
-	sprintf(timer_name[cpu], "timer%u", cpu);
-	irq = bind_virq_to_irqhandler(VIRQ_TIMER,
-				      cpu,
-				      timer_interrupt,
-				      IRQF_DISABLED|IRQF_TIMER|IRQF_NOBALANCING,
-				      timer_name[cpu],
-				      NULL);
+	irq = bind_virq_to_irqaction(VIRQ_TIMER, cpu, &timer_action);
 	if (irq < 0)
 		return irq;
-	per_cpu(timer_irq, cpu) = irq;
+	BUG_ON(timer_irq != irq);
 
 	return 0;
 }
@@ -863,7 +853,7 @@ int __cpuinit local_setup_timer(unsigned int cpu)
 void __cpuinit local_teardown_timer(unsigned int cpu)
 {
 	BUG_ON(cpu == 0);
-	unbind_from_irqhandler(per_cpu(timer_irq, cpu), NULL);
+	unbind_from_per_cpu_irq(timer_irq, cpu, &timer_action);
 }
 #endif
 
