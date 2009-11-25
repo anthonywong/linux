@@ -662,7 +662,7 @@ static int blkif_queue_request(struct request *req)
  * do_blkif_request
  *  read a block; request is in a request queue
  */
-void do_blkif_request(request_queue_t *rq)
+void do_blkif_request(struct request_queue *rq)
 {
 	struct blkfront_info *info = NULL;
 	struct request *req;

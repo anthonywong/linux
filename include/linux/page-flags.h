@@ -125,8 +125,15 @@ enum pageflags {
 	PG_fscache = PG_private_2,	/* page backed by cache */
 
 	/* XEN */
+#ifdef CONFIG_XEN
+	PG_pinned = PG_locked,	/* Cannot alias with PG_owner_priv_1 since
+				 * bad_page() checks should include this bit.
+				 * Also cannot use PG_arch_1 since that now
+				 * has a different purpose on x86. */
+#else
 	PG_pinned = PG_owner_priv_1,
 	PG_savepinned = PG_dirty,
+#endif
 
 	/* SLOB */
 	PG_slob_free = PG_private,
@@ -427,10 +434,8 @@ static inline void __ClearPageTail(struct page *page)
 #define __PG_MLOCKED		0
 #endif
 
-#if !defined(CONFIG_XEN)
+#ifndef CONFIG_XEN
 # define __PG_XEN		0
-#elif defined(CONFIG_X86)
-# define __PG_XEN		((1 << PG_pinned) | (1 << PG_foreign))
 #else
 # define __PG_XEN		(1 << PG_foreign)
 #endif

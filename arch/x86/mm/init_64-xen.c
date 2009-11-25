@@ -66,6 +66,9 @@ int after_bootmem;
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 extern unsigned long start_pfn;
 
+extern pmd_t level2_fixmap_pgt[PTRS_PER_PMD];
+extern pte_t level1_fixmap_pgt[PTRS_PER_PTE];
+
 /*
  * Use this until direct mapping is established, i.e. before __va() is 
  * available in init_memory_mapping().
@@ -362,6 +365,10 @@ __set_fixmap (enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 		set_pte_phys(address, phys, prot, 0);
 		set_pte_phys(address, phys, prot, 1);
 		break;
+	case FIX_EARLYCON_MEM_BASE:
+		xen_l1_entry_update(level1_fixmap_pgt + pte_index(address),
+				    pfn_pte_ma(phys >> PAGE_SHIFT, prot));
+		break;
 	default:
 		set_pte_phys_ma(address, phys, prot);
 		break;
@@ -595,6 +602,19 @@ void __init xen_init_pt(void)
 	__user_pgd(init_level4_pgt)[pgd_index(VSYSCALL_START)] =
 		__pgd(__pa_symbol(level3_user_pgt) | _PAGE_TABLE);
 
+	/* Do an early initialization of the fixmap area. */
+	addr = __fix_to_virt(FIX_EARLYCON_MEM_BASE);
+	if (pud_present(level3_kernel_pgt[pud_index(addr)])) {
+		unsigned long adr = page[pud_index(addr)];
+
+		addr_to_page(adr, page);
+		memcpy(level2_fixmap_pgt, page, PAGE_SIZE);
+	}
+	level3_kernel_pgt[pud_index(addr)] =
+		__pud(__pa_symbol(level2_fixmap_pgt) | _PAGE_TABLE);
+	level2_fixmap_pgt[pmd_index(addr)] =
+		__pmd(__pa_symbol(level1_fixmap_pgt) | _PAGE_TABLE);
+
 	early_make_page_readonly(init_level4_pgt,
 				 XENFEAT_writable_page_tables);
 	early_make_page_readonly(__user_pgd(init_level4_pgt),
@@ -602,6 +622,10 @@ void __init xen_init_pt(void)
 	early_make_page_readonly(level3_kernel_pgt,
 				 XENFEAT_writable_page_tables);
 	early_make_page_readonly(level3_user_pgt,
+				 XENFEAT_writable_page_tables);
+	early_make_page_readonly(level2_fixmap_pgt,
+				 XENFEAT_writable_page_tables);
+	early_make_page_readonly(level1_fixmap_pgt,
 				 XENFEAT_writable_page_tables);
 
 	if (!xen_feature(XENFEAT_writable_page_tables)) {
@@ -832,7 +856,7 @@ void __init paging_init(void)
 	sparse_init();
 	free_area_init_nodes(max_zone_pfns);
 
-	init_mm.context.pinned = 1;
+	SetPagePinned(virt_to_page(init_mm.pgd));
 }
 #endif
 
@@ -1142,41 +1166,6 @@ int kern_addr_valid(unsigned long addr)
 	return pfn_valid(pte_pfn(*pte));
 }
 
-#ifdef CONFIG_SYSCTL
-#include <linux/sysctl.h>
-
-extern int exception_trace, page_fault_trace;
-
-static ctl_table debug_table2[] = {
-	{
-		.ctl_name	= 99,
-		.procname	= "exception-trace",
-		.data		= &exception_trace,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{}
-}; 
-
-static ctl_table debug_root_table2[] = { 
-	{
-		.ctl_name = CTL_DEBUG,
-		.procname = "debug",
-		.mode = 0555,
-		.child = debug_table2
-	},
-	{}
-}; 
-
-static __init int x8664_sysctl_init(void)
-{ 
-	register_sysctl_table(debug_root_table2);
-	return 0;
-}
-__initcall(x8664_sysctl_init);
-#endif
-
 /* A pseudo VMA to allow ptrace access for the vsyscall page.  This only
    covers the 64bit vsyscall page now. 32bit has a real VMA now and does
    not need special handling anymore. */
@@ -1215,9 +1204,18 @@ int in_gate_area_no_task(unsigned long addr)
 }
 
 #ifndef CONFIG_XEN
-void *alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
+void * __init alloc_bootmem_high_node(pg_data_t *pgdat, unsigned long size)
 {
 	return __alloc_bootmem_core(pgdat->bdata, size,
 			SMP_CACHE_BYTES, (4UL*1024*1024*1024), 0);
 }
 #endif
+
+const char *arch_vma_name(struct vm_area_struct *vma)
+{
+	if (vma->vm_mm && vma->vm_start == (long)vma->vm_mm->context.vdso)
+		return "[vdso]";
+	if (vma == &gate_vma)
+		return "[vsyscall]";
+	return NULL;
+}
