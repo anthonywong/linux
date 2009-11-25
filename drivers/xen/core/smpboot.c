@@ -57,7 +57,6 @@ u8 cpu_2_logical_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
 
 cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
 cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
-EXPORT_SYMBOL(cpu_core_map);
 
 #if defined(__i386__)
 u8 x86_cpu_to_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = 0xff };
