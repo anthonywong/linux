@@ -346,19 +346,13 @@ static void __pgd_pin(pgd_t *pgd)
 {
 	pgd_walk(pgd, PAGE_KERNEL_RO);
 	kmap_flush_unused();
-	xen_pgd_pin(__pa(pgd)); /* kernel */
-#ifdef CONFIG_X86_64
-	xen_pgd_pin(__pa(__user_pgd(pgd))); /* user */
-#endif
+	xen_pgd_pin(pgd);
 	SetPagePinned(virt_to_page(pgd));
 }
 
 static void __pgd_unpin(pgd_t *pgd)
 {
-	xen_pgd_unpin(__pa(pgd));
-#ifdef CONFIG_X86_64
-	xen_pgd_unpin(__pa(__user_pgd(pgd)));
-#endif
+	xen_pgd_unpin(pgd);
 	pgd_walk(pgd, PAGE_KERNEL);
 	ClearPagePinned(virt_to_page(pgd));
 }
