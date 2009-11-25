@@ -175,6 +175,6 @@ void make_lowmem_page_writable(void *va, unsigned int feature)
 	pte = lookup_address((unsigned long)va, &level);
 	BUG_ON(!pte || level != PG_LEVEL_4K || !pte_present(*pte));
 	rc = HYPERVISOR_update_va_mapping(
-		(unsigned long)va, pte_mkwrite(*pte), 0);
+		(unsigned long)va, pte_mkwrite(*pte), UVMF_INVLPG);
 	BUG_ON(rc);
 }
