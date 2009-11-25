@@ -116,7 +116,7 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 	rc = bind_ipi_to_irqhandler(RESCHEDULE_VECTOR,
 				    cpu,
 				    smp_reschedule_interrupt,
-				    SA_INTERRUPT,
+				    IRQF_DISABLED|IRQF_NOBALANCING,
 				    resched_name[cpu],
 				    NULL);
 	if (rc < 0)
@@ -127,7 +127,7 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 	rc = bind_ipi_to_irqhandler(CALL_FUNCTION_VECTOR,
 				    cpu,
 				    smp_call_function_interrupt,
-				    SA_INTERRUPT,
+				    IRQF_DISABLED|IRQF_NOBALANCING,
 				    callfunc_name[cpu],
 				    NULL);
 	if (rc < 0)
@@ -256,7 +256,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int cpu;
 	struct task_struct *idle;
-	int apicid, acpiid;
+	int apicid;
 	struct vcpu_get_physid cpu_id;
 #ifdef __x86_64__
 	struct desc_ptr *gdt_descr;
@@ -265,14 +265,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 #endif
 
 	apicid = 0;
-	if (HYPERVISOR_vcpu_op(VCPUOP_get_physid, 0, &cpu_id) == 0) {
+	if (HYPERVISOR_vcpu_op(VCPUOP_get_physid, 0, &cpu_id) == 0)
 		apicid = xen_vcpu_physid_to_x86_apicid(cpu_id.phys_id);
-		acpiid = xen_vcpu_physid_to_x86_acpiid(cpu_id.phys_id);
-#ifdef CONFIG_ACPI
-		if (acpiid != 0xff)
-			x86_acpiid_to_apicid[acpiid] = apicid;
-#endif
-	}
 	boot_cpu_data.apicid = apicid;
 	cpu_data[0] = boot_cpu_data;
 
@@ -328,14 +322,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			XENFEAT_writable_descriptor_tables);
 
 		apicid = cpu;
-		if (HYPERVISOR_vcpu_op(VCPUOP_get_physid, cpu, &cpu_id) == 0) {
+		if (HYPERVISOR_vcpu_op(VCPUOP_get_physid, cpu, &cpu_id) == 0)
 			apicid = xen_vcpu_physid_to_x86_apicid(cpu_id.phys_id);
-			acpiid = xen_vcpu_physid_to_x86_acpiid(cpu_id.phys_id);
-#ifdef CONFIG_ACPI
-			if (acpiid != 0xff)
-				x86_acpiid_to_apicid[acpiid] = apicid;
-#endif
-		}
 		cpu_data[cpu] = boot_cpu_data;
 		cpu_data[cpu].apicid = apicid;
 

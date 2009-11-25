@@ -235,7 +235,7 @@ static int bind_virq(void)
 		result = bind_virq_to_irqhandler(VIRQ_XENOPROF,
 						 i,
 						 xenoprof_ovf_interrupt,
-						 SA_INTERRUPT,
+						 IRQF_DISABLED|IRQF_NOBALANCING,
 						 "xenoprof",
 						 NULL);
 
