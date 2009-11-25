@@ -120,7 +120,7 @@ static void netbk_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
 	strcpy(info->driver, "netbk");
-	strcpy(info->bus_info, dev->class_dev.dev->bus_id);
+	strcpy(info->bus_info, dev->dev.parent->bus_id);
 }
 
 static const struct netif_stat {
