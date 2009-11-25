@@ -13,13 +13,16 @@
 #ifndef _ASM_FIXMAP_H
 #define _ASM_FIXMAP_H
 
-
 /* used by vmalloc.c, vsyscall.lds.S.
  *
  * Leave one empty page between vmalloc'ed areas and
  * the start of the fixmap.
  */
 extern unsigned long __FIXADDR_TOP;
+#ifdef CONFIG_COMPAT_VDSO
+#define FIXADDR_USER_START	__fix_to_virt(FIX_VDSO)
+#define FIXADDR_USER_END	__fix_to_virt(FIX_VDSO - 1)
+#endif
 
 #ifndef __ASSEMBLY__
 #include <linux/kernel.h>
