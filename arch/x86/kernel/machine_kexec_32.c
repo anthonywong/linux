@@ -122,13 +122,7 @@ void machine_kexec_setup_load_arg(xen_kexec_image_t *xki, struct kimage *image)
 	memcpy(control_page, relocate_kernel, PAGE_SIZE);
 
 	xki->page_list[PA_CONTROL_PAGE] = __ma(control_page);
-	xki->page_list[PA_PGD] = __ma(kexec_pgd);
-#ifdef CONFIG_X86_PAE
-	xki->page_list[PA_PMD_0] = __ma(kexec_pmd0);
-	xki->page_list[PA_PMD_1] = __ma(kexec_pmd1);
-#endif
-	xki->page_list[PA_PTE_0] = __ma(kexec_pte0);
-	xki->page_list[PA_PTE_1] = __ma(kexec_pte1);
+	xki->page_list[PA_PGD] = __ma(image->arch.pgd);
 
 	if (image->type == KEXEC_TYPE_DEFAULT)
 		xki->page_list[PA_SWAP_PAGE] = page_to_phys(image->swap_page);
