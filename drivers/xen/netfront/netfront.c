@@ -640,7 +640,7 @@ static int network_open(struct net_device *dev)
 	}
 	spin_unlock_bh(&np->rx_lock);
 
-	network_maybe_wake_tx(dev);
+	netif_start_queue(dev);
 
 	return 0;
 }

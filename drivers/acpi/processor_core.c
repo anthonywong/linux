@@ -833,10 +833,12 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 	if (result)
 		goto err_free_cpumask;
 
-	sysdev = get_cpu_sysdev(pr->id);
-	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) {
-		result = -EFAULT;
-		goto err_remove_fs;
+	if (pr->id != -1) {
+		sysdev = get_cpu_sysdev(pr->id);
+		if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev")) {
+			result = -EFAULT;
+			goto err_remove_fs;
+		}
 	}
 
 	/* _PDC call should be done before doing anything else (if reqd.). */
@@ -926,7 +928,8 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 
 	acpi_processor_power_exit(pr, device);
 
-	sysfs_remove_link(&device->dev.kobj, "sysdev");
+	if (pr->id != -1)
+		sysfs_remove_link(&device->dev.kobj, "sysdev");
 
 	acpi_processor_remove_fs(device);
 

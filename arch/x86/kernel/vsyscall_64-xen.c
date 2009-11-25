@@ -42,7 +42,8 @@
 #include <asm/topology.h>
 #include <asm/vgtod.h>
 
-#define __vsyscall(nr) __attribute__ ((unused,__section__(".vsyscall_" #nr)))
+#define __vsyscall(nr) \
+		__attribute__ ((unused, __section__(".vsyscall_" #nr))) notrace
 #define __syscall_clobber "r11","cx","memory"
 
 /*
@@ -265,10 +266,7 @@ static void __cpuinit vsyscall_set_cpu(int cpu)
 	d |= cpu;
 	d |= (node & 0xf) << 12;
 	d |= (node >> 4) << 48;
-	if (HYPERVISOR_update_descriptor(virt_to_machine(get_cpu_gdt_table(cpu)
-							 + GDT_ENTRY_PER_CPU),
-					 d))
-		BUG();
+	write_gdt_entry(get_cpu_gdt_table(cpu), GDT_ENTRY_PER_CPU, &d, DESCTYPE_S);
 }
 
 static void __cpuinit cpu_vsyscall_init(void *arg)
@@ -282,7 +280,7 @@ cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
 {
 	long cpu = (long)arg;
 	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
-		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 0, 1);
+		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 1);
 	return NOTIFY_DONE;
 }
 
@@ -312,7 +310,7 @@ static int __init vsyscall_init(void)
 #ifdef CONFIG_SYSCTL
 	register_sysctl_table(kernel_root_table2);
 #endif
-	on_each_cpu(cpu_vsyscall_init, NULL, 0, 1);
+	on_each_cpu(cpu_vsyscall_init, NULL, 1);
 	hotcpu_notifier(cpu_vsyscall_notifier, 0);
 	return 0;
 }
