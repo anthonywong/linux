@@ -481,7 +481,6 @@ static struct xenbus_device_id tpmfront_ids[] = {
 
 static struct xenbus_driver tpmfront = {
 	.name = "vtpm",
-	.owner = THIS_MODULE,
 	.ids = tpmfront_ids,
 	.probe = tpmfront_probe,
 	.remove =  tpmfront_remove,
@@ -491,9 +490,9 @@ static struct xenbus_driver tpmfront = {
 	.suspend_cancel = tpmfront_suspend_cancel,
 };
 
-static void __init init_tpm_xenbus(void)
+static int __init init_tpm_xenbus(void)
 {
-	xenbus_register_frontend(&tpmfront);
+	return xenbus_register_frontend(&tpmfront);
 }
 
 static int tpmif_allocate_tx_buffers(struct tpm_private *tp)

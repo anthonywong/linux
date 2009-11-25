@@ -371,7 +371,9 @@ static void xenbus_dev_shutdown(struct device *_dev)
 }
 
 int xenbus_register_driver_common(struct xenbus_driver *drv,
-				  struct xen_bus_type *bus)
+				  struct xen_bus_type *bus,
+				  struct module *owner,
+				  const char *mod_name)
 {
 	int ret;
 
@@ -381,7 +383,10 @@ int xenbus_register_driver_common(struct xenbus_driver *drv,
 	drv->driver.name = drv->name;
 	drv->driver.bus = &bus->bus;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,10)
-	drv->driver.owner = drv->owner;
+	drv->driver.owner = owner;
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
+	drv->driver.mod_name = mod_name;
 #endif
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16)
 	drv->driver.probe = xenbus_dev_probe;
@@ -395,13 +400,15 @@ int xenbus_register_driver_common(struct xenbus_driver *drv,
 	return ret;
 }
 
-int xenbus_register_frontend(struct xenbus_driver *drv)
+int __xenbus_register_frontend(struct xenbus_driver *drv,
+			       struct module *owner, const char *mod_name)
 {
 	int ret;
 
 	drv->read_otherend_details = read_backend_details;
 
-	ret = xenbus_register_driver_common(drv, &xenbus_frontend);
+	ret = xenbus_register_driver_common(drv, &xenbus_frontend,
+					    owner, mod_name);
 	if (ret)
 		return ret;
 
@@ -410,7 +417,7 @@ int xenbus_register_frontend(struct xenbus_driver *drv)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(xenbus_register_frontend);
+EXPORT_SYMBOL_GPL(__xenbus_register_frontend);
 
 void xenbus_unregister_driver(struct xenbus_driver *drv)
 {
