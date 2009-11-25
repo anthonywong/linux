@@ -453,7 +453,7 @@ void scsiback_cmd_exec(pending_req_t *pending_req)
 	write = (data_dir == DMA_TO_DEVICE);
 	rq = blk_get_request(pending_req->sdev->request_queue, write, GFP_KERNEL);
 
-	rq->flags  |= REQ_BLOCK_PC;
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->cmd_len = cmd_len;
 	memcpy(rq->cmd, pending_req->cmnd, cmd_len);
 
@@ -497,7 +497,7 @@ static void scsiback_device_reset_exec(pending_req_t *pending_req)
 }
 
 
-irqreturn_t scsiback_intr(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t scsiback_intr(int irq, void *dev_id)
 {
 	scsiback_notify_work((struct vscsibk_info *)dev_id);
 	return IRQ_HANDLED;
