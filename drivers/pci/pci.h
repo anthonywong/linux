@@ -316,4 +316,11 @@ static inline int pci_resource_alignment(struct pci_dev *dev,
 	return resource_alignment(res);
 }
 
+#ifdef CONFIG_PCI_GUESTDEV
+extern int pci_is_guestdev_to_reassign(struct pci_dev *dev);
+extern int pci_is_iomuldev(struct pci_dev *dev);
+#else
+#define pci_is_iomuldev(dev)	0
+#endif
+
 #endif /* DRIVERS_PCI_H */
