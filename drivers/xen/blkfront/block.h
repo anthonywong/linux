@@ -106,7 +106,7 @@ struct blkfront_info
 	struct scatterlist sg[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int irq;
 	struct xlbd_major_info *mi;
-	request_queue_t *rq;
+	struct request_queue *rq;
 	struct work_struct work;
 	struct gnttab_free_callback callback;
 	struct blk_shadow shadow[BLK_RING_SIZE];
@@ -130,7 +130,7 @@ extern int blkif_ioctl(struct inode *inode, struct file *filep,
 extern int blkif_getgeo(struct block_device *, struct hd_geometry *);
 extern int blkif_check(dev_t dev);
 extern int blkif_revalidate(dev_t dev);
-extern void do_blkif_request (request_queue_t *rq);
+extern void do_blkif_request (struct request_queue *rq);
 
 /* Virtual block-device subsystem. */
 /* Note that xlvbd_add doesn't call add_disk for you: you're expected
