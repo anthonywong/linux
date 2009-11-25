@@ -86,21 +86,20 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 	flush_tlb_mm(vma->vm_mm);
 }
 
+#ifndef CONFIG_XEN
 #define TLBSTATE_OK	1
 #define TLBSTATE_LAZY	2
 
-#ifdef CONFIG_X86_32
 struct tlb_state {
 	struct mm_struct *active_mm;
 	int state;
-	char __cacheline_padding[L1_CACHE_BYTES-8];
 };
-DECLARE_PER_CPU(struct tlb_state, cpu_tlbstate);
+DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
 
-void reset_lazy_tlbstate(void);
-#else
 static inline void reset_lazy_tlbstate(void)
 {
+	percpu_write(cpu_tlbstate.state, 0);
+	percpu_write(cpu_tlbstate.active_mm, &init_mm);
 }
 #endif
 
@@ -111,5 +110,7 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 {
 	flush_tlb_all();
 }
+
+extern void zap_low_mappings(void);
 
 #endif /* _ASM_X86_TLBFLUSH_H */
