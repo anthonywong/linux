@@ -44,11 +44,8 @@ extern unsigned long __supported_pte_mask;
 
 #define swapper_pg_dir init_level4_pgt
 
-extern int nonx_setup(char *str);
 extern void paging_init(void);
 extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
-
-extern unsigned long pgkern_mask;
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
@@ -118,9 +115,6 @@ static inline void pgd_clear (pgd_t * pgd)
         set_pgd(pgd, __pgd(0));
         set_pgd(__user_pgd(pgd), __pgd(0));
 }
-
-#define pud_page(pud) \
-    ((unsigned long) __va(pud_val(pud) & PHYSICAL_PAGE_MASK))
 
 #define pte_same(a, b)		((a).pte == (b).pte)
 
@@ -333,7 +327,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 #define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
 static inline int pte_user(pte_t pte)		{ return __pte_val(pte) & _PAGE_USER; }
 static inline int pte_read(pte_t pte)		{ return __pte_val(pte) & _PAGE_USER; }
-static inline int pte_exec(pte_t pte)		{ return __pte_val(pte) & _PAGE_USER; }
+static inline int pte_exec(pte_t pte)		{ return !(__pte_val(pte) & _PAGE_NX); }
 static inline int pte_dirty(pte_t pte)		{ return __pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return __pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_write(pte_t pte)		{ return __pte_val(pte) & _PAGE_RW; }
@@ -346,29 +340,12 @@ static inline pte_t pte_mkclean(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_DIRTY; ret
 static inline pte_t pte_mkold(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
 static inline pte_t pte_wrprotect(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_RW; return pte; }
 static inline pte_t pte_mkread(pte_t pte)	{ __pte_val(pte) |= _PAGE_USER; return pte; }
-static inline pte_t pte_mkexec(pte_t pte)	{ __pte_val(pte) |= _PAGE_USER; return pte; }
+static inline pte_t pte_mkexec(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_NX; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ __pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ __pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ __pte_val(pte) |= _PAGE_RW; return pte; }
 static inline pte_t pte_mkhuge(pte_t pte)	{ __pte_val(pte) |= _PAGE_PSE; return pte; }
-
-#define ptep_test_and_clear_dirty(vma, addr, ptep)			\
-({									\
-	pte_t __pte = *(ptep);						\
-	int __ret = pte_dirty(__pte);					\
-	if (__ret)							\
-		set_pte_at((vma)->vm_mm, addr, ptep, pte_mkclean(__pte)); \
-	__ret;								\
-})
-
-#define ptep_test_and_clear_young(vma, addr, ptep)			\
-({									\
-	pte_t __pte = *(ptep);						\
-	int __ret = pte_young(__pte);					\
-	if (__ret)							\
-		set_pte_at((vma)->vm_mm, addr, ptep, pte_mkold(__pte)); \
-	__ret;								\
-})
+static inline pte_t pte_clrhuge(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_PSE; return pte; }
 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -395,7 +372,8 @@ static inline int pmd_large(pmd_t pte) {
 /*
  * Level 4 access.
  */
-#define pgd_page(pgd) ((unsigned long) __va(pgd_val(pgd) & PTE_MASK))
+#define pgd_page_vaddr(pgd) ((unsigned long) __va(pgd_val(pgd) & PTE_MASK))
+#define pgd_page(pgd)		(pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT))
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
 #define pgd_offset(mm, addr) ((mm)->pgd + pgd_index(addr))
 #define pgd_offset_k(address) (init_level4_pgt + pgd_index(address))
@@ -404,16 +382,18 @@ static inline int pmd_large(pmd_t pte) {
 
 /* PUD - Level3 access */
 /* to find an entry in a page-table-directory. */
+#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PHYSICAL_PAGE_MASK))
+#define pud_page(pud)		(pfn_to_page(pud_val(pud) >> PAGE_SHIFT))
 #define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
-#define pud_offset(pgd, address) ((pud_t *) pgd_page(*(pgd)) + pud_index(address))
+#define pud_offset(pgd, address) ((pud_t *) pgd_page_vaddr(*(pgd)) + pud_index(address))
 #define pud_present(pud) (__pud_val(pud) & _PAGE_PRESENT)
 
 /* PMD  - Level 2 access */
-#define pmd_page_kernel(pmd) ((unsigned long) __va(pmd_val(pmd) & PTE_MASK))
+#define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val(pmd) & PTE_MASK))
 #define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
 
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-#define pmd_offset(dir, address) ((pmd_t *) pud_page(*(dir)) + \
+#define pmd_offset(dir, address) ((pmd_t *) pud_page_vaddr(*(dir)) + \
                                   pmd_index(address))
 #define pmd_none(x)	(!__pmd_val(x))
 #if CONFIG_XEN_COMPAT <= 0x030002
@@ -444,6 +424,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 { 
 	unsigned long pteval;
 	pteval = physpage | pgprot_val(pgprot);
+	pteval &= __supported_pte_mask;
 	return __pte(pteval);
 }
  
@@ -465,7 +446,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 #define pte_index(address) \
 		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-#define pte_offset_kernel(dir, address) ((pte_t *) pmd_page_kernel(*(dir)) + \
+#define pte_offset_kernel(dir, address) ((pte_t *) pmd_page_vaddr(*(dir)) + \
 			pte_index(address))
 
 /* x86-64 always has all page tables mapped. */
@@ -505,6 +486,40 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 		if (dirty)						\
 			ptep_establish(vma, address, ptep, entry);	\
 	} while (0)
+
+
+/*
+ * i386 says: We don't actually have these, but we want to advertise
+ * them so that we can encompass the flush here.
+ */
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+
+#define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
+#define ptep_clear_flush_dirty(vma, address, ptep)			\
+({									\
+	pte_t __pte = *(ptep);						\
+	int __dirty = pte_dirty(__pte);					\
+	__pte = pte_mkclean(__pte);					\
+	if ((vma)->vm_mm->context.pinned)				\
+		ptep_set_access_flags(vma, address, ptep, __pte, __dirty); \
+	else if (__dirty)						\
+		set_pte(ptep, __pte);					\
+	__dirty;							\
+})
+
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+#define ptep_clear_flush_young(vma, address, ptep)			\
+({									\
+	pte_t __pte = *(ptep);						\
+	int __young = pte_young(__pte);					\
+	__pte = pte_mkold(__pte);					\
+	if ((vma)->vm_mm->context.pinned)				\
+		ptep_set_access_flags(vma, address, ptep, __pte, __young); \
+	else if (__young)						\
+		set_pte(ptep, __pte);					\
+	__young;							\
+})
 
 /* Encode and de-code a swap entry */
 #define __swp_type(x)			(((x).val >> 1) & 0x3f)
@@ -547,10 +562,11 @@ int touch_pte_range(struct mm_struct *mm,
                     unsigned long size);
 
 int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
-		unsigned long addr, unsigned long end, pgprot_t newprot);
+		unsigned long addr, unsigned long end, pgprot_t newprot,
+		int dirty_accountable);
 
-#define arch_change_pte_range(mm, pmd, addr, end, newprot)	\
-		xen_change_pte_range(mm, pmd, addr, end, newprot)
+#define arch_change_pte_range(mm, pmd, addr, end, newprot, dirty_accountable) \
+	xen_change_pte_range(mm, pmd, addr, end, newprot, dirty_accountable)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		direct_remap_pfn_range(vma,vaddr,pfn,size,prot,DOMID_IO)
@@ -572,8 +588,6 @@ int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 #define	kc_offset_to_vaddr(o) \
    (((o) & (1UL << (__VIRTUAL_MASK_SHIFT-1))) ? ((o) | (~__VIRTUAL_MASK)) : (o))
 
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
