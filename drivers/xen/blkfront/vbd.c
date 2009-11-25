@@ -240,16 +240,31 @@ xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	return 0;
 }
 
-static int
-xlvbd_alloc_gendisk(int major, int minor, blkif_sector_t capacity, int vdevice,
-		    u16 vdisk_info, u16 sector_size,
-		    struct blkfront_info *info)
+int
+xlvbd_add(blkif_sector_t capacity, int vdevice, u16 vdisk_info,
+	  u16 sector_size, struct blkfront_info *info)
 {
+	int major, minor;
 	struct gendisk *gd;
 	struct xlbd_major_info *mi;
 	int nr_minors = 1;
 	int err = -ENODEV;
 	unsigned int offset;
+
+	if ((vdevice>>EXT_SHIFT) > 1) {
+		/* this is above the extended range; something is wrong */
+		printk(KERN_WARNING "blkfront: vdevice 0x%x is above the extended range; ignoring\n", vdevice);
+		return -ENODEV;
+	}
+
+	if (!VDEV_IS_EXTENDED(vdevice)) {
+		major = BLKIF_MAJOR(vdevice);
+		minor = BLKIF_MINOR(vdevice);
+	}
+	else {
+		major = 202;
+		minor = BLKIF_MINOR_EXT(vdevice);
+	}
 
 	BUG_ON(info->gd != NULL);
 	BUG_ON(info->mi != NULL);
@@ -328,41 +343,6 @@ xlvbd_alloc_gendisk(int major, int minor, blkif_sector_t capacity, int vdevice,
 	if (mi)
 		xlbd_put_major_info(mi);
 	info->mi = NULL;
-	return err;
-}
-
-int
-xlvbd_add(blkif_sector_t capacity, int vdevice, u16 vdisk_info,
-	  u16 sector_size, struct blkfront_info *info)
-{
-	struct block_device *bd;
-	int err = 0;
-	int major, minor;
-
-	if ((vdevice>>EXT_SHIFT) > 1) {
-		/* this is above the extended range; something is wrong */
-		printk(KERN_WARNING "blkfront: vdevice 0x%x is above the extended range; ignoring\n", vdevice);
-		return -ENODEV;
-	}
-
-	if (!VDEV_IS_EXTENDED(vdevice)) {
-		major = BLKIF_MAJOR(vdevice);
-		minor = BLKIF_MINOR(vdevice);
-	}
-	else {
-		major = 202;
-		minor = BLKIF_MINOR_EXT(vdevice);
-	}
-
-	info->dev = MKDEV(major, minor);
-	bd = bdget(info->dev);
-	if (bd == NULL)
-		return -ENODEV;
-
-	err = xlvbd_alloc_gendisk(major, minor, capacity, vdevice, vdisk_info,
-				  sector_size, info);
-
-	bdput(bd);
 	return err;
 }
 
