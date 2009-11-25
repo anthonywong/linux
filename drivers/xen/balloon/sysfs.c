@@ -31,6 +31,7 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/mm.h>
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/sysdev.h>
@@ -53,6 +54,8 @@
 	static SYSDEV_ATTR(name, S_IRUGO, show_##name, NULL)
 
 BALLOON_SHOW(current_kb, "%lu\n", PAGES2KB(bs.current_pages));
+BALLOON_SHOW(min_kb, "%lu\n", PAGES2KB(balloon_minimum_target()));
+BALLOON_SHOW(max_kb, "%lu\n", PAGES2KB(num_physpages));
 BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(bs.balloon_low));
 BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(bs.balloon_high));
 BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(bs.driver_pages));
@@ -123,6 +126,8 @@ static struct sysdev_attribute *balloon_attrs[] = {
 
 static struct attribute *balloon_info_attrs[] = {
 	&attr_current_kb.attr,
+	&attr_min_kb.attr,
+	&attr_max_kb.attr,
 	&attr_low_kb.attr,
 	&attr_high_kb.attr,
 	&attr_driver_kb.attr,
