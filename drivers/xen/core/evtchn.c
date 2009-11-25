@@ -1329,6 +1329,21 @@ void notify_remote_via_irq(int irq)
 }
 EXPORT_SYMBOL_GPL(notify_remote_via_irq);
 
+int multi_notify_remote_via_irq(multicall_entry_t *mcl, int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	BUG_ON(type_from_irq(irq) == IRQT_VIRQ);
+	BUG_IF_IPI(irq);
+
+	if (!VALID_EVTCHN(evtchn))
+		return -EINVAL;
+
+	multi_notify_remote_via_evtchn(mcl, evtchn);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(multi_notify_remote_via_irq);
+
 int irq_to_evtchn_port(int irq)
 {
 	BUG_IF_VIRQ_PER_CPU(irq);
