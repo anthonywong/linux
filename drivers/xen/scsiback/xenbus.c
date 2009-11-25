@@ -224,7 +224,7 @@ static void scsiback_do_lun_hotplug(struct backend_info *be, int op)
 static void scsiback_frontend_changed(struct xenbus_device *dev,
 					enum xenbus_state frontend_state)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	int err;
 
 	switch (frontend_state) {
@@ -281,7 +281,7 @@ static void scsiback_frontend_changed(struct xenbus_device *dev,
 
 static int scsiback_remove(struct xenbus_device *dev)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
 	if (be->info) {
 		scsiback_disconnect(be->info);
@@ -291,7 +291,7 @@ static int scsiback_remove(struct xenbus_device *dev)
 	}
 
 	kfree(be);
-	dev->dev.driver_data = NULL;
+	dev_set_drvdata(&dev->dev, NULL);
 
 	return 0;
 }
@@ -314,7 +314,7 @@ static int scsiback_probe(struct xenbus_device *dev,
 		return -ENOMEM;
 	}
 	be->dev = dev;
-	dev->dev.driver_data = be;
+	dev_set_drvdata(&dev->dev, be);
 
 	be->info = vscsibk_info_alloc(dev->otherend_id);
 	if (IS_ERR(be->info)) {
