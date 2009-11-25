@@ -26,6 +26,10 @@
 #include <asm/system.h>
 #include <asm/cacheflush.h>
 
+#ifdef CONFIG_XEN
+#include <xen/interface/kexec.h>
+#endif
+
 static void machine_kexec_free_page_tables(struct kimage *image)
 {
 	free_page((unsigned long)image->arch.pgd);
@@ -96,6 +100,55 @@ static void machine_kexec_prepare_page_tables(struct kimage *image)
 		__pa(control_page), __pa(control_page));
 }
 
+#ifdef CONFIG_XEN
+
+#define __ma(x) (pfn_to_mfn(__pa((x)) >> PAGE_SHIFT) << PAGE_SHIFT)
+
+#if PAGES_NR > KEXEC_XEN_NO_PAGES
+#error PAGES_NR is greater than KEXEC_XEN_NO_PAGES - Xen support will break
+#endif
+
+#if PA_CONTROL_PAGE != 0
+#error PA_CONTROL_PAGE is non zero - Xen support will break
+#endif
+
+void machine_kexec_setup_load_arg(xen_kexec_image_t *xki, struct kimage *image)
+{
+	void *control_page;
+
+	memset(xki->page_list, 0, sizeof(xki->page_list));
+
+	control_page = page_address(image->control_code_page);
+	memcpy(control_page, relocate_kernel, PAGE_SIZE);
+
+	xki->page_list[PA_CONTROL_PAGE] = __ma(control_page);
+	xki->page_list[PA_PGD] = __ma(kexec_pgd);
+#ifdef CONFIG_X86_PAE
+	xki->page_list[PA_PMD_0] = __ma(kexec_pmd0);
+	xki->page_list[PA_PMD_1] = __ma(kexec_pmd1);
+#endif
+	xki->page_list[PA_PTE_0] = __ma(kexec_pte0);
+	xki->page_list[PA_PTE_1] = __ma(kexec_pte1);
+
+}
+
+int __init machine_kexec_setup_resources(struct resource *hypervisor,
+					 struct resource *phys_cpus,
+					 int nr_phys_cpus)
+{
+	int k;
+
+	/* The per-cpu crash note resources belong to the hypervisor resource */
+	for (k = 0; k < nr_phys_cpus; k++)
+		request_resource(hypervisor, phys_cpus + k);
+
+	return 0;
+}
+
+void machine_kexec_register_resources(struct resource *res) { ; }
+
+#endif /* CONFIG_XEN */
+
 /*
  * A architecture hook called to validate the
  * proposed image and prepare the control pages
@@ -135,6 +188,7 @@ void machine_kexec_cleanup(struct kimage *image)
 	machine_kexec_free_page_tables(image);
 }
 
+#ifndef CONFIG_XEN
 /*
  * Do not allocate memory (or fail in any way) in machine_kexec().
  * We are past the point of no return, committed to rebooting now.
@@ -199,6 +253,7 @@ void machine_kexec(struct kimage *image)
 
 	__ftrace_enabled_restore(save_ftrace_enabled);
 }
+#endif
 
 void arch_crash_save_vmcoreinfo(void)
 {
