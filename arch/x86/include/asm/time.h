@@ -8,8 +8,9 @@ extern void hpet_time_init(void);
 extern void time_init(void);
 
 #ifdef CONFIG_XEN
+struct timespec;
 extern int xen_independent_wallclock(void);
-extern unsigned long xen_read_persistent_clock(void);
+extern void xen_read_persistent_clock(struct timespec *);
 extern int xen_update_persistent_clock(void);
 #endif
 

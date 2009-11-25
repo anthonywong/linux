@@ -1,31 +1,12 @@
 /*
- *  Copyright (C) 1991, 1992, 1995  Linus Torvalds
+ *  Copyright (c) 1991,1992,1995  Linus Torvalds
+ *  Copyright (c) 1994  Alan Modra
+ *  Copyright (c) 1995  Markus Kuhn
+ *  Copyright (c) 1996  Ingo Molnar
+ *  Copyright (c) 1998  Andrea Arcangeli
+ *  Copyright (c) 2002,2006  Vojtech Pavlik
+ *  Copyright (c) 2003  Andi Kleen
  *
- * This file contains the PC-specific time handling details:
- * reading the RTC at bootup, etc..
- * 1994-07-02    Alan Modra
- *	fixed set_rtc_mmss, fixed time.year for >= 2000, new mktime
- * 1995-03-26    Markus Kuhn
- *      fixed 500 ms bug at call to set_rtc_mmss, fixed DS12887
- *      precision CMOS clock update
- * 1996-05-03    Ingo Molnar
- *      fixed time warps in do_[slow|fast]_gettimeoffset()
- * 1997-09-10	Updated NTP code according to technical memorandum Jan '96
- *		"A Kernel Model for Precision Timekeeping" by Dave Mills
- * 1998-09-05    (Various)
- *	More robust do_fast_gettimeoffset() algorithm implemented
- *	(works with APM, Cyrix 6x86MX and Centaur C6),
- *	monotonic gettimeofday() with fast_get_timeoffset(),
- *	drift-proof precision TSC calibration on boot
- *	(C. Scott Ananian <cananian@alumni.princeton.edu>, Andrew D.
- *	Balsa <andrebalsa@altern.org>, Philip Gladstone <philip@raptor.com>;
- *	ported from 2.0.35 Jumbo-9 by Michael Krause <m.krause@tu-harburg.de>).
- * 1998-12-16    Andrea Arcangeli
- *	Fixed Jumbo-9 code in 2.1.131: do_gettimeofday was missing 1 jiffy
- *	because was not accounting lost_ticks.
- * 1998-12-24 Copyright (C) 1998  Andrea Arcangeli
- *	Fixed a xtime SMP race (we need the xtime_lock rw spinlock to
- *	serialize accesses to xtime/lost_ticks).
  */
 
 #include <linux/init.h>
@@ -40,6 +21,7 @@
 #include <linux/clocksource.h>
 #include <linux/sysdev.h>
 
+#include <asm/vsyscall.h>
 #include <asm/delay.h>
 #include <asm/time.h>
 #include <asm/timer.h>
@@ -53,7 +35,6 @@ DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
 
 #ifdef CONFIG_X86_64
-#include <asm/vsyscall.h>
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 #endif
 
@@ -406,36 +387,31 @@ unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-#if defined(CONFIG_SMP) || defined(__x86_64__)
 	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
-# ifdef CONFIG_FRAME_POINTER
+#ifdef CONFIG_FRAME_POINTER
 		return *(unsigned long *)(regs->bp + sizeof(long));
-# else
-#  ifdef __i386__
-		unsigned long *sp = (unsigned long *)&regs->sp;
-#  else
-		unsigned long *sp = (unsigned long *)regs->sp;
-#  endif
+#else
+		unsigned long *sp =
+			(unsigned long *)kernel_stack_pointer(regs);
 
-		/* Return address is either directly at stack pointer
-		   or above a saved flags. Eflags has bits 22-31 zero,
-		   kernel addresses don't. */
+		/*
+		 * Return address is either directly at stack pointer
+		 * or above a saved flags. Eflags has bits 22-31 zero,
+		 * kernel addresses don't.
+		 */
 		if (sp[0] >> 22)
 			return sp[0];
 		if (sp[1] >> 22)
 			return sp[1];
-# endif
-	}
 #endif
+	}
 
 	return pc;
 }
 EXPORT_SYMBOL(profile_pc);
 
 /*
- * This is the same as the above, except we _also_ save the current
- * Time Stamp Counter value at the time of the timer interrupt, so that
- * we later on can estimate the time of day more exactly.
+ * Default timer interrupt handler
  */
 irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
@@ -557,8 +533,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	/* Local timer processing (see update_process_times()). */
 	run_local_timers();
-	if (rcu_pending(cpu))
-		rcu_check_callbacks(cpu, user_mode_vm(get_irq_regs()));
+	rcu_check_callbacks(cpu, user_mode_vm(get_irq_regs()));
 	printk_tick();
 	scheduler_tick();
 	run_posix_cpu_timers(current);
@@ -649,7 +624,7 @@ static void init_missing_ticks_accounting(unsigned int cpu)
 		runstate->time[RUNSTATE_offline];
 }
 
-unsigned long xen_read_persistent_clock(void)
+void xen_read_persistent_clock(struct timespec *ts)
 {
 	const shared_info_t *s = HYPERVISOR_shared_info;
 	u32 version, sec, nsec;
@@ -666,7 +641,8 @@ unsigned long xen_read_persistent_clock(void)
 	delta = local_clock() + (u64)sec * NSEC_PER_SEC + nsec;
 	do_div(delta, NSEC_PER_SEC);
 
-	return delta;
+	ts->tv_sec = delta;
+	ts->tv_nsec = 0;
 }
 
 int xen_update_persistent_clock(void)

@@ -692,8 +692,7 @@ int ptep_set_access_flags(struct vm_area_struct *vma,
 		if (likely(vma->vm_mm == current->mm)) {
 			if (HYPERVISOR_update_va_mapping(address,
 				entry,
-				uvm_multi(vma->vm_mm->cpu_vm_mask) |
-					UVMF_INVLPG))
+				uvm_multi(mm_cpumask(vma->vm_mm))|UVMF_INVLPG))
 				BUG();
 		} else {
 			xen_l1_entry_update(ptep, entry);

@@ -134,8 +134,6 @@ ifeq ($(CONFIG_X86_64),y)
 
 	obj-$(CONFIG_PCI_MMCONFIG)	+= mmconf-fam10h_64.o
 	obj-y				+= vsmp_64.o
-
-	time_64-$(CONFIG_XEN)		+= time_32.o
 endif
 
 disabled-obj-$(CONFIG_XEN) := %_uv.o crash.o early-quirks.o hpet.o i8253.o \
