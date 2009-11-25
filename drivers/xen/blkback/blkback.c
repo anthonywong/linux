@@ -148,7 +148,7 @@ static void unplug_queue(blkif_t *blkif)
 		return;
 	if (blkif->plug->unplug_fn)
 		blkif->plug->unplug_fn(blkif->plug);
-	blk_put_queue(blkif->plug);
+	kobject_put(&blkif->plug->kobj);
 	blkif->plug = NULL;
 }
 
@@ -159,7 +159,8 @@ static void plug_queue(blkif_t *blkif, struct block_device *bdev)
 	if (q == blkif->plug)
 		return;
 	unplug_queue(blkif);
-	blk_get_queue(q);
+	WARN_ON(test_bit(QUEUE_FLAG_DEAD, &q->queue_flags));
+	kobject_get(&q->kobj);
 	blkif->plug = q;
 }
 
