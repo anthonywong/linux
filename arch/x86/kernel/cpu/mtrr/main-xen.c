@@ -35,6 +35,8 @@ struct mtrr_ops *mtrr_if = &generic_mtrr_ops;
 unsigned int num_var_ranges;
 unsigned int mtrr_usage_table[MAX_VAR_RANGES];
 
+static u64 tom2;
+
 static void __init set_num_var_ranges(void)
 {
 	struct xen_platform_op op;
@@ -162,8 +164,144 @@ mtrr_del(int reg, unsigned long base, unsigned long size)
 EXPORT_SYMBOL(mtrr_add);
 EXPORT_SYMBOL(mtrr_del);
 
+/*
+ * Returns the effective MTRR type for the region
+ * Error returns:
+ * - 0xFE - when the range is "not entirely covered" by _any_ var range MTRR
+ * - 0xFF - when MTRR is not enabled
+ */
+u8 mtrr_type_lookup(u64 start, u64 end)
+{
+	int i, error;
+	u64 start_mfn, end_mfn, base_mfn, top_mfn;
+	u8 prev_match, curr_match;
+	struct xen_platform_op op;
+
+	if (!is_initial_xendomain())
+		return MTRR_TYPE_WRBACK;
+
+	if (!num_var_ranges)
+		return 0xFF;
+
+	start_mfn = start >> PAGE_SHIFT;
+	/* Make end inclusive end, instead of exclusive */
+	end_mfn = --end >> PAGE_SHIFT;
+
+	/* Look in fixed ranges. Just return the type as per start */
+	if (start_mfn < 0x100) {
+#if 0//todo
+		op.cmd = XENPF_read_memtype;
+		op.u.read_memtype.reg = ???;
+		error = HYPERVISOR_platform_op(&op);
+		if (!error)
+			return op.u.read_memtype.type;
+#endif
+		return MTRR_TYPE_UNCACHABLE;
+	}
+
+	/*
+	 * Look in variable ranges
+	 * Look of multiple ranges matching this address and pick type
+	 * as per MTRR precedence
+	 */
+	prev_match = 0xFF;
+	for (i = 0; i < num_var_ranges; ++i) {
+		op.cmd = XENPF_read_memtype;
+		op.u.read_memtype.reg = i;
+		error = HYPERVISOR_platform_op(&op);
+
+		if (error || !op.u.read_memtype.nr_mfns)
+			continue;
+
+		base_mfn = op.u.read_memtype.mfn;
+		top_mfn = base_mfn + op.u.read_memtype.nr_mfns - 1;
+
+		if (base_mfn > end_mfn || start_mfn > top_mfn) {
+			continue;
+		}
+
+		if (base_mfn > start_mfn || end_mfn > top_mfn) {
+			return 0xFE;
+		}
+
+		curr_match = op.u.read_memtype.type;
+		if (prev_match == 0xFF) {
+			prev_match = curr_match;
+			continue;
+		}
+
+		if (prev_match == MTRR_TYPE_UNCACHABLE ||
+		    curr_match == MTRR_TYPE_UNCACHABLE) {
+			return MTRR_TYPE_UNCACHABLE;
+		}
+
+		if ((prev_match == MTRR_TYPE_WRBACK &&
+		     curr_match == MTRR_TYPE_WRTHROUGH) ||
+		    (prev_match == MTRR_TYPE_WRTHROUGH &&
+		     curr_match == MTRR_TYPE_WRBACK)) {
+			prev_match = MTRR_TYPE_WRTHROUGH;
+			curr_match = MTRR_TYPE_WRTHROUGH;
+		}
+
+		if (prev_match != curr_match) {
+			return MTRR_TYPE_UNCACHABLE;
+		}
+	}
+
+	if (tom2) {
+		if (start >= (1ULL<<32) && (end < tom2))
+			return MTRR_TYPE_WRBACK;
+	}
+
+	if (prev_match != 0xFF)
+		return prev_match;
+
+#if 0//todo
+	op.cmd = XENPF_read_def_memtype;
+	error = HYPERVISOR_platform_op(&op);
+	if (!error)
+		return op.u.read_def_memtype.type;
+#endif
+	return MTRR_TYPE_UNCACHABLE;
+}
+
+/*
+ * Newer AMD K8s and later CPUs have a special magic MSR way to force WB
+ * for memory >4GB. Check for that here.
+ * Note this won't check if the MTRRs < 4GB where the magic bit doesn't
+ * apply to are wrong, but so far we don't know of any such case in the wild.
+ */
+#define Tom2Enabled (1U << 21)
+#define Tom2ForceMemTypeWB (1U << 22)
+
+int __init amd_special_default_mtrr(void)
+{
+	u32 l, h;
+
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return 0;
+	if (boot_cpu_data.x86 < 0xf || boot_cpu_data.x86 > 0x11)
+		return 0;
+	/* In case some hypervisor doesn't pass SYSCFG through */
+	if (rdmsr_safe(MSR_K8_SYSCFG, &l, &h) < 0)
+		return 0;
+	/*
+	 * Memory between 4GB and top of mem is forced WB by this magic bit.
+	 * Reserved before K8RevF, but should be zero there.
+	 */
+	if ((l & (Tom2Enabled | Tom2ForceMemTypeWB)) ==
+		 (Tom2Enabled | Tom2ForceMemTypeWB))
+		return 1;
+	return 0;
+}
+
 void __init mtrr_bp_init(void)
 {
+	if (amd_special_default_mtrr()) {
+		/* TOP_MEM2 */
+		rdmsrl(MSR_K8_TOP_MEM2, tom2);
+		tom2 &= 0xffffff8000000ULL;
+	}
 }
 
 void mtrr_ap_init(void)

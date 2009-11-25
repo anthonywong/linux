@@ -21,7 +21,7 @@ void destroy_context(struct mm_struct *mm);
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 #if defined(CONFIG_SMP) && !defined(CONFIG_XEN)
-	if (read_pda(mmu_state) == TLBSTATE_OK) 
+	if (read_pda(mmu_state) == TLBSTATE_OK)
 		write_pda(mmu_state, TLBSTATE_LAZY);
 #endif
 }
@@ -62,7 +62,7 @@ extern void mm_pin(struct mm_struct *mm);
 extern void mm_unpin(struct mm_struct *mm);
 void mm_pin_all(void);
 
-static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 
+static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			     struct task_struct *tsk)
 {
 	unsigned cpu = smp_processor_id();
@@ -106,7 +106,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		if (read_pda(active_mm) != next)
 			BUG();
 		if (!cpu_test_and_set(cpu, next->cpu_vm_mask)) {
-			/* We were in lazy tlb mode and leave_mm disabled 
+			/* We were in lazy tlb mode and leave_mm disabled
 			 * tlb flush IPI delivery. We must reload CR3
 			 * to make sure to use no freed page tables.
 			 */
@@ -118,10 +118,11 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 #endif
 }
 
-#define deactivate_mm(tsk,mm)	do { \
-	load_gs_index(0); \
-	asm volatile("movl %0,%%fs"::"r"(0));  \
-} while(0)
+#define deactivate_mm(tsk, mm)			\
+do {						\
+	load_gs_index(0);			\
+	asm volatile("movl %0,%%fs"::"r"(0));	\
+} while (0)
 
 static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {

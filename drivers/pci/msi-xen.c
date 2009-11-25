@@ -542,7 +542,7 @@ int pci_enable_msi(struct pci_dev* dev)
 EXPORT_SYMBOL(pci_enable_msi);
 
 extern void pci_frontend_disable_msi(struct pci_dev* dev);
-void pci_disable_msi(struct pci_dev* dev)
+void pci_msi_shutdown(struct pci_dev* dev)
 {
 	int pirq;
 	struct msi_dev_list *msi_dev_entry = get_msi_dev_pirq_list(dev);
@@ -571,6 +571,10 @@ void pci_disable_msi(struct pci_dev* dev)
 	msi_set_enable(dev, 0);
 	pci_intx_for_msi(dev, 1);
 	dev->msi_enabled = 0;
+}
+void pci_disable_msi(struct pci_dev* dev)
+{
+	pci_msi_shutdown(dev);
 }
 EXPORT_SYMBOL(pci_disable_msi);
 
@@ -675,7 +679,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 EXPORT_SYMBOL(pci_enable_msix);
 
 extern void pci_frontend_disable_msix(struct pci_dev* dev);
-void pci_disable_msix(struct pci_dev* dev)
+void pci_msix_shutdown(struct pci_dev* dev)
 {
 	if (!pci_msi_enable)
 		return;
@@ -711,6 +715,10 @@ void pci_disable_msix(struct pci_dev* dev)
 	msix_set_enable(dev, 0);
 	pci_intx_for_msi(dev, 1);
 	dev->msix_enabled = 0;
+}
+void pci_disable_msix(struct pci_dev* dev)
+{
+	pci_msix_shutdown(dev);
 }
 EXPORT_SYMBOL(pci_disable_msix);
 

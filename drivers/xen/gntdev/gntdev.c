@@ -392,7 +392,7 @@ nomem_out:
 static int __init gntdev_init(void)
 {
 	struct class *class;
-	struct class_device *device;
+	struct device *device;
 
 	if (!is_running_on_xen()) {
 		printk(KERN_ERR "You must be running Xen to use gntdev\n");
@@ -417,8 +417,8 @@ static int __init gntdev_init(void)
 		return 0;
 	}
 
-	device = class_device_create(class, NULL, MKDEV(gntdev_major, 0),
-				     NULL, GNTDEV_NAME);
+	device = device_create(class, NULL, MKDEV(gntdev_major, 0),
+			       GNTDEV_NAME);
 	if (IS_ERR(device)) {
 		printk(KERN_ERR "Error creating gntdev device in xen_class\n");
 		printk(KERN_ERR "gntdev created with major number = %d\n",
@@ -435,7 +435,7 @@ static void __exit gntdev_exit(void)
 {
 	struct class *class;
 	if ((class = get_xen_class()) != NULL)
-		class_device_destroy(class, MKDEV(gntdev_major, 0));
+		device_destroy(class, MKDEV(gntdev_major, 0));
 	unregister_chrdev(gntdev_major, GNTDEV_NAME);
 }
 

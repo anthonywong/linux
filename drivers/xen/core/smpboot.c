@@ -53,15 +53,14 @@ static DEFINE_PER_CPU(int, callfunc_irq);
 static char resched_name[NR_CPUS][15];
 static char callfunc_name[NR_CPUS][15];
 
-u8 cpu_2_logical_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
+#ifdef CONFIG_X86_LOCAL_APIC
+#define set_cpu_to_apicid(cpu, apicid) (per_cpu(x86_cpu_to_apicid, cpu) = (apicid))
+#else
+#define set_cpu_to_apicid(cpu, apicid)
+#endif
 
 DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
 DEFINE_PER_CPU(cpumask_t, cpu_core_map);
-
-#if defined(__i386__)
-DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
-EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
-#endif
 
 void __init prefill_possible_map(void)
 {
@@ -153,7 +152,7 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void xen_smp_intr_exit(unsigned int cpu)
+static void __cpuexit xen_smp_intr_exit(unsigned int cpu)
 {
 	if (cpu != 0)
 		local_teardown_timer(cpu);
@@ -262,8 +261,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	boot_cpu_data.apicid = apicid;
 	cpu_data(0) = boot_cpu_data;
 
-	cpu_2_logical_apicid[0] = apicid;
-	per_cpu(x86_cpu_to_apicid, 0) = apicid;
+	set_cpu_to_apicid(0, apicid);
 
 	current_thread_info()->cpu = 0;
 
@@ -318,8 +316,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		cpu_data(cpu).cpu_index = cpu;
 		cpu_data(cpu).apicid = apicid;
 
-		cpu_2_logical_apicid[cpu] = apicid;
-		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+		set_cpu_to_apicid(cpu, apicid);
 
 #ifdef __x86_64__
 		cpu_pda(cpu)->pcurrent = idle;
@@ -374,7 +371,7 @@ static int __init initialize_cpu_present_map(void)
 }
 core_initcall(initialize_cpu_present_map);
 
-int __cpu_disable(void)
+int __cpuexit __cpu_disable(void)
 {
 	cpumask_t map = cpu_online_map;
 	unsigned int cpu = smp_processor_id();
@@ -391,7 +388,7 @@ int __cpu_disable(void)
 	return 0;
 }
 
-void __cpu_die(unsigned int cpu)
+void __cpuexit __cpu_die(unsigned int cpu)
 {
 	while (HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
 		current->state = TASK_UNINTERRUPTIBLE;

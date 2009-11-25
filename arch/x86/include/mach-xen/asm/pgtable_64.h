@@ -31,7 +31,7 @@ extern void paging_init(void);
 
 #endif /* !__ASSEMBLY__ */
 
-#define SHARED_KERNEL_PMD	1
+#define SHARED_KERNEL_PMD	0
 
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
@@ -59,18 +59,20 @@ extern void paging_init(void);
 
 #ifndef __ASSEMBLY__
 
-#define pte_ERROR(e) \
-	printk("%s:%d: bad pte %p(%016lx pfn %010lx).\n", __FILE__, __LINE__, \
-	       &(e), __pte_val(e), pte_pfn(e))
-#define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %p(%016lx pfn %010lx).\n", __FILE__, __LINE__, \
-	       &(e), __pmd_val(e), pmd_pfn(e))
-#define pud_ERROR(e) \
-	printk("%s:%d: bad pud %p(%016lx pfn %010lx).\n", __FILE__, __LINE__, \
-	       &(e), __pud_val(e), (pud_val(e) & __PHYSICAL_MASK) >> PAGE_SHIFT)
-#define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %p(%016lx pfn %010lx).\n", __FILE__, __LINE__, \
-	       &(e), __pgd_val(e), (pgd_val(e) & __PHYSICAL_MASK) >> PAGE_SHIFT)
+#define pte_ERROR(e)							\
+	printk("%s:%d: bad pte %p(%016lx pfn %010lx).\n",		\
+	       __FILE__, __LINE__, &(e), __pte_val(e), pte_pfn(e))
+#define pmd_ERROR(e)							\
+	printk("%s:%d: bad pmd %p(%016lx pfn %010lx).\n",		\
+	       __FILE__, __LINE__, &(e), __pmd_val(e), pmd_pfn(e))
+#define pud_ERROR(e)							\
+	printk("%s:%d: bad pud %p(%016lx pfn %010lx).\n",		\
+	       __FILE__, __LINE__, &(e), __pud_val(e),			\
+	       (pud_val(e) & __PHYSICAL_MASK) >> PAGE_SHIFT)
+#define pgd_ERROR(e)							\
+	printk("%s:%d: bad pgd %p(%016lx pfn %010lx).\n",		\
+	       __FILE__, __LINE__, &(e), __pgd_val(e),			\
+	       (pgd_val(e) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
 #define pgd_none(x)	(!__pgd_val(x))
 #define pud_none(x)	(!__pud_val(x))
@@ -125,7 +127,7 @@ static inline void xen_set_pgd(pgd_t *pgdp, pgd_t pgd)
 	xen_l4_entry_update(pgdp, pgd);
 }
 
-static inline void xen_pgd_clear(pgd_t * pgd)
+static inline void xen_pgd_clear(pgd_t *pgd)
 {
 	xen_set_pgd(pgd, xen_make_pgd(0));
 	xen_set_pgd(__user_pgd(pgd), xen_make_pgd(0));
@@ -135,43 +137,43 @@ static inline void xen_pgd_clear(pgd_t * pgd)
 
 #endif /* !__ASSEMBLY__ */
 
-#define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
-#define PMD_MASK	(~(PMD_SIZE-1))
-#define PUD_SIZE	(_AC(1,UL) << PUD_SHIFT)
-#define PUD_MASK	(~(PUD_SIZE-1))
-#define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
-#define PGDIR_MASK	(~(PGDIR_SIZE-1))
+#define PMD_SIZE	(_AC(1, UL) << PMD_SHIFT)
+#define PMD_MASK	(~(PMD_SIZE - 1))
+#define PUD_SIZE	(_AC(1, UL) << PUD_SHIFT)
+#define PUD_MASK	(~(PUD_SIZE - 1))
+#define PGDIR_SIZE	(_AC(1, UL) << PGDIR_SHIFT)
+#define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
 
-#define MAXMEM		 _AC(0x6fffffffff, UL)
+#define MAXMEM		 _AC(0x0000006fffffffff, UL)
 #define VMALLOC_START    _AC(0xffffc20000000000, UL)
 #define VMALLOC_END      _AC(0xffffe1ffffffffff, UL)
 #define VMEMMAP_START	 _AC(0xffffe20000000000, UL)
-#define MODULES_VADDR    _AC(0xffffffff88000000, UL)
+#define MODULES_VADDR    _AC(0xffffffffa0000000, UL)
 #define MODULES_END      _AC(0xffffffffff000000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
 
 #ifndef __ASSEMBLY__
 
-static inline unsigned long pgd_bad(pgd_t pgd)
+static inline int pgd_bad(pgd_t pgd)
 {
-	return __pgd_val(pgd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+	return (__pgd_val(pgd) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
-static inline unsigned long pud_bad(pud_t pud)
+static inline int pud_bad(pud_t pud)
 {
-	return __pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+	return (__pud_val(pud) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
-static inline unsigned long pmd_bad(pmd_t pmd)
+static inline int pmd_bad(pmd_t pmd)
 {
-	return __pmd_val(pmd) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER);
+	return (__pmd_val(pmd) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
 #define pte_none(x)	(!(x).pte)
 #define pte_present(x)	((x).pte & (_PAGE_PRESENT | _PAGE_PROTNONE))
 
-#define pages_to_mb(x) ((x) >> (20-PAGE_SHIFT))	/* FIXME: is this right? */
+#define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
 
 #define __pte_mfn(_pte) (((_pte).pte & PTE_MASK) >> PAGE_SHIFT)
 #define pte_mfn(_pte) ((_pte).pte & _PAGE_PRESENT ? \
@@ -181,13 +183,13 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 		       mfn_to_local_pfn(__pte_mfn(_pte)) :	\
 		       __pte_mfn(_pte))
 
-#define pte_page(x)	pfn_to_page(pte_pfn(x))
+#define pte_page(x)	pfn_to_page(pte_pfn((x)))
 
 /*
  * Macro to mark a page protection value as "uncacheable".
  */
-#define pgprot_noncached(prot)	(__pgprot(pgprot_val(prot) | _PAGE_PCD | _PAGE_PWT))
-
+#define pgprot_noncached(prot)					\
+	(__pgprot(pgprot_val((prot)) | _PAGE_PCD | _PAGE_PWT))
 
 /*
  * Conversion functions: convert a page and protection to a page entry,
@@ -197,36 +199,39 @@ static inline unsigned long pmd_bad(pmd_t pmd)
 /*
  * Level 4 access.
  */
-#define pgd_page_vaddr(pgd) ((unsigned long) __va(pgd_val(pgd) & PTE_MASK))
-#define pgd_page(pgd)		(pfn_to_page(pgd_val(pgd) >> PAGE_SHIFT))
-#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-#define pgd_offset(mm, addr) ((mm)->pgd + pgd_index(addr))
-#define pgd_offset_k(address) (init_level4_pgt + pgd_index(address))
+#define pgd_page_vaddr(pgd)						\
+	((unsigned long)__va((unsigned long)pgd_val((pgd)) & PTE_MASK))
+#define pgd_page(pgd)		(pfn_to_page(pgd_val((pgd)) >> PAGE_SHIFT))
+#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
+#define pgd_offset(mm, address)	((mm)->pgd + pgd_index((address)))
+#define pgd_offset_k(address) (init_level4_pgt + pgd_index((address)))
 #define pgd_present(pgd) (__pgd_val(pgd) & _PAGE_PRESENT)
 static inline int pgd_large(pgd_t pgd) { return 0; }
 #define mk_kernel_pgd(address) __pgd((address) | _KERNPG_TABLE)
 
 /* PUD - Level3 access */
 /* to find an entry in a page-table-directory. */
-#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PHYSICAL_PAGE_MASK))
-#define pud_page(pud)		(pfn_to_page(pud_val(pud) >> PAGE_SHIFT))
-#define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
-#define pud_offset(pgd, address) ((pud_t *) pgd_page_vaddr(*(pgd)) + pud_index(address))
+#define pud_page_vaddr(pud)						\
+	((unsigned long)__va(pud_val((pud)) & PHYSICAL_PAGE_MASK))
+#define pud_page(pud)	(pfn_to_page(pud_val((pud)) >> PAGE_SHIFT))
+#define pud_index(address) (((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
+#define pud_offset(pgd, address)					\
+	((pud_t *)pgd_page_vaddr(*(pgd)) + pud_index((address)))
 #define pud_present(pud) (__pud_val(pud) & _PAGE_PRESENT)
 
 static inline int pud_large(pud_t pte)
 {
-	return (__pud_val(pte) & (_PAGE_PSE|_PAGE_PRESENT)) ==
-		(_PAGE_PSE|_PAGE_PRESENT);
+	return (__pud_val(pte) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+		(_PAGE_PSE | _PAGE_PRESENT);
 }
 
 /* PMD  - Level 2 access */
-#define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val(pmd) & PTE_MASK))
-#define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
+#define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val((pmd)) & PTE_MASK))
+#define pmd_page(pmd)		(pfn_to_page(pmd_val((pmd)) >> PAGE_SHIFT))
 
-#define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
-#define pmd_offset(dir, address) ((pmd_t *) pud_page_vaddr(*(dir)) + \
-                                  pmd_index(address))
+#define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
+#define pmd_offset(dir, address) ((pmd_t *)pud_page_vaddr(*(dir)) + \
+				  pmd_index(address))
 #define pmd_none(x)	(!__pmd_val(x))
 #if CONFIG_XEN_COMPAT <= 0x030002
 /* pmd_present doesn't just test the _PAGE_PRESENT bit since wr.p.t.
@@ -235,43 +240,56 @@ static inline int pud_large(pud_t pte)
 #else
 #define pmd_present(x)	(__pmd_val(x) & _PAGE_PRESENT)
 #endif
-#define pfn_pmd(nr,prot) (__pmd(((nr) << PAGE_SHIFT) | pgprot_val(prot)))
-#define pmd_pfn(x)  ((pmd_val(x) & __PHYSICAL_MASK) >> PAGE_SHIFT)
+#define pfn_pmd(nr, prot) (__pmd(((nr) << PAGE_SHIFT) | pgprot_val((prot))))
+#define pmd_pfn(x)  ((pmd_val((x)) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
 #define pte_to_pgoff(pte) ((__pte_val(pte) & PHYSICAL_PAGE_MASK) >> PAGE_SHIFT)
-#define pgoff_to_pte(off) ((pte_t) { .pte = ((off) << PAGE_SHIFT) | _PAGE_FILE })
+#define pgoff_to_pte(off) ((pte_t) { .pte = ((off) << PAGE_SHIFT) |	\
+					    _PAGE_FILE })
 #define PTE_FILE_MAX_BITS __PHYSICAL_MASK_SHIFT
 
 /* PTE - Level 1 access. */
 
 /* page, protection -> pte */
-#define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
- 
-#define pte_index(address) \
-		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+#define mk_pte(page, pgprot)	pfn_pte(page_to_pfn((page)), (pgprot))
+
+#define pte_index(address) (((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) ((pte_t *) pmd_page_vaddr(*(dir)) + \
-			pte_index(address))
+					 pte_index((address)))
 
 /* x86-64 always has all page tables mapped. */
-#define pte_offset_map(dir,address) pte_offset_kernel(dir,address)
-#define pte_offset_map_nested(dir,address) pte_offset_kernel(dir,address)
+#define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
+#define pte_offset_map_nested(dir, address) pte_offset_kernel((dir), (address))
 #define pte_unmap(pte) /* NOP */
-#define pte_unmap_nested(pte) /* NOP */ 
+#define pte_unmap_nested(pte) /* NOP */
 
-#define update_mmu_cache(vma,address,pte) do { } while (0)
+#define update_mmu_cache(vma, address, pte) do { } while (0)
+
+#define direct_gbpages 0
 
 /* Encode and de-code a swap entry */
-#define __swp_type(x)			(((x).val >> 1) & 0x3f)
-#define __swp_offset(x)			((x).val >> 8)
-#define __swp_entry(type, offset)	((swp_entry_t) { ((type) << 1) | ((offset) << 8) })
+#if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+#define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+#else
+#define SWP_TYPE_BITS (_PAGE_BIT_PROTNONE - _PAGE_BIT_PRESENT - 1)
+#define SWP_OFFSET_SHIFT (_PAGE_BIT_FILE + 1)
+#endif
+
+#define __swp_type(x)			(((x).val >> (_PAGE_BIT_PRESENT + 1)) \
+					 & ((1U << SWP_TYPE_BITS) - 1))
+#define __swp_offset(x)			((x).val >> SWP_OFFSET_SHIFT)
+#define __swp_entry(type, offset)	((swp_entry_t) { \
+					 ((type) << (_PAGE_BIT_PRESENT + 1)) \
+					 | ((offset) << SWP_OFFSET_SHIFT) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { __pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
 
-extern int kern_addr_valid(unsigned long addr); 
+extern int kern_addr_valid(unsigned long addr);
 extern void cleanup_highmap(void);
 
-#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
-		direct_remap_pfn_range(vma,vaddr,pfn,size,prot,DOMID_IO)
+#define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
+	direct_remap_pfn_range(vma, vaddr, pfn, size, prot, DOMID_IO)
 
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
@@ -284,8 +302,10 @@ extern void cleanup_highmap(void);
 
 /* fs/proc/kcore.c */
 #define	kc_vaddr_to_offset(v) ((v) & __VIRTUAL_MASK)
-#define	kc_offset_to_vaddr(o) \
-   (((o) & (1UL << (__VIRTUAL_MASK_SHIFT-1))) ? ((o) | (~__VIRTUAL_MASK)) : (o))
+#define	kc_offset_to_vaddr(o)				\
+	(((o) & (1UL << (__VIRTUAL_MASK_SHIFT - 1)))	\
+	 ? ((o) | ~__VIRTUAL_MASK)			\
+	 : (o))
 
 #define __HAVE_ARCH_PTE_SAME
 #endif /* !__ASSEMBLY__ */

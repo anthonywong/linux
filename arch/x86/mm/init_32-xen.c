@@ -1,5 +1,4 @@
 /*
- *  linux/arch/i386/mm/init.c
  *
  *  Copyright (C) 1995  Linus Torvalds
  *
@@ -22,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/pci.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/bootmem.h>
@@ -54,6 +54,8 @@
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
 
+unsigned long max_pfn_mapped;
+
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 unsigned long highstart_pfn, highend_pfn;
 
@@ -73,7 +75,7 @@ static pmd_t * __init one_md_table_init(pgd_t *pgd)
 	if (!(__pgd_val(*pgd) & _PAGE_PRESENT)) {
 		pmd_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
 
-		paravirt_alloc_pd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
+		paravirt_alloc_pmd(&init_mm, __pa(pmd_table) >> PAGE_SHIFT);
 		make_lowmem_page_readonly(pmd_table, XENFEAT_writable_page_tables);
 		set_pgd(pgd, __pgd(__pa(pmd_table) | _PAGE_PRESENT));
 		pud = pud_offset(pgd, 0);
@@ -107,7 +109,7 @@ static pte_t * __init one_page_table_init(pmd_t *pmd)
 				(pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
 		}
 
-		paravirt_alloc_pt(&init_mm, __pa(page_table) >> PAGE_SHIFT);
+		paravirt_alloc_pte(&init_mm, __pa(page_table) >> PAGE_SHIFT);
 		make_lowmem_page_readonly(page_table,
 					  XENFEAT_writable_page_tables);
 		set_pmd(pmd, __pmd(__pa(page_table) | _PAGE_TABLE));
@@ -209,8 +211,13 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 			/*
 			 * Map with big pages if possible, otherwise
 			 * create normal page tables:
+			 *
+			 * Don't use a large page for the first 2/4MB of memory
+			 * because there are often fixed size MTRRs in there
+			 * and overlapping MTRRs into large pages can cause
+			 * slowdowns.
 			 */
-			if (cpu_has_pse) {
+			if (cpu_has_pse && !(pgd_idx == 0 && pmd_idx == 0)) {
 				unsigned int addr2;
 				pgprot_t prot = PAGE_KERNEL_LARGE;
 
@@ -224,6 +231,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 				set_pmd(pmd, pfn_pmd(pfn, prot));
 
 				pfn += PTRS_PER_PTE;
+				max_pfn_mapped = pfn;
 				continue;
 			}
 			pte = one_page_table_init(pmd);
@@ -241,6 +249,7 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 
 				set_pte(pte, pfn_pte(pfn, prot));
 			}
+			max_pfn_mapped = pfn;
 			pte_ofs = 0;
 		}
 		pmd_idx = 0;
@@ -261,6 +270,25 @@ static inline int page_kills_ppro(unsigned long pagenr)
 #define page_kills_ppro(p)	0
 
 #endif
+
+/*
+ * devmem_is_allowed() checks to see if /dev/mem access to a certain address
+ * is valid. The argument is a physical page number.
+ *
+ *
+ * On x86, access has to be given to the first megabyte of ram because that area
+ * contains bios code and data regions used by X and dosemu and similar apps.
+ * Access has to be given to non-kernel-ram areas as well, these contain the PCI
+ * mmio resources as well as potential bios/acpi data regions.
+ */
+int devmem_is_allowed(unsigned long pagenr)
+{
+	if (pagenr <= 256)
+		return 1;
+	if (mfn_to_local_pfn(pagenr) >= max_pfn)
+		return 1;
+	return 0;
+}
 
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
@@ -303,45 +331,15 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 	pkmap_page_table = pte;
 }
 
-static void __meminit free_new_highpage(struct page *page, int pfn)
-{
-	init_page_count(page);
-	__free_page(page);
-	totalhigh_pages++;
-}
-
 void __init add_one_highpage_init(struct page *page, int pfn, int bad_ppro)
 {
 	if (page_is_ram(pfn) && !(bad_ppro && page_kills_ppro(pfn))) {
 		ClearPageReserved(page);
-		free_new_highpage(page, pfn);
+		init_page_count(page);
+		__free_page(page);
+		totalhigh_pages++;
 	} else
 		SetPageReserved(page);
-}
-
-static int __meminit
-add_one_highpage_hotplug(struct page *page, unsigned long pfn)
-{
-	free_new_highpage(page, pfn);
-	totalram_pages++;
-#ifdef CONFIG_FLATMEM
-	max_mapnr = max(pfn, max_mapnr);
-#endif
-	num_physpages++;
-
-	return 0;
-}
-
-/*
- * Not currently handling the NUMA case.
- * Assuming single node and all memory that
- * has been added dynamically that would be
- * onlined here is in HIGHMEM.
- */
-void __meminit online_page(struct page *page)
-{
-	ClearPageReserved(page);
-	add_one_highpage_hotplug(page, page_to_pfn(page));
 }
 
 #ifndef CONFIG_NUMA
@@ -466,15 +464,13 @@ void zap_low_mappings(void)
 {
 	int i;
 
-	save_pg_dir();
-
 	/*
 	 * Zap initial low-memory mappings.
 	 *
 	 * Note that "pgd_clear()" doesn't do it for
 	 * us, because pgd_clear() is a no-op on i386.
 	 */
-	for (i = 0; i < USER_PTRS_PER_PGD; i++) {
+	for (i = 0; i < KERNEL_PGD_BOUNDARY; i++) {
 #if defined(CONFIG_X86_PAE) && !defined(CONFIG_XEN)
 		set_pgd(swapper_pg_dir+i, __pgd(1 + __pa(empty_zero_page)));
 #else
@@ -579,9 +575,9 @@ void __init paging_init(void)
 
 /*
  * Test if the WP bit works in supervisor mode. It isn't supported on 386's
- * and also on some strange 486's (NexGen etc.). All 586+'s are OK. This
- * used to involve black magic jumps to work around some nasty CPU bugs,
- * but fortunately the switch to using exceptions got rid of all that.
+ * and also on some strange 486's. All 586+'s are OK. This used to involve
+ * black magic jumps to work around some nasty CPU bugs, but fortunately the
+ * switch to using exceptions got rid of all that.
  */
 static void __init test_wp_bit(void)
 {
@@ -612,9 +608,7 @@ void __init mem_init(void)
 	int tmp, bad_ppro;
 	unsigned long pfn;
 
-#if defined(CONFIG_SWIOTLB)
-	swiotlb_init();	
-#endif
+	pci_iommu_alloc();
 
 #ifdef CONFIG_FLATMEM
 	BUG_ON(!mem_map);
@@ -716,16 +710,8 @@ void __init mem_init(void)
 		test_wp_bit();
 
 	cpa_init();
-
-	/*
-	 * Subtle. SMP is doing it's boot stuff late (because it has to
-	 * fork idle threads) - but it also needs low mappings for the
-	 * protected-mode entry to work. We zap these entries only after
-	 * the WP-bit has been tested.
-	 */
-#ifndef CONFIG_SMP
+	save_pg_dir();
 	zap_low_mappings();
-#endif
 
 	SetPagePinned(virt_to_page(init_mm.pgd));
 }
@@ -775,25 +761,17 @@ void mark_rodata_ro(void)
 	unsigned long start = PFN_ALIGN(_text);
 	unsigned long size = PFN_ALIGN(_etext) - start;
 
-#ifndef CONFIG_KPROBES
-#ifdef CONFIG_HOTPLUG_CPU
-	/* It must still be possible to apply SMP alternatives. */
-	if (num_possible_cpus() <= 1)
-#endif
-	{
-		set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
-		printk(KERN_INFO "Write protecting the kernel text: %luk\n",
-			size >> 10);
+	set_pages_ro(virt_to_page(start), size >> PAGE_SHIFT);
+	printk(KERN_INFO "Write protecting the kernel text: %luk\n",
+		size >> 10);
 
 #ifdef CONFIG_CPA_DEBUG
-		printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
-			start, start+size);
-		set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
+	printk(KERN_INFO "Testing CPA: Reverting %lx-%lx\n",
+		start, start+size);
+	set_pages_rw(virt_to_page(start), size>>PAGE_SHIFT);
 
-		printk(KERN_INFO "Testing CPA: write protecting again\n");
-		set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
-#endif
-	}
+	printk(KERN_INFO "Testing CPA: write protecting again\n");
+	set_pages_ro(virt_to_page(start), size>>PAGE_SHIFT);
 #endif
 	start += size;
 	size = (unsigned long)__end_rodata - start;
