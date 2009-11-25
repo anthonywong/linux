@@ -102,7 +102,11 @@ static struct block_device_operations xlvbd_block_fops =
 	.owner = THIS_MODULE,
 	.open = blkif_open,
 	.release = blkif_release,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 	.ioctl  = blkif_ioctl,
+#else
+	.locked_ioctl  = blkif_ioctl,
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
 	.getgeo = blkif_getgeo
 #endif

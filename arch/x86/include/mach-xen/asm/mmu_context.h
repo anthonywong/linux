@@ -1,5 +1,5 @@
-#ifndef __ASM_X86_MMU_CONTEXT_H
-#define __ASM_X86_MMU_CONTEXT_H
+#ifndef _ASM_X86_MMU_CONTEXT_H
+#define _ASM_X86_MMU_CONTEXT_H
 
 #include <asm/desc.h>
 #include <asm/atomic.h>
@@ -39,4 +39,4 @@ do {						\
 } while (0);
 
 
-#endif /* __ASM_X86_MMU_CONTEXT_H */
+#endif /* _ASM_X86_MMU_CONTEXT_H */
