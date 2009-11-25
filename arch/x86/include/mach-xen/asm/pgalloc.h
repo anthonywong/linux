@@ -7,6 +7,9 @@
 
 #include <asm/io.h>		/* for phys_to_virt and page_to_pseudophys */
 
+static inline int paravirt_pgd_alloc(struct mm_struct *mm) { return 0; }
+static inline void paravirt_pgd_free(struct mm_struct *mm, pgd_t *pgd) {}
+
 static inline void paravirt_alloc_pte(struct mm_struct *mm, unsigned long pfn)	{}
 static inline void paravirt_alloc_pmd(struct mm_struct *mm, unsigned long pfn)	{}
 static inline void paravirt_alloc_pmd_clone(unsigned long pfn, unsigned long clonepfn,
