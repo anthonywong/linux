@@ -211,7 +211,7 @@ xlbd_put_major_info(struct xlbd_major_info *mi)
 static int
 xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 {
-	request_queue_t *rq;
+	struct request_queue *rq;
 
 	rq = blk_init_queue(do_blkif_request, &blkif_io_lock);
 	if (rq == NULL)

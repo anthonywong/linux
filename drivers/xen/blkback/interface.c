@@ -177,5 +177,5 @@ void blkif_free(blkif_t *blkif)
 void __init blkif_interface_init(void)
 {
 	blkif_cachep = kmem_cache_create("blkif_cache", sizeof(blkif_t), 
-					 0, 0, NULL, NULL);
+					 0, 0, NULL);
 }
