@@ -481,17 +481,31 @@ static void blkif_restart_queue_callback(void *arg)
 	schedule_work(&info->work);
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 int blkif_open(struct inode *inode, struct file *filep)
 {
-	struct blkfront_info *info = inode->i_bdev->bd_disk->private_data;
+	struct block_device *bd = inode->i_bdev;
+#else
+int blkif_open(struct block_device *bd, fmode_t mode)
+{
+#endif
+	struct blkfront_info *info = bd->bd_disk->private_data;
+
 	info->users++;
 	return 0;
 }
 
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 int blkif_release(struct inode *inode, struct file *filep)
 {
-	struct blkfront_info *info = inode->i_bdev->bd_disk->private_data;
+	struct gendisk *disk = inode->i_bdev->bd_disk;
+#else
+int blkif_release(struct gendisk *disk, fmode_t mode)
+{
+#endif
+	struct blkfront_info *info = disk->private_data;
+
 	info->users--;
 	if (info->users == 0) {
 		/* Check whether we have been instructed to close.  We will
@@ -507,9 +521,16 @@ int blkif_release(struct inode *inode, struct file *filep)
 }
 
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 int blkif_ioctl(struct inode *inode, struct file *filep,
 		unsigned command, unsigned long argument)
 {
+	struct block_device *bd = inode->i_bdev;
+#else
+int blkif_ioctl(struct block_device *bd, fmode_t mode,
+		unsigned command, unsigned long argument)
+{
+#endif
 	int i;
 
 	DPRINTK_IOCTL("command: 0x%x, argument: 0x%lx, dev: 0x%04x\n",
@@ -518,7 +539,6 @@ int blkif_ioctl(struct inode *inode, struct file *filep,
 	switch (command) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16)
 	case HDIO_GETGEO: {
-		struct block_device *bd = inode->i_bdev;
 		struct hd_geometry geo;
 		int ret;
 
@@ -545,8 +565,7 @@ int blkif_ioctl(struct inode *inode, struct file *filep,
 		return 0;
 
 	case CDROM_GET_CAPABILITY: {
-		struct blkfront_info *info =
-			inode->i_bdev->bd_disk->private_data;
+		struct blkfront_info *info = bd->bd_disk->private_data;
 		struct gendisk *gd = info->gd;
 		if (gd->flags & GENHD_FL_CD)
 			return 0;
