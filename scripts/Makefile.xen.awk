@@ -13,7 +13,7 @@ BEGIN {
 	next
 }
 
-/:[[:space:]]*%\.[cS][[:space:]]/ {
+/:[[:space:]]*\$\(src\)\/%\.[cS][[:space:]]/ {
 	line = gensub(/%.([cS])/, "%-xen.\\1", "g", $0)
 	line = gensub(/(single-used-m)/, "xen-\\1", "g", line)
 	print line

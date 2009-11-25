@@ -198,7 +198,7 @@ static struct sk_buff *netbk_copy_skb(struct sk_buff *skb)
 		goto err;
 
 	skb_reserve(nskb, 16 + NET_IP_ALIGN);
-	headlen = nskb->end - nskb->data;
+	headlen = skb_end_pointer(nskb) - nskb->data;
 	if (headlen > skb_headlen(skb))
 		headlen = skb_headlen(skb);
 	ret = skb_copy_bits(skb, 0, __skb_put(nskb, headlen), headlen);
@@ -244,11 +244,15 @@ static struct sk_buff *netbk_copy_skb(struct sk_buff *skb)
 		len -= copy;
 	}
 
+#ifdef NET_SKBUFF_DATA_USES_OFFSET
+	offset = 0;
+#else
 	offset = nskb->data - skb->data;
+#endif
 
-	nskb->h.raw = skb->h.raw + offset;
-	nskb->nh.raw = skb->nh.raw + offset;
-	nskb->mac.raw = skb->mac.raw + offset;
+	nskb->transport_header = skb->transport_header + offset;
+	nskb->network_header   = skb->network_header   + offset;
+	nskb->mac_header       = skb->mac_header       + offset;
 
 	return nskb;
 
@@ -1648,7 +1652,7 @@ static int __init netback_init(void)
 	(void)bind_virq_to_irqhandler(VIRQ_DEBUG,
 				      0,
 				      netif_be_dbg,
-				      SA_SHIRQ, 
+				      IRQF_SHARED,
 				      "net-be-dbg",
 				      &netif_be_dbg);
 #endif

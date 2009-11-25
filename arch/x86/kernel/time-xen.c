@@ -80,7 +80,6 @@
 #include <asm/i8253.h>
 DEFINE_SPINLOCK(i8253_lock);
 EXPORT_SYMBOL(i8253_lock);
-int pit_latch_buggy;              /* extern */
 #else
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 #endif
@@ -198,6 +197,26 @@ static inline u64 scale_delta(u64 delta, u32 mul_frac, int shift)
 #endif
 
 	return product;
+}
+
+static inline u64 get64(volatile u64 *ptr)
+{
+#ifndef CONFIG_64BIT
+	return cmpxchg64(ptr, 0, 0);
+#else
+	return *ptr;
+#define cmpxchg64 cmpxchg
+#endif
+}
+
+static inline u64 get64_local(volatile u64 *ptr)
+{
+#ifndef CONFIG_64BIT
+	return cmpxchg64_local(ptr, 0, 0);
+#else
+	return *ptr;
+#define cmpxchg64_local cmpxchg_local
+#endif
 }
 
 static void init_cpu_khz(void)
@@ -379,7 +398,7 @@ static int set_rtc_mmss(unsigned long nowtime)
 	return retval;
 }
 
-unsigned long long sched_clock(void)
+static unsigned long long local_clock(void)
 {
 	unsigned int cpu = get_cpu();
 	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
@@ -398,6 +417,61 @@ unsigned long long sched_clock(void)
 	put_cpu();
 
 	return time;
+}
+
+/*
+ * Runstate accounting
+ */
+static void get_runstate_snapshot(struct vcpu_runstate_info *res)
+{
+	u64 state_time;
+	struct vcpu_runstate_info *state;
+
+	BUG_ON(preemptible());
+
+	state = &__get_cpu_var(runstate);
+
+	do {
+		state_time = get64_local(&state->state_entry_time);
+		*res = *state;
+	} while (get64_local(&state->state_entry_time) != state_time);
+
+	WARN_ON_ONCE(res->state != RUNSTATE_running);
+}
+
+/*
+ * Xen sched_clock implementation.  Returns the number of unstolen
+ * nanoseconds, which is nanoseconds the VCPU spent in RUNNING+BLOCKED
+ * states.
+ */
+unsigned long long sched_clock(void)
+{
+	struct vcpu_runstate_info runstate;
+	cycle_t now;
+	u64 ret;
+	s64 offset;
+
+	/*
+	 * Ideally sched_clock should be called on a per-cpu basis
+	 * anyway, so preempt should already be disabled, but that's
+	 * not current practice at the moment.
+	 */
+	preempt_disable();
+
+	now = local_clock();
+
+	get_runstate_snapshot(&runstate);
+
+	offset = now - runstate.state_entry_time;
+	if (offset < 0)
+		offset = 0;
+
+	ret = offset + runstate.time[RUNSTATE_running]
+	      + runstate.time[RUNSTATE_blocked];
+
+	preempt_enable();
+
+	return ret;
 }
 
 unsigned long profile_pc(struct pt_regs *regs)
@@ -447,10 +521,9 @@ EXPORT_SYMBOL(profile_pc);
 irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	s64 delta, delta_cpu, stolen, blocked;
-	u64 sched_time;
 	unsigned int i, cpu = smp_processor_id();
 	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
-	struct vcpu_runstate_info *runstate = &per_cpu(runstate, cpu);
+	struct vcpu_runstate_info runstate;
 
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
@@ -470,20 +543,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		delta     -= processed_system_time;
 		delta_cpu -= per_cpu(processed_system_time, cpu);
 
-		/*
-		 * Obtain a consistent snapshot of stolen/blocked cycles. We
-		 * can use state_entry_time to detect if we get preempted here.
-		 */
-		do {
-			sched_time = runstate->state_entry_time;
-			barrier();
-			stolen = runstate->time[RUNSTATE_runnable] +
-				runstate->time[RUNSTATE_offline] -
-				per_cpu(processed_stolen_time, cpu);
-			blocked = runstate->time[RUNSTATE_blocked] -
-				per_cpu(processed_blocked_time, cpu);
-			barrier();
-		} while (sched_time != runstate->state_entry_time);
+		get_runstate_snapshot(&runstate);
 	} while (!time_values_up_to_date(cpu));
 
 	if ((unlikely(delta < -(s64)permitted_clock_jitter) ||
@@ -526,6 +586,9 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	 * HACK: Passing NULL to account_steal_time()
 	 * ensures that the ticks are accounted as stolen.
 	 */
+	stolen = runstate.time[RUNSTATE_runnable]
+		 + runstate.time[RUNSTATE_offline]
+		 - per_cpu(processed_stolen_time, cpu);
 	if ((stolen > 0) && (delta_cpu > 0)) {
 		delta_cpu -= stolen;
 		if (unlikely(delta_cpu < 0))
@@ -541,6 +604,8 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	 * HACK: Passing idle_task to account_steal_time()
 	 * ensures that the ticks are accounted as idle/wait.
 	 */
+	blocked = runstate.time[RUNSTATE_blocked]
+		  - per_cpu(processed_blocked_time, cpu);
 	if ((blocked > 0) && (delta_cpu > 0)) {
 		delta_cpu -= blocked;
 		if (unlikely(delta_cpu < 0))
@@ -577,7 +642,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void mark_tsc_unstable(void)
+void mark_tsc_unstable(char *reason)
 {
 #ifndef CONFIG_XEN /* XXX Should tell the hypervisor about this fact. */
 	tsc_unstable = 1;
@@ -585,17 +650,13 @@ void mark_tsc_unstable(void)
 }
 EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
+static cycle_t cs_last;
+
 static cycle_t xen_clocksource_read(void)
 {
 #ifdef CONFIG_SMP
-	static cycle_t last_ret;
-#ifndef CONFIG_64BIT
-	cycle_t last = cmpxchg64(&last_ret, 0, 0);
-#else
-	cycle_t last = last_ret;
-#define cmpxchg64 cmpxchg
-#endif
-	cycle_t ret = sched_clock();
+	cycle_t last = get64(&cs_last);
+	cycle_t ret = local_clock();
 
 	if (unlikely((s64)(ret - last) < 0)) {
 		if (last - ret > permitted_clock_jitter
@@ -614,15 +675,23 @@ static cycle_t xen_clocksource_read(void)
 	}
 
 	for (;;) {
-		cycle_t cur = cmpxchg64(&last_ret, last, ret);
+		cycle_t cur = cmpxchg64(&cs_last, last, ret);
 
 		if (cur == last || (s64)(ret - cur) < 0)
 			return ret;
 		last = cur;
 	}
 #else
-	return sched_clock();
+	return local_clock();
 #endif
+}
+
+static void xen_clocksource_resume(void)
+{
+	extern void time_resume(void);
+
+	time_resume();
+	cs_last = local_clock();
 }
 
 static struct clocksource clocksource_xen = {
@@ -633,6 +702,7 @@ static struct clocksource clocksource_xen = {
 	.mult			= 1 << XEN_SHIFT,		/* time directly in nanoseconds */
 	.shift			= XEN_SHIFT,
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
+	.resume			= xen_clocksource_resume,
 };
 
 static void init_missing_ticks_accounting(unsigned int cpu)
@@ -720,35 +790,6 @@ void notify_arch_cmos_timer(void)
 		mod_timer(&sync_cmos_timer, jiffies + 1);
 	mod_timer(&sync_xen_wallclock_timer, jiffies + 1);
 }
-
-static int timer_resume(struct sys_device *dev)
-{
-	extern void time_resume(void);
-	time_resume();
-	return 0;
-}
-
-static struct sysdev_class timer_sysclass = {
-	.resume = timer_resume,
-	set_kset_name("timer"),
-};
-
-
-/* XXX this driverfs stuff should probably go elsewhere later -john */
-static struct sys_device device_timer = {
-	.id	= 0,
-	.cls	= &timer_sysclass,
-};
-
-static int time_init_device(void)
-{
-	int error = sysdev_class_register(&timer_sysclass);
-	if (!error)
-		error = sysdev_register(&device_timer);
-	return error;
-}
-
-device_initcall(time_init_device);
 
 extern void (*late_time_init)(void);
 
@@ -880,21 +921,21 @@ static void start_hz_timer(void)
 	cpu_clear(smp_processor_id(), nohz_cpu_mask);
 }
 
-void raw_safe_halt(void)
+void xen_safe_halt(void)
 {
 	stop_hz_timer();
 	/* Blocking includes an implicit local_irq_enable(). */
 	HYPERVISOR_block();
 	start_hz_timer();
 }
-EXPORT_SYMBOL(raw_safe_halt);
+EXPORT_SYMBOL(xen_safe_halt);
 
-void halt(void)
+void xen_halt(void)
 {
 	if (irqs_disabled())
 		VOID(HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL));
 }
-EXPORT_SYMBOL(halt);
+EXPORT_SYMBOL(xen_halt);
 
 /* No locking required. Interrupts are disabled on all CPUs. */
 void time_resume(void)
