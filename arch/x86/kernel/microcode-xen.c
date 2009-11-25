@@ -162,7 +162,7 @@ static int request_microcode(void)
 		c->x86, c->x86_model, c->x86_mask);
 	error = request_firmware(&firmware, name, &microcode_pdev->dev);
 	if (error) {
-		pr_debug("ucode data file %s load failed\n", name);
+		pr_debug("microcode: ucode data file %s load failed\n", name);
 		return error;
 	}
 
