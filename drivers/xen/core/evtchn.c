@@ -145,7 +145,7 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	BUG_ON(!test_bit(chn, s->evtchn_mask));
 
 	if (irq != -1)
-		set_native_irq_info(irq, cpumask_of_cpu(cpu));
+		irq_desc[irq].affinity = cpumask_of_cpu(cpu);
 
 	clear_bit(chn, (unsigned long *)cpu_evtchn_mask[cpu_evtchn[chn]]);
 	set_bit(chn, (unsigned long *)cpu_evtchn_mask[cpu]);
@@ -158,7 +158,7 @@ static void init_evtchn_cpu_bindings(void)
 
 	/* By default all event channels notify CPU#0. */
 	for (i = 0; i < NR_IRQS; i++)
-		set_native_irq_info(i, cpumask_of_cpu(0));
+		irq_desc[i].affinity = cpumask_of_cpu(0);
 
 	memset(cpu_evtchn, 0, sizeof(cpu_evtchn));
 	memset(cpu_evtchn_mask[0], ~0, sizeof(cpu_evtchn_mask[0]));
@@ -736,6 +736,7 @@ static struct irq_chip dynirq_chip = {
 	.name     = "Dynamic",
 	.startup  = startup_dynirq,
 	.shutdown = mask_dynirq,
+	.disable  = mask_dynirq,
 	.mask     = mask_dynirq,
 	.unmask   = unmask_dynirq,
 	.mask_ack = ack_dynirq,
