@@ -139,16 +139,16 @@ __asm__ __volatile__ ("movw %%dx,%1\n\t" \
 #define write_cr4(x) \
 	__asm__ __volatile__("movl %0,%%cr4": :"r" (x))
 
-/*
- * Clear and set 'TS' bit respectively
- */
+#define wbinvd() \
+	__asm__ __volatile__ ("wbinvd": : :"memory")
+
+/* Clear the 'TS' bit */
 #define clts() (HYPERVISOR_fpu_taskswitch(0))
+
+/* Set the 'TS' bit */
 #define stts() (HYPERVISOR_fpu_taskswitch(1))
 
 #endif	/* __KERNEL__ */
-
-#define wbinvd() \
-	__asm__ __volatile__ ("wbinvd": : :"memory")
 
 static inline unsigned long get_limit(unsigned long segment)
 {

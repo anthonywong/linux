@@ -71,7 +71,7 @@ static int setup_blkring(struct xenbus_device *, struct blkfront_info *);
 static void kick_pending_request_queues(struct blkfront_info *);
 
 static irqreturn_t blkif_int(int irq, void *dev_id);
-static void blkif_restart_queue(void *arg);
+static void blkif_restart_queue(struct work_struct *arg);
 static void blkif_recover(struct blkfront_info *);
 static void blkif_completion(struct blk_shadow *);
 static void blkif_free(struct blkfront_info *, int);
@@ -111,7 +111,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 	info->xbdev = dev;
 	info->vdevice = vdevice;
 	info->connected = BLKIF_STATE_DISCONNECTED;
-	INIT_WORK(&info->work, blkif_restart_queue, (void *)info);
+	INIT_WORK(&info->work, blkif_restart_queue);
 
 	for (i = 0; i < BLK_RING_SIZE; i++)
 		info->shadow[i].req.id = i+1;
@@ -462,9 +462,9 @@ static void kick_pending_request_queues(struct blkfront_info *info)
 	}
 }
 
-static void blkif_restart_queue(void *arg)
+static void blkif_restart_queue(struct work_struct *arg)
 {
-	struct blkfront_info *info = (struct blkfront_info *)arg;
+	struct blkfront_info *info = container_of(arg, struct blkfront_info, work);
 	spin_lock_irq(&blkif_io_lock);
 	if (info->connected == BLKIF_STATE_CONNECTED)
 		kick_pending_request_queues(info);
