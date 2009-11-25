@@ -128,8 +128,8 @@ enum pageflags {
 #ifdef CONFIG_XEN
 	PG_pinned = PG_locked,	/* Cannot alias with PG_owner_priv_1 since
 				 * bad_page() checks should include this bit.
-				 * Also cannot use PG_arch_1 since that now
-				 * has a different purpose on x86. */
+				 * Should not use PG_arch_1 as that may have
+				 * a different purpose elsewhere. */
 #else
 	PG_pinned = PG_owner_priv_1,
 	PG_savepinned = PG_dirty,

@@ -35,6 +35,7 @@
 #include <linux/htirq.h>
 #include <linux/freezer.h>
 #include <linux/kthread.h>
+#include <linux/jiffies.h>	/* time_after() */
 
 #include <asm/io.h>
 #include <asm/smp.h>
@@ -47,8 +48,6 @@
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
-
-#include "io_ports.h"
 
 #ifdef CONFIG_XEN
 #include <xen/interface/xen.h>
@@ -400,7 +399,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 # include <asm/processor.h>	/* kernel_thread() */
 # include <linux/kernel_stat.h>	/* kstat */
 # include <linux/slab.h>		/* kmalloc() */
-# include <linux/timer.h>	/* time_after() */
+# include <linux/timer.h>
  
 #define IRQBALANCE_CHECK_ARCH -999
 #define MAX_BALANCED_IRQ_INTERVAL	(5*HZ)
@@ -777,7 +776,7 @@ late_initcall(balanced_irq_init);
 #endif
 
 #ifndef CONFIG_SMP
-void fastcall send_IPI_self(int vector)
+void send_IPI_self(int vector)
 {
 #ifndef CONFIG_XEN
 	unsigned int cfg;
@@ -1959,7 +1958,7 @@ static int __init timer_irq_works(void)
 	 * might have cached one ExtINT interrupt.  Finally, at
 	 * least one tick may be lost due to delays.
 	 */
-	if (jiffies - t1 > 4)
+	if (time_after(jiffies, t1 + 4))
 		return 1;
 
 	return 0;
@@ -2142,7 +2141,7 @@ static struct irq_chip lapic_chip __read_mostly = {
 	.eoi		= ack_apic,
 };
 
-static void setup_nmi (void)
+static void __init setup_nmi(void)
 {
 	/*
  	 * Dirty trick to enable the NMI watchdog ...
@@ -2155,7 +2154,7 @@ static void setup_nmi (void)
 	 */ 
 	apic_printk(APIC_VERBOSE, KERN_INFO "activating NMI Watchdog ...");
 
-	on_each_cpu(enable_NMI_through_LVT0, NULL, 1, 1);
+	enable_NMI_through_LVT0();
 
 	apic_printk(APIC_VERBOSE, " done.\n");
 }
@@ -2479,7 +2478,7 @@ static int ioapic_resume(struct sys_device *dev)
 }
 
 static struct sysdev_class ioapic_sysdev_class = {
-	set_kset_name("ioapic"),
+	.name = "ioapic",
 	.suspend = ioapic_suspend,
 	.resume = ioapic_resume,
 };
