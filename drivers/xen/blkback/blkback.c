@@ -270,13 +270,10 @@ static void __end_block_io_op(pending_req_t *pending_req, int error)
 	}
 }
 
-static int end_block_io_op(struct bio *bio, unsigned int done, int error)
+static void end_block_io_op(struct bio *bio, int error)
 {
-	if (bio->bi_size != 0)
-		return 1;
 	__end_block_io_op(bio->bi_private, error);
 	bio_put(bio);
-	return error;
 }
 
 
