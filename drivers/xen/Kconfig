@@ -14,7 +14,6 @@ menu "XEN"
 
 config XEN_PRIVILEGED_GUEST
 	bool "Privileged Guest (domain 0)"
-	select PCI_REASSIGN if PCI
 	help
 	  Support for privileged operation (domain 0)
 
@@ -331,10 +330,6 @@ endmenu
 
 config HAVE_IRQ_IGNORE_UNHANDLED
 	def_bool y
-
-config GENERIC_HARDIRQS_NO__DO_IRQ
-	def_bool y
-	depends on X86
 
 config NO_IDLE_HZ
 	def_bool y
