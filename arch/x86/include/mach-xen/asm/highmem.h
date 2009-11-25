@@ -74,6 +74,9 @@ struct page *kmap_atomic_to_page(void *ptr);
 
 #define flush_cache_kmaps()	do { } while (0)
 
+extern void add_highpages_with_active_regions(int nid, unsigned long start_pfn,
+					unsigned long end_pfn);
+
 void clear_highpage(struct page *);
 static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 {
