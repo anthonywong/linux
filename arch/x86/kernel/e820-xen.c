@@ -1350,6 +1350,26 @@ static int __init parse_memopt(char *p)
 
 	userdef = 1;
 	mem_size = memparse(p, &p);
+#ifdef CONFIG_XEN
+	/*
+	 * A little less than 2% of available memory are needed for page
+	 * tables, p2m map, and mem_map. Hence the maximum amount of memory
+	 * we can potentially balloon up to can in no case exceed about 50
+	 * times of what we've been given initially. Since even with that we
+	 * won't be able to boot (due to various calculations done based on
+	 * the total number of pages) we further restrict this to factor 32.
+	 */
+	if ((mem_size >> (PAGE_SHIFT + 5)) > xen_start_info->nr_pages) {
+		u64 size = (u64)xen_start_info->nr_pages << 5;
+
+		printk(KERN_WARNING "mem=%Luk is invalid for an initial"
+				    " allocation of %luk, using %Luk\n",
+		       (unsigned long long)mem_size >> 10,
+		       xen_start_info->nr_pages << (PAGE_SHIFT - 10),
+		       (unsigned long long)size << (PAGE_SHIFT - 10));
+		mem_size = size << PAGE_SHIFT;
+	}
+#endif
 	e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 
 	i = e820.nr_map - 1;
@@ -1546,6 +1566,7 @@ void __init e820_reserve_resources_late(void)
 char *__init default_machine_specific_memory_setup(void)
 {
 	int rc, nr_map;
+	unsigned long long maxmem;
 	struct xen_memory_map memmap;
 	/*
 	 * This is rather large for a stack variable but this early in
@@ -1575,6 +1596,22 @@ char *__init default_machine_specific_memory_setup(void)
 		BUG();
 
 #ifdef CONFIG_XEN
+	/* See the comment in parse_memopt(). */
+	for (maxmem = rc = 0; rc < e820.nr_map; ++rc)
+		if (e820.map[rc].type == E820_RAM)
+			maxmem += e820.map[rc].size;
+	if ((maxmem >> (PAGE_SHIFT + 5)) > xen_start_info->nr_pages) {
+		unsigned long long size = (u64)xen_start_info->nr_pages << 5;
+
+		printk(KERN_WARNING "maxmem of %LuM is invalid for an initial"
+				    " allocation of %luM, using %LuM\n",
+		       maxmem >> 20,
+		       xen_start_info->nr_pages >> (20 - PAGE_SHIFT),
+		       size >> (20 - PAGE_SHIFT));
+		size <<= PAGE_SHIFT;
+		e820_remove_range(size, ULLONG_MAX - size, E820_RAM, 1);
+	}
+
 	if (is_initial_xendomain()) {
 		memmap.nr_entries = E820MAX;
 		set_xen_guest_handle(memmap.buffer, machine_e820.map);
