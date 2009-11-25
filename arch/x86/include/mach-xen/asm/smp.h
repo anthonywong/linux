@@ -25,23 +25,16 @@ extern cpumask_t cpu_initialized;
 extern void (*mtrr_hook)(void);
 extern void zap_low_mappings(void);
 
+extern int __cpuinit get_local_pda(int cpu);
+
 extern int smp_num_siblings;
 extern unsigned int num_processors;
 extern cpumask_t cpu_initialized;
 
-#if defined(CONFIG_SMP) && !defined(CONFIG_XEN)
-extern u16 x86_cpu_to_apicid_init[];
-extern u16 x86_bios_cpu_apicid_init[];
-extern void *x86_cpu_to_apicid_early_ptr;
-extern void *x86_bios_cpu_apicid_early_ptr;
-#else
-#define x86_cpu_to_apicid_early_ptr NULL
-#define x86_bios_cpu_apicid_early_ptr NULL
-#endif
-
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
 DECLARE_PER_CPU(u16, cpu_llc_id);
+
 DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
 DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
 
@@ -63,9 +56,9 @@ struct smp_ops {
 
 	void (*smp_send_stop)(void);
 	void (*smp_send_reschedule)(int cpu);
-	int (*smp_call_function_mask)(cpumask_t mask,
-				      void (*func)(void *info), void *info,
-				      int wait);
+
+	void (*send_call_func_ipi)(cpumask_t mask);
+	void (*send_call_func_single_ipi)(int cpu);
 };
 
 /* Globals due to paravirt */
@@ -106,11 +99,14 @@ static inline void smp_send_reschedule(int cpu)
 	smp_ops.smp_send_reschedule(cpu);
 }
 
-static inline int smp_call_function_mask(cpumask_t mask,
-					 void (*func) (void *info), void *info,
-					 int wait)
+static inline void arch_send_call_function_single_ipi(int cpu)
 {
-	return smp_ops.smp_call_function_mask(mask, func, info, wait);
+	smp_ops.send_call_func_single_ipi(cpu);
+}
+
+static inline void arch_send_call_function_ipi(cpumask_t mask)
+{
+	smp_ops.send_call_func_ipi(mask);
 }
 
 void native_smp_prepare_boot_cpu(void);
@@ -122,22 +118,18 @@ int native_cpu_up(unsigned int cpunum);
 
 void xen_smp_send_stop(void);
 void xen_smp_send_reschedule(int cpu);
-int xen_smp_call_function_mask(cpumask_t mask,
-			       void (*func) (void *info), void *info,
-			       int wait);
+void xen_send_call_func_ipi(cpumask_t mask);
+void xen_send_call_func_single_ipi(int cpu);
 
 #define smp_send_stop		xen_smp_send_stop
 #define smp_send_reschedule	xen_smp_send_reschedule
-#define smp_call_function_mask	xen_smp_call_function_mask
-
-extern void prefill_possible_map(void);
+#define arch_send_call_function_single_ipi	xen_send_call_func_single_ipi
+#define arch_send_call_function_ipi		xen_send_call_func_ipi
 
 #endif /* CONFIG_XEN */
 
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
-
-extern void prefill_possible_map(void);
 
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
@@ -148,6 +140,14 @@ static inline int num_booting_cpus(void)
 	return cpus_weight(cpu_callout_map);
 }
 #endif /* CONFIG_SMP */
+
+#if defined(CONFIG_SMP) && (defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_XEN))
+extern void prefill_possible_map(void);
+#else
+static inline void prefill_possible_map(void)
+{
+}
+#endif
 
 extern unsigned disabled_cpus __cpuinitdata;
 
@@ -216,12 +216,8 @@ static inline int hard_smp_processor_id(void)
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 #ifdef CONFIG_HOTPLUG_CPU
-extern void cpu_exit_clear(void);
 extern void cpu_uninit(void);
 #endif
 
-extern void smp_alloc_memory(void);
-extern void lock_ipi_call_lock(void);
-extern void unlock_ipi_call_lock(void);
 #endif /* __ASSEMBLY__ */
 #endif

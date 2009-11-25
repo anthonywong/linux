@@ -1,4 +1,4 @@
-obj-$(CONFIG_PARAVIRT_XEN)	+= grant-table.o features.o events.o
+obj-$(CONFIG_PARAVIRT_XEN)	+= grant-table.o features.o events.o manage.o
 xen-xencomm-$(CONFIG_PARAVIRT_XEN) := xencomm.o
 xen-balloon-$(CONFIG_PARAVIRT_XEN) := balloon.o
 
