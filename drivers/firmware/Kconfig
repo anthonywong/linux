@@ -114,7 +114,7 @@ config DMIID
 
 config ISCSI_IBFT_FIND
 	bool "iSCSI Boot Firmware Table Attributes"
-	depends on X86 && !XEN_UNPRIVILEGED_GUEST
+	depends on X86
 	default n
 	help
 	  This option enables the kernel to find the region of memory
