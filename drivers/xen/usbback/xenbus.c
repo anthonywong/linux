@@ -112,7 +112,7 @@ again:
 		 */
 		portid = find_portid(usbif->domid, usbif->handle, i);
 		if (portid) {
-			if ((strncmp(portid->phys_bus, busid, BUS_ID_SIZE)))
+			if ((strncmp(portid->phys_bus, busid, USBBACK_BUS_ID_SIZE)))
 				xenbus_dev_fatal(dev, err,
 					"can't add port/%d, remove first", i);
 			else
@@ -142,7 +142,7 @@ abort:
 
 static int usbback_remove(struct xenbus_device *dev)
 {
-	usbif_t *usbif = dev->dev.driver_data;
+	usbif_t *usbif = dev_get_drvdata(&dev->dev);
 	int i;
 
 	if (usbif->backend_watch.node) {
@@ -158,7 +158,7 @@ static int usbback_remove(struct xenbus_device *dev)
 		usbif_disconnect(usbif);
 		usbif_free(usbif);;
 	}
-	dev->dev.driver_data = NULL;
+	dev_set_drvdata(&dev->dev, NULL);
 
 	return 0;
 }
@@ -182,7 +182,7 @@ static int usbback_probe(struct xenbus_device *dev,
 		return -ENOMEM;
 	}
 	usbif->xbdev = dev;
-	dev->dev.driver_data = usbif;
+	dev_set_drvdata(&dev->dev, usbif);
 
 	err = xenbus_scanf(XBT_NIL, dev->nodename,
 				"num-ports", "%d", &num_ports);
@@ -259,7 +259,7 @@ static int connect_rings(usbif_t *usbif)
 static void frontend_changed(struct xenbus_device *dev,
 				     enum xenbus_state frontend_state)
 {
-	usbif_t *usbif = dev->dev.driver_data;
+	usbif_t *usbif = dev_get_drvdata(&dev->dev);
 	int err;
 
 	switch (frontend_state) {

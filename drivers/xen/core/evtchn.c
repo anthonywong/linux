@@ -35,7 +35,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
-#include <linux/bootmem.h>
 #include <linux/ftrace.h>
 #include <linux/version.h>
 #include <asm/atomic.h>
@@ -344,7 +343,7 @@ static int find_unbound_irq(unsigned int cpu)
 	int irq;
 
 	for (irq = DYNIRQ_BASE; irq < (DYNIRQ_BASE + NR_DYNIRQS); irq++) {
-		struct irq_desc *desc = irq_to_desc_alloc_cpu(irq, cpu);
+		struct irq_desc *desc = irq_to_desc_alloc_node(irq, cpu_to_node(cpu));
 		struct irq_cfg *cfg = desc->chip_data;
 
 		if (!cfg->bindcount) {
@@ -697,9 +696,11 @@ static void rebind_irq_to_cpu(unsigned int irq, unsigned int tcpu)
 		rebind_evtchn_to_cpu(evtchn, tcpu);
 }
 
-static void set_affinity_irq(unsigned int irq, const struct cpumask *dest)
+static int set_affinity_irq(unsigned int irq, const struct cpumask *dest)
 {
 	rebind_irq_to_cpu(irq, cpumask_first(dest));
+
+	return 0;
 }
 #endif
 
@@ -1260,7 +1261,7 @@ int evtchn_map_pirq(int irq, int xen_pirq)
 
 			if (identity_mapped_irq(irq))
 				continue;
-			desc = irq_to_desc_alloc_cpu(irq, smp_processor_id());
+			desc = irq_to_desc_alloc_node(irq, numa_node_id());
 			cfg = desc->chip_data;
 			if (!index_from_irq(irq)) {
 				BUG_ON(type_from_irq(irq) != IRQT_UNBOUND);
@@ -1311,8 +1312,9 @@ void __init xen_init_IRQ(void)
 
 	init_evtchn_cpu_bindings();
 
-	pirq_needs_eoi = alloc_bootmem_pages(sizeof(unsigned long)
-		* BITS_TO_LONGS(ALIGN(nr_pirqs, PAGE_SIZE * 8)));
+	i = get_order(sizeof(unsigned long) * BITS_TO_LONGS(nr_pirqs));
+	pirq_needs_eoi = (void *)__get_free_pages(GFP_KERNEL|__GFP_ZERO, i);
+	BUILD_BUG_ON(NR_PIRQS > PAGE_SIZE * 8);
  	eoi_gmfn.gmfn = virt_to_machine(pirq_needs_eoi) >> PAGE_SHIFT;
 	if (HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn, &eoi_gmfn) == 0)
 		pirq_eoi_does_unmask = true;

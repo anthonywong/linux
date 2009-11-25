@@ -95,22 +95,17 @@ void arch_teardown_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-static void __msi_set_enable(struct pci_dev *dev, int pos, int enable)
+static void msi_set_enable(struct pci_dev *dev, int pos, int enable)
 {
 	u16 control;
 
-	if (pos) {
-		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
-		control &= ~PCI_MSI_FLAGS_ENABLE;
-		if (enable)
-			control |= PCI_MSI_FLAGS_ENABLE;
-		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
-	}
-}
+	BUG_ON(!pos);
 
-static void msi_set_enable(struct pci_dev *dev, int enable)
-{
-	__msi_set_enable(dev, pci_find_capability(dev, PCI_CAP_ID_MSI), enable);
+	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
+	control &= ~PCI_MSI_FLAGS_ENABLE;
+	if (enable)
+		control |= PCI_MSI_FLAGS_ENABLE;
+	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
 }
 
 static void msix_set_enable(struct pci_dev *dev, int enable)
@@ -335,8 +330,11 @@ void pci_restore_msi_state(struct pci_dev *dev)
 		return;
 
 	pci_intx_for_msi(dev, 0);
-	if (dev->msi_enabled)
-		msi_set_enable(dev, 0);
+	if (dev->msi_enabled) {
+		int pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
+
+		msi_set_enable(dev, pos, 0);
+	}
 	if (dev->msix_enabled)
 		msix_set_enable(dev, 0);
 
@@ -363,9 +361,9 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 	int pos, pirq;
 	u16 control;
 
-	msi_set_enable(dev, 0);	/* Ensure msi is disabled as I set it up */
-
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
+	msi_set_enable(dev, pos, 0);	/* Disable MSI during set up */
+
 	pci_read_config_word(dev, msi_control_reg(pos), &control);
 
 	WARN_ON(nvec > 1); /* XXX */
@@ -375,7 +373,7 @@ static int msi_capability_init(struct pci_dev *dev, int nvec)
 
 	/* Set MSI enabled bits	 */
 	pci_intx_for_msi(dev, 0);
-	msi_set_enable(dev, 1);
+	msi_set_enable(dev, pos, 1);
 	dev->msi_enabled = 1;
 
 	dev->irq = pirq;
@@ -397,6 +395,7 @@ static int msix_capability_init(struct pci_dev *dev,
 {
 	u64 table_base;
 	int pirq, i, j, mapped, pos;
+	u16 control;
 	struct msi_dev_list *msi_dev_entry = get_msi_dev_pirq_list(dev);
 	struct msi_pirq_entry *pirq_entry;
 
@@ -406,11 +405,24 @@ static int msix_capability_init(struct pci_dev *dev,
 	msix_set_enable(dev, 0);/* Ensure msix is disabled as I set it up */
 
 	pos = pci_find_capability(dev, PCI_CAP_ID_MSIX);
+	pci_read_config_word(dev, pos + PCI_MSIX_FLAGS, &control);
+
+	/* Ensure MSI-X is disabled while it is set up */
+	control &= ~PCI_MSIX_FLAGS_ENABLE;
+	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
+
 	table_base = find_table_base(dev, pos);
 	if (!table_base)
 		return -ENODEV;
 
-	/* MSI-X Table Initialization */
+	/*
+	 * Some devices require MSI-X to be enabled before we can touch the
+	 * MSI-X registers.  We need to mask all the vectors to prevent
+	 * interrupts coming in before they're fully set up.
+	 */
+	control |= PCI_MSIX_FLAGS_MASKALL | PCI_MSIX_FLAGS_ENABLE;
+	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
+
 	for (i = 0; i < nvec; i++) {
 		mapped = 0;
 		list_for_each_entry(pirq_entry, &msi_dev_entry->pirq_list_head, list) {
@@ -447,9 +459,12 @@ static int msix_capability_init(struct pci_dev *dev,
 		return avail;
 	}
 
+	/* Set MSI-X enabled bits and unmask the function */
 	pci_intx_for_msi(dev, 0);
-	msix_set_enable(dev, 1);
 	dev->msix_enabled = 1;
+
+	control &= ~PCI_MSIX_FLAGS_MASKALL;
+	pci_write_config_word(dev, pos + PCI_MSIX_FLAGS, control);
 
 	return 0;
 }
@@ -571,7 +586,7 @@ EXPORT_SYMBOL(pci_enable_msi_block);
 extern void pci_frontend_disable_msi(struct pci_dev* dev);
 void pci_msi_shutdown(struct pci_dev *dev)
 {
-	int pirq;
+	int pirq, pos;
 	struct msi_dev_list *msi_dev_entry = get_msi_dev_pirq_list(dev);
 
 	if (!pci_msi_enable || !dev)
@@ -595,7 +610,8 @@ void pci_msi_shutdown(struct pci_dev *dev)
 	msi_unmap_pirq(dev, pirq);
 
 	/* Disable MSI mode */
-	msi_set_enable(dev, 0);
+	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
+	msi_set_enable(dev, pos, 0);
 	pci_intx_for_msi(dev, 1);
 	dev->msi_enabled = 0;
 }
@@ -635,8 +651,8 @@ int pci_msix_table_size(struct pci_dev *dev)
  * indicates the successful configuration of MSI-X capability structure
  * with new allocated MSI-X irqs. A return of < 0 indicates a failure.
  * Or a return of > 0 indicates that driver request is exceeding the number
- * of irqs available. Driver should use the returned value to re-send
- * its request.
+ * of irqs or MSI-X vectors available. Driver should use the returned value to
+ * re-send its request.
  **/
 extern int pci_frontend_enable_msix(struct pci_dev *dev,
 		struct msix_entry *entries, int nvec);
@@ -691,7 +707,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 
 	nr_entries = pci_msix_table_size(dev);
 	if (nvec > nr_entries)
-		return -EINVAL;
+		return nr_entries;
 
 	/* Check for any invalid entries */
 	for (i = 0; i < nvec; i++) {
