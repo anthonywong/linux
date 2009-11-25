@@ -18,7 +18,7 @@ unsigned long acpi_wakeup_address = 0;
 unsigned long acpi_realmode_flags;
 extern char wakeup_start, wakeup_end;
 
-extern unsigned long FASTCALL(acpi_copy_wakeup_routine(unsigned long));
+extern unsigned long acpi_copy_wakeup_routine(unsigned long);
 #endif
 
 /**
@@ -30,12 +30,15 @@ extern unsigned long FASTCALL(acpi_copy_wakeup_routine(unsigned long));
 int acpi_save_state_mem(void)
 {
 #ifndef CONFIG_ACPI_PV_SLEEP
-	if (!acpi_wakeup_address)
-		return 1;
+	if (!acpi_wakeup_address) {
+		printk(KERN_ERR "Could not allocate memory during boot, S3 disabled\n");
+		return -ENOMEM;
+	}
 	memcpy((void *)acpi_wakeup_address, &wakeup_start,
 	       &wakeup_end - &wakeup_start);
 	acpi_copy_wakeup_routine(acpi_wakeup_address);
 #endif
+
 	return 0;
 }
 
@@ -45,6 +48,7 @@ int acpi_save_state_mem(void)
 void acpi_restore_state_mem(void)
 {
 }
+
 
 /**
  * acpi_reserve_bootmem - do _very_ early ACPI initialisation
@@ -57,17 +61,18 @@ void acpi_restore_state_mem(void)
 void __init acpi_reserve_bootmem(void)
 {
 #ifndef CONFIG_ACPI_PV_SLEEP
-	if ((&wakeup_end - &wakeup_start) > PAGE_SIZE) {
+	if ((&wakeup_end - &wakeup_start) > PAGE_SIZE*2) {
 		printk(KERN_ERR
 		       "ACPI: Wakeup code way too big, S3 disabled.\n");
 		return;
 	}
 
-	acpi_wakeup_address = (unsigned long)alloc_bootmem_low(PAGE_SIZE);
+	acpi_wakeup_address = (unsigned long)alloc_bootmem_low(PAGE_SIZE*2);
 	if (!acpi_wakeup_address)
 		printk(KERN_ERR "ACPI: Cannot allocate lowmem, S3 disabled.\n");
 #endif
 }
+
 
 #ifndef CONFIG_ACPI_PV_SLEEP
 static int __init acpi_sleep_setup(char *str)
@@ -87,31 +92,4 @@ static int __init acpi_sleep_setup(char *str)
 }
 
 __setup("acpi_sleep=", acpi_sleep_setup);
-
-/* Ouch, we want to delete this. We already have better version in userspace, in
-   s2ram from suspend.sf.net project */
-static __init int reset_videomode_after_s3(const struct dmi_system_id *d)
-{
-	acpi_realmode_flags |= 2;
-	return 0;
-}
-
-static __initdata struct dmi_system_id acpisleep_dmi_table[] = {
-	{			/* Reset video mode after returning from ACPI S3 sleep */
-	 .callback = reset_videomode_after_s3,
-	 .ident = "Toshiba Satellite 4030cdt",
-	 .matches = {
-		     DMI_MATCH(DMI_PRODUCT_NAME, "S4030CDT/4.3"),
-		     },
-	 },
-	{}
-};
-
-static int __init acpisleep_dmi_init(void)
-{
-	dmi_check_system(acpisleep_dmi_table);
-	return 0;
-}
-
-core_initcall(acpisleep_dmi_init);
 #endif /* CONFIG_ACPI_PV_SLEEP */

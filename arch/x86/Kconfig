@@ -39,7 +39,7 @@ config X86
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
 	select HAVE_SYSCALL_TRACEPOINTS
-	select HAVE_KVM
+	select HAVE_KVM if !XEN
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_DMA_COHERENT if X86_32
@@ -227,14 +227,12 @@ config X86_TRAMPOLINE
 	default y
 
 config X86_NO_TSS
-	bool
+	def_bool y
 	depends on XEN
-	default y
 
 config X86_NO_IDT
-	bool
+	def_bool y
 	depends on XEN
-	default y
 
 config X86_32_LAZY_GS
 	def_bool y
@@ -834,9 +832,8 @@ config X86_VISWS_APIC
 	depends on X86_32 && X86_VISWS
 
 config X86_XEN_GENAPIC
-	bool
+	def_bool y
 	depends on X86_64_XEN
-	default y
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 	bool "Reroute for broken boot IRQs"
@@ -1285,7 +1282,7 @@ config ARCH_PROC_KCORE_TEXT
 
 config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
-	depends on X86_64
+	depends on X86_64 && !X86_64_XEN
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
@@ -1972,10 +1969,10 @@ config PCI_MMCONFIG
 	depends on X86_64 && PCI && ACPI
 
 config XEN_PCIDEV_FRONTEND
-	bool "Xen PCI Frontend" if X86_64
+	def_bool y
+	prompt "Xen PCI Frontend" if X86_64
 	depends on PCI && XEN && (PCI_GOXEN_FE || PCI_GOANY || X86_64)
  	select HOTPLUG
-	default y
 	help
 	  The PCI device frontend driver allows the kernel to import arbitrary
 	  PCI devices from a PCI backend to support PCI driver domains.
@@ -1983,7 +1980,6 @@ config XEN_PCIDEV_FRONTEND
 config XEN_PCIDEV_FE_DEBUG
 	bool "Xen PCI Frontend Debugging"
 	depends on XEN_PCIDEV_FRONTEND
-	default n
 	help
 	  Enables some debug statements within the PCI Frontend.
 
