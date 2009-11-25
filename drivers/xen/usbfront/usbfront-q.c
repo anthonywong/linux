@@ -236,7 +236,7 @@ __acquires(info->lock)
 		COUNT(info->stats.complete);
 	}
 	spin_unlock(&info->lock);
-	usb_hcd_giveback_urb(info_to_hcd(info), urb, NULL);
+	usb_hcd_giveback_urb(info_to_hcd(info), urb);
 	spin_lock(&info->lock);
 }
 
@@ -534,7 +534,7 @@ static void xenhcd_notify_work(struct usbfront_info *info)
 	wake_up(&info->wq);
 }
 
-irqreturn_t xenhcd_int(int irq, void *dev_id, struct pt_regs *ptregs)
+irqreturn_t xenhcd_int(int irq, void *dev_id)
 {
 	xenhcd_notify_work((struct usbfront_info *) dev_id);
 	return IRQ_HANDLED;

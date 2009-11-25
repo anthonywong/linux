@@ -41,7 +41,7 @@ enum fixed_addresses {
 #ifdef CONFIG_X86_LOCAL_APIC
 	FIX_APIC_BASE,	/* local (CPU) APIC) -- required for SMP or not */
 #endif
-#ifdef CONFIG_X86_IO_APIC
+#ifndef CONFIG_XEN
 	FIX_IO_APIC_BASE_0,
 	FIX_IO_APIC_BASE_END = FIX_IO_APIC_BASE_0 + MAX_IO_APICS-1,
 #endif
