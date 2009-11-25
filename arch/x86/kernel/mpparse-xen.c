@@ -288,7 +288,9 @@ static int __init smp_check_mpc(struct mpc_table *mpc, char *oem, char *str)
 
 	printk(KERN_INFO "MPTABLE: Product ID: %s\n", str);
 
+#ifndef CONFIG_XEN
 	printk(KERN_INFO "MPTABLE: APIC at: 0x%X\n", mpc->lapic);
+#endif
 
 	return 1;
 }
@@ -320,12 +322,14 @@ static int __init smp_read_mpc(struct mpc_table *mpc, unsigned early)
 	if (!smp_check_mpc(mpc, oem, str))
 		return 0;
 
-#if defined(CONFIG_X86_32) && !defined(CONFIG_XEN)
+#ifndef CONFIG_XEN
+#ifdef CONFIG_X86_32
 	generic_mps_oem_check(mpc, oem, str);
 #endif
 	/* save the local APIC address, it might be non-default */
 	if (!acpi_lapic)
 		mp_lapic_addr = mpc->lapic;
+#endif
 
 	if (early)
 		return 1;
@@ -519,10 +523,12 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
 	int linttypes[2] = { mp_ExtINT, mp_NMI };
 	int i;
 
+#ifndef CONFIG_XEN
 	/*
 	 * local APIC has default address
 	 */
 	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+#endif
 
 	/*
 	 * 2 CPUs, numbered 0 & 1.
@@ -655,10 +661,12 @@ void __init default_get_smp_config(unsigned int early)
 	 */
 	if (mpf->feature1 != 0) {
 		if (early) {
+#ifndef CONFIG_XEN
 			/*
 			 * local APIC has default address
 			 */
 			mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+#endif
 			return;
 		}
 

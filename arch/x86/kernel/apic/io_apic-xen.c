@@ -1093,7 +1093,9 @@ static inline int irq_trigger(int idx)
 	return MPBIOS_trigger(idx);
 }
 
+#ifndef CONFIG_XEN
 int (*ioapic_renumber_irq)(int ioapic, int irq);
+#endif
 static int pin_2_irq(int idx, int apic, int pin)
 {
 	int irq, i;
@@ -1115,11 +1117,13 @@ static int pin_2_irq(int idx, int apic, int pin)
 		while (i < apic)
 			irq += nr_ioapic_registers[i++];
 		irq += pin;
+#ifndef CONFIG_XEN
 		/*
                  * For MPS mode, so far only needed by ES7000 platform
                  */
 		if (ioapic_renumber_irq)
 			irq = ioapic_renumber_irq(apic, irq);
+#endif
 	}
 
 #ifdef CONFIG_X86_32
@@ -4025,10 +4029,12 @@ int io_apic_set_pci_routing(struct device *dev, int irq,
 u8 __init io_apic_unique_id(u8 id)
 {
 #ifdef CONFIG_X86_32
+#ifndef CONFIG_XEN
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
 	    !APIC_XAPIC(apic_version[boot_cpu_physical_apicid]))
 		return io_apic_get_unique_id(nr_ioapics, id);
 	else
+#endif
 		return id;
 #else
 	int i;
