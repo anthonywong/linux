@@ -158,7 +158,7 @@ int portid_add(const char *busid,
 int portid_remove(const domid_t domid,
 					const unsigned int handle,
 					const int portnum);
-irqreturn_t usbbk_be_int(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t usbbk_be_int(int irq, void *dev_id);
 int usbbk_schedule(void *arg);
 struct usbstub *find_attached_device(usbif_t *usbif, int port);
 void usbbk_attach_device(usbif_t *usbif, struct usbstub *stub);

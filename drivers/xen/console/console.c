@@ -360,7 +360,7 @@ static struct tty_struct *xencons_tty;
 static int xencons_priv_irq;
 static char x_char;
 
-void xencons_rx(char *buf, unsigned len, struct pt_regs *regs)
+void xencons_rx(char *buf, unsigned len)
 {
 	int           i;
 	unsigned long flags;
@@ -385,8 +385,7 @@ void xencons_rx(char *buf, unsigned len, struct pt_regs *regs)
 				if (time_before(jiffies, sysrq_timeout)) {
 					spin_unlock_irqrestore(
 						&xencons_lock, flags);
-					handle_sysrq(
-						buf[i], regs, xencons_tty);
+					handle_sysrq(buf[i], xencons_tty);
 					spin_lock_irqsave(
 						&xencons_lock, flags);
 					continue;
@@ -451,14 +450,13 @@ void xencons_tx(void)
 }
 
 /* Privileged receive callback and transmit kicker. */
-static irqreturn_t xencons_priv_interrupt(int irq, void *dev_id,
-					  struct pt_regs *regs)
+static irqreturn_t xencons_priv_interrupt(int irq, void *dev_id)
 {
 	static char rbuf[16];
 	int         l;
 
 	while ((l = HYPERVISOR_console_io(CONSOLEIO_read, 16, rbuf)) > 0)
-		xencons_rx(rbuf, l, regs);
+		xencons_rx(rbuf, l);
 
 	xencons_tx();
 
@@ -646,7 +644,7 @@ static void xencons_close(struct tty_struct *tty, struct file *filp)
 	spin_unlock_irqrestore(&xencons_lock, flags);
 }
 
-static struct tty_operations xencons_ops = {
+static const struct tty_operations xencons_ops = {
 	.open = xencons_open,
 	.close = xencons_close,
 	.write = xencons_write,

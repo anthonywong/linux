@@ -530,10 +530,16 @@ int __devinit pcifront_rescan_root(struct pcifront_device *pdev,
 
 		d = pci_scan_single_device(b, devfn);
 		if (d) {
+			int err;
+
 			dev_info(&pdev->xdev->dev, "New device on "
 				 "%04x:%02x:%02x.%02x found.\n", domain, bus,
 				 PCI_SLOT(devfn), PCI_FUNC(devfn));
-			pci_bus_add_device(d);
+			err = pci_bus_add_device(d);
+			if (err)
+				dev_err(&pdev->xdev->dev,
+				        "error %d adding device, continuing.\n",
+					err);
 		}
 	}
 
@@ -658,7 +664,7 @@ void pcifront_do_aer(void *data)
 
 }
 
-irqreturn_t pcifront_handler_aer(int irq, void *dev, struct pt_regs *regs)
+irqreturn_t pcifront_handler_aer(int irq, void *dev)
 {
 	struct pcifront_device *pdev = dev;
 	schedule_pcifront_aer_op(pdev);
