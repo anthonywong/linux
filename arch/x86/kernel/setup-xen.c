@@ -1122,7 +1122,7 @@ void __init setup_arch(char **cmdline_p)
 		difference = xen_start_info->nr_pages - max_pfn;
 
 		set_xen_guest_handle(reservation.extent_start,
-				     ((unsigned long *)xen_start_info->mfn_list) + max_pfn);
+				     phys_to_machine_mapping + max_pfn);
 		reservation.nr_extents = difference;
 		ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
 					   &reservation);
@@ -1139,14 +1139,86 @@ void __init setup_arch(char **cmdline_p)
 		phys_to_machine_mapping = alloc_bootmem_pages(
 			max_pfn * sizeof(unsigned long));
 		memcpy(phys_to_machine_mapping,
-		       (unsigned long *)xen_start_info->mfn_list,
+		       __va(__pa(xen_start_info->mfn_list)),
 		       p2m_pages * sizeof(unsigned long));
 		memset(phys_to_machine_mapping + p2m_pages, ~0,
 		       (max_pfn - p2m_pages) * sizeof(unsigned long));
-		free_bootmem(
-			__pa(xen_start_info->mfn_list),
-			PFN_PHYS(PFN_UP(xen_start_info->nr_pages *
-					sizeof(unsigned long))));
+
+#ifdef CONFIG_X86_64
+		if (xen_start_info->mfn_list == VMEMMAP_START) {
+			/*
+			 * Since it is well isolated we can (and since it is
+			 * perhaps large we should) also free the page tables
+			 * mapping the initial P->M table.
+			 */
+			unsigned long va = VMEMMAP_START, pa;
+			pgd_t *pgd = pgd_offset_k(va);
+			pud_t *pud_page = pud_offset(pgd, 0);
+
+			BUILD_BUG_ON(VMEMMAP_START & ~PGDIR_MASK);
+			xen_l4_entry_update(pgd, __pgd(0));
+			for(;;) {
+				pud_t *pud = pud_page + pud_index(va);
+
+				if (pud_none(*pud))
+					va += PUD_SIZE;
+				else if (pud_large(*pud)) {
+					pa = pud_val(*pud) & PHYSICAL_PAGE_MASK;
+					make_pages_writable(__va(pa),
+						PUD_SIZE >> PAGE_SHIFT,
+						XENFEAT_writable_page_tables);
+					free_bootmem(pa, PUD_SIZE);
+					va += PUD_SIZE;
+				} else {
+					pmd_t *pmd = pmd_offset(pud, va);
+
+					if (pmd_large(*pmd)) {
+						pa = pmd_val(*pmd) & PHYSICAL_PAGE_MASK;
+						make_pages_writable(__va(pa),
+							PMD_SIZE >> PAGE_SHIFT,
+							XENFEAT_writable_page_tables);
+						free_bootmem(pa, PMD_SIZE);
+					} else if (!pmd_none(*pmd)) {
+						pte_t *pte = pte_offset_kernel(pmd, va);
+
+						for (i = 0; i < PTRS_PER_PTE; ++i) {
+							if (pte_none(pte[i]))
+								break;
+							pa = pte_pfn(pte[i]) << PAGE_SHIFT;
+							make_page_writable(__va(pa),
+								XENFEAT_writable_page_tables);
+							free_bootmem(pa, PAGE_SIZE);
+						}
+						ClearPagePinned(virt_to_page(pte));
+						make_page_writable(pte,
+							XENFEAT_writable_page_tables);
+						free_bootmem(__pa(pte), PAGE_SIZE);
+					}
+					va += PMD_SIZE;
+					if (pmd_index(va))
+						continue;
+					ClearPagePinned(virt_to_page(pmd));
+					make_page_writable(pmd,
+						XENFEAT_writable_page_tables);
+					free_bootmem(__pa((unsigned long)pmd
+							  & PAGE_MASK),
+						PAGE_SIZE);
+				}
+				if (!pud_index(va))
+					break;
+			}
+			ClearPagePinned(virt_to_page(pud_page));
+			make_page_writable(pud_page,
+				XENFEAT_writable_page_tables);
+			free_bootmem(__pa((unsigned long)pud_page & PAGE_MASK),
+				PAGE_SIZE);
+		} else if (!WARN_ON(xen_start_info->mfn_list
+				    < __START_KERNEL_map))
+#endif
+			free_bootmem(__pa(xen_start_info->mfn_list),
+				PFN_PHYS(PFN_UP(xen_start_info->nr_pages *
+						sizeof(unsigned long))));
+
 
 		/*
 		 * Initialise the list of the frames that specify the list of
