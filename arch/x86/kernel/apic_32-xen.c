@@ -25,6 +25,8 @@
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/cpu.h>
+#include <linux/clockchips.h>
+#include <linux/acpi_pmtmr.h>
 #include <linux/module.h>
 
 #include <asm/atomic.h>
@@ -56,82 +58,25 @@ static cpumask_t timer_bcast_ipi;
  */
 
 /*
- * Debug level
+ * Debug level, exported for io_apic.c
  */
 int apic_verbosity;
 
 #ifndef CONFIG_XEN
 static int modern_apic(void)
 {
-	unsigned int lvr, version;
 	/* AMD systems use old APIC versions, so check the CPU */
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD &&
-		boot_cpu_data.x86 >= 0xf)
+	    boot_cpu_data.x86 >= 0xf)
 		return 1;
-	lvr = apic_read(APIC_LVR);
-	version = GET_APIC_VERSION(lvr);
-	return version >= 0x14;
+	return lapic_get_version() >= 0x14;
 }
 #endif /* !CONFIG_XEN */
-
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-void ack_bad_irq(unsigned int irq)
-{
-	printk("unexpected IRQ trap at vector %02x\n", irq);
-	/*
-	 * Currently unexpected vectors happen only on SMP and APIC.
-	 * We _must_ ack these because every local APIC has only N
-	 * irq slots per priority level, and a 'hanging, unacked' IRQ
-	 * holds up an irq slot - in excessive cases (when multiple
-	 * unexpected vectors occur) that might lock up the APIC
-	 * completely.
-	 * But only ack when the APIC is enabled -AK
-	 */
-	if (cpu_has_apic)
-		ack_APIC_irq();
-}
 
 int get_physical_broadcast(void)
 {
         return 0xff;
 }
-
-#ifndef CONFIG_XEN
-#ifndef CONFIG_SMP
-static void up_apic_timer_interrupt_call(void)
-{
-	int cpu = smp_processor_id();
-
-	/*
-	 * the NMI deadlock-detector uses this.
-	 */
-	per_cpu(irq_stat, cpu).apic_timer_irqs++;
-
-	smp_local_timer_interrupt();
-}
-#endif
-
-void smp_send_timer_broadcast_ipi(void)
-{
-	cpumask_t mask;
-
-	cpus_and(mask, cpu_online_map, timer_bcast_ipi);
-	if (!cpus_empty(mask)) {
-#ifdef CONFIG_SMP
-		send_IPI_mask(mask, LOCAL_TIMER_VECTOR);
-#else
-		/*
-		 * We can directly call the apic timer interrupt handler
-		 * in UP case. Minus all irq related functions
-		 */
-		up_apic_timer_interrupt_call();
-#endif
-	}
-}
-#endif
 
 int setup_profiling_timer(unsigned int multiplier)
 {

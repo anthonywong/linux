@@ -33,7 +33,6 @@
 #include <linux/initrd.h>
 #include <linux/bootmem.h>
 #include <linux/seq_file.h>
-#include <linux/platform_device.h>
 #include <linux/console.h>
 #include <linux/mca.h>
 #include <linux/root_dev.h>
@@ -148,7 +147,7 @@ unsigned long saved_videomode;
 #define RAMDISK_PROMPT_FLAG		0x8000
 #define RAMDISK_LOAD_FLAG		0x4000	
 
-static char command_line[COMMAND_LINE_SIZE];
+static char __initdata command_line[COMMAND_LINE_SIZE];
 
 unsigned char __initdata boot_params[PARAM_SIZE];
 
@@ -649,8 +648,8 @@ void __init setup_arch(char **cmdline_p)
 
 	if ((i = MAX_GUEST_CMDLINE) > COMMAND_LINE_SIZE)
 		i = COMMAND_LINE_SIZE;
-	memcpy(saved_command_line, xen_start_info->cmd_line, i);
-	saved_command_line[i - 1] = '\0';
+	memcpy(boot_command_line, xen_start_info->cmd_line, i);
+	boot_command_line[i - 1] = '\0';
 	parse_early_param();
 
 	if (user_defined_memmap) {
@@ -658,10 +657,18 @@ void __init setup_arch(char **cmdline_p)
 		print_memory_map("user");
 	}
 
-	strlcpy(command_line, saved_command_line, COMMAND_LINE_SIZE);
+	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	max_low_pfn = setup_memory();
+
+#ifdef CONFIG_VMI
+	/*
+	 * Must be after max_low_pfn is determined, and before kernel
+	 * pagetables are setup.
+	 */
+	vmi_init();
+#endif
 
 	/*
 	 * NOTE: before this point _nobody_ is allowed to allocate
@@ -825,7 +832,6 @@ void __init setup_arch(char **cmdline_p)
 		conswitchp = &dummy_con;
 #endif
 	}
-	tsc_init();
 }
 
 static int
@@ -835,31 +841,3 @@ xen_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 	/* we're never actually going to get here... */
 	return NOTIFY_DONE;
 }
-
-static __init int add_pcspkr(void)
-{
-	struct platform_device *pd;
-	int ret;
-
-	if (!is_initial_xendomain())
-		return 0;
-
-	pd = platform_device_alloc("pcspkr", -1);
-	if (!pd)
-		return -ENOMEM;
-
-	ret = platform_device_add(pd);
-	if (ret)
-		platform_device_put(pd);
-
-	return ret;
-}
-device_initcall(add_pcspkr);
-
-/*
- * Local Variables:
- * mode:c
- * c-file-style:"k&r"
- * c-basic-offset:8
- * End:
- */
