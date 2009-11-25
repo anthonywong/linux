@@ -172,13 +172,15 @@ static int xenbus_uevent_backend(struct device *dev, char **envp,
 	return 0;
 }
 
-int xenbus_register_backend(struct xenbus_driver *drv)
+int __xenbus_register_backend(struct xenbus_driver *drv,
+			       struct module *owner, const char *mod_name)
 {
 	drv->read_otherend_details = read_frontend_details;
 
-	return xenbus_register_driver_common(drv, &xenbus_backend);
+	return xenbus_register_driver_common(drv, &xenbus_backend,
+					     owner, mod_name);
 }
-EXPORT_SYMBOL_GPL(xenbus_register_backend);
+EXPORT_SYMBOL_GPL(__xenbus_register_backend);
 
 /* backend/<typename>/<frontend-uuid>/<name> */
 static int xenbus_probe_backend_unit(const char *dir,

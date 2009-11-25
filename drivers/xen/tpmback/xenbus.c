@@ -270,7 +270,6 @@ static const struct xenbus_device_id tpmback_ids[] = {
 
 static struct xenbus_driver tpmback = {
 	.name = "vtpm",
-	.owner = THIS_MODULE,
 	.ids = tpmback_ids,
 	.probe = tpmback_probe,
 	.remove = tpmback_remove,
@@ -278,9 +277,9 @@ static struct xenbus_driver tpmback = {
 };
 
 
-void tpmif_xenbus_init(void)
+int tpmif_xenbus_init(void)
 {
-	xenbus_register_backend(&tpmback);
+	return xenbus_register_backend(&tpmback);
 }
 
 void tpmif_xenbus_exit(void)

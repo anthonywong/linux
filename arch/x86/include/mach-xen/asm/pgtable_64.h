@@ -416,15 +416,6 @@ static inline int pmd_large(pmd_t pte) {
 #define mk_pte(page, pgprot)	pfn_pte(page_to_pfn(page), (pgprot))
 #define mk_pte_huge(entry) (__pte_val(entry) |= _PAGE_PRESENT | _PAGE_PSE)
  
-/* physical address -> PTE */
-static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
-{ 
-	unsigned long pteval;
-	pteval = physpage | pgprot_val(pgprot);
-	pteval &= __supported_pte_mask;
-	return __pte(pteval);
-}
- 
 /* Change flags of a PTE */
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { 

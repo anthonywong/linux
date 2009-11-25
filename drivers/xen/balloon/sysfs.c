@@ -34,6 +34,7 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/sysdev.h>
+#include <linux/module.h>
 #include "common.h"
 
 #ifdef HAVE_XEN_PLATFORM_COMPAT_H
