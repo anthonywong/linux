@@ -122,10 +122,17 @@ struct blkfront_info
 
 extern spinlock_t blkif_io_lock;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 extern int blkif_open(struct inode *inode, struct file *filep);
 extern int blkif_release(struct inode *inode, struct file *filep);
 extern int blkif_ioctl(struct inode *inode, struct file *filep,
 		       unsigned command, unsigned long argument);
+#else
+extern int blkif_open(struct block_device *bdev, fmode_t mode);
+extern int blkif_release(struct gendisk *disk, fmode_t mode);
+extern int blkif_ioctl(struct block_device *bdev, fmode_t mode,
+ 		       unsigned command, unsigned long argument);
+#endif
 extern int blkif_getgeo(struct block_device *, struct hd_geometry *);
 extern int blkif_check(dev_t dev);
 extern int blkif_revalidate(dev_t dev);

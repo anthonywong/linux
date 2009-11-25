@@ -305,8 +305,16 @@ static int msi_map_vector(struct pci_dev *dev, int entry_nr, u64 table_base)
 	 * dev->irq in dom0 will be 'Xen pirq' if this device belongs to
 	 * to another domain, and will be 'Linux irq' if it belongs to dom0.
 	 */
-	return ((domid != DOMID_SELF) ?
-		map_irq.pirq : evtchn_map_pirq(-1, map_irq.pirq));
+	if (domid == DOMID_SELF) {
+		rc = evtchn_map_pirq(-1, map_irq.pirq);
+		dev_printk(KERN_DEBUG, &dev->dev,
+			   "irq %d (%d) for MSI/MSI-X\n",
+			   rc, map_irq.pirq);
+		return rc;
+	}
+	dev_printk(KERN_DEBUG, &dev->dev, "irq %d for dom%d MSI/MSI-X\n",
+		   map_irq.pirq, domid);
+	return map_irq.pirq;
 }
 
 static void pci_intx_for_msi(struct pci_dev *dev, int enable)
@@ -764,4 +772,25 @@ void pci_msi_init_pci_dev(struct pci_dev *dev)
 #ifndef CONFIG_XEN
 	INIT_LIST_HEAD(&dev->msi_list);
 #endif
+}
+
+#ifdef CONFIG_ACPI
+#include <linux/acpi.h>
+#include <linux/pci-acpi.h>
+static void __devinit msi_acpi_init(void)
+{
+	if (acpi_pci_disabled)
+		return;
+	pci_osc_support_set(OSC_MSI_SUPPORT);
+	pcie_osc_support_set(OSC_MSI_SUPPORT);
+}
+#else
+static inline void msi_acpi_init(void) { }
+#endif /* CONFIG_ACPI */
+
+void __devinit msi_init(void)
+{
+	if (!pci_msi_enable)
+		return;
+	msi_acpi_init();
 }

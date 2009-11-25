@@ -145,7 +145,7 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	BUG_ON(!test_bit(chn, s->evtchn_mask));
 
 	if (irq != -1)
-		irq_desc[irq].affinity = cpumask_of_cpu(cpu);
+		irq_to_desc(irq)->affinity = cpumask_of_cpu(cpu);
 
 	clear_bit(chn, (unsigned long *)cpu_evtchn_mask[cpu_evtchn[chn]]);
 	set_bit(chn, (unsigned long *)cpu_evtchn_mask[cpu]);
@@ -158,7 +158,7 @@ static void init_evtchn_cpu_bindings(void)
 
 	/* By default all event channels notify CPU#0. */
 	for (i = 0; i < NR_IRQS; i++)
-		irq_desc[i].affinity = cpumask_of_cpu(0);
+		irq_to_desc(i)->affinity = cpumask_of_cpu(0);
 
 	memset(cpu_evtchn, 0, sizeof(cpu_evtchn));
 	memset(cpu_evtchn_mask[0], ~0, sizeof(cpu_evtchn_mask[0]));
@@ -725,7 +725,7 @@ static void end_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
 
-	if (VALID_EVTCHN(evtchn) && !(irq_desc[irq].status & IRQ_DISABLED))
+	if (VALID_EVTCHN(evtchn) && !(irq_to_desc(irq)->status & IRQ_DISABLED))
 		unmask_evtchn(evtchn);
 }
 
@@ -816,7 +816,7 @@ static unsigned int startup_pirq(unsigned int irq)
 	bind_pirq.pirq = evtchn_get_xen_pirq(irq);
 	/* NB. We are happy to share unless we are probing. */
 	bind_pirq.flags = test_and_clear_bit(irq - PIRQ_BASE, probing_pirq)
-			  || (irq_desc[irq].status & IRQ_AUTODETECT)
+			  || (irq_to_desc(irq)->status & IRQ_AUTODETECT)
 			  ? 0 : BIND_PIRQ__WILL_SHARE;
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq) != 0) {
 		if (bind_pirq.flags)
@@ -882,7 +882,7 @@ static void end_pirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
 
-	if ((irq_desc[irq].status & (IRQ_DISABLED|IRQ_PENDING)) ==
+	if ((irq_to_desc(irq)->status & (IRQ_DISABLED|IRQ_PENDING)) ==
 	    (IRQ_DISABLED|IRQ_PENDING)) {
 		shutdown_pirq(irq);
 	} else if (VALID_EVTCHN(evtchn))
@@ -1065,7 +1065,7 @@ static void restore_cpu_ipis(unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 
 		/* Ready for use. */
-		if (!(irq_desc[irq].status & IRQ_DISABLED))
+		if (!(irq_to_desc(irq)->status & IRQ_DISABLED))
 			unmask_evtchn(evtchn);
 	}
 }
@@ -1201,7 +1201,7 @@ void __init xen_init_IRQ(void)
 	for (i = DYNIRQ_BASE; i < (DYNIRQ_BASE + NR_DYNIRQS); i++) {
 		irq_bindcount[i] = 0;
 
-		irq_desc[i].status |= IRQ_NOPROBE;
+		irq_to_desc(i)->status |= IRQ_NOPROBE;
 		set_irq_chip_and_handler_name(i, &dynirq_chip,
 					      handle_level_irq, "level");
 	}
