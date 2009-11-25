@@ -114,7 +114,6 @@ static void xenhcd_stop(struct usb_hcd *hcd)
  * non-error returns are promise to giveback the urb later
  */
 static int xenhcd_urb_enqueue(struct usb_hcd *hcd,
-				    struct usb_host_endpoint *ep,
 				    struct urb *urb,
 				    gfp_t mem_flags)
 {
@@ -130,6 +129,7 @@ static int xenhcd_urb_enqueue(struct usb_hcd *hcd,
 		ret = -ENOMEM;
 		goto done;
 	}
+	urbp->status = 1;
 
 	ret = xenhcd_submit_urb(info, urbp);
 	if (ret != 0)
@@ -144,7 +144,7 @@ done:
  * called as .urb_dequeue()
  */
 static int xenhcd_urb_dequeue(struct usb_hcd *hcd,
-				    struct urb *urb)
+			      struct urb *urb, int status)
 {
 	struct usbfront_info *info = hcd_to_info(hcd);
 	struct urb_priv *urbp;
@@ -157,6 +157,7 @@ static int xenhcd_urb_dequeue(struct usb_hcd *hcd,
 	if (!urbp)
 		goto done;
 
+	urbp->status = status;
 	ret = xenhcd_unlink_urb(info, urbp);
 
 done:
