@@ -1,8 +1,6 @@
 #ifndef _I386_PGTABLE_3LEVEL_H
 #define _I386_PGTABLE_3LEVEL_H
 
-#include <asm-generic/pgtable-nopud.h>
-
 /*
  * Intel Physical Address Extension (PAE) Mode - three-level page
  * tables on PPro+ CPUs.
@@ -75,6 +73,23 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 		xen_l3_entry_update((pudptr), (pudval))
 
 /*
+ * For PTEs and PDEs, we must clear the P-bit first when clearing a page table
+ * entry, so clear the bottom half first and enforce ordering with a compiler
+ * barrier.
+ */
+static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	if ((mm != current->mm && mm != &init_mm)
+	    || HYPERVISOR_update_va_mapping(addr, __pte(0), 0)) {
+		ptep->pte_low = 0;
+		smp_wmb();
+		ptep->pte_high = 0;
+	}
+}
+
+#define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
+
+/*
  * Pentium-II erratum A13: in PAE mode we explicitly have to flush
  * the TLB via cr3 if the top-level pgd is changed...
  * We do not let the generic code free and clear pgd entries due to
@@ -93,45 +108,16 @@ static inline void pud_clear (pud_t * pud) { }
 #define pmd_offset(pud, address) ((pmd_t *) pud_page(*(pud)) + \
 			pmd_index(address))
 
-static inline int pte_none(pte_t pte)
+static inline pte_t raw_ptep_get_and_clear(pte_t *ptep, pte_t res)
 {
-	return !(pte.pte_low | pte.pte_high);
-}
-
-/*
- * For PTEs and PDEs, we must clear the P-bit first when clearing a page table
- * entry, so clear the bottom half first and enforce ordering with a compiler
- * barrier.
- */
-static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-{
-	if ((mm != current->mm && mm != &init_mm)
-	    || HYPERVISOR_update_va_mapping(addr, __pte(0), 0)) {
-		ptep->pte_low = 0;
-		smp_wmb();
+	uint64_t val = __pte_val(res);
+	if (__cmpxchg64(ptep, val, 0) != val) {
+		/* xchg acts as a barrier before the setting of the high bits */
+		res.pte_low = xchg(&ptep->pte_low, 0);
+		res.pte_high = ptep->pte_high;
 		ptep->pte_high = 0;
 	}
-}
-
-#define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
-
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
-{
-	pte_t pte = *ptep;
-	if (!pte_none(pte)) {
-		if ((mm != &init_mm) ||
-		    HYPERVISOR_update_va_mapping(addr, __pte(0), 0)) {
-			uint64_t val = __pte_val(pte);
-			if (__cmpxchg64(ptep, val, 0) != val) {
-				/* xchg acts as a barrier before the setting of the high bits */
-				pte.pte_low = xchg(&ptep->pte_low, 0);
-				pte.pte_high = ptep->pte_high;
-				ptep->pte_high = 0;
-			}
-		}
-	}
-	return pte;
+	return res;
 }
 
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
@@ -159,6 +145,11 @@ static inline int pte_same(pte_t a, pte_t b)
 }
 
 #define pte_page(x)	pfn_to_page(pte_pfn(x))
+
+static inline int pte_none(pte_t pte)
+{
+	return !(pte.pte_low | pte.pte_high);
+}
 
 #define __pte_mfn(_pte) (((_pte).pte_low >> PAGE_SHIFT) | \
 			 ((_pte).pte_high << (32-PAGE_SHIFT)))

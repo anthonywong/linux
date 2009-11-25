@@ -54,6 +54,7 @@
 #include <net/dst.h>
 #include <net/xfrm.h>		/* secpath_reset() */
 #include <asm/hypervisor.h>	/* is_initial_xendomain() */
+#include <../net/core/kmap_skb.h> /* k{,un}map_skb_frag() */
 
 static int nloopbacks = -1;
 module_param(nloopbacks, int, 0);

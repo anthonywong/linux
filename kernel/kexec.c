@@ -367,7 +367,7 @@ static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order, unsig
 		if (limit == ~0UL)
 			address_bits = BITS_PER_LONG;
 		else
-			address_bits = long_log2(limit);
+			address_bits = ilog2(limit);
 
 		if (xen_limit_pages_to_max_mfn(pages, order, address_bits) < 0) {
 			__free_pages(pages, order);

@@ -85,7 +85,7 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 
 void copy_highpage(struct page *to, struct page *from);
 static inline void copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr)
+	unsigned long vaddr, struct vm_area_struct *vma)
 {
 	copy_highpage(to, from);
 }
