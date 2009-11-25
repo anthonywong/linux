@@ -28,21 +28,9 @@
  *	serialize accesses to xtime/lost_ticks).
  */
 
-#include <linux/errno.h>
-#include <linux/sched.h>
-#include <linux/kernel.h>
-#include <linux/param.h>
-#include <linux/string.h>
-#include <linux/mm.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/time.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/smp.h>
-#include <linux/module.h>
-#include <linux/sysdev.h>
-#include <linux/bcd.h>
-#include <linux/efi.h>
 #include <linux/mca.h>
 #include <linux/sysctl.h>
 #include <linux/percpu.h>
@@ -50,26 +38,10 @@
 #include <linux/posix-timers.h>
 #include <linux/cpufreq.h>
 #include <linux/clocksource.h>
+#include <linux/sysdev.h>
 
-#include <asm/io.h>
-#include <asm/smp.h>
-#include <asm/irq.h>
-#include <asm/msr.h>
 #include <asm/delay.h>
-#include <asm/mpspec.h>
-#include <asm/uaccess.h>
-#include <asm/processor.h>
-#include <asm/timer.h>
 #include <asm/time.h>
-#include <asm/sections.h>
-
-#include "mach_time.h"
-
-#include <linux/timex.h>
-
-#include <asm/hpet.h>
-
-#include <asm/arch_hooks.h>
 
 #include <xen/evtchn.h>
 #include <xen/sysctl.h>
@@ -88,9 +60,6 @@ volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
 
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
-
-DEFINE_SPINLOCK(rtc_lock);
-EXPORT_SYMBOL(rtc_lock);
 
 /* These are peridically updated in shared_info, and then copied here. */
 struct shadow_time_info {
@@ -154,6 +123,11 @@ static int __init __independent_wallclock(char *str)
 }
 __setup("independent_wallclock", __independent_wallclock);
 
+int xen_independent_wallclock(void)
+{
+	return independent_wallclock;
+}
+
 /* Permitted clock jitter, in nsecs, beyond which a warning will be printed. */
 static unsigned long permitted_clock_jitter = 10000000UL; /* 10ms */
 static int __init __permitted_clock_jitter(char *str)
@@ -205,7 +179,6 @@ static inline u64 get64(volatile u64 *ptr)
 	return cmpxchg64(ptr, 0, 0);
 #else
 	return *ptr;
-#define cmpxchg64 cmpxchg
 #endif
 }
 
@@ -215,7 +188,6 @@ static inline u64 get64_local(volatile u64 *ptr)
 	return cmpxchg64_local(ptr, 0, 0);
 #else
 	return *ptr;
-#define cmpxchg64_local cmpxchg_local
 #endif
 }
 
@@ -321,35 +293,6 @@ static inline int time_values_up_to_date(unsigned int cpu)
 	return (dst->version == src->version);
 }
 
-/*
- * This is a special lock that is owned by the CPU and holds the index
- * register we are working with.  It is required for NMI access to the
- * CMOS/RTC registers.  See include/asm-i386/mc146818rtc.h for details.
- */
-volatile unsigned long cmos_lock = 0;
-EXPORT_SYMBOL(cmos_lock);
-
-/* Routines for accessing the CMOS RAM/RTC. */
-unsigned char rtc_cmos_read(unsigned char addr)
-{
-	unsigned char val;
-	lock_cmos_prefix(addr);
-	outb_p(addr, RTC_PORT(0));
-	val = inb_p(RTC_PORT(1));
-	lock_cmos_suffix(addr);
-	return val;
-}
-EXPORT_SYMBOL(rtc_cmos_read);
-
-void rtc_cmos_write(unsigned char val, unsigned char addr)
-{
-	lock_cmos_prefix(addr);
-	outb_p(addr, RTC_PORT(0));
-	outb_p(val, RTC_PORT(1));
-	lock_cmos_suffix(addr);
-}
-EXPORT_SYMBOL(rtc_cmos_write);
-
 static void sync_xen_wallclock(unsigned long dummy);
 static DEFINE_TIMER(sync_xen_wallclock_timer, sync_xen_wallclock, 0, 0);
 static void sync_xen_wallclock(unsigned long dummy)
@@ -358,7 +301,8 @@ static void sync_xen_wallclock(unsigned long dummy)
 	s64 nsec;
 	struct xen_platform_op op;
 
-	if (!ntp_synced() || independent_wallclock || !is_initial_xendomain())
+	BUG_ON(!is_initial_xendomain());
+	if (!ntp_synced() || independent_wallclock)
 		return;
 
 	write_seqlock_irq(&xtime_lock);
@@ -381,23 +325,6 @@ static void sync_xen_wallclock(unsigned long dummy)
 	mod_timer(&sync_xen_wallclock_timer, jiffies + 60*HZ);
 }
 
-static int set_rtc_mmss(unsigned long nowtime)
-{
-	int retval;
-	unsigned long flags;
-
-	if (independent_wallclock || !is_initial_xendomain())
-		return 0;
-
-	/* gets recalled with irq locally disabled */
-	/* XXX - does irqsave resolve this? -johnstul */
-	spin_lock_irqsave(&rtc_lock, flags);
-	retval = set_wallclock(nowtime);
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return retval;
-}
-
 static unsigned long long local_clock(void)
 {
 	unsigned int cpu = get_cpu();
@@ -407,7 +334,7 @@ static unsigned long long local_clock(void)
 
 	do {
 		local_time_version = shadow->version;
-		barrier();
+		rdtsc_barrier();
 		time = shadow->system_timestamp + get_nsec_offset(shadow);
 		if (!time_values_up_to_date(cpu))
 			get_time_values_from_xen(cpu);
@@ -480,28 +407,24 @@ unsigned long profile_pc(struct pt_regs *regs)
 
 #if defined(CONFIG_SMP) || defined(__x86_64__)
 # ifdef __i386__
-	if (!v8086_mode(regs) && SEGMENT_IS_KERNEL_CODE(regs->xcs)
+	if (!v8086_mode(regs) && SEGMENT_IS_KERNEL_CODE(regs->cs)
 # else
 	if (!user_mode(regs)
 # endif
 	    && in_lock_functions(pc)) {
 # ifdef CONFIG_FRAME_POINTER
-#  ifdef __i386__
-		return ((unsigned long *)regs->ebp)[1];
-#  else
-		return ((unsigned long *)regs->rbp)[1];
-#  endif
+		return ((unsigned long *)regs->bp)[1];
 # else
 #  ifdef __i386__
-		unsigned long *sp = (unsigned long *)&regs->esp;
+		unsigned long *sp = (unsigned long *)&regs->sp;
 #  else
-		unsigned long *sp = (unsigned long *)regs->rsp;
+		unsigned long *sp = (unsigned long *)regs->sp;
 #  endif
 
 		/* Return address is either directly at stack pointer
-		   or above a saved eflags. Eflags has bits 22-31 zero,
+		   or above a saved flags. Eflags has bits 22-31 zero,
 		   kernel addresses don't. */
- 		if (sp[0] >> 22)
+		if (sp[0] >> 22)
 			return sp[0];
 		if (sp[1] >> 22)
 			return sp[1];
@@ -731,25 +654,32 @@ static void init_missing_ticks_accounting(unsigned int cpu)
 		runstate->time[RUNSTATE_offline];
 }
 
-/* not static: needed by APM */
-unsigned long read_persistent_clock(void)
+unsigned long xen_read_persistent_clock(void)
 {
-	unsigned long retval;
-	unsigned long flags;
+	const shared_info_t *s = HYPERVISOR_shared_info;
+	u32 version, sec, nsec;
+	u64 delta;
 
-	spin_lock_irqsave(&rtc_lock, flags);
+	do {
+		version = s->wc_version;
+		rmb();
+		sec     = s->wc_sec;
+		nsec    = s->wc_nsec;
+		rmb();
+	} while ((s->wc_version & 1) | (version ^ s->wc_version));
 
-	retval = get_wallclock();
+	delta = local_clock() + (u64)sec * NSEC_PER_SEC + nsec;
+	do_div(delta, NSEC_PER_SEC);
 
-	spin_unlock_irqrestore(&rtc_lock, flags);
-
-	return retval;
+	return delta;
 }
 
-int update_persistent_clock(struct timespec now)
+int xen_update_persistent_clock(void)
 {
+	if (!is_initial_xendomain())
+		return -1;
 	mod_timer(&sync_xen_wallclock_timer, jiffies + 1);
-	return set_rtc_mmss(now.tv_sec);
+	return 0;
 }
 
 extern void (*late_time_init)(void);

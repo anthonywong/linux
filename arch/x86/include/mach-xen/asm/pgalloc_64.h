@@ -6,30 +6,13 @@
 #include <linux/mm.h>
 #include <asm/io.h>		/* for phys_to_virt and page_to_pseudophys */
 
-#include <xen/features.h>
-void make_page_readonly(void *va, unsigned int feature);
-void make_page_writable(void *va, unsigned int feature);
-void make_pages_readonly(void *va, unsigned int nr, unsigned int feature);
-void make_pages_writable(void *va, unsigned int nr, unsigned int feature);
+pmd_t *early_get_pmd(unsigned long va);
+void early_make_page_readonly(void *va, unsigned int feature);
 
 #define __user_pgd(pgd) ((pgd) + PTRS_PER_PGD)
 
-static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *pte)
-{
-	set_pmd(pmd, __pmd(_PAGE_TABLE | __pa(pte)));
-}
-
-static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
-{
-	if (unlikely(PagePinned(virt_to_page((mm)->pgd)))) {
-		BUG_ON(HYPERVISOR_update_va_mapping(
-			       (unsigned long)__va(page_to_pfn(pte) << PAGE_SHIFT),
-			       pfn_pte(page_to_pfn(pte), PAGE_KERNEL_RO), 0));
-		set_pmd(pmd, __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)));
-	} else {
-		*(pmd) = __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT));
-	}
-}
+#define pmd_populate_kernel(mm, pmd, pte) \
+		set_pmd(pmd, __pmd(_PAGE_TABLE | __pa(pte)))
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
@@ -63,53 +46,58 @@ static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 	}
 }
 
-extern struct page *pte_alloc_one(struct mm_struct *mm, unsigned long addr);
-extern void pte_free(struct page *pte);
+#define pmd_pgtable(pmd) pmd_page(pmd)
 
-static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr)
+static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
 {
-	struct page *pg;
-
-	pg = pte_alloc_one(mm, addr);
-	return pg ? page_address(pg) : NULL;
+	if (unlikely(PagePinned(virt_to_page((mm)->pgd)))) {
+		BUG_ON(HYPERVISOR_update_va_mapping(
+			       (unsigned long)__va(page_to_pfn(pte) << PAGE_SHIFT),
+			       pfn_pte(page_to_pfn(pte), PAGE_KERNEL_RO), 0));
+		set_pmd(pmd, __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)));
+	} else {
+		*(pmd) = __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT));
+	}
 }
 
-static inline void pmd_free(pmd_t *pmd)
+extern void __pmd_free(pgtable_t);
+static inline void pmd_free(struct mm_struct *mm, pmd_t *pmd)
 {
 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
-	pte_free(virt_to_page(pmd));
+	__pmd_free(virt_to_page(pmd));
 }
+
+extern pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long addr);
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
 {
-	struct page *pg;
-
-	pg = pte_alloc_one(mm, addr);
-	return pg ? page_address(pg) : NULL;
+	return (pud_t *)pmd_alloc_one(mm, addr);
 }
 
-static inline void pud_free(pud_t *pud)
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
 	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
-	pte_free(virt_to_page(pud));
+	__pmd_free(virt_to_page(pud));
 }
 
 static inline void pgd_list_add(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
+	unsigned long flags;
 
-	spin_lock(&pgd_lock);
+	spin_lock_irqsave(&pgd_lock, flags);
 	list_add(&page->lru, &pgd_list);
-	spin_unlock(&pgd_lock);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 static inline void pgd_list_del(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
+	unsigned long flags;
 
-	spin_lock(&pgd_lock);
+	spin_lock_irqsave(&pgd_lock, flags);
 	list_del(&page->lru);
-	spin_unlock(&pgd_lock);
+	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 extern void pgd_test_and_unpin(pgd_t *);
@@ -145,7 +133,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	return pgd;
 }
 
-static inline void pgd_free(pgd_t *pgd)
+static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
 	pgd_test_and_unpin(pgd);
 	pgd_list_del(pgd);
@@ -161,17 +149,30 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long ad
 	return pte;
 }
 
+extern pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long addr);
+
 /* Should really implement gc for free page table pages. This could be
    done with a reference count in struct page. */
 
-static inline void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 {
 	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
 	make_page_writable(pte, XENFEAT_writable_page_tables);
 	free_page((unsigned long)pte); 
 }
 
-#define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
+extern void __pte_free(pgtable_t);
+static inline void pte_free(struct mm_struct *mm, pgtable_t pte)
+{
+	__pte_free(pte);
+}
+
+#define __pte_free_tlb(tlb,pte)				\
+do {							\
+	pgtable_page_dtor((pte));				\
+	tlb_remove_page((tlb), (pte));			\
+} while (0)
+
 #define __pmd_free_tlb(tlb,x)   tlb_remove_page((tlb),virt_to_page(x))
 #define __pud_free_tlb(tlb,x)   tlb_remove_page((tlb),virt_to_page(x))
 
