@@ -1821,10 +1821,10 @@ inline int skb_checksum_setup(struct sk_buff *skb)
 			goto out;
 		switch (skb->nh.iph->protocol) {
 		case IPPROTO_TCP:
-			skb->csum = offsetof(struct tcphdr, check);
+			skb->csum_offset = offsetof(struct tcphdr, check);
 			break;
 		case IPPROTO_UDP:
-			skb->csum = offsetof(struct udphdr, check);
+			skb->csum_offset = offsetof(struct udphdr, check);
 			break;
 		default:
 			if (net_ratelimit())
@@ -1833,7 +1833,7 @@ inline int skb_checksum_setup(struct sk_buff *skb)
 				       " %d packet", skb->nh.iph->protocol);
 			goto out;
 		}
-		if ((skb->h.raw + skb->csum + 2) > skb->tail)
+		if ((skb->h.raw + skb->csum_offset + 2) > skb->tail)
 			goto out;
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->proto_csum_blank = 0;

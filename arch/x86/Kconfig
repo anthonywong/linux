@@ -1606,6 +1606,7 @@ config PHYSICAL_START
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
+	depends on !X86_XEN
 	default y
 	---help---
 	  This builds a kernel image that retains relocation information
@@ -1628,7 +1629,8 @@ config X86_NEED_RELOCS
 
 config PHYSICAL_ALIGN
 	hex
-	prompt "Alignment value to which kernel should be aligned" if X86_32
+	prompt "Alignment value to which kernel should be aligned" if X86_32 && !XEN
+	default 0x2000 if XEN
 	default "0x1000000"
 	range 0x2000 0x1000000
 	---help---

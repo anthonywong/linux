@@ -15,7 +15,7 @@
 #include <xen/balloon.h>
 #include <xen/gnttab.h>
 
-static kmem_cache_t *tpmif_cachep;
+static struct kmem_cache *tpmif_cachep;
 int num_frontends = 0;
 
 LIST_HEAD(tpmif_list);

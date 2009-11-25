@@ -85,11 +85,6 @@ static int xc_num = -1;
 #define XEN_HVC_MAJOR 229
 #define XEN_HVC_MINOR 0
 
-#ifdef CONFIG_MAGIC_SYSRQ
-static unsigned long sysrq_requested;
-extern int sysrq_enabled;
-#endif
-
 static int __init xencons_setup(char *str)
 {
 	char *q;
@@ -354,8 +349,8 @@ void __init dom0_init_screen_info(const struct dom0_vga_console_info *info, size
 #define DUMMY_TTY(_tty) ((xc_mode == XC_TTY) &&		\
 			 ((_tty)->index != (xc_num - 1)))
 
-static struct termios *xencons_termios[MAX_NR_CONSOLES];
-static struct termios *xencons_termios_locked[MAX_NR_CONSOLES];
+static struct ktermios *xencons_termios[MAX_NR_CONSOLES];
+static struct ktermios *xencons_termios_locked[MAX_NR_CONSOLES];
 static struct tty_struct *xencons_tty;
 static int xencons_priv_irq;
 static char x_char;
@@ -371,7 +366,9 @@ void xencons_rx(char *buf, unsigned len)
 
 	for (i = 0; i < len; i++) {
 #ifdef CONFIG_MAGIC_SYSRQ
-		if (sysrq_enabled) {
+		if (sysrq_on()) {
+			static unsigned long sysrq_requested;
+
 			if (buf[i] == '\x0f') { /* ^O */
 				if (!sysrq_requested) {
 					sysrq_requested = jiffies;
