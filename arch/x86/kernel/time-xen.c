@@ -450,7 +450,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	/* Keep nmi watchdog up to date */
 #ifdef __i386__
-	per_cpu(irq_stat, smp_processor_id()).irq0_irqs++;
+	x86_add_percpu(irq_stat.irq0_irqs, 1);
 #else
 	add_pda(irq0_irqs, 1);
 #endif
@@ -729,9 +729,7 @@ void __init time_init(void)
 
 	update_wallclock();
 
-#ifndef CONFIG_X86_64
 	use_tsc_delay();
-#endif
 
 	/* Cannot request_irq() until kmem is initialised. */
 	late_time_init = setup_cpu0_timer_irq;
@@ -788,7 +786,8 @@ static void stop_hz_timer(void)
 
 	/* Leave ourselves in tick mode if rcu or softirq or timer pending. */
 	if (rcu_needs_cpu(cpu) || local_softirq_pending() ||
-	    (j = next_timer_interrupt(), time_before_eq(j, jiffies))) {
+	    (j = get_next_timer_interrupt(jiffies),
+	     time_before_eq(j, jiffies))) {
 		cpu_clear(cpu, nohz_cpu_mask);
 		j = jiffies + 1;
 	}
