@@ -21,6 +21,7 @@
 #include <asm/msr.h>
 #include <asm/cache.h>
 #include <asm/dwarf2.h>
+#include <asm/percpu.h>
 #include <xen/interface/elfnote.h>
 
 	.section .text.head, "ax", @progbits
@@ -32,10 +33,22 @@ startup_64:
 	/* rsi is pointer to startup info structure.
 	   pass it to C */
 	movq %rsi,%rdi
+
+	/* Set up %gs.
+	 *
+	 * The base of %gs always points to the bottom of the irqstack
+	 * union.  If the stack protector canary is enabled, it is
+	 * located at %gs:40.  Note that, on SMP, the boot cpu uses
+	 * init data section till per cpu areas are set up.
+	 */
+	movl	$MSR_GS_BASE,%ecx
+	movq	$INIT_PER_CPU_VAR(irq_stack_union),%rax
+	movq    %rax,%rdx
+	shrq	$32,%rdx
+	wrmsr
+
 	pushq $0		# fake return address
 	jmp x86_64_start_kernel
-
-.balign PAGE_SIZE
 
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \

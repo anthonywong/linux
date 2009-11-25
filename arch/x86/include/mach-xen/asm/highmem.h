@@ -63,6 +63,7 @@ void *kmap_atomic(struct page *page, enum km_type type);
 void *kmap_atomic_pte(struct page *page, enum km_type type);
 void kunmap_atomic(void *kvaddr, enum km_type type);
 void *kmap_atomic_pfn(unsigned long pfn, enum km_type type);
+void *kmap_atomic_prot_pfn(unsigned long pfn, enum km_type type, pgprot_t prot);
 struct page *kmap_atomic_to_page(void *ptr);
 
 #define kmap_atomic_pte(page, type) \
