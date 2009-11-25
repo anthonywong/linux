@@ -260,19 +260,19 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 		return -ENOMEM;
 	}
 
-	if (sc->use_sg) {
+	if (scsi_bufflen(sc)) {
 		/* quoted scsi_lib.c/scsi_req_map_sg . */
-		struct scatterlist *sg, *sgl = (struct scatterlist *)sc->request_buffer;
-		unsigned int data_len = sc->request_bufflen;
+		struct scatterlist *sg, *sgl = scsi_sglist(sc);
+		unsigned int data_len = scsi_bufflen(sc);
 
-		nr_pages = (sc->request_bufflen + sgl->offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		nr_pages = (data_len + sgl->offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		if (nr_pages > VSCSIIF_SG_TABLESIZE) {
 			printk(KERN_ERR "scsifront: Unable to map request_buffer for command!\n");
 			ref_cnt = (-E2BIG);
 			goto big_to_sg;
 		}
 
-		for_each_sg (sgl, sg, sc->use_sg, i) {
+		for_each_sg (sgl, sg, scsi_sg_count(sc), i) {
 			page = sg_page(sg);
 			off = sg->offset;
 			len = sg->length;
@@ -305,45 +305,6 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 				off = 0;
 				ref_cnt++;
 			}
-		}
-	} else if (sc->request_bufflen) {
-		unsigned long end   = ((unsigned long)sc->request_buffer
-					+ sc->request_bufflen + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		unsigned long start = (unsigned long)sc->request_buffer >> PAGE_SHIFT;
-
-		page = virt_to_page(sc->request_buffer);
-		nr_pages = end - start;
-		len = sc->request_bufflen;
-
-		if (nr_pages > VSCSIIF_SG_TABLESIZE) {
-			ref_cnt = (-E2BIG);
-			goto big_to_sg;
-		}
-
-		buffer_pfn = page_to_phys(page) >> PAGE_SHIFT;
-
-		off = offset_in_page((unsigned long)sc->request_buffer);
-		for (i = 0; i < nr_pages; i++) {
-			bytes = PAGE_SIZE - off;
-
-			if (bytes > len)
-				bytes = len;
-
-			ref = gnttab_claim_grant_reference(&gref_head);
-			BUG_ON(ref == -ENOSPC);
-
-			gnttab_grant_foreign_access_ref(ref, info->dev->otherend_id,
-				buffer_pfn, write);
-
-			info->shadow[id].gref[i] = ref;
-			ring_req->seg[i].gref     = ref;
-			ring_req->seg[i].offset   = (uint16_t)off;
-			ring_req->seg[i].length   = (uint16_t)bytes;
-
-			buffer_pfn++;
-			len -= bytes;
-			off = 0;
-			ref_cnt++;
 		}
 	}
 

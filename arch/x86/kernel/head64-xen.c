@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/percpu.h>
+#include <linux/start_kernel.h>
 #include <linux/module.h>
 
 #include <asm/processor.h>
@@ -26,6 +27,8 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/kdebug.h>
+#include <asm/e820.h>
 
 unsigned long start_pfn;
 
@@ -34,7 +37,7 @@ static void __init zap_identity_mappings(void)
 {
 	pgd_t *pgd = pgd_offset_k(0UL);
 	pgd_clear(pgd);
-	__flush_tlb();
+	__flush_tlb_all();
 }
 
 /* Don't add a printk in there. printk relies on the PDA which is not initialized 
@@ -72,6 +75,37 @@ EXPORT_SYMBOL(machine_to_phys_mapping);
 unsigned int machine_to_phys_order;
 EXPORT_SYMBOL(machine_to_phys_order);
 
+#define EBDA_ADDR_POINTER 0x40E
+
+static __init void reserve_ebda(void)
+{
+#ifndef CONFIG_XEN
+	unsigned ebda_addr, ebda_size;
+
+	/*
+	 * there is a real-mode segmented pointer pointing to the
+	 * 4K EBDA area at 0x40E
+	 */
+	ebda_addr = *(unsigned short *)__va(EBDA_ADDR_POINTER);
+	ebda_addr <<= 4;
+
+	if (!ebda_addr)
+		return;
+
+	ebda_size = *(unsigned short *)__va(ebda_addr);
+
+	/* Round EBDA up to pages */
+	if (ebda_size == 0)
+		ebda_size = 1;
+	ebda_size <<= 10;
+	ebda_size = round_up(ebda_size + (ebda_addr & ~PAGE_MASK), PAGE_SIZE);
+	if (ebda_size > 64*1024)
+		ebda_size = 64*1024;
+
+	reserve_early(ebda_addr, ebda_addr + ebda_size, "EBDA");
+#endif
+}
+
 void __init x86_64_start_kernel(char * real_mode_data)
 {
 	struct xen_machphys_mapping mapping;
@@ -103,8 +137,16 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	/* Make NULL pointers segfault */
 	zap_identity_mappings();
 
-	for (i = 0; i < IDT_ENTRIES; i++)
+	/* Cleanup the over mapped high alias */
+	cleanup_highmap();
+
+	for (i = 0; i < IDT_ENTRIES; i++) {
+#ifdef CONFIG_EARLY_PRINTK
+		set_intr_gate(i, &early_idt_handlers[i]);
+#else
 		set_intr_gate(i, early_idt_handler);
+#endif
+	}
 	load_idt((const struct desc_ptr *)&idt_descr);
 #endif
 
@@ -115,8 +157,19 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	pda_init(0);
 	copy_bootdata(__va(real_mode_data));
-#ifdef CONFIG_SMP
-	cpu_set(0, cpu_online_map);
-#endif
+
+	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
+
+	reserve_early(round_up(__pa_symbol(&_end), PAGE_SIZE),
+		      start_pfn << PAGE_SHIFT, "Xen provided");
+
+	reserve_ebda();
+
+	/*
+	 * At this point everything still needed from the boot loader
+	 * or BIOS or kernel text should be early reserved or marked not
+	 * RAM in e820. All other memory is free game.
+	 */
+
 	start_kernel();
 }
