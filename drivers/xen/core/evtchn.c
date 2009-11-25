@@ -316,6 +316,24 @@ static DEFINE_PER_CPU(unsigned int, upcall_count) = { 0 };
 static DEFINE_PER_CPU(unsigned int, last_processed_l1i) = { BITS_PER_LONG - 1 };
 static DEFINE_PER_CPU(unsigned int, last_processed_l2i) = { BITS_PER_LONG - 1 };
 
+#ifndef vcpu_info_xchg
+#define vcpu_info_xchg(fld, val) xchg(&current_vcpu_info()->fld, val)
+#endif
+
+#ifndef percpu_xadd
+#define percpu_xadd(var, val)					\
+({								\
+	typeof(per_cpu_var(var)) __tmp_var__;			\
+	unsigned long flags;					\
+	local_irq_save(flags);					\
+	__tmp_var__ = get_cpu_var(var);				\
+	__get_cpu_var(var) += (val);				\
+	put_cpu_var(var);					\
+	local_irq_restore(flags);				\
+	__tmp_var__;						\
+})
+#endif
+
 /* NB. Interrupts are disabled on entry. */
 asmlinkage void __irq_entry evtchn_do_upcall(struct pt_regs *regs)
 {
@@ -324,25 +342,25 @@ asmlinkage void __irq_entry evtchn_do_upcall(struct pt_regs *regs)
 	unsigned long       masked_l1, masked_l2;
 	unsigned int        l1i, l2i, port, count;
 	int                 irq;
-	vcpu_info_t        *vcpu_info = current_vcpu_info();
 
 	exit_idle();
 	irq_enter();
 
 	do {
 		/* Avoid a callback storm when we reenable delivery. */
-		vcpu_info->evtchn_upcall_pending = 0;
+		vcpu_info_write(evtchn_upcall_pending, 0);
 
 		/* Nested invocations bail immediately. */
-		percpu_add(upcall_count, 1);
-		if (unlikely(percpu_read(upcall_count) != 1))
+		if (unlikely(percpu_xadd(upcall_count, 1)))
 			break;
 
 #ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
 		/* Clear master flag /before/ clearing selector flag. */
 		wmb();
+#else
+		barrier();
 #endif
-		l1 = xchg(&vcpu_info->evtchn_pending_sel, 0);
+		l1 = vcpu_info_xchg(evtchn_pending_sel, 0);
 
 		l1i = percpu_read(last_processed_l1i);
 		l2i = percpu_read(last_processed_l2i);
@@ -1363,7 +1381,6 @@ void unmask_evtchn(int port)
 {
 	shared_info_t *s = HYPERVISOR_shared_info;
 	unsigned int cpu = smp_processor_id();
-	vcpu_info_t *vcpu_info = &s->vcpu_info[cpu];
 
 	BUG_ON(!irqs_disabled());
 
@@ -1377,10 +1394,13 @@ void unmask_evtchn(int port)
 	synch_clear_bit(port, s->evtchn_mask);
 
 	/* Did we miss an interrupt 'edge'? Re-fire if so. */
-	if (synch_test_bit(port, s->evtchn_pending) &&
-	    !synch_test_and_set_bit(port / BITS_PER_LONG,
-				    &vcpu_info->evtchn_pending_sel))
-		vcpu_info->evtchn_upcall_pending = 1;
+	if (synch_test_bit(port, s->evtchn_pending)) {
+		vcpu_info_t *vcpu_info = current_vcpu_info();
+
+		if (!synch_test_and_set_bit(port / BITS_PER_LONG,
+					    &vcpu_info->evtchn_pending_sel))
+			vcpu_info->evtchn_upcall_pending = 1;
+	}
 }
 EXPORT_SYMBOL_GPL(unmask_evtchn);
 
