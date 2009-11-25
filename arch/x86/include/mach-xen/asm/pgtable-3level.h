@@ -53,7 +53,6 @@ static inline int pte_exec_kernel(pte_t pte)
  * not possible, use pte_get_and_clear to obtain the old pte
  * value and then use set_pte to update it.  -ben
  */
-#define __HAVE_ARCH_SET_PTE_ATOMIC
 
 static inline void set_pte(pte_t *ptep, pte_t pte)
 {
@@ -68,14 +67,6 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 	if (((_mm) != current->mm && (_mm) != &init_mm) ||		\
 	    HYPERVISOR_update_va_mapping((addr), (pteval), 0))		\
 		set_pte((ptep), (pteval));				\
-} while (0)
-
-#define set_pte_at_sync(_mm,addr,ptep,pteval) do {			\
-	if (((_mm) != current->mm && (_mm) != &init_mm) ||		\
-	    HYPERVISOR_update_va_mapping((addr), (pteval), UVMF_INVLPG)) { \
-		set_pte((ptep), (pteval));				\
-		xen_invlpg((addr));					\
-	}								\
 } while (0)
 
 #define set_pmd(pmdptr,pmdval)				\
@@ -94,7 +85,7 @@ static inline void pud_clear (pud_t * pud) { }
 #define pud_page(pud) \
 ((struct page *) __va(pud_val(pud) & PAGE_MASK))
 
-#define pud_page_kernel(pud) \
+#define pud_page_vaddr(pud) \
 ((unsigned long) __va(pud_val(pud) & PAGE_MASK))
 
 
@@ -124,6 +115,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 
 #define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
 
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
@@ -142,6 +134,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	return pte;
 }
 
+#define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define ptep_clear_flush(vma, addr, ptep)			\
 ({								\
 	pte_t *__ptep = (ptep);					\
@@ -159,6 +152,7 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	__res;							\
 })
 
+#define __HAVE_ARCH_PTE_SAME
 static inline int pte_same(pte_t a, pte_t b)
 {
 	return a.pte_low == b.pte_low && a.pte_high == b.pte_high;

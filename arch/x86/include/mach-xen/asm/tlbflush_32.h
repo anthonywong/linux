@@ -8,8 +8,6 @@
 #define __flush_tlb_global() xen_tlb_flush()
 #define __flush_tlb_all() xen_tlb_flush()
 
-extern unsigned long pgkern_mask;
-
 #define cpu_has_invlpg	(boot_cpu_data.x86 > 3)
 
 #define __flush_tlb_single(addr) xen_invlpg(addr)

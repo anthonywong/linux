@@ -37,6 +37,7 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/mm.h>
+#include <linux/swap.h>
 #include <linux/mman.h>
 #include <linux/smp_lock.h>
 #include <linux/pagemap.h>
@@ -81,11 +82,7 @@ struct balloon_stats balloon_stats;
 /* We increase/decrease in batches which fit in a page */
 static unsigned long frame_list[PAGE_SIZE / sizeof(unsigned long)];
 
-/* VM /proc information for memory */
-extern unsigned long totalram_pages;
-
-#ifndef MODULE
-extern unsigned long totalhigh_pages;
+#if !defined(MODULE) && defined(CONFIG_HIGHMEM)
 #define inc_totalhigh_pages() (totalhigh_pages++)
 #define dec_totalhigh_pages() (totalhigh_pages--)
 #else
@@ -121,29 +118,44 @@ static struct timer_list balloon_timer;
 	printk(KERN_WARNING "xen_mem: " fmt, ##args)
 
 /* balloon_append: add the given page to the balloon. */
-static void balloon_append(struct page *page)
+static void balloon_append(struct page *page, int account)
 {
+	unsigned long pfn;
+
 	/* Lowmem is re-populated first, so highmem pages go at list tail. */
 	if (PageHighMem(page)) {
 		list_add_tail(PAGE_TO_LIST(page), &ballooned_pages);
 		bs.balloon_high++;
-		dec_totalhigh_pages();
+		if (account)
+			dec_totalhigh_pages();
 	} else {
 		list_add(PAGE_TO_LIST(page), &ballooned_pages);
 		bs.balloon_low++;
 	}
+
+	pfn = page_to_pfn(page);
+	if (account) {
+		SetPageReserved(page);
+		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+		page_zone(page)->present_pages--;
+	} else {
+		BUG_ON(!PageReserved(page));
+		WARN_ON_ONCE(phys_to_machine_mapping_valid(pfn));
+	}
 }
 
 /* balloon_retrieve: rescue a page from the balloon, if it is not empty. */
-static struct page *balloon_retrieve(void)
+static struct page *balloon_retrieve(int *was_empty)
 {
 	struct page *page;
+	struct zone *zone;
 
 	if (list_empty(&ballooned_pages))
 		return NULL;
 
 	page = LIST_TO_PAGE(ballooned_pages.next);
 	UNLIST_PAGE(page);
+	BUG_ON(!PageReserved(page));
 
 	if (PageHighMem(page)) {
 		bs.balloon_high--;
@@ -151,6 +163,9 @@ static struct page *balloon_retrieve(void)
 	}
 	else
 		bs.balloon_low--;
+	zone = page_zone(page);
+	*was_empty |= !populated_zone(zone);
+	zone->present_pages++;
 
 	return page;
 }
@@ -236,6 +251,7 @@ static int increase_reservation(unsigned long nr_pages)
 	unsigned long  pfn, i, flags;
 	struct page   *page;
 	long           rc;
+	int            need_zonelists_rebuild = 0;
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
 		.extent_order = 0,
@@ -261,7 +277,7 @@ static int increase_reservation(unsigned long nr_pages)
 		goto out;
 
 	for (i = 0; i < rc; i++) {
-		page = balloon_retrieve();
+		page = balloon_retrieve(&need_zonelists_rebuild);
 		BUG_ON(page == NULL);
 
 		pfn = page_to_pfn(page);
@@ -293,6 +309,18 @@ static int increase_reservation(unsigned long nr_pages)
 
  out:
 	balloon_unlock(flags);
+
+#ifndef MODULE
+	setup_per_zone_pages_min();
+# if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_ACPI_HOTPLUG_MEMORY) \
+     || defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)
+	 /* build_all_zonelists() is __meminit */
+	if (need_zonelists_rebuild)
+		build_all_zonelists();
+	else
+# endif
+		vm_total_pages = nr_free_pagecache_pages();
+#endif
 
 	return rc < 0 ? rc : rc != nr_pages;
 }
@@ -352,8 +380,7 @@ static int decrease_reservation(unsigned long nr_pages)
 	/* No more mappings: invalidate P2M and add to balloon. */
 	for (i = 0; i < nr_pages; i++) {
 		pfn = mfn_to_pfn(frame_list[i]);
-		set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
-		balloon_append(pfn_to_page(pfn));
+		balloon_append(pfn_to_page(pfn), 1);
 	}
 
 	set_xen_guest_handle(reservation.extent_start, frame_list);
@@ -538,8 +565,11 @@ static int __init balloon_init(void)
 	/* Initialise the balloon with excess memory space. */
 	for (pfn = xen_start_info->nr_pages; pfn < max_pfn; pfn++) {
 		page = pfn_to_page(pfn);
-		if (!PageReserved(page))
-			balloon_append(page);
+		if (!PageReserved(page)) {
+			SetPageReserved(page);
+			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+			balloon_append(page, 0);
+		}
 	}
 #endif
 
@@ -574,7 +604,7 @@ void balloon_update_driver_allowance(long delta)
 static int dealloc_pte_fn(
 	pte_t *pte, struct page *pmd_page, unsigned long addr, void *data)
 {
-	unsigned long mfn = pte_mfn(*pte);
+	unsigned long pfn, mfn = pte_mfn(*pte);
 	int ret;
 	struct xen_memory_reservation reservation = {
 		.nr_extents   = 1,
@@ -583,7 +613,9 @@ static int dealloc_pte_fn(
 	};
 	set_xen_guest_handle(reservation.extent_start, &mfn);
 	set_pte_at(&init_mm, addr, pte, __pte_ma(0));
-	set_phys_to_machine(__pa(addr) >> PAGE_SHIFT, INVALID_P2M_ENTRY);
+	pfn = __pa(addr) >> PAGE_SHIFT;
+	set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+	SetPageReserved(pfn_to_page(pfn));
 	ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation, &reservation);
 	BUG_ON(ret != 1);
 	return 0;
@@ -641,6 +673,9 @@ struct page **alloc_empty_pages_and_pagevec(int nr_pages)
 		}
 
 		totalram_pages = --bs.current_pages;
+		if (PageHighMem(page))
+			dec_totalhigh_pages();
+		page_zone(page)->present_pages--;
 
 		balloon_unlock(flags);
 	}
@@ -655,7 +690,7 @@ struct page **alloc_empty_pages_and_pagevec(int nr_pages)
  err:
 	balloon_lock(flags);
 	while (--i >= 0)
-		balloon_append(pagevec[i]);
+		balloon_append(pagevec[i], 0);
 	balloon_unlock(flags);
 	kfree(pagevec);
 	pagevec = NULL;
@@ -673,7 +708,7 @@ void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages)
 	balloon_lock(flags);
 	for (i = 0; i < nr_pages; i++) {
 		BUG_ON(page_count(pagevec[i]) != 1);
-		balloon_append(pagevec[i]);
+		balloon_append(pagevec[i], 0);
 	}
 	balloon_unlock(flags);
 
@@ -687,7 +722,7 @@ void balloon_release_driver_page(struct page *page)
 	unsigned long flags;
 
 	balloon_lock(flags);
-	balloon_append(page);
+	balloon_append(page, 1);
 	bs.driver_pages--;
 	balloon_unlock(flags);
 

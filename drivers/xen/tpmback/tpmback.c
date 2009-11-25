@@ -502,7 +502,7 @@ static ssize_t vtpm_op_read(struct file *file,
 		list_del(&pak->next);
 		write_unlock_irqrestore(&dataex.pak_lock, flags);
 
-		DPRINTK("size given by app: %d, available: %d\n", size, left);
+		DPRINTK("size given by app: %zu, available: %u\n", size, left);
 
 		ret_size = min_t(size_t, size, left);
 
@@ -899,7 +899,7 @@ static void tpm_tx_action(unsigned long unused)
 	}
 }
 
-irqreturn_t tpmif_be_int(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t tpmif_be_int(int irq, void *dev_id)
 {
 	tpmif_t *tpmif = (tpmif_t *) dev_id;
 
