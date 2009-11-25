@@ -1,5 +1,5 @@
 /*
- *  linux/arch/x86_64/kernel/head64.c -- prepare to run common code
+ *  prepare to run common code
  *
  *  Copyright (C) 2000 Andrea Arcangeli <andrea@suse.de> SuSE
  *
@@ -21,7 +21,6 @@
 #include <asm/processor.h>
 #include <asm/proto.h>
 #include <asm/smp.h>
-#include <asm/bootsetup.h>
 #include <asm/setup.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
@@ -47,27 +46,16 @@ static void __init clear_bss(void)
 }
 #endif
 
-#define NEW_CL_POINTER		0x228	/* Relative to real mode data */
-#define OLD_CL_MAGIC_ADDR	0x20
-#define OLD_CL_MAGIC            0xA33F
-#define OLD_CL_OFFSET           0x22
-
 static void __init copy_bootdata(char *real_mode_data)
 {
 #ifndef CONFIG_XEN
-	unsigned long new_data;
 	char * command_line;
 
-	memcpy(x86_boot_params, real_mode_data, BOOT_PARAM_SIZE);
-	new_data = *(u32 *) (x86_boot_params + NEW_CL_POINTER);
-	if (!new_data) {
-		if (OLD_CL_MAGIC != *(u16 *)(real_mode_data + OLD_CL_MAGIC_ADDR)) {
-			return;
-		}
-		new_data = __pa(real_mode_data) + *(u16 *)(real_mode_data + OLD_CL_OFFSET);
+	memcpy(&boot_params, real_mode_data, sizeof boot_params);
+	if (boot_params.hdr.cmd_line_ptr) {
+		command_line = __va(boot_params.hdr.cmd_line_ptr);
+		memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	}
-	command_line = __va(new_data);
-	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 #else
 	int max_cmdline;
 	
@@ -117,7 +105,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	for (i = 0; i < IDT_ENTRIES; i++)
 		set_intr_gate(i, early_idt_handler);
-	asm volatile("lidt %0" :: "m" (idt_descr));
+	load_idt((const struct desc_ptr *)&idt_descr);
 #endif
 
 	early_printk("Kernel alive\n");

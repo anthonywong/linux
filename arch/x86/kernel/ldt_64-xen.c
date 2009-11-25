@@ -1,6 +1,4 @@
 /*
- * linux/arch/x86_64/kernel/ldt.c
- *
  * Copyright (C) 1992 Krishna Balasubramanian and Linus Torvalds
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  * Copyright (C) 2002 Andi Kleen
@@ -112,19 +110,14 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	int retval = 0;
 
 	memset(&mm->context, 0, sizeof(mm->context));
-	init_MUTEX(&mm->context.sem);
+	mutex_init(&mm->context.lock);
 	old_mm = current->mm;
 	if (old_mm)
 		mm->context.vdso = old_mm->context.vdso;
 	if (old_mm && old_mm->context.size > 0) {
-		down(&old_mm->context.sem);
+		mutex_lock(&old_mm->context.lock);
 		retval = copy_ldt(&mm->context, &old_mm->context);
-		up(&old_mm->context.sem);
-	}
-	if (retval == 0) {
-		spin_lock(&mm_unpinned_lock);
-		list_add(&mm->context.unpinned, &mm_unpinned);
-		spin_unlock(&mm_unpinned_lock);
+		mutex_unlock(&old_mm->context.lock);
 	}
 	return retval;
 }
@@ -148,11 +141,6 @@ void destroy_context(struct mm_struct *mm)
 			kfree(mm->context.ldt);
 		mm->context.size = 0;
 	}
-	if (!PagePinned(virt_to_page(mm->pgd))) {
-		spin_lock(&mm_unpinned_lock);
-		list_del(&mm->context.unpinned);
-		spin_unlock(&mm_unpinned_lock);
-	}
 }
 
 static int read_ldt(void __user * ptr, unsigned long bytecount)
@@ -166,7 +154,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 	if (bytecount > LDT_ENTRY_SIZE*LDT_ENTRIES)
 		bytecount = LDT_ENTRY_SIZE*LDT_ENTRIES;
 
-	down(&mm->context.sem);
+	mutex_lock(&mm->context.lock);
 	size = mm->context.size*LDT_ENTRY_SIZE;
 	if (size > bytecount)
 		size = bytecount;
@@ -174,7 +162,7 @@ static int read_ldt(void __user * ptr, unsigned long bytecount)
 	err = 0;
 	if (copy_to_user(ptr, mm->context.ldt, size))
 		err = -EFAULT;
-	up(&mm->context.sem);
+	mutex_unlock(&mm->context.lock);
 	if (err < 0)
 		goto error_return;
 	if (size != bytecount) {
@@ -227,7 +215,7 @@ static int write_ldt(void __user * ptr, unsigned long bytecount, int oldmode)
 			goto out;
 	}
 
-	down(&mm->context.sem);
+	mutex_lock(&mm->context.lock);
 	if (ldt_info.entry_number >= (unsigned)mm->context.size) {
 		error = alloc_ldt(&current->mm->context, ldt_info.entry_number+1, 1);
 		if (error < 0)
@@ -256,7 +244,7 @@ install:
 	error = HYPERVISOR_update_descriptor(mach_lp, (unsigned long)((entry_1 | (unsigned long) entry_2 << 32)));
 
 out_unlock:
-	up(&mm->context.sem);
+	mutex_unlock(&mm->context.lock);
 out:
 	return error;
 }
