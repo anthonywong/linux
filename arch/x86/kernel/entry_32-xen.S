@@ -59,7 +59,7 @@
  * for paravirtualization.  The following will never clobber any registers:
  *   INTERRUPT_RETURN (aka. "iret")
  *   GET_CR0_INTO_EAX (aka. "movl %cr0, %eax")
- *   ENABLE_INTERRUPTS_SYSEXIT (aka "sti; sysexit").
+ *   ENABLE_INTERRUPTS_SYSCALL_RET (aka "sti; sysexit").
  *
  * For DISABLE_INTERRUPTS/ENABLE_INTERRUPTS (aka "cli"/"sti"), you must
  * specify what registers can be overwritten (CLBR_NONE, CLBR_EAX/EDX/ECX/ANY).
@@ -282,16 +282,21 @@ END(resume_kernel)
 #endif
 	CFI_ENDPROC
 
+	.macro test_tif ti_reg		# system call tracing in operation / emulation
+	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
+	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(\ti_reg)
+	.endm
+
 /* SYSENTER_RETURN points to after the "sysenter" instruction in
    the vsyscall page.  See vsyscall-sysentry.S, which defines the symbol.  */
 
 	# sysenter call handler stub
-ENTRY(sysenter_entry)
+ENTRY(ia32_sysenter_target)
 	CFI_STARTPROC simple
 	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA esp, 0
 	CFI_REGISTER esp, ebp
-	movl SYSENTER_stack_esp0(%esp),%esp
+	movl SYSENTER_stack_sp0(%esp),%esp
 sysenter_past_esp:
 	/*
 	 * No need to follow this irqs on/off section: the syscall
@@ -334,9 +339,7 @@ sysenter_past_esp:
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
-
-	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
+	test_tif %ebp
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -354,7 +357,7 @@ sysenter_past_esp:
 	xorl %ebp,%ebp
 	TRACE_IRQS_ON
 1:	mov  PT_FS(%esp), %fs
-	ENABLE_INTERRUPTS_SYSEXIT
+	ENABLE_INTERRUPTS_SYSCALL_RET
 	CFI_ENDPROC
 .pushsection .fixup,"ax"
 2:	movl $0,PT_FS(%esp)
@@ -363,10 +366,10 @@ sysenter_past_esp:
 	.align 4
 	.long 1b,2b
 .popsection
-ENDPROC(sysenter_entry)
+ENDPROC(ia32_sysenter_target)
 
 	# pv sysenter call handler stub
-ENTRY(sysenter_entry_pv)
+ENTRY(ia32pv_sysenter_target)
 	RING0_INT_FRAME
 	movl $__USER_DS,16(%esp)
 	movl %ebp,12(%esp)
@@ -389,7 +392,7 @@ ENTRY(sysenter_entry_pv)
 .previous
 	/* fall through */
 	CFI_ENDPROC
-ENDPROC(sysenter_entry_pv)
+ENDPROC(ia32pv_sysenter_target)
 
 	# system call handler stub
 ENTRY(system_call)
@@ -398,9 +401,7 @@ ENTRY(system_call)
 	CFI_ADJUST_CFA_OFFSET 4
 	SAVE_ALL
 	GET_THREAD_INFO(%ebp)
-					# system call tracing in operation / emulation
-	/* Note, _TIF_SECCOMP is bit number 8, and so it needs testw and not testb */
-	testw $(_TIF_SYSCALL_EMU|_TIF_SYSCALL_TRACE|_TIF_SECCOMP|_TIF_SYSCALL_AUDIT),TI_flags(%ebp)
+	test_tif %ebp
 	jnz syscall_trace_entry
 	cmpl $(nr_syscalls), %eax
 	jae syscall_badsys
@@ -452,7 +453,8 @@ restore_nocheck_notrace:
 	RESTORE_REGS
 	addl $4, %esp			# skip orig_eax/error_code
 	CFI_ADJUST_CFA_OFFSET -4
-1:	INTERRUPT_RETURN
+irq_return:
+	INTERRUPT_RETURN
 .section .fixup,"ax"
 iret_exc:
 	pushl $0			# no error code
@@ -461,7 +463,7 @@ iret_exc:
 .previous
 .section __ex_table,"a"
 	.align 4
-	.long 1b,iret_exc
+	.long irq_return,iret_exc
 .previous
 
 	CFI_RESTORE_STATE
@@ -657,7 +659,7 @@ END(syscall_badsys)
  * Build the entry stubs and pointer table with
  * some assembler magic.
  */
-.data
+.section .rodata,"a"
 ENTRY(interrupt)
 .text
 
@@ -963,7 +965,7 @@ END(device_not_available)
  * that sets up the real kernel stack. Check here, since we can't
  * allow the wrong stack to be used.
  *
- * "SYSENTER_stack_esp0+12" is because the NMI/debug handler will have
+ * "SYSENTER_stack_sp0+12" is because the NMI/debug handler will have
  * already pushed 3 words if it hits on the sysenter instruction:
  * eflags, cs and eip.
  *
@@ -975,7 +977,7 @@ END(device_not_available)
 	cmpw $__KERNEL_CS,4(%esp);		\
 	jne ok;					\
 label:						\
-	movl SYSENTER_stack_esp0+offset(%esp),%esp;	\
+	movl SYSENTER_stack_sp0+offset(%esp),%esp;	\
 	CFI_DEF_CFA esp, 0;			\
 	CFI_UNDEFINED eip;			\
 	pushfl;					\
@@ -990,7 +992,7 @@ label:						\
 KPROBE_ENTRY(debug)
 	RING0_INT_FRAME
 #ifndef CONFIG_XEN
-	cmpl $sysenter_entry,(%esp)
+	cmpl $ia32_sysenter_target,(%esp)
 	jne debug_stack_correct
 	FIX_STACK(12, debug_stack_correct, debug_esp_fix_insn)
 debug_stack_correct:
@@ -1023,7 +1025,7 @@ KPROBE_ENTRY(nmi)
 	popl %eax
 	CFI_ADJUST_CFA_OFFSET -4
 	je nmi_espfix_stack
-	cmpl $sysenter_entry,(%esp)
+	cmpl $ia32_sysenter_target,(%esp)
 	je nmi_stack_fixup
 	pushl %eax
 	CFI_ADJUST_CFA_OFFSET 4
@@ -1036,7 +1038,7 @@ KPROBE_ENTRY(nmi)
 	popl %eax
 	CFI_ADJUST_CFA_OFFSET -4
 	jae nmi_stack_correct
-	cmpl $sysenter_entry,12(%esp)
+	cmpl $ia32_sysenter_target,12(%esp)
 	je nmi_debug_stack_check
 nmi_stack_correct:
 	/* We have a RING0_INT_FRAME here */
@@ -1089,12 +1091,8 @@ nmi_espfix_stack:
 	RESTORE_REGS
 	lss 12+4(%esp), %esp		# back to espfix stack
 	CFI_ADJUST_CFA_OFFSET -24
-1:	INTERRUPT_RETURN
+	jmp irq_return
 	CFI_ENDPROC
-.section __ex_table,"a"
-	.align 4
-	.long 1b,iret_exc
-.previous
 #else
 KPROBE_ENTRY(nmi)
 	RING0_INT_FRAME
@@ -1112,17 +1110,17 @@ KPROBE_END(nmi)
 
 #ifdef CONFIG_PARAVIRT
 ENTRY(native_iret)
-1:	iret
+	iret
 .section __ex_table,"a"
 	.align 4
-	.long 1b,iret_exc
+	.long native_iret, iret_exc
 .previous
 END(native_iret)
 
-ENTRY(native_irq_enable_sysexit)
+ENTRY(native_irq_enable_syscall_ret)
 	sti
 	sysexit
-END(native_irq_enable_sysexit)
+END(native_irq_enable_syscall_ret)
 #endif
 
 KPROBE_ENTRY(int3)
@@ -1271,7 +1269,144 @@ ENTRY(kernel_thread_helper)
 	CFI_ENDPROC
 ENDPROC(kernel_thread_helper)
 
+#include <asm/alternative-asm.h>
+
+	# pv syscall call handler stub
+ENTRY(ia32pv_cstar_target)
+	RING0_INT_FRAME
+	movl $__USER_DS,16(%esp)
+	movl %ebp,%ecx
+	movl $__USER_CS,4(%esp)
+	movl 12(%esp),%ebp
+	pushl %eax			# save orig_eax
+	CFI_ADJUST_CFA_OFFSET 4
+/*
+ * Load the potential sixth argument from user stack.
+ * Careful about security.
+ */
+	cmpl $__PAGE_OFFSET-4,%ebp
+	CFI_REMEMBER_STATE
+	ja cstar_fault
+1:	movl (%ebp),%ebp
+.section __ex_table,"a"
+	.align 4
+	.long 1b,cstar_fault
+.previous
+	SAVE_ALL
+	GET_THREAD_INFO(%ebp)
+	test_tif %ebp
+	jnz cstar_trace_entry
+	cmpl $nr_syscalls,%eax
+	jae cstar_badsys
+.Lcstar_call:
+	btl %eax,cstar_special
+	jc .Lcstar_special
+	call *cstar_call_table(,%eax,4)
+	movl %eax,PT_EAX(%esp)		# store the return value
+.Lcstar_exit:
+	movl PT_ECX(%esp),%ecx
+	movl %ecx,PT_EBP(%esp)		# put user EBP back in place
+	jmp syscall_exit
+.Lcstar_special:
+	movl PT_ECX(%esp),%ecx
+	movl %ecx,PT_EBP(%esp)		# put user EBP back in place
+	jmp syscall_call
+cstar_set_tif:
+	movl $cstar_clear_tif,(%esp)	# replace return address
+	LOCK_PREFIX
+	orl $_TIF_CSTAR,TI_flags(%ebp)
+	jmp *sys_call_table(,%eax,4)
+cstar_clear_tif:
+	movl %eax,PT_EAX(%esp)		# store the return value
+	LOCK_PREFIX
+	andl $~_TIF_CSTAR,TI_flags(%ebp)
+	jmp .Lcstar_exit
+cstar_trace_entry:
+	movl $-ENOSYS,PT_EAX(%esp)
+	cmpl $nr_syscalls,%eax
+	jae 1f
+	btl %eax,cstar_special
+	jc .Lcstar_trace_special
+1:	movl %esp,%eax
+	xorl %edx,%edx
+	LOCK_PREFIX
+	orl $_TIF_CSTAR,TI_flags(%ebp)
+	call do_syscall_trace
+	LOCK_PREFIX
+	andl $~_TIF_CSTAR,TI_flags(%ebp)
+	testl %eax,%eax
+	jne .Lcstar_resume		# ret != 0 -> running under PTRACE_SYSEMU,
+					# so must skip actual syscall
+	movl PT_ORIG_EAX(%esp),%eax
+	cmpl $nr_syscalls,%eax
+	jb .Lcstar_call
+	jmp .Lcstar_exit
+.Lcstar_trace_special:
+	movl PT_ECX(%esp),%ecx
+	movl %esp,%eax
+	xorl %edx,%edx
+	movl %ecx,PT_EBP(%esp)		# put user EBP back in place
+	call do_syscall_trace
+	testl %eax,%eax
+	jne resume_userspace		# ret != 0 -> running under PTRACE_SYSEMU,
+					# so must skip actual syscall
+	movl PT_ORIG_EAX(%esp),%eax
+	cmpl $nr_syscalls,%eax
+	jb syscall_call
+	jmp syscall_exit
+cstar_badsys:
+	movl $-ENOSYS,PT_EAX(%esp)
+.Lcstar_resume:
+	movl PT_ECX(%esp),%ecx
+	movl %ecx,PT_EBP(%esp)		# put user EBP back in place
+	jmp resume_userspace
+	CFI_RESTORE_STATE
+cstar_fault:
+	movl $-EFAULT,%eax
+	SAVE_ALL
+	GET_THREAD_INFO(%ebp)
+	jmp .Lcstar_resume
+	CFI_ENDPROC
+ENDPROC(ia32pv_cstar_target)
+
+ENTRY(cstar_ret_from_fork)
+	CFI_STARTPROC
+	movl PT_ECX(%esp),%ecx
+	GET_THREAD_INFO(%ebp)
+	movl %ecx,PT_EBP(%esp)		# put user EBP back in place
+	LOCK_PREFIX
+	andl $~_TIF_CSTAR,TI_flags(%ebp)
+	jmp ret_from_fork
+	CFI_ENDPROC
+END(ret_from_fork)
+
 .section .rodata,"a"
 #include "syscall_table_32.S"
 
 syscall_table_size=(.-sys_call_table)
+
+#include <asm/unistd.h>
+cstar_special:
+nr=0
+mask=0
+.rept nr_syscalls+31
+ .irp n, __NR_sigreturn, __NR_rt_sigreturn
+  .if nr == \n
+   mask = mask | (1 << (\n & 31))
+  .endif
+ .endr
+ nr = nr + 1
+ .if (nr & 31) == 0
+  .long mask
+  mask = 0
+ .endif
+.endr
+#define	sys_call_table cstar_call_table
+#define	sys_fork cstar_set_tif
+#define	sys_clone cstar_set_tif
+#define	sys_vfork cstar_set_tif
+#include "syscall_table_32.S"
+#undef	sys_call_table
+#undef	sys_fork
+#undef	sys_clone
+#undef	sys_vfork

@@ -264,6 +264,7 @@ config DEBUG_BOOT_PARAMS
 	bool "Debug boot parameters"
 	depends on DEBUG_KERNEL
 	depends on DEBUG_FS
+	depends on !XEN
 	---help---
 	  This option will cause struct boot_params to be exported via debugfs.
 

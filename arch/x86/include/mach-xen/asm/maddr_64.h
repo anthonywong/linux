@@ -1,6 +1,7 @@
 #ifndef _X86_64_MADDR_H
 #define _X86_64_MADDR_H
 
+#include <asm/bug.h>
 #include <xen/features.h>
 #include <xen/interface/xen.h>
 
@@ -16,6 +17,7 @@ typedef unsigned long maddr_t;
 #ifdef CONFIG_XEN
 
 extern unsigned long *phys_to_machine_mapping;
+extern unsigned long  max_mapnr;
 
 #undef machine_to_phys_mapping
 extern unsigned long *machine_to_phys_mapping;
@@ -25,7 +27,7 @@ static inline unsigned long pfn_to_mfn(unsigned long pfn)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return pfn;
-	BUG_ON(end_pfn && pfn >= end_pfn);
+	BUG_ON(max_mapnr && pfn >= max_mapnr);
 	return phys_to_machine_mapping[pfn] & ~FOREIGN_FRAME_BIT;
 }
 
@@ -33,7 +35,7 @@ static inline int phys_to_machine_mapping_valid(unsigned long pfn)
 {
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return 1;
-	BUG_ON(end_pfn && pfn >= end_pfn);
+	BUG_ON(max_mapnr && pfn >= max_mapnr);
 	return (phys_to_machine_mapping[pfn] != INVALID_P2M_ENTRY);
 }
 
@@ -45,7 +47,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		return mfn;
 
 	if (unlikely((mfn >> machine_to_phys_order) != 0))
-		return end_pfn;
+		return max_mapnr;
 
 	/* The array access can fail (e.g., device space beyond end of RAM). */
 	asm (
@@ -60,7 +62,7 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 		"	.quad 1b,3b\n"
 		".previous"
 		: "=r" (pfn)
-		: "m" (machine_to_phys_mapping[mfn]), "m" (end_pfn) );
+		: "m" (machine_to_phys_mapping[mfn]), "m" (max_mapnr) );
 
 	return pfn;
 }
@@ -88,16 +90,16 @@ static inline unsigned long mfn_to_pfn(unsigned long mfn)
 static inline unsigned long mfn_to_local_pfn(unsigned long mfn)
 {
 	unsigned long pfn = mfn_to_pfn(mfn);
-	if ((pfn < end_pfn)
+	if ((pfn < max_mapnr)
 	    && !xen_feature(XENFEAT_auto_translated_physmap)
 	    && (phys_to_machine_mapping[pfn] != mfn))
-		return end_pfn; /* force !pfn_valid() */
+		return max_mapnr; /* force !pfn_valid() */
 	return pfn;
 }
 
 static inline void set_phys_to_machine(unsigned long pfn, unsigned long mfn)
 {
-	BUG_ON(end_pfn && pfn >= end_pfn);
+	BUG_ON(max_mapnr && pfn >= max_mapnr);
 	if (xen_feature(XENFEAT_auto_translated_physmap)) {
 		BUG_ON(pfn != mfn && mfn != INVALID_P2M_ENTRY);
 		return;
@@ -134,9 +136,6 @@ static inline paddr_t pte_machine_to_phys(maddr_t machine)
 	phys = (phys << PAGE_SHIFT) | (machine & ~PHYSICAL_PAGE_MASK);
 	return phys;
 }
-
-#define __pte_ma(x)     ((pte_t) { (x) } )
-#define pfn_pte_ma(pfn, prot)	__pte_ma((((pfn) << PAGE_SHIFT) | pgprot_val(prot)) & __supported_pte_mask)
 
 #else /* !CONFIG_XEN */
 
