@@ -208,13 +208,6 @@ flush_tlb_kernel_page(unsigned long kvaddr)
 #endif
 }
 
-static void
-blktap_device_end_dequeued_request(struct request *req, int ret)
-{
-	if (blk_end_request(req, ret, blk_rq_bytes(req)))
-		BUG();
-}
-
 /*
  * tap->tap_sem held on entry
  */
@@ -382,7 +375,7 @@ blktap_device_fail_pending_requests(struct blktap *tap)
 
 		blktap_unmap(tap, request);
 		req = (struct request *)(unsigned long)request->id;
-		blktap_device_end_dequeued_request(req, -ENODEV);
+		blk_end_request_all(req, -ENODEV);
 		blktap_request_free(tap, request);
 	}
 
@@ -421,7 +414,7 @@ blktap_device_finish_request(struct blktap *tap,
 		if (unlikely(res->status != BLKIF_RSP_OKAY))
 			BTERR("Bad return from device data "
 				"request: %x\n", res->status);
-		blktap_device_end_dequeued_request(req,
+		blk_end_request_all(req,
 			res->status == BLKIF_RSP_OKAY ? 0 : -EIO);
 		break;
 	default:
@@ -648,7 +641,7 @@ blktap_device_process_request(struct blktap *tap,
 	ring    = &tap->ring;
 	usr_idx = request->usr_idx;
 	blkif_req.id = usr_idx;
-	blkif_req.sector_number = (blkif_sector_t)req->sector;
+	blkif_req.sector_number = (blkif_sector_t)blk_rq_pos(req);
 	blkif_req.handle = 0;
 	blkif_req.operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
@@ -846,25 +839,7 @@ blktap_device_run_queue(struct blktap *tap)
 
 	BTDBG("running queue for %d\n", tap->minor);
 
-	while ((req = elv_next_request(rq)) != NULL) {
-		if (!blk_fs_request(req)) {
-			end_request(req, 0);
-			continue;
-		}
-
-		if (blk_barrier_rq(req)) {
-			end_request(req, 0);
-			continue;
-		}
-
-#ifdef ENABLE_PASSTHROUGH
-		if (test_bit(BLKTAP_PASSTHROUGH, &tap->dev_inuse)) {
-			blkdev_dequeue_request(req);
-			blktap_device_forward_request(tap, req);
-			continue;
-		}
-#endif
-
+	while ((req = blk_peek_request(rq)) != NULL) {
 		if (RING_FULL(&ring->ring)) {
 		wait:
 			/* Avoid pointless unplugs. */
@@ -873,19 +848,36 @@ blktap_device_run_queue(struct blktap *tap)
 			break;
 		}
 
+		blk_start_request(req);
+
+		if (!blk_fs_request(req)) {
+			__blk_end_request_all(req, -EIO);
+			continue;
+		}
+
+		if (blk_barrier_rq(req)) {
+			__blk_end_request_all(req, -EOPNOTSUPP);
+			continue;
+		}
+
+#ifdef ENABLE_PASSTHROUGH
+		if (test_bit(BLKTAP_PASSTHROUGH, &tap->dev_inuse)) {
+			blktap_device_forward_request(tap, req);
+			continue;
+		}
+#endif
+
 		request = blktap_request_allocate(tap);
 		if (!request) {
 			tap->stats.st_oo_req++;
 			goto wait;
 		}
 
-		BTDBG("req %p: dev %d cmd %p, sec 0x%llx, (0x%x/0x%lx) "
+		BTDBG("req %p: dev %d cmd %p, sec 0x%llx, (0x%x/0x%x) "
 		      "buffer:%p [%s], pending: %p\n", req, tap->minor,
-		      req->cmd, (unsigned long long)req->sector,
-		      req->current_nr_sectors, req->nr_sectors, req->buffer,
+		      req->cmd, (unsigned long long)blk_rq_pos(req),
+		      blk_rq_cur_sectors(req), blk_rq_sectors(req), req->buffer,
 		      rq_data_dir(req) ? "write" : "read", request);
-
-		blkdev_dequeue_request(req);
 
 		spin_unlock_irq(&dev->lock);
 		down_read(&tap->tap_sem);
@@ -894,7 +886,7 @@ blktap_device_run_queue(struct blktap *tap)
 		if (!err)
 			queued++;
 		else {
-			blktap_device_end_dequeued_request(req, err);
+			blk_end_request_all(req, err);
 			blktap_request_free(tap, request);
 		}
 
@@ -934,11 +926,13 @@ blktap_device_do_request(struct request_queue *rq)
 	return;
 
 fail:
-	while ((req = elv_next_request(rq))) {
+	while ((req = blk_peek_request(rq))) {
 		BTERR("device closed: failing secs %llu - %llu\n",
-		      (unsigned long long)req->sector,
-		      (unsigned long long)req->sector + req->nr_sectors);
-		end_request(req, 0);
+		      (unsigned long long)blk_rq_pos(req),
+		      (unsigned long long)blk_rq_pos(req)
+		      + blk_rq_cur_sectors(req));
+		blk_start_request(req);
+		__blk_end_request_all(req, -EIO);
 	}
 }
 
@@ -991,7 +985,7 @@ blktap_device_configure(struct blktap *tap)
 	set_capacity(dev->gd, tap->params.capacity);
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
-	blk_queue_hardsect_size(rq, tap->params.sector_size);
+	blk_queue_logical_block_size(rq, tap->params.sector_size);
 	blk_queue_max_sectors(rq, 512);
 
 	/* Each segment in a request is up to an aligned page in size. */
