@@ -24,7 +24,7 @@
 #include <asm/bug.h>
 
 #ifdef __x86_64__
-#include <asm/proto.h>
+#include <asm/iommu.h>
 
 int iommu_merge __read_mostly = 0;
 EXPORT_SYMBOL(iommu_merge);

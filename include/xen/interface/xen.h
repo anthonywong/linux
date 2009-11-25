@@ -32,7 +32,9 @@
 #include <asm/pvclock-abi.h>
 #endif
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(CONFIG_PARAVIRT_XEN) && !defined(HAVE_XEN_PLATFORM_COMPAT_H)
+#include <asm/xen/interface.h>
+#elif defined(__i386__) || defined(__x86_64__)
 #include "arch-x86/xen.h"
 #elif defined(__ia64__)
 #include "arch-ia64.h"
@@ -111,7 +113,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
  */
 
 /* New sched_op hypercall introduced in 0x00030101. */
-#if __XEN_INTERFACE_VERSION__ < 0x00030101
+#if __XEN_INTERFACE_VERSION__ < 0x00030101 || (defined(CONFIG_PARAVIRT_XEN) && !defined(HAVE_XEN_PLATFORM_COMPAT_H))
 #undef __HYPERVISOR_sched_op
 #define __HYPERVISOR_sched_op __HYPERVISOR_sched_op_compat
 #else
@@ -127,7 +129,7 @@ DEFINE_XEN_GUEST_HANDLE(xen_pfn_t);
 #endif
 
 /* New platform_op hypercall introduced in 0x00030204. */
-#if __XEN_INTERFACE_VERSION__ < 0x00030204
+#if __XEN_INTERFACE_VERSION__ < 0x00030204 || (defined(CONFIG_PARAVIRT_XEN) && !defined(HAVE_XEN_PLATFORM_COMPAT_H))
 #define __HYPERVISOR_dom0_op __HYPERVISOR_platform_op
 #endif
 
@@ -286,6 +288,7 @@ struct mmuext_op {
         xen_pfn_t src_mfn;
     } arg2;
 };
+DEFINE_GUEST_HANDLE_STRUCT(mmuext_op);
 typedef struct mmuext_op mmuext_op_t;
 DEFINE_XEN_GUEST_HANDLE(mmuext_op_t);
 #endif
@@ -371,6 +374,7 @@ struct mmu_update {
     uint64_t ptr;       /* Machine address of PTE. */
     uint64_t val;       /* New contents of PTE.    */
 };
+DEFINE_GUEST_HANDLE_STRUCT(mmu_update);
 typedef struct mmu_update mmu_update_t;
 DEFINE_XEN_GUEST_HANDLE(mmu_update_t);
 
@@ -379,9 +383,15 @@ DEFINE_XEN_GUEST_HANDLE(mmu_update_t);
  * NB. The fields are natural register size for this architecture.
  */
 struct multicall_entry {
-    unsigned long op, result;
+    unsigned long op;
+#if !defined(CONFIG_PARAVIRT_XEN) || defined(HAVE_XEN_PLATFORM_COMPAT_H)
+    unsigned long result;
+#else
+    long result;
+#endif
     unsigned long args[6];
 };
+DEFINE_GUEST_HANDLE_STRUCT(multicall_entry);
 typedef struct multicall_entry multicall_entry_t;
 DEFINE_XEN_GUEST_HANDLE(multicall_entry_t);
 

@@ -12,6 +12,7 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 #include <asm/fixmap.h>
+#include <asm/pgtable.h>
 
 #include <xen/interface/callback.h>
 #include <xen/interface/memory.h>
@@ -101,7 +102,7 @@ void __init pre_setup_arch_hook(void)
 
 	init_mm.pgd = swapper_pg_dir = (pgd_t *)xen_start_info->pt_base;
 
-	setup_xen_features();
+	xen_setup_features();
 
 	if (HYPERVISOR_xen_version(XENVER_platform_parameters, &pp) == 0) {
 		hypervisor_virt_start = pp.virt_start;
@@ -157,4 +158,18 @@ void __init machine_specific_arch_setup(void)
 		HYPERVISOR_nmi_op(XENNMI_register_callback, &cb);
 	}
 #endif
+
+	/* Do an early initialization of the fixmap area */
+	{
+		extern pte_t swapper_pg_pmd[PTRS_PER_PTE];
+		unsigned long addr = __fix_to_virt(FIX_EARLYCON_MEM_BASE);
+		pgd_t *pgd = (pgd_t *)xen_start_info->pt_base;
+		pud_t *pud = pud_offset(pgd + pgd_index(addr), addr);
+		pmd_t *pmd = pmd_offset(pud, addr);
+
+		swapper_pg_dir = pgd;
+		init_mm.pgd    = pgd;
+		make_lowmem_page_readonly(swapper_pg_pmd, XENFEAT_writable_page_tables);
+		set_pmd(pmd, __pmd(__pa_symbol(swapper_pg_pmd) | _PAGE_TABLE));
+	}
 }
