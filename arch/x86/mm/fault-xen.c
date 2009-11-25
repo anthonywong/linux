@@ -328,6 +328,7 @@ static void dump_pagetable(unsigned long address)
 out:
 	printk(KERN_CONT "\n");
 }
+#define dump_pagetable(addr, krnl) dump_pagetable(addr)
 
 #else /* CONFIG_X86_64: */
 
@@ -452,13 +453,16 @@ static int bad_address(void *p)
 	return probe_kernel_address((unsigned long *)p, dummy);
 }
 
-static void dump_pagetable(unsigned long address)
+static void dump_pagetable(unsigned long address, bool kernel)
 {
 	pgd_t *base = __va(read_cr3() & PHYSICAL_PAGE_MASK);
 	pgd_t *pgd = base + pgd_index(address);
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+
+	if (!kernel)
+		pgd = __user_pgd(base) + pgd_index(address);
 
 	if (bad_address(pgd))
 		goto bad;
@@ -598,7 +602,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long error_code,
 	printk(KERN_ALERT "IP:");
 	printk_address(regs->ip, 1);
 
-	dump_pagetable(address);
+	dump_pagetable(address, !(error_code & PF_USER));
 }
 
 static noinline void
@@ -615,7 +619,7 @@ pgtable_bad(struct pt_regs *regs, unsigned long error_code,
 
 	printk(KERN_ALERT "%s: Corrupted page table at address %lx\n",
 	       tsk->comm, address);
-	dump_pagetable(address);
+	dump_pagetable(address, !(error_code & PF_USER));
 
 	tsk->thread.cr2		= address;
 	tsk->thread.trap_no	= 14;
