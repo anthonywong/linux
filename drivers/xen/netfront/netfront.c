@@ -513,7 +513,7 @@ static int setup_device(struct xenbus_device *dev, struct netfront_info *info)
 	memcpy(netdev->dev_addr, info->mac, ETH_ALEN);
 
 	err = bind_listening_port_to_irqhandler(
-		dev->otherend_id, netif_int, SA_SAMPLE_RANDOM, netdev->name,
+		dev->otherend_id, netif_int, IRQF_SAMPLE_RANDOM, netdev->name,
 		netdev);
 	if (err < 0)
 		goto fail;
