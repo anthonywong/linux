@@ -78,7 +78,7 @@ static int xenoprof_resume(struct sys_device * dev)
 
 
 static struct sysdev_class oprofile_sysclass = {
-	set_kset_name("oprofile"),
+	.name		= "oprofile",
 	.resume		= xenoprof_resume,
 	.suspend	= xenoprof_suspend
 };
