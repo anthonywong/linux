@@ -36,6 +36,7 @@
 #include <linux/personality.h>
 #include <linux/tick.h>
 #include <linux/percpu.h>
+#include <linux/prctl.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -45,7 +46,6 @@
 #include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/desc.h>
-#include <asm/vm86.h>
 #ifdef CONFIG_MATH_EMULATION
 #include <asm/math_emu.h>
 #endif
@@ -102,16 +102,6 @@ void enable_hlt(void)
 
 EXPORT_SYMBOL(enable_hlt);
 
-/*
- * On SMP it's slightly faster (but much more power-consuming!)
- * to poll the ->work.need_resched flag instead of waiting for the
- * cross-CPU IPI to arrive. Use this option with caution.
- */
-static void poll_idle(void)
-{
-	cpu_relax();
-}
-
 static void xen_idle(void)
 {
 	current_thread_info()->status &= ~TS_POLLING;
@@ -121,20 +111,10 @@ static void xen_idle(void)
 	 */
 	smp_mb();
 
-	local_irq_disable();
-	if (!need_resched()) {
-		ktime_t t0, t1;
-		u64 t0n, t1n;
-
-		t0 = ktime_get();
-		t0n = ktime_to_ns(t0);
+	if (!need_resched())
 		safe_halt();	/* enables interrupts racelessly */
-		local_irq_disable();
-		t1 = ktime_get();
-		t1n = ktime_to_ns(t1);
-		sched_clock_idle_wakeup_event(t1n - t0n);
-	}
-	local_irq_enable();
+	else
+		local_irq_enable();
 	current_thread_info()->status |= TS_POLLING;
 }
 #ifdef CONFIG_APM_MODULE
@@ -142,7 +122,6 @@ EXPORT_SYMBOL(default_idle);
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
-extern cpumask_t cpu_initialized;
 static inline void play_dead(void)
 {
 	idle_task_exit();
@@ -187,6 +166,7 @@ void cpu_idle(void)
 			if (cpu_is_offline(cpu))
 				play_dead();
 
+			local_irq_disable();
 			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
 			idle();
 		}
@@ -196,44 +176,6 @@ void cpu_idle(void)
 		preempt_disable();
 	}
 }
-
-static void do_nothing(void *unused)
-{
-}
-
-/*
- * cpu_idle_wait - Used to ensure that all the CPUs discard old value of
- * pm_idle and update to new pm_idle value. Required while changing pm_idle
- * handler on SMP systems.
- *
- * Caller must have changed pm_idle to the new value before the call. Old
- * pm_idle value will not be used by any CPU after the return of this function.
- */
-void cpu_idle_wait(void)
-{
-	smp_mb();
-	/* kick all the CPUs so that they exit out of pm_idle */
-	smp_call_function(do_nothing, NULL, 0, 1);
-}
-EXPORT_SYMBOL_GPL(cpu_idle_wait);
-
-void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
-{
-}
-
-static int __init idle_setup(char *str)
-{
-	if (!strcmp(str, "poll")) {
-		printk("using polling idle threads.\n");
-		pm_idle = poll_idle;
-	}
-	else
-		return -1;
-
-	boot_option_idle_override = 1;
-	return 0;
-}
-early_param("idle", idle_setup);
 
 void __show_registers(struct pt_regs *regs, int all)
 {
@@ -260,7 +202,7 @@ void __show_registers(struct pt_regs *regs, int all)
 			init_utsname()->version);
 
 	printk("EIP: %04x:[<%08lx>] EFLAGS: %08lx CPU: %d\n",
-			0xffff & regs->cs, regs->ip, regs->flags,
+			(u16)regs->cs, regs->ip, regs->flags,
 			smp_processor_id());
 	print_symbol("EIP is at %s\n", regs->ip);
 
@@ -269,8 +211,7 @@ void __show_registers(struct pt_regs *regs, int all)
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx ESP: %08lx\n",
 		regs->si, regs->di, regs->bp, sp);
 	printk(" DS: %04x ES: %04x FS: %04x GS: %04x SS: %04x\n",
-	       regs->ds & 0xffff, regs->es & 0xffff,
-	       regs->fs & 0xffff, gs, ss);
+	       (u16)regs->ds, (u16)regs->es, (u16)regs->fs, gs, ss);
 
 	if (!all)
 		return;
@@ -367,6 +308,7 @@ void flush_thread(void)
 	/*
 	 * Forget coprocessor state..
 	 */
+	tsk->fpu_counter = 0;
 	clear_fpu(tsk);
 	clear_used_math();
 }
@@ -437,11 +379,30 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long sp,
 	return err;
 }
 
-#ifdef CONFIG_SECCOMP
+void
+start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
+{
+	__asm__("movl %0, %%gs" :: "r"(0));
+	regs->fs		= 0;
+	set_fs(USER_DS);
+	regs->ds		= __USER_DS;
+	regs->es		= __USER_DS;
+	regs->ss		= __USER_DS;
+	regs->cs		= __USER_CS;
+	regs->ip		= new_ip;
+	regs->sp		= new_sp;
+	/*
+	 * Free the old FP and other extended state
+	 */
+	free_thread_xstate(current);
+}
+EXPORT_SYMBOL_GPL(start_thread);
+
 static void hard_disable_TSC(void)
 {
 	write_cr4(read_cr4() | X86_CR4_TSD);
 }
+
 void disable_TSC(void)
 {
 	preempt_disable();
@@ -453,11 +414,47 @@ void disable_TSC(void)
 		hard_disable_TSC();
 	preempt_enable();
 }
+
 static void hard_enable_TSC(void)
 {
 	write_cr4(read_cr4() & ~X86_CR4_TSD);
 }
-#endif /* CONFIG_SECCOMP */
+
+static void enable_TSC(void)
+{
+	preempt_disable();
+	if (test_and_clear_thread_flag(TIF_NOTSC))
+		/*
+		 * Must flip the CPU state synchronously with
+		 * TIF_NOTSC in the current running context.
+		 */
+		hard_enable_TSC();
+	preempt_enable();
+}
+
+int get_tsc_mode(unsigned long adr)
+{
+	unsigned int val;
+
+	if (test_thread_flag(TIF_NOTSC))
+		val = PR_TSC_SIGSEGV;
+	else
+		val = PR_TSC_ENABLE;
+
+	return put_user(val, (unsigned int __user *)adr);
+}
+
+int set_tsc_mode(unsigned int val)
+{
+	if (val == PR_TSC_SIGSEGV)
+		disable_TSC();
+	else if (val == PR_TSC_ENABLE)
+		enable_TSC();
+	else
+		return -EINVAL;
+
+	return 0;
+}
 
 static noinline void
 __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
@@ -473,12 +470,12 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 		/* we clear debugctl to make sure DS
 		 * is not in use when we change it */
 		debugctl = 0;
-		wrmsrl(MSR_IA32_DEBUGCTLMSR, 0);
+		update_debugctlmsr(0);
 		wrmsr(MSR_IA32_DS_AREA, next->ds_area_msr, 0);
 	}
 
 	if (next->debugctlmsr != debugctl)
-		wrmsr(MSR_IA32_DEBUGCTLMSR, next->debugctlmsr, 0);
+		update_debugctlmsr(next->debugctlmsr);
 
 	if (test_tsk_thread_flag(next_p, TIF_DEBUG)) {
 		set_debugreg(next->debugreg0, 0);
@@ -490,7 +487,6 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 		set_debugreg(next->debugreg7, 7);
 	}
 
-#ifdef CONFIG_SECCOMP
 	if (test_tsk_thread_flag(prev_p, TIF_NOTSC) ^
 	    test_tsk_thread_flag(next_p, TIF_NOTSC)) {
 		/* prev and next are different */
@@ -499,7 +495,6 @@ __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p)
 		else
 			hard_enable_TSC();
 	}
-#endif
 
 #ifdef X86_BTS
 	if (test_tsk_thread_flag(prev_p, TIF_BTS_TRACE_TS))
@@ -637,7 +632,7 @@ struct task_struct * __switch_to(struct task_struct *prev_p, struct task_struct 
 
 	/* we're going to use this soon, after a few expensive things */
 	if (next_p->fpu_counter > 5)
-		prefetch(&next->i387.fxsave);
+		prefetch(next->xstate);
 
 	/*
 	 * Now maybe handle debug registers
@@ -658,8 +653,11 @@ struct task_struct * __switch_to(struct task_struct *prev_p, struct task_struct 
 	/* If the task has used fpu the last 5 timeslices, just do a full
 	 * restore of the math state immediately to avoid the trap; the
 	 * chances of needing FPU soon are obviously high now
+	 *
+	 * tsk_used_math() checks prevent calling math_state_restore(),
+	 * which can sleep in the case of !tsk_used_math()
 	 */
-	if (next_p->fpu_counter > 5)
+	if (tsk_used_math(next_p) && next_p->fpu_counter > 5)
 		math_state_restore();
 
 	/*

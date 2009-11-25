@@ -69,7 +69,7 @@ ENTRY(startup_32)
 	cld			# gcc2 wants the direction flag cleared at all times
 
 	pushl $0		# fake return address for unwinder
-	jmp start_kernel
+	jmp i386_start_kernel
 
 #define HYPERCALL_PAGE_OFFSET 0x1000
 .org HYPERCALL_PAGE_OFFSET
