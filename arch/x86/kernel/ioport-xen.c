@@ -91,9 +91,8 @@ static int do_iopl(unsigned int level, struct thread_struct *t)
 }
 
 #ifdef CONFIG_X86_32
-asmlinkage long sys_iopl(unsigned long regsp)
+long sys_iopl(struct pt_regs *regs)
 {
-	struct pt_regs *regs = (struct pt_regs *)&regsp;
 	unsigned int level = regs->bx;
 #else
 asmlinkage long sys_iopl(unsigned int level, struct pt_regs *regs)

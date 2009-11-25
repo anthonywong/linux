@@ -333,7 +333,7 @@ int netif_be_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			 */
 			netif->tx_queue_timeout.data = (unsigned long)netif;
 			netif->tx_queue_timeout.function = tx_queue_callback;
-			__mod_timer(&netif->tx_queue_timeout, jiffies + HZ/2);
+			mod_timer(&netif->tx_queue_timeout, jiffies + HZ/2);
 		}
 	}
 
@@ -354,7 +354,7 @@ static void xen_network_done_notify(void)
 	static struct net_device *eth0_dev = NULL;
 	if (unlikely(eth0_dev == NULL))
 		eth0_dev = __dev_get_by_name(&init_net, "eth0");
-	netif_rx_schedule(???);
+	napi_schedule(???);
 }
 /* 
  * Add following to poll() function in NAPI driver (Tigon3 is example):
@@ -1284,8 +1284,7 @@ static void net_tx_action(unsigned long unused)
 					(unsigned long)netif;
 				netif->credit_timeout.function =
 					tx_credit_callback;
-				__mod_timer(&netif->credit_timeout,
-					    next_credit);
+				mod_timer(&netif->credit_timeout, next_credit);
 				netif_put(netif);
 				continue;
 			}
