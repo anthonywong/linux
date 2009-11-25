@@ -51,6 +51,7 @@
 #include <asm/atomic.h>
 #include <asm/system.h>
 #include <asm/traps.h>
+#include <asm/nmi.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
 #include <asm/mce.h>
@@ -394,12 +395,14 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 								== NOTIFY_STOP)
 			return;
 #ifdef CONFIG_X86_LOCAL_APIC
+#ifdef ARCH_HAS_NMI_WATCHDOG
 		/*
 		 * Ok, so this is none of the documented NMI sources,
 		 * so it must be the NMI watchdog.
 		 */
 		if (nmi_watchdog_tick(regs, reason))
 			return;
+#endif
 		if (!do_nmi_callback(regs, cpu))
 			unknown_nmi_error(reason, regs);
 #else
