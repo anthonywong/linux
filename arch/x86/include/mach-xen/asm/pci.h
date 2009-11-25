@@ -1,5 +1,5 @@
-#ifndef __x86_PCI_H
-#define __x86_PCI_H
+#ifndef _ASM_X86_PCI_H
+#define _ASM_X86_PCI_H
 
 #include <linux/mm.h> /* for struct page */
 #include <linux/types.h>
@@ -93,7 +93,7 @@ static inline void early_quirks(void) { }
 #ifdef CONFIG_X86_32
 # include "pci_32.h"
 #else
-# include "pci_64.h"
+# include "../../asm/pci_64.h"
 #endif
 
 /* implement the pci_ DMA API in terms of the generic device dma_ one */
@@ -117,4 +117,4 @@ static inline cpumask_t __pcibus_to_cpumask(struct pci_bus *bus)
 }
 #endif
 
-#endif
+#endif /* _ASM_X86_PCI_H */
