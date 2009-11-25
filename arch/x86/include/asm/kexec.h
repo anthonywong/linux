@@ -12,13 +12,10 @@
 /*
  * The hypervisor interface implicitly requires that all entries (except
  * for possibly the final one) are arranged in matching PA_/VA_ pairs.
+#  define VA_PGD		3
  */
-#  define PA_PMD_0		8
-#  define VA_PMD_0		9
-#  define PA_PMD_1		10
-#  define VA_PMD_1		11
-#  define PA_SWAP_PAGE		12
-#  define PAGES_NR		13
+#  define PA_SWAP_PAGE		4
+#  define PAGES_NR		5
 # endif /* CONFIG_XEN */
 #else
 # define PA_CONTROL_PAGE	0
