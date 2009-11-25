@@ -11,12 +11,11 @@
 extern int disable_apic;
 
 #ifdef CONFIG_X86_LOCAL_APIC
-#include <asm/fixmap.h>
 #include <asm/mpspec.h>
+#include <asm/apic.h>
 #ifdef CONFIG_X86_IO_APIC
 #include <asm/io_apic.h>
 #endif
-#include <asm/apic.h>
 #include <asm/thread_info.h>
 #endif
 
@@ -41,7 +40,6 @@ extern void lock_ipi_call_lock(void);
 extern void unlock_ipi_call_lock(void);
 extern int smp_num_siblings;
 extern void smp_send_reschedule(int cpu);
-void smp_stop_cpu(void);
 
 extern cpumask_t cpu_sibling_map[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
@@ -62,14 +60,6 @@ static inline int num_booting_cpus(void)
 
 #define raw_smp_processor_id() read_pda(cpunumber)
 
-#ifdef CONFIG_X86_LOCAL_APIC
-static inline int hard_smp_processor_id(void)
-{
-	/* we don't want to mark this access volatile - bad code generation */
-	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
-}
-#endif
-
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 extern void prefill_possible_map(void);
@@ -78,6 +68,14 @@ extern unsigned __cpuinitdata disabled_cpus;
 
 #define NO_PROC_ID		0xFF		/* No processor magic marker */
 
+#endif /* CONFIG_SMP */
+
+#ifdef CONFIG_X86_LOCAL_APIC
+static inline int hard_smp_processor_id(void)
+{
+	/* we don't want to mark this access volatile - bad code generation */
+	return GET_APIC_ID(*(unsigned int *)(APIC_BASE+APIC_ID));
+}
 #endif
 
 /*

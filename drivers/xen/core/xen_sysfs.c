@@ -30,12 +30,12 @@ HYPERVISOR_ATTR_RO(type);
 
 static int __init xen_sysfs_type_init(void)
 {
-	return sysfs_create_file(&hypervisor_subsys.kset.kobj, &type_attr.attr);
+	return sysfs_create_file(&hypervisor_subsys.kobj, &type_attr.attr);
 }
 
 static void xen_sysfs_type_destroy(void)
 {
-	sysfs_remove_file(&hypervisor_subsys.kset.kobj, &type_attr.attr);
+	sysfs_remove_file(&hypervisor_subsys.kobj, &type_attr.attr);
 }
 
 /* xen version attributes */
@@ -91,13 +91,13 @@ static struct attribute_group version_group = {
 
 static int __init xen_sysfs_version_init(void)
 {
-	return sysfs_create_group(&hypervisor_subsys.kset.kobj,
+	return sysfs_create_group(&hypervisor_subsys.kobj,
 				  &version_group);
 }
 
 static void xen_sysfs_version_destroy(void)
 {
-	sysfs_remove_group(&hypervisor_subsys.kset.kobj, &version_group);
+	sysfs_remove_group(&hypervisor_subsys.kobj, &version_group);
 }
 
 /* UUID */
@@ -126,12 +126,12 @@ HYPERVISOR_ATTR_RO(uuid);
 
 static int __init xen_sysfs_uuid_init(void)
 {
-	return sysfs_create_file(&hypervisor_subsys.kset.kobj, &uuid_attr.attr);
+	return sysfs_create_file(&hypervisor_subsys.kobj, &uuid_attr.attr);
 }
 
 static void xen_sysfs_uuid_destroy(void)
 {
-	sysfs_remove_file(&hypervisor_subsys.kset.kobj, &uuid_attr.attr);
+	sysfs_remove_file(&hypervisor_subsys.kobj, &uuid_attr.attr);
 }
 
 /* xen compilation attributes */
@@ -204,13 +204,13 @@ static struct attribute_group xen_compilation_group = {
 
 int __init static xen_compilation_init(void)
 {
-	return sysfs_create_group(&hypervisor_subsys.kset.kobj,
+	return sysfs_create_group(&hypervisor_subsys.kobj,
 				  &xen_compilation_group);
 }
 
 static void xen_compilation_destroy(void)
 {
-	sysfs_remove_group(&hypervisor_subsys.kset.kobj,
+	sysfs_remove_group(&hypervisor_subsys.kobj,
 			   &xen_compilation_group);
 }
 
@@ -325,13 +325,13 @@ static struct attribute_group xen_properties_group = {
 
 static int __init xen_properties_init(void)
 {
-	return sysfs_create_group(&hypervisor_subsys.kset.kobj,
+	return sysfs_create_group(&hypervisor_subsys.kobj,
 				  &xen_properties_group);
 }
 
 static void xen_properties_destroy(void)
 {
-	sysfs_remove_group(&hypervisor_subsys.kset.kobj,
+	sysfs_remove_group(&hypervisor_subsys.kobj,
 			   &xen_properties_group);
 }
 
@@ -350,13 +350,13 @@ HYPERVISOR_ATTR_RO(vmcoreinfo);
 
 static int __init xen_sysfs_vmcoreinfo_init(void)
 {
-	return sysfs_create_file(&hypervisor_subsys.kset.kobj,
+	return sysfs_create_file(&hypervisor_subsys.kobj,
 				 &vmcoreinfo_attr.attr);
 }
 
 static void xen_sysfs_vmcoreinfo_destroy(void)
 {
-	sysfs_remove_file(&hypervisor_subsys.kset.kobj, &vmcoreinfo_attr.attr);
+	sysfs_remove_file(&hypervisor_subsys.kobj, &vmcoreinfo_attr.attr);
 }
 
 #endif

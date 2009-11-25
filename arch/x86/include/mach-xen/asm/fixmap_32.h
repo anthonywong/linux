@@ -19,10 +19,8 @@
  * the start of the fixmap.
  */
 extern unsigned long __FIXADDR_TOP;
-#ifdef CONFIG_COMPAT_VDSO
-#define FIXADDR_USER_START	__fix_to_virt(FIX_VDSO)
-#define FIXADDR_USER_END	__fix_to_virt(FIX_VDSO - 1)
-#endif
+#define FIXADDR_USER_START     __fix_to_virt(FIX_VDSO)
+#define FIXADDR_USER_END       __fix_to_virt(FIX_VDSO - 1)
 
 #ifndef __ASSEMBLY__
 #include <linux/kernel.h>
@@ -84,6 +82,9 @@ enum fixed_addresses {
 #endif
 #ifdef CONFIG_PCI_MMCONFIG
 	FIX_PCIE_MCFG,
+#endif
+#ifdef CONFIG_PARAVIRT
+	FIX_PARAVIRT_BOOTMAP,
 #endif
 	FIX_SHARED_INFO,
 #define NR_FIX_ISAMAPS	256
