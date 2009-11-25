@@ -56,6 +56,13 @@ config PCI_IOMULTI
 	help
 	  Say Y here if you need io multiplexing.
 
+config PCI_RESERVE
+	bool "PCI IO/MEMORY space reserve"
+	depends on PCI && XEN_PRIVILEGED_GUEST
+	default y
+	help
+	  Say Y here if you need PCI IO/MEMORY space reserve
+
 config PCI_STUB
 	tristate "PCI Stub driver"
 	depends on PCI
