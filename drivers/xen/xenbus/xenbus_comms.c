@@ -34,12 +34,15 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/err.h>
-#include <linux/ptrace.h>
-#include <linux/workqueue.h>
-#include <xen/evtchn.h>
 #include <xen/xenbus.h>
-
+#if defined(CONFIG_XEN) || defined(MODULE)
+#include <xen/evtchn.h>
 #include <asm/hypervisor.h>
+#else
+#include <asm/xen/hypervisor.h>
+#include <xen/events.h>
+#include <xen/page.h>
+#endif
 
 #include "xenbus_comms.h"
 
@@ -112,6 +115,13 @@ static const void *get_input_chunk(XENSTORE_RING_IDX cons,
 	return buf + MASK_XENSTORE_IDX(cons);
 }
 
+/**
+ * xb_write - low level write
+ * @data: buffer to send
+ * @len: length of buffer
+ *
+ * Returns 0 on success, error otherwise.
+ */
 int xb_write(const void *data, unsigned len)
 {
 	struct xenstore_domain_interface *intf = xen_store_interface;
@@ -220,7 +230,9 @@ int xb_read(void *data, unsigned len)
 	return 0;
 }
 
-/* Set up interrupt handler off store event channel. */
+/**
+ * xb_init_comms - Set up interrupt handler off store event channel.
+ */
 int xb_init_comms(void)
 {
 	struct xenstore_domain_interface *intf = xen_store_interface;
@@ -240,7 +252,11 @@ int xb_init_comms(void)
 	if (xenbus_irq)
 		unbind_from_irqhandler(xenbus_irq, &xb_waitq);
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 	err = bind_caller_port_to_irqhandler(
+#else
+	err = bind_evtchn_to_irqhandler(
+#endif
 		xen_store_evtchn, wake_waiting,
 		0, "xenbus", &xb_waitq);
 	if (err <= 0) {
