@@ -97,9 +97,11 @@ void xen_invlpg(unsigned long ptr);
 void xen_l1_entry_update(pte_t *ptr, pte_t val);
 void xen_l2_entry_update(pmd_t *ptr, pmd_t val);
 void xen_l3_entry_update(pud_t *ptr, pud_t val); /* x86_64/PAE */
-void xen_l4_entry_update(pgd_t *ptr, pgd_t val); /* x86_64 only */
+void xen_l4_entry_update(pgd_t *ptr, int user, pgd_t val); /* x86_64 only */
 void xen_pgd_pin(unsigned long ptr);
 void xen_pgd_unpin(unsigned long ptr);
+
+void xen_init_pgd_pin(void);
 
 void xen_set_ldt(const void *ptr, unsigned int ents);
 
@@ -330,6 +332,18 @@ MULTI_update_va_mapping(
     mcl->args[2] = 0;
 #endif
     mcl->args[MULTI_UVMFLAGS_INDEX] = flags;
+}
+
+static inline void
+MULTI_mmu_update(multicall_entry_t *mcl, mmu_update_t *req,
+		 unsigned int count, unsigned int *success_count,
+		 domid_t domid)
+{
+    mcl->op = __HYPERVISOR_mmu_update;
+    mcl->args[0] = (unsigned long)req;
+    mcl->args[1] = count;
+    mcl->args[2] = (unsigned long)success_count;
+    mcl->args[3] = domid;
 }
 
 static inline void
