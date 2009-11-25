@@ -260,6 +260,12 @@ static int msi_map_vector(struct pci_dev *dev, int entry_nr, u64 table_base)
 		map_irq.pirq : evtchn_map_pirq(-1, map_irq.pirq));
 }
 
+static void pci_intx_for_msi(struct pci_dev *dev, int enable)
+{
+	if (!(dev->dev_flags & PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG))
+		pci_intx(dev, enable);
+}
+
 #ifdef CONFIG_PM
 void pci_restore_msi_state(struct pci_dev *dev)
 {
@@ -269,7 +275,7 @@ void pci_restore_msi_state(struct pci_dev *dev)
 	if (!dev->msi_enabled && !dev->msix_enabled)
 		return;
 
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	if (dev->msi_enabled)
 		msi_set_enable(dev, 0);
 	if (dev->msix_enabled)
@@ -306,7 +312,7 @@ static int msi_capability_init(struct pci_dev *dev)
 		return -EBUSY;
 
 	/* Set MSI enabled bits	 */
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msi_set_enable(dev, 1);
 	dev->msi_enabled = 1;
 
@@ -380,7 +386,7 @@ static int msix_capability_init(struct pci_dev *dev,
 		return avail;
 	}
 
-	pci_intx(dev, 0);		/* disable intx */
+	pci_intx_for_msi(dev, 0);
 	msix_set_enable(dev, 1);
 	dev->msix_enabled = 1;
 
@@ -517,7 +523,7 @@ void pci_disable_msi(struct pci_dev* dev)
 
 	/* Disable MSI mode */
 	msi_set_enable(dev, 0);
-	pci_intx(dev, 1);		/* enable intx */
+	pci_intx_for_msi(dev, 1);
 	dev->msi_enabled = 0;
 }
 EXPORT_SYMBOL(pci_disable_msi);
@@ -657,7 +663,7 @@ void pci_disable_msix(struct pci_dev* dev)
 
 	/* Disable MSI mode */
 	msix_set_enable(dev, 0);
-	pci_intx(dev, 1);		/* enable intx */
+	pci_intx_for_msi(dev, 1);
 	dev->msix_enabled = 0;
 }
 EXPORT_SYMBOL(pci_disable_msix);

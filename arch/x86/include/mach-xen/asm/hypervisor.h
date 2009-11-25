@@ -44,6 +44,7 @@
 #include <xen/interface/sched.h>
 #include <xen/interface/nmi.h>
 #include <xen/interface/tmem.h>
+#include <xen/interface/arch-x86/xen-mca.h>
 #include <asm/percpu.h>
 #include <asm/ptrace.h>
 #include <asm/page.h>
@@ -198,7 +199,6 @@ static inline void xen_multicall_flush(bool ignore) {}
 extern char hypercall_page[PAGE_SIZE];
 #else
 extern char *hypercall_stubs;
-#define hypercall_page hypercall_stubs
 #define is_running_on_xen() (!!hypercall_stubs)
 #endif
 
