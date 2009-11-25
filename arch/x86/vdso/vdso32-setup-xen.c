@@ -26,6 +26,8 @@
 #include <asm/vdso.h>
 #include <asm/proto.h>
 
+#include <xen/interface/callback.h>
+
 enum {
 	VDSO_DISABLED = 0,
 	VDSO_ENABLED = 1,
@@ -162,7 +164,7 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 	Elf32_Shdr *shdr;
 	int i;
 
-	BUG_ON(memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0 ||
+	BUG_ON(memcmp(ehdr->e_ident, ELFMAG, 4) != 0 ||
 	       !elf_check_arch_ia32(ehdr) ||
 	       ehdr->e_type != ET_DYN);
 
@@ -193,23 +195,46 @@ static __init void relocate_vdso(Elf32_Ehdr *ehdr)
 	}
 }
 
+/*
+ * These symbols are defined by vdso32.S to mark the bounds
+ * of the ELF DSO images included therein.
+ */
+extern const char vdso32_default_start, vdso32_default_end;
+extern const char vdso32_sysenter_start, vdso32_sysenter_end;
 static struct page *vdso32_pages[1];
 
 #ifdef CONFIG_X86_64
 
-#define	vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SYSENTER32))
-#define	vdso32_syscall()	(boot_cpu_has(X86_FEATURE_SYSCALL32))
+#if CONFIG_XEN_COMPAT < 0x030200
+static int use_int80 = 1;
+#endif
+static int use_sysenter __read_mostly = -1;
+
+#define	vdso32_sysenter()	(use_sysenter > 0)
 
 /* May not be __init: called during resume */
 void syscall32_cpu_init(void)
 {
-	/* Load these always in case some future AMD CPU supports
-	   SYSENTER from compat mode too. */
-	checking_wrmsrl(MSR_IA32_SYSENTER_CS, (u64)__KERNEL_CS);
-	checking_wrmsrl(MSR_IA32_SYSENTER_ESP, 0ULL);
-	checking_wrmsrl(MSR_IA32_SYSENTER_EIP, (u64)ia32_sysenter_target);
+	static const struct callback_register cstar = {
+		.type = CALLBACKTYPE_syscall32,
+		.address = (unsigned long)ia32_cstar_target
+	};
+	static const struct callback_register sysenter = {
+		.type = CALLBACKTYPE_sysenter,
+		.address = (unsigned long)ia32_sysenter_target
+	};
 
-	wrmsrl(MSR_CSTAR, ia32_cstar_target);
+	if ((HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter) < 0) ||
+	    (HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) < 0))
+#if CONFIG_XEN_COMPAT < 0x030200
+		return;
+	use_int80 = 0;
+#else
+		BUG();
+#endif
+
+	if (use_sysenter < 0)
+		use_sysenter = (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL);
 }
 
 #define compat_uses_vma		1
@@ -221,24 +246,46 @@ static inline void map_compat_vdso(int map)
 #else  /* CONFIG_X86_32 */
 
 #define vdso32_sysenter()	(boot_cpu_has(X86_FEATURE_SEP))
-#define vdso32_syscall()	(0)
 
-void enable_sep_cpu(void)
+extern asmlinkage void ia32pv_cstar_target(void);
+static const struct callback_register __cpuinitconst cstar = {
+	.type = CALLBACKTYPE_syscall32,
+	.address = { __KERNEL_CS, (unsigned long)ia32pv_cstar_target },
+};
+
+void __cpuinit enable_sep_cpu(void)
 {
-	int cpu = get_cpu();
-	struct tss_struct *tss = &per_cpu(init_tss, cpu);
+	extern asmlinkage void ia32pv_sysenter_target(void);
+	static struct callback_register __cpuinitdata sysenter = {
+		.type = CALLBACKTYPE_sysenter,
+		.address = { __KERNEL_CS, (unsigned long)ia32pv_sysenter_target },
+	};
 
-	if (!boot_cpu_has(X86_FEATURE_SEP)) {
-		put_cpu();
+	if (boot_cpu_has(X86_FEATURE_SYSCALL)) {
+		if (HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) != 0)
+			BUG();
 		return;
 	}
 
-	tss->x86_tss.ss1 = __KERNEL_CS;
-	tss->x86_tss.sp1 = sizeof(struct tss_struct) + (unsigned long) tss;
-	wrmsr(MSR_IA32_SYSENTER_CS, __KERNEL_CS, 0);
-	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.sp1, 0);
-	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) ia32_sysenter_target, 0);
-	put_cpu();	
+	if (!boot_cpu_has(X86_FEATURE_SEP))
+		return;
+
+	if (xen_feature(XENFEAT_supervisor_mode_kernel))
+		sysenter.address.eip = (unsigned long)ia32_sysenter_target;
+
+	switch (HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter)) {
+	case 0:
+		break;
+#if CONFIG_XEN_COMPAT < 0x030200
+	case -ENOSYS:
+		sysenter.type = CALLBACKTYPE_sysenter_deprecated;
+		if (HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter) == 0)
+			break;
+#endif
+	default:
+		setup_clear_cpu_cap(X86_FEATURE_SEP);
+		break;
+	}
 }
 
 static struct vm_area_struct gate_vma;
@@ -290,17 +337,36 @@ int __init sysenter_setup(void)
 
 #ifdef CONFIG_X86_32
 	gate_vma_init();
+
+	printk("Compat vDSO mapped to %08lx.\n", __fix_to_virt(FIX_VDSO));
 #endif
 
-	if (vdso32_syscall()) {
-		vsyscall = &vdso32_syscall_start;
-		vsyscall_len = &vdso32_syscall_end - &vdso32_syscall_start;
-	} else if (vdso32_sysenter()){
-		vsyscall = &vdso32_sysenter_start;
-		vsyscall_len = &vdso32_sysenter_end - &vdso32_sysenter_start;
-	} else {
+#if defined(CONFIG_X86_64) && CONFIG_XEN_COMPAT < 0x030200
+	if (use_int80) {
+		extern const char vdso32_int80_start, vdso32_int80_end;
+
 		vsyscall = &vdso32_int80_start;
 		vsyscall_len = &vdso32_int80_end - &vdso32_int80_start;
+	} else
+#elif defined(CONFIG_X86_32)
+	if (boot_cpu_has(X86_FEATURE_SYSCALL)
+	    && (boot_cpu_data.x86_vendor != X86_VENDOR_AMD
+		|| HYPERVISOR_callback_op(CALLBACKOP_register, &cstar) != 0))
+		setup_clear_cpu_cap(X86_FEATURE_SYSCALL);
+	barrier(); /* until clear_bit()'s constraints are correct ... */
+	if (boot_cpu_has(X86_FEATURE_SYSCALL)) {
+		extern const char vdso32_syscall_start, vdso32_syscall_end;
+
+		vsyscall = &vdso32_syscall_start;
+		vsyscall_len = &vdso32_syscall_end - &vdso32_syscall_start;
+	} else
+#endif
+	if (!vdso32_sysenter()) {
+		vsyscall = &vdso32_default_start;
+		vsyscall_len = &vdso32_default_end - &vdso32_default_start;
+	} else {
+		vsyscall = &vdso32_sysenter_start;
+		vsyscall_len = &vdso32_sysenter_end - &vdso32_sysenter_start;
 	}
 
 	memcpy(syscall_page, vsyscall, vsyscall_len);
@@ -310,15 +376,12 @@ int __init sysenter_setup(void)
 }
 
 /* Setup a VMA at program startup for the vsyscall page */
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+int arch_setup_additional_pages(struct linux_binprm *bprm, int exstack)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr;
 	int ret = 0;
 	bool compat;
-
-	if (vdso_enabled == VDSO_DISABLED)
-		return 0;
 
 	down_write(&mm->mmap_sem);
 
@@ -331,14 +394,12 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (compat)
 		addr = VDSO_HIGH_BASE;
 	else {
-		addr = get_unmapped_area_prot(NULL, 0, PAGE_SIZE, 0, 0, 1);
+		addr = get_unmapped_area(NULL, 0, PAGE_SIZE, 0, 0);
 		if (IS_ERR_VALUE(addr)) {
 			ret = addr;
 			goto up_fail;
 		}
 	}
-
-	current->mm->context.vdso = (void *)addr;
 
 	if (compat_uses_vma || !compat) {
 		/*
@@ -360,13 +421,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 			goto up_fail;
 	}
 
+	current->mm->context.vdso = (void *)addr;
 	current_thread_info()->sysenter_return =
 		VDSO32_SYMBOL(addr, SYSENTER_RETURN);
 
   up_fail:
-	if (ret)
-		current->mm->context.vdso = NULL;
-
 	up_write(&mm->mmap_sem);
 
 	return ret;
@@ -374,7 +433,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 #ifdef CONFIG_X86_64
 
-__initcall(sysenter_setup);
+/*
+ * This must be done early in case we have an initrd containing 32-bit
+ * binaries (e.g., hotplug). This could be pushed upstream.
+ */
+core_initcall(sysenter_setup);
 
 #ifdef CONFIG_SYSCTL
 /* Register vsyscall32 into the ABI table */
