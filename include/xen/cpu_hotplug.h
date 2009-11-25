@@ -5,7 +5,7 @@
 #include <linux/cpumask.h>
 
 #if defined(CONFIG_X86) && defined(CONFIG_SMP)
-extern cpumask_t cpu_initialized_map;
+extern cpumask_var_t vcpu_initialized_mask;
 #endif
 
 #if defined(CONFIG_HOTPLUG_CPU)

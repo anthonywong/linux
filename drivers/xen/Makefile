@@ -14,6 +14,7 @@ obj-$(CONFIG_XEN)		+= features.o util.o
 obj-$(CONFIG_HOTPLUG_CPU)	+= $(xen-hotplug-y)
 obj-$(CONFIG_XEN_XENCOMM)	+= $(xen-xencomm-y)
 obj-$(CONFIG_XEN_BALLOON)	+= $(xen-balloon-y)
+obj-$(CONFIG_XENFS)		+= xenfs/
 obj-$(CONFIG_XEN_BLKDEV_BACKEND)	+= blkback/
 obj-$(CONFIG_XEN_BLKDEV_TAP)		+= blktap/
 obj-$(CONFIG_XEN_BLKDEV_TAP2)           += blktap2/

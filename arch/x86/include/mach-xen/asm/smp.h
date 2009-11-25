@@ -18,9 +18,26 @@
 #include <asm/pda.h>
 #include <asm/thread_info.h>
 
+#ifdef CONFIG_X86_64
+
+#define cpu_callin_mask cpu_possible_mask
+#define cpu_callout_mask cpu_possible_mask
+extern cpumask_var_t cpu_initialized_mask;
+extern cpumask_var_t cpu_sibling_setup_mask;
+
+#else /* CONFIG_X86_32 */
+
+#define cpu_callin_map cpu_possible_map
 #define cpu_callout_map cpu_possible_map
 extern cpumask_t cpu_initialized;
-#define cpu_callin_map cpu_possible_map
+extern cpumask_t cpu_sibling_setup_map;
+
+#define cpu_callin_mask		((struct cpumask *)&cpu_callin_map)
+#define cpu_callout_mask	((struct cpumask *)&cpu_callout_map)
+#define cpu_initialized_mask	((struct cpumask *)&cpu_initialized)
+#define cpu_sibling_setup_mask	((struct cpumask *)&cpu_sibling_setup_map)
+
+#endif /* CONFIG_X86_32 */
 
 extern void (*mtrr_hook)(void);
 extern void zap_low_mappings(void);
@@ -29,7 +46,6 @@ extern int __cpuinit get_local_pda(int cpu);
 
 extern int smp_num_siblings;
 extern unsigned int num_processors;
-extern cpumask_t cpu_initialized;
 
 DECLARE_PER_CPU(cpumask_t, cpu_sibling_map);
 DECLARE_PER_CPU(cpumask_t, cpu_core_map);
@@ -37,6 +53,16 @@ DECLARE_PER_CPU(u16, cpu_llc_id);
 #ifdef CONFIG_X86_32
 DECLARE_PER_CPU(int, cpu_number);
 #endif
+
+static inline struct cpumask *cpu_sibling_mask(int cpu)
+{
+	return &per_cpu(cpu_sibling_map, cpu);
+}
+
+static inline struct cpumask *cpu_core_mask(int cpu)
+{
+	return &per_cpu(cpu_core_map, cpu);
+}
 
 DECLARE_PER_CPU(u16, x86_cpu_to_apicid);
 DECLARE_PER_CPU(u16, x86_bios_cpu_apicid);
@@ -64,7 +90,7 @@ struct smp_ops {
 	void (*cpu_die)(unsigned int cpu);
 	void (*play_dead)(void);
 
-	void (*send_call_func_ipi)(cpumask_t mask);
+	void (*send_call_func_ipi)(const struct cpumask *mask);
 	void (*send_call_func_single_ipi)(int cpu);
 };
 
@@ -128,7 +154,7 @@ static inline void arch_send_call_function_single_ipi(int cpu)
 
 static inline void arch_send_call_function_ipi(cpumask_t mask)
 {
-	smp_ops.send_call_func_ipi(mask);
+	smp_ops.send_call_func_ipi(&mask);
 }
 
 void cpu_disable_common(void);
@@ -147,13 +173,13 @@ extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
 void xen_smp_send_stop(void);
 void xen_smp_send_reschedule(int cpu);
-void xen_send_call_func_ipi(cpumask_t mask);
+void xen_send_call_func_ipi(const struct cpumask *mask);
 void xen_send_call_func_single_ipi(int cpu);
 
 #define smp_send_stop		xen_smp_send_stop
 #define smp_send_reschedule	xen_smp_send_reschedule
 #define arch_send_call_function_single_ipi	xen_send_call_func_single_ipi
-#define arch_send_call_function_ipi		xen_send_call_func_ipi
+#define arch_send_call_function_ipi(m)		xen_send_call_func_ipi(&(m))
 
 void play_dead(void);
 
@@ -167,7 +193,7 @@ void smp_store_cpu_info(int id);
 /* We don't mark CPUs online until __cpu_up(), so we need another measure */
 static inline int num_booting_cpus(void)
 {
-	return cpus_weight(cpu_callout_map);
+	return cpumask_weight(cpu_callout_mask);
 }
 #else
 static inline void prefill_possible_map(void)
