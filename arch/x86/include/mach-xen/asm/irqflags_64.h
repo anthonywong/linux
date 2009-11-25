@@ -116,6 +116,22 @@ static inline int raw_irqs_disabled_flags(unsigned long flags)
 })
 
 /*
+ * makes the traced hardirq state match with the machine state
+ *
+ * should be a rarely used function, only in places where its
+ * otherwise impossible to know the irq state, like in traps.
+ */
+static inline void trace_hardirqs_fixup_flags(unsigned long flags)
+{
+	if (raw_irqs_disabled_flags(flags))
+		trace_hardirqs_off();
+	else
+		trace_hardirqs_on();
+}
+
+#define trace_hardirqs_fixup() \
+	trace_hardirqs_fixup_flags(__raw_local_save_flags())
+/*
  * Used in the idle loop; sti takes one instruction cycle
  * to complete:
  */
@@ -142,6 +158,20 @@ static inline void halt(void)
 # else
 #  define TRACE_IRQS_ON
 #  define TRACE_IRQS_OFF
+# endif
+# ifdef CONFIG_DEBUG_LOCK_ALLOC
+#  define LOCKDEP_SYS_EXIT	call lockdep_sys_exit_thunk
+#  define LOCKDEP_SYS_EXIT_IRQ	\
+	TRACE_IRQS_ON; \
+	sti; \
+	SAVE_REST; \
+	LOCKDEP_SYS_EXIT; \
+	RESTORE_REST; \
+	cli; \
+	TRACE_IRQS_OFF;
+# else
+#  define LOCKDEP_SYS_EXIT
+#  define LOCKDEP_SYS_EXIT_IRQ
 # endif
 #endif
 

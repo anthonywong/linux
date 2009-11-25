@@ -27,7 +27,7 @@
 #include <asm/uaccess.h>
 #include <xen/gnttab.h>
 #include <xen/interface/memory.h>
-#include <asm-i386/mach-xen/asm/gnttab_dma.h>
+#include <asm/gnttab_dma.h>
 
 int swiotlb;
 EXPORT_SYMBOL(swiotlb);
@@ -574,9 +574,10 @@ swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
  * same here.
  */
 int
-swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
+swiotlb_map_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
 	       int dir)
 {
+	struct scatterlist *sg;
 	struct phys_addr buffer;
 	dma_addr_t dev_addr;
 	char *map;
@@ -584,22 +585,22 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
 
 	BUG_ON(dir == DMA_NONE);
 
-	for (i = 0; i < nelems; i++, sg++) {
-		dev_addr = gnttab_dma_map_page(sg->page) + sg->offset;
+	for_each_sg(sgl, sg, nelems, i) {
+		dev_addr = gnttab_dma_map_page(sg_page(sg)) + sg->offset;
 
-		if (range_straddles_page_boundary(page_to_pseudophys(sg->page)
+		if (range_straddles_page_boundary(page_to_pseudophys(sg_page(sg))
 						  + sg->offset, sg->length)
 		    || address_needs_mapping(hwdev, dev_addr)) {
 			gnttab_dma_unmap_page(dev_addr);
-			buffer.page   = sg->page;
+			buffer.page   = sg_page(sg);
 			buffer.offset = sg->offset;
 			map = map_single(hwdev, buffer, sg->length, dir);
 			if (!map) {
 				/* Don't panic here, we expect map_sg users
 				   to do proper error handling. */
 				swiotlb_full(hwdev, sg->length, dir, 0);
-				swiotlb_unmap_sg(hwdev, sg - i, i, dir);
-				sg[0].dma_length = 0;
+				swiotlb_unmap_sg(hwdev, sgl, i, dir);
+				sgl[0].dma_length = 0;
 				return 0;
 			}
 			sg->dma_address = virt_to_bus(map);
@@ -615,19 +616,21 @@ swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
  * concerning calls here are the same as for swiotlb_unmap_single() above.
  */
 void
-swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
+swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sgl, int nelems,
 		 int dir)
 {
+	struct scatterlist *sg;
 	int i;
 
 	BUG_ON(dir == DMA_NONE);
 
-	for (i = 0; i < nelems; i++, sg++)
+	for_each_sg(sgl, sg, nelems, i) {
 		if (in_swiotlb_aperture(sg->dma_address))
 			unmap_single(hwdev, bus_to_virt(sg->dma_address),
 				     sg->dma_length, dir);
 		else
 			gnttab_dma_unmap_page(sg->dma_address);
+	}
 }
 
 /*
@@ -638,31 +641,35 @@ swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
  * and usage.
  */
 void
-swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
+swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sgl,
 			int nelems, int dir)
 {
+	struct scatterlist *sg;
 	int i;
 
 	BUG_ON(dir == DMA_NONE);
 
-	for (i = 0; i < nelems; i++, sg++)
+	for_each_sg(sgl, sg, nelems, i) {
 		if (in_swiotlb_aperture(sg->dma_address))
 			sync_single(hwdev, bus_to_virt(sg->dma_address),
 				    sg->dma_length, dir);
+	}
 }
 
 void
-swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
+swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sgl,
 			   int nelems, int dir)
 {
+	struct scatterlist *sg;
 	int i;
 
 	BUG_ON(dir == DMA_NONE);
 
-	for (i = 0; i < nelems; i++, sg++)
+	for_each_sg(sgl, sg, nelems, i) {
 		if (in_swiotlb_aperture(sg->dma_address))
 			sync_single(hwdev, bus_to_virt(sg->dma_address),
 				    sg->dma_length, dir);
+	}
 }
 
 #ifdef CONFIG_HIGHMEM
