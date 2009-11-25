@@ -35,7 +35,11 @@ static char x86_stack_ids[][8] = {
 
 int x86_is_stack_id(int id, char *name)
 {
+#ifndef CONFIG_X86_NO_TSS
 	return x86_stack_ids[id - 1] == name;
+#else
+	return 0;
+#endif
 }
 
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
