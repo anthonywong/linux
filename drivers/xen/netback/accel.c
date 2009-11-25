@@ -103,7 +103,7 @@ static int netback_accelerator_probe_backend(struct device *dev, void *arg)
 	struct xenbus_device *xendev = to_xenbus_device(dev);
 
 	if (!strcmp("vif", xendev->devicetype)) {
-		struct backend_info *be = xendev->dev.driver_data;
+		struct backend_info *be = dev_get_drvdata(&xendev->dev);
 
 		if (match_accelerator(xendev, be, accelerator) &&
 		    try_module_get(accelerator->hooks->owner)) {
@@ -124,7 +124,7 @@ static int netback_accelerator_remove_backend(struct device *dev, void *arg)
 		(struct netback_accelerator *)arg;
 	
 	if (!strcmp("vif", xendev->devicetype)) {
-		struct backend_info *be = xendev->dev.driver_data;
+		struct backend_info *be = dev_get_drvdata(&xendev->dev);
 
 		if (be->accelerator == accelerator) {
 			be->accelerator->hooks->remove(xendev);
