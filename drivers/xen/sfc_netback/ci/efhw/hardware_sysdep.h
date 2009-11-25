@@ -40,7 +40,7 @@
 #ifndef __CI_EFHW_HARDWARE_LINUX_H__
 #define __CI_EFHW_HARDWARE_LINUX_H__
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 #ifdef __LITTLE_ENDIAN
 #define EFHW_IS_LITTLE_ENDIAN
@@ -48,23 +48,6 @@
 #define EFHW_IS_BIG_ENDIAN
 #else
 #error Unknown endianness
-#endif
-
-#ifndef __iomem
-#define __iomem
-#endif
-
-#ifndef mmiowb
-	#if defined(__i386__) || defined(__x86_64__)
-		#define mmiowb()
-	#elif defined(__ia64__)
-		#ifndef ia64_mfa
-			#define ia64_mfa() asm volatile ("mf.a" ::: "memory")
-		#endif
-	#define mmiowb ia64_mfa
-	#else
-	#error "Need definition for mmiowb()"
-	#endif
 #endif
 
 #ifndef readq
