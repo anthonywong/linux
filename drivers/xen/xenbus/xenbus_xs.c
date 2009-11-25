@@ -723,6 +723,10 @@ void xs_resume(void)
 	struct xenbus_watch *watch;
 	char token[sizeof(watch) * 2 + 1];
 
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+	xb_init_comms();
+#endif
+
 	mutex_unlock(&xs_state.response_mutex);
 	mutex_unlock(&xs_state.request_mutex);
 	transaction_resume();

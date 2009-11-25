@@ -185,7 +185,7 @@ static int scsifront_probe(struct xenbus_device *dev,
 	info->host = host;
 
 
-	dev->dev.driver_data = info;
+	dev_set_drvdata(&dev->dev, info);
 	info->dev  = dev;
 
 	for (i = 0; i < VSCSIIF_MAX_REQS; i++) {
@@ -238,7 +238,7 @@ free_sring:
 
 static int scsifront_remove(struct xenbus_device *dev)
 {
-	struct vscsifrnt_info *info = dev->dev.driver_data;
+	struct vscsifrnt_info *info = dev_get_drvdata(&dev->dev);
 
 	DPRINTK("%s: %s removed\n",__FUNCTION__ ,dev->nodename);
 
@@ -350,7 +350,7 @@ static void scsifront_do_lun_hotplug(struct vscsifrnt_info *info, int op)
 static void scsifront_backend_changed(struct xenbus_device *dev,
 				enum xenbus_state backend_state)
 {
-	struct vscsifrnt_info *info = dev->dev.driver_data;
+	struct vscsifrnt_info *info = dev_get_drvdata(&dev->dev);
 
 	DPRINTK("%p %u %u\n", dev, dev->state, backend_state);
 
