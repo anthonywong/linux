@@ -94,8 +94,8 @@ static unsigned long frame_list[PAGE_SIZE / sizeof(unsigned long)];
 static LIST_HEAD(ballooned_pages);
 
 /* Main work function, always executed in process context. */
-static void balloon_process(void *unused);
-static DECLARE_WORK(balloon_worker, balloon_process, NULL);
+static void balloon_process(struct work_struct *unused);
+static DECLARE_WORK(balloon_worker, balloon_process);
 static struct timer_list balloon_timer;
 
 /* When ballooning out (allocating memory to return to Xen) we don't really 
@@ -402,7 +402,7 @@ static int decrease_reservation(unsigned long nr_pages)
  * by the balloon lock), or with changes to the Xen hard limit, but we will
  * recover from these in time.
  */
-static void balloon_process(void *unused)
+static void balloon_process(struct work_struct *unused)
 {
 	int need_sleep = 0;
 	long credit;
