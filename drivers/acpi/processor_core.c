@@ -698,7 +698,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 	 * of /proc/cpuinfo
 	 */
 	status = acpi_evaluate_object(pr->handle, "_SUN", NULL, &buffer);
-	if (ACPI_SUCCESS(status))
+	if (ACPI_SUCCESS(status) && pr->id != -1)
 		arch_fix_phys_package_id(pr->id, object.integer.value);
 
 	return 0;
