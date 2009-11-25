@@ -154,7 +154,7 @@ static void unplug_queue(blkif_t *blkif)
 
 static void plug_queue(blkif_t *blkif, struct block_device *bdev)
 {
-	request_queue_t *q = bdev_get_queue(bdev);
+	struct request_queue *q = bdev_get_queue(bdev);
 
 	if (q == blkif->plug)
 		return;

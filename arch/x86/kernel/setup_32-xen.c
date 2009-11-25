@@ -114,19 +114,10 @@ static unsigned int highmem_pages = -1;
 /*
  * Setup options
  */
-struct drive_info_struct { char dummy[32]; } drive_info;
-#if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_HD) || \
-    defined(CONFIG_BLK_DEV_IDE_MODULE) || defined(CONFIG_BLK_DEV_HD_MODULE)
-EXPORT_SYMBOL(drive_info);
-#endif
 struct screen_info screen_info;
 EXPORT_SYMBOL(screen_info);
 struct apm_info apm_info;
 EXPORT_SYMBOL(apm_info);
-struct sys_desc_table_struct {
-	unsigned short length;
-	unsigned char table[0];
-};
 struct edid_info edid_info;
 EXPORT_SYMBOL_GPL(edid_info);
 #ifndef CONFIG_XEN
@@ -149,7 +140,7 @@ unsigned long saved_videomode;
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
-unsigned char __initdata boot_params[PARAM_SIZE];
+struct boot_params __initdata boot_params;
 
 /*
  * Point at the empty zero page to start with. We map the real shared_info
@@ -316,18 +307,18 @@ unsigned long __init find_max_low_pfn(void)
 		printk(KERN_WARNING "Warning only %ldMB will be used.\n",
 					MAXMEM>>20);
 		if (max_pfn > MAX_NONPAE_PFN)
-			printk(KERN_WARNING "Use a PAE enabled kernel.\n");
+			printk(KERN_WARNING "Use a HIGHMEM64G enabled kernel.\n");
 		else
 			printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
 		max_pfn = MAXMEM_PFN;
 #else /* !CONFIG_HIGHMEM */
-#ifndef CONFIG_X86_PAE
+#ifndef CONFIG_HIGHMEM64G
 		if (max_pfn > MAX_NONPAE_PFN) {
 			max_pfn = MAX_NONPAE_PFN;
 			printk(KERN_WARNING "Warning only 4GB will be used.\n");
-			printk(KERN_WARNING "Use a PAE enabled kernel.\n");
+			printk(KERN_WARNING "Use a HIGHMEM64G enabled kernel.\n");
 		}
-#endif /* !CONFIG_X86_PAE */
+#endif /* !CONFIG_HIGHMEM64G */
 #endif /* !CONFIG_HIGHMEM */
 	} else {
 		if (highmem_pages == -1)
@@ -516,7 +507,7 @@ void __init setup_bootmem_allocator(void)
  *
  * This should all compile down to nothing when NUMA is off.
  */
-void __init remapped_pgdat_init(void)
+static void __init remapped_pgdat_init(void)
 {
 	int nid;
 
@@ -591,7 +582,6 @@ void __init setup_arch(char **cmdline_p)
 	   properly.  Setting ROOT_DEV to default to /dev/ram0 breaks initrd.
 	*/
 	ROOT_DEV = MKDEV(UNNAMED_MAJOR,0);
- 	drive_info = DRIVE_INFO;
  	screen_info = SCREEN_INFO;
 	copy_edid();
 	apm_info.bios = APM_BIOS_INFO;
@@ -769,6 +759,8 @@ void __init setup_arch(char **cmdline_p)
 	 * NOTE: at this point the bootmem allocator is fully available.
 	 */
 
+	paravirt_post_allocator_init();
+
 	if (is_initial_xendomain())
 		dmi_scan_machine();
 
@@ -816,6 +808,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	e820_register_memory();
+	e820_mark_nosave_regions();
 
 	if (is_initial_xendomain()) {
 #ifdef CONFIG_VT
