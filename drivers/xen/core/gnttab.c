@@ -35,6 +35,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/seqlock.h>
+#include <linux/sysdev.h>
 #include <xen/interface/xen.h>
 #include <xen/gnttab.h>
 #include <asm/pgtable.h>
@@ -704,23 +705,37 @@ EXPORT_SYMBOL(gnttab_post_map_adjust);
 
 #endif /* __HAVE_ARCH_PTE_SPECIAL */
 
-int gnttab_resume(void)
+static int gnttab_resume(struct sys_device *dev)
 {
 	if (max_nr_grant_frames() < nr_grant_frames)
 		return -ENOSYS;
 	return gnttab_map(0, nr_grant_frames - 1);
 }
+#define gnttab_resume() gnttab_resume(NULL)
 
 #ifdef CONFIG_PM_SLEEP
-int gnttab_suspend(void)
-{
 #ifdef CONFIG_X86
+static int gnttab_suspend(struct sys_device *dev, pm_message_t state)
+{
 	apply_to_page_range(&init_mm, (unsigned long)shared,
 			    PAGE_SIZE * nr_grant_frames,
 			    unmap_pte_fn, NULL);
-#endif
 	return 0;
 }
+#else
+#define gnttab_suspend NULL
+#endif
+
+static struct sysdev_class gnttab_sysclass = {
+	.name		= "gnttab",
+	.resume		= gnttab_resume,
+	.suspend	= gnttab_suspend,
+};
+
+static struct sys_device device_gnttab = {
+	.id		= 0,
+	.cls		= &gnttab_sysclass,
+};
 #endif
 
 #else /* !CONFIG_XEN */
@@ -799,6 +814,17 @@ int __devinit gnttab_init(void)
 
 	if (!is_running_on_xen())
 		return -ENODEV;
+
+#if defined(CONFIG_XEN) && defined(CONFIG_PM_SLEEP)
+	if (!is_initial_xendomain()) {
+		int err = sysdev_class_register(&gnttab_sysclass);
+
+		if (!err)
+			err = sysdev_register(&device_gnttab);
+		if (err)
+			return err;
+	}
+#endif
 
 	nr_grant_frames = 1;
 	boot_max_nr_grant_frames = __max_nr_grant_frames();
