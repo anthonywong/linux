@@ -39,6 +39,7 @@ static DEFINE_MUTEX(start_mutex);
  */
 static int timer = 0;
 
+#ifdef CONFIG_XEN
 int oprofile_set_active(int active_domains[], unsigned int adomains)
 {
 	int err;
@@ -64,6 +65,7 @@ int oprofile_set_passive(int passive_domains[], unsigned int pdomains)
 	mutex_unlock(&start_mutex);
 	return err;
 }
+#endif
 
 int oprofile_setup(void)
 {
