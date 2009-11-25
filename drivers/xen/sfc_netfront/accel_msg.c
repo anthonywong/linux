@@ -41,11 +41,13 @@ static void vnic_start_interrupts(netfront_accel_vnic *vnic)
 	/* Prime our interrupt */
 	spin_lock_irqsave(&vnic->irq_enabled_lock, flags);
 	if (!netfront_accel_vi_enable_interrupts(vnic)) {
+		struct netfront_info *np = netdev_priv(vnic->net_dev);
+
 		/* Cripes, that was quick, better pass it up */
 		netfront_accel_disable_net_interrupts(vnic);
 		vnic->irq_enabled = 0;
 		NETFRONT_ACCEL_STATS_OP(vnic->stats.poll_schedule_count++);
-		netif_rx_schedule(vnic->net_dev);
+		netif_rx_schedule(vnic->net_dev, &np->napi);
 	} else {
 		/*
 		 * Nothing yet, make sure we get interrupts through
@@ -72,6 +74,7 @@ static void vnic_stop_interrupts(netfront_accel_vnic *vnic)
 static void vnic_start_fastpath(netfront_accel_vnic *vnic)
 {
 	struct net_device *net_dev = vnic->net_dev;
+	struct netfront_info *np = netdev_priv(net_dev);
 	unsigned long flags;
 
 	DPRINTK("%s\n", __FUNCTION__);
@@ -80,9 +83,9 @@ static void vnic_start_fastpath(netfront_accel_vnic *vnic)
 	vnic->tx_enabled = 1;
 	spin_unlock_irqrestore(&vnic->tx_lock, flags);
 	
-	netif_poll_disable(net_dev);
+	napi_disable(&np->napi);
 	vnic->poll_enabled = 1;
-	netif_poll_enable(net_dev);
+	napi_enable(&np->napi);
 	
 	vnic_start_interrupts(vnic);
 }
@@ -114,11 +117,11 @@ void vnic_stop_fastpath(netfront_accel_vnic *vnic)
 	spin_unlock_irqrestore(&vnic->tx_lock, flags1);
 	
 	/* Must prevent polls and hold lock to modify poll_enabled */
-	netif_poll_disable(net_dev);
+	napi_disable(&np->napi);
 	spin_lock_irqsave(&vnic->irq_enabled_lock, flags1);
 	vnic->poll_enabled = 0;
 	spin_unlock_irqrestore(&vnic->irq_enabled_lock, flags1);
-	netif_poll_enable(net_dev);
+	napi_enable(&np->napi);
 }
 
 
@@ -324,8 +327,10 @@ static int vnic_process_localmac_msg(netfront_accel_vnic *vnic,
 	cuckoo_hash_mac_key key;
 
 	if (msg->u.localmac.flags & NET_ACCEL_MSG_ADD) {
-		DPRINTK("MAC has moved, could be local: " MAC_FMT "\n",
-			MAC_ARG(msg->u.localmac.mac));
+		DECLARE_MAC_BUF(buf);
+
+		DPRINTK("MAC has moved, could be local: %s\n",
+			print_mac(buf, msg->u.localmac.mac));
 		key = cuckoo_mac_to_key(msg->u.localmac.mac);
 		spin_lock_irqsave(&vnic->table_lock, flags);
 		/* Try to remove it, not a big deal if not there */
@@ -513,6 +518,8 @@ irqreturn_t netfront_accel_net_channel_irq_from_bend(int irq, void *context)
 
 	spin_lock_irqsave(&vnic->irq_enabled_lock, flags);
 	if (vnic->irq_enabled) {
+		struct netfront_info *np = netdev_priv(net_dev);
+
 		netfront_accel_disable_net_interrupts(vnic);
 		vnic->irq_enabled = 0;
 		spin_unlock_irqrestore(&vnic->irq_enabled_lock, flags);
@@ -525,7 +532,7 @@ irqreturn_t netfront_accel_net_channel_irq_from_bend(int irq, void *context)
 				vnic->stats.event_count_since_irq;
 		vnic->stats.event_count_since_irq = 0;
 #endif
-		netif_rx_schedule(net_dev);
+		netif_rx_schedule(net_dev, &np->napi);
 	}
 	else {
 		spin_unlock_irqrestore(&vnic->irq_enabled_lock, flags);

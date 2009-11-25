@@ -60,8 +60,7 @@
 #include <xen/platform-compat.h>
 #endif
 
-static int xenbus_uevent_backend(struct device *dev, char **envp,
-				 int num_envp, char *buffer, int buffer_size);
+static int xenbus_uevent_backend(struct device *dev, struct kobj_uevent_env *env);
 static int xenbus_probe_backend(const char *type, const char *domid);
 
 extern int read_otherend_details(struct xenbus_device *xendev,
@@ -128,13 +127,10 @@ static struct xen_bus_type xenbus_backend = {
 	},
 };
 
-static int xenbus_uevent_backend(struct device *dev, char **envp,
-				 int num_envp, char *buffer, int buffer_size)
+static int xenbus_uevent_backend(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct xenbus_device *xdev;
 	struct xenbus_driver *drv;
-	int i = 0;
-	int length = 0;
 
 	DPRINTK("");
 
@@ -146,27 +142,16 @@ static int xenbus_uevent_backend(struct device *dev, char **envp,
 		return -ENODEV;
 
 	/* stuff we want to pass to /sbin/hotplug */
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "XENBUS_TYPE=%s", xdev->devicetype);
+	add_uevent_var(env, "XENBUS_TYPE=%s", xdev->devicetype);
 
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "XENBUS_PATH=%s", xdev->nodename);
+	add_uevent_var(env, "XENBUS_PATH=%s", xdev->nodename);
 
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "XENBUS_BASE_PATH=%s", xenbus_backend.root);
-
-	/* terminate, set to next free slot, shrink available space */
-	envp[i] = NULL;
-	envp = &envp[i];
-	num_envp -= i;
-	buffer = &buffer[length];
-	buffer_size -= length;
+	add_uevent_var(env, "XENBUS_BASE_PATH=%s", xenbus_backend.root);
 
 	if (dev->driver) {
 		drv = to_xenbus_driver(dev->driver);
 		if (drv && drv->uevent)
-			return drv->uevent(xdev, envp, num_envp, buffer,
-					   buffer_size);
+			return drv->uevent(xdev, env);
 	}
 
 	return 0;
