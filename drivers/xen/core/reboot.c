@@ -34,8 +34,8 @@ static int suspend_cancelled;
 /* Can we leave APs online when we suspend? */
 static int fast_suspend;
 
-static void __shutdown_handler(void *unused);
-static DECLARE_WORK(shutdown_work, __shutdown_handler, NULL);
+static void __shutdown_handler(struct work_struct *unused);
+static DECLARE_DELAYED_WORK(shutdown_work, __shutdown_handler);
 
 static int setup_suspend_evtchn(void);
 
@@ -105,7 +105,7 @@ static int xen_suspend(void *__unused)
 	case SHUTDOWN_RESUMING:
 		break;
 	default:
-		schedule_work(&shutdown_work);
+		schedule_delayed_work(&shutdown_work, 0);
 		break;
 	}
 
@@ -137,12 +137,12 @@ static void switch_shutdown_state(int new_state)
 
 	/* Either we kick off the work, or we leave it to xen_suspend(). */
 	if (old_state == SHUTDOWN_INVALID)
-		schedule_work(&shutdown_work);
+		schedule_delayed_work(&shutdown_work, 0);
 	else
 		BUG_ON(old_state != SHUTDOWN_RESUMING);
 }
 
-static void __shutdown_handler(void *unused)
+static void __shutdown_handler(struct work_struct *unused)
 {
 	int err;
 

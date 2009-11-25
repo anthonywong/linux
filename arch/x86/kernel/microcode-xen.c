@@ -1,7 +1,7 @@
 /*
  *	Intel CPU Microcode Update Driver for Linux
  *
- *	Copyright (C) 2000-2004 Tigran Aivazian
+ *	Copyright (C) 2000-2006 Tigran Aivazian <tigran@aivazian.fsnet.co.uk>
  *		      2006	Shaohua Li <shaohua.li@intel.com>
  *
  *	This driver allows to upgrade microcode on Intel processors
@@ -43,7 +43,7 @@
 #include <asm/processor.h>
 
 MODULE_DESCRIPTION("Intel CPU (IA-32) Microcode Update Driver");
-MODULE_AUTHOR("Tigran Aivazian <tigran@veritas.com>");
+MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
 MODULE_LICENSE("GPL");
 
 static int verbose;
@@ -195,7 +195,7 @@ static int __init microcode_init (void)
 	request_microcode();
 
 	printk(KERN_INFO 
-		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@veritas.com>\n");
+		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@aivazian.fsnet.co.uk>\n");
 	return 0;
 }
 
