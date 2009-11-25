@@ -1400,6 +1400,18 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= &scan_unevictable_handler,
 	},
+#ifdef CONFIG_PRESWAP
+	{
+		.ctl_name	= CTL_UNNUMBERED,
+		.procname	= "preswap",
+		.data		= NULL,
+		.maxlen		= sizeof(unsigned long),
+		.mode		= 0644,
+		.proc_handler	= &preswap_sysctl_handler,
+		.extra1		= (void *)&preswap_zero,
+		.extra2		= (void *)&preswap_infinity,
+	},
+#endif
 #ifdef CONFIG_MEMORY_FAILURE
 	{
 		.ctl_name	= CTL_UNNUMBERED,
