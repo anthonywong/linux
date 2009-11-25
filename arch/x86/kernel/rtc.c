@@ -189,8 +189,10 @@ void read_persistent_clock(struct timespec *ts)
 	unsigned long retval, flags;
 
 #ifdef CONFIG_XEN
-	if (!is_initial_xendomain())
-		return xen_read_persistent_clock();
+	if (!is_initial_xendomain()) {
+		xen_read_persistent_clock(ts);
+		return;
+	}
 #endif
 	spin_lock_irqsave(&rtc_lock, flags);
 	retval = x86_platform.get_wallclock();
