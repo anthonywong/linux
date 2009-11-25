@@ -717,7 +717,8 @@ struct page **alloc_empty_pages_and_pagevec(int nr_pages)
 	goto out;
 }
 
-void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages)
+static void _free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages,
+					  int free_vec)
 {
 	unsigned long flags;
 	int i;
@@ -728,13 +729,26 @@ void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages)
 	balloon_lock(flags);
 	for (i = 0; i < nr_pages; i++) {
 		BUG_ON(page_count(pagevec[i]) != 1);
-		balloon_append(pagevec[i], 0);
+		balloon_append(pagevec[i], !free_vec);
 	}
+	if (!free_vec)
+		totalram_pages = bs.current_pages -= nr_pages;
 	balloon_unlock(flags);
 
-	kfree(pagevec);
+	if (free_vec)
+		kfree(pagevec);
 
 	schedule_work(&balloon_worker);
+}
+
+void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages)
+{
+	_free_empty_pages_and_pagevec(pagevec, nr_pages, 1);
+}
+
+void free_empty_pages(struct page **pagevec, int nr_pages)
+{
+	_free_empty_pages_and_pagevec(pagevec, nr_pages, 0);
 }
 
 void balloon_release_driver_page(struct page *page)

@@ -43,6 +43,7 @@
 #include <xen/interface/memory.h>
 #include <linux/module.h>
 #include <linux/percpu.h>
+#include <linux/highmem.h>
 #include <asm/tlbflush.h>
 #include <linux/highmem.h>
 
@@ -719,6 +720,83 @@ void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order)
 		BUG();
 
 	balloon_unlock(flags);
+
+	if (unlikely(!success)) {
+		/* Try hard to get the special memory back to Xen. */
+		exchange.in.extent_order = 0;
+		set_xen_guest_handle(exchange.in.extent_start, &in_frame);
+
+		for (i = 0; i < (1U<<order); i++) {
+			struct page *page = alloc_page(__GFP_HIGHMEM|__GFP_COLD);
+			unsigned long pfn;
+			mmu_update_t mmu;
+			unsigned int j = 0;
+
+			if (!page) {
+				printk(KERN_WARNING "Xen and kernel out of memory "
+				       "while trying to release an order %u "
+				       "contiguous region\n", order);
+				break;
+			}
+			pfn = page_to_pfn(page);
+
+			balloon_lock(flags);
+
+			if (!PageHighMem(page)) {
+				void *v = __va(pfn << PAGE_SHIFT);
+
+				scrub_pages(v, 1);
+				MULTI_update_va_mapping(cr_mcl + j, (unsigned long)v,
+							__pte_ma(0), UVMF_INVLPG|UVMF_ALL);
+				++j;
+			}
+#ifdef CONFIG_XEN_SCRUB_PAGES
+			else {
+				scrub_pages(kmap(page), 1);
+				kunmap(page);
+				kmap_flush_unused();
+			}
+#endif
+
+			frame = pfn_to_mfn(pfn);
+			set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
+
+			MULTI_update_va_mapping(cr_mcl + j, vstart,
+						pfn_pte_ma(frame, PAGE_KERNEL),
+						UVMF_INVLPG|UVMF_ALL);
+			++j;
+
+			pfn = __pa(vstart) >> PAGE_SHIFT;
+			set_phys_to_machine(pfn, frame);
+			if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+				mmu.ptr = ((uint64_t)frame << PAGE_SHIFT) | MMU_MACHPHYS_UPDATE;
+				mmu.val = pfn;
+				cr_mcl[j].op = __HYPERVISOR_mmu_update;
+				cr_mcl[j].args[0] = (unsigned long)&mmu;
+				cr_mcl[j].args[1] = 1;
+				cr_mcl[j].args[2] = 0;
+				cr_mcl[j].args[3] = DOMID_SELF;
+				++j;
+			}
+
+			cr_mcl[j].op = __HYPERVISOR_memory_op;
+			cr_mcl[j].args[0] = XENMEM_decrease_reservation;
+			cr_mcl[j].args[1] = (unsigned long)&exchange.in;
+
+			if (HYPERVISOR_multicall(cr_mcl, j + 1))
+				BUG();
+			BUG_ON(cr_mcl[j].result != 1);
+			while (j--)
+				BUG_ON(cr_mcl[j].result != 0);
+
+			balloon_unlock(flags);
+
+			free_empty_pages(&page, 1);
+
+			in_frame++;
+			vstart += PAGE_SIZE;
+		}
+	}
 }
 EXPORT_SYMBOL_GPL(xen_destroy_contiguous_region);
 
