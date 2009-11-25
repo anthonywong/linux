@@ -69,15 +69,16 @@ config GENERIC_CMOS_UPDATE
 
 config CLOCKSOURCE_WATCHDOG
 	def_bool y
-	depends on !X86_XEN
+	depends on !XEN
 
 config GENERIC_CLOCKEVENTS
 	def_bool y
-	depends on !X86_XEN
+	depends on !XEN
 
 config GENERIC_CLOCKEVENTS_BROADCAST
 	def_bool y
-	depends on X86_64 || (X86_32 && X86_LOCAL_APIC && !X86_XEN)
+	depends on X86_64 || (X86_32 && X86_LOCAL_APIC)
+	depends on !XEN
 
 config LOCKDEP_SUPPORT
 	def_bool y
@@ -227,12 +228,12 @@ config X86_TRAMPOLINE
 
 config X86_NO_TSS
 	bool
-	depends on X86_XEN || X86_64_XEN
+	depends on XEN
 	default y
 
 config X86_NO_IDT
 	bool
-	depends on X86_XEN || X86_64_XEN
+	depends on XEN
 	default y
 
 config X86_32_LAZY_GS
@@ -314,6 +315,7 @@ config X86_MPPARSE
 
 config X86_XEN
 	bool "Xen-compatible"
+	depends on X86_32
 	select XEN
 	select X86_PAE
 	select X86_UP_APIC if !SMP && XEN_PRIVILEGED_GUEST
@@ -354,6 +356,7 @@ endif
 
 config X86_64_XEN
 	bool "Enable Xen compatible kernel"
+	depends on X86_64
 	select XEN
 	select SWIOTLB
 	help
@@ -626,7 +629,7 @@ source "arch/x86/Kconfig.cpu"
 config HPET_TIMER
 	def_bool X86_64
 	prompt "HPET Timer Support" if X86_32
-	depends on !X86_XEN && !X86_64_XEN
+	depends on !XEN
 	---help---
 	  Use the IA-PC HPET (High Precision Event Timer) to manage
 	  time in preference to the PIT and RTC, if a HPET is
@@ -970,7 +973,7 @@ config I8K
 
 config X86_REBOOTFIXUPS
 	bool "Enable X86 board specific fixups for reboot"
-	depends on X86_32 && !X86_XEN
+	depends on X86_32 && !XEN
 	---help---
 	  This enables chipset and/or board specific fixups to be done
 	  in order to get reboot to work correctly. This is only needed on
@@ -1368,7 +1371,7 @@ config X86_RESERVE_LOW_64K
 config MATH_EMULATION
 	bool
 	prompt "Math emulation" if X86_32
-	depends on !X86_XEN
+	depends on !XEN
 	---help---
 	  Linux can emulate a math coprocessor (used for floating point
 	  operations) if you don't have one. 486DX and Pentium processors have
@@ -1727,6 +1730,7 @@ endmenu
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
 	depends on X86_64 || (X86_32 && HIGHMEM)
+	depends on !XEN
 
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
@@ -1918,7 +1922,7 @@ choice
 
 config PCI_GOBIOS
 	bool "BIOS"
-	depends on !X86_XEN
+	depends on !XEN
 
 config PCI_GOMMCONFIG
 	bool "MMConfig"
@@ -1969,7 +1973,7 @@ config PCI_MMCONFIG
 
 config XEN_PCIDEV_FRONTEND
 	bool "Xen PCI Frontend" if X86_64
-	depends on PCI && ((X86_XEN && (PCI_GOXEN_FE || PCI_GOANY)) || X86_64_XEN)
+	depends on PCI && XEN && (PCI_GOXEN_FE || PCI_GOANY || X86_64)
  	select HOTPLUG
 	default y
 	help
@@ -1985,7 +1989,7 @@ config XEN_PCIDEV_FE_DEBUG
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
-	depends on PCI_MSI && ACPI && EXPERIMENTAL
+	depends on PCI_MSI && ACPI && !XEN && EXPERIMENTAL
 	help
 	  DMA remapping (DMAR) devices support enables independent address
 	  translations for Direct Memory Access (DMA) from devices.

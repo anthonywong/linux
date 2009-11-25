@@ -45,8 +45,8 @@ cpumask_t cpu_possible_map;
 EXPORT_SYMBOL(cpu_possible_map);
 cpumask_t cpu_initialized_map;
 
-struct cpuinfo_x86 cpu_data[NR_CPUS] __cacheline_aligned;
-EXPORT_SYMBOL(cpu_data);
+DEFINE_PER_CPU(struct cpuinfo_x86, cpu_info);
+EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 static DEFINE_PER_CPU(int, resched_irq);
 static DEFINE_PER_CPU(int, callfunc_irq);
@@ -55,12 +55,12 @@ static char callfunc_name[NR_CPUS][15];
 
 u8 cpu_2_logical_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
 
-cpumask_t cpu_sibling_map[NR_CPUS] __cacheline_aligned;
-cpumask_t cpu_core_map[NR_CPUS] __cacheline_aligned;
+DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
+DEFINE_PER_CPU(cpumask_t, cpu_core_map);
 
 #if defined(__i386__)
-u8 x86_cpu_to_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = 0xff };
-EXPORT_SYMBOL(x86_cpu_to_apicid);
+DEFINE_PER_CPU(u8, x86_cpu_to_apicid) = BAD_APICID;
+EXPORT_PER_CPU_SYMBOL(x86_cpu_to_apicid);
 #endif
 
 void __init prefill_possible_map(void)
@@ -85,25 +85,25 @@ void __init smp_alloc_memory(void)
 static inline void
 set_cpu_sibling_map(unsigned int cpu)
 {
-	cpu_data[cpu].phys_proc_id = cpu;
-	cpu_data[cpu].cpu_core_id  = 0;
+	cpu_data(cpu).phys_proc_id = cpu;
+	cpu_data(cpu).cpu_core_id  = 0;
 
-	cpu_sibling_map[cpu] = cpumask_of_cpu(cpu);
-	cpu_core_map[cpu]    = cpumask_of_cpu(cpu);
+	per_cpu(cpu_sibling_map, cpu) = cpumask_of_cpu(cpu);
+	per_cpu(cpu_core_map, cpu) = cpumask_of_cpu(cpu);
 
-	cpu_data[cpu].booted_cores = 1;
+	cpu_data(cpu).booted_cores = 1;
 }
 
 static void
 remove_siblinginfo(unsigned int cpu)
 {
-	cpu_data[cpu].phys_proc_id = BAD_APICID;
-	cpu_data[cpu].cpu_core_id  = BAD_APICID;
+	cpu_data(cpu).phys_proc_id = BAD_APICID;
+	cpu_data(cpu).cpu_core_id  = BAD_APICID;
 
-	cpus_clear(cpu_sibling_map[cpu]);
-	cpus_clear(cpu_core_map[cpu]);
+	cpus_clear(per_cpu(cpu_sibling_map, cpu));
+	cpus_clear(per_cpu(cpu_core_map, cpu));
 
-	cpu_data[cpu].booted_cores = 0;
+	cpu_data(cpu).booted_cores = 0;
 }
 
 static int __cpuinit xen_smp_intr_init(unsigned int cpu)
@@ -162,9 +162,9 @@ void __cpuinit cpu_bringup(void)
 {
 	cpu_init();
 #ifdef __i386__
-	identify_secondary_cpu(cpu_data + smp_processor_id());
+	identify_secondary_cpu(&current_cpu_data);
 #else
-	identify_cpu(cpu_data + smp_processor_id());
+	identify_cpu(&current_cpu_data);
 #endif
 	touch_softlockup_watchdog();
 	preempt_disable();
@@ -265,16 +265,16 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (HYPERVISOR_vcpu_op(VCPUOP_get_physid, 0, &cpu_id) == 0)
 		apicid = xen_vcpu_physid_to_x86_apicid(cpu_id.phys_id);
 	boot_cpu_data.apicid = apicid;
-	cpu_data[0] = boot_cpu_data;
+	cpu_data(0) = boot_cpu_data;
 
 	cpu_2_logical_apicid[0] = apicid;
-	x86_cpu_to_apicid[0] = apicid;
+	per_cpu(x86_cpu_to_apicid, 0) = apicid;
 
 	current_thread_info()->cpu = 0;
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
-		cpus_clear(cpu_sibling_map[cpu]);
-		cpus_clear(cpu_core_map[cpu]);
+		cpus_clear(per_cpu(cpu_sibling_map, cpu));
+		cpus_clear(per_cpu(cpu_core_map, cpu));
 	}
 
 	set_cpu_sibling_map(0);
@@ -319,11 +319,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		apicid = cpu;
 		if (HYPERVISOR_vcpu_op(VCPUOP_get_physid, cpu, &cpu_id) == 0)
 			apicid = xen_vcpu_physid_to_x86_apicid(cpu_id.phys_id);
-		cpu_data[cpu] = boot_cpu_data;
-		cpu_data[cpu].apicid = apicid;
+		cpu_data(cpu) = boot_cpu_data;
+		cpu_data(cpu).cpu_index = cpu;
+		cpu_data(cpu).apicid = apicid;
 
 		cpu_2_logical_apicid[cpu] = apicid;
-		x86_cpu_to_apicid[cpu] = apicid;
+		per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 
 #ifdef __x86_64__
 		cpu_pda(cpu)->pcurrent = idle;

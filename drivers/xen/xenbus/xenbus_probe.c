@@ -175,11 +175,9 @@ static int read_backend_details(struct xenbus_device *xendev)
 }
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) && (defined(CONFIG_XEN) || defined(MODULE))
-static int xenbus_uevent_frontend(struct device *dev, char **envp,
-				  int num_envp, char *buffer, int buffer_size)
+static int xenbus_uevent_frontend(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct xenbus_device *xdev;
-	int length = 0, i = 0;
 
 	if (dev == NULL)
 		return -ENODEV;
@@ -188,12 +186,9 @@ static int xenbus_uevent_frontend(struct device *dev, char **envp,
 		return -ENODEV;
 
 	/* stuff we want to pass to /sbin/hotplug */
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "XENBUS_TYPE=%s", xdev->devicetype);
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "XENBUS_PATH=%s", xdev->nodename);
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "MODALIAS=xen:%s", xdev->devicetype);
+	add_uevent_var(env, "XENBUS_TYPE=%s", xdev->devicetype);
+	add_uevent_var(env, "XENBUS_PATH=%s", xdev->nodename);
+	add_uevent_var(env, "MODALIAS=xen:%s", xdev->devicetype);
 
 	return 0;
 }
