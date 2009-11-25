@@ -376,7 +376,6 @@ static const struct xenbus_device_id usbfront_ids[] = {
 
 static struct xenbus_driver usbfront_driver = {
 	.name = "vusb",
-	.owner = THIS_MODULE,
 	.ids = usbfront_ids,
 	.probe = usbfront_probe,
 	.otherend_changed = backend_changed,
