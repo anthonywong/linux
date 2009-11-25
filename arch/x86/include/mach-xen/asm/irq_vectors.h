@@ -24,6 +24,8 @@
 #define LAST_VM86_IRQ		15
 #define invalid_vm86_irq(irq)	((irq) < 3 || (irq) > 15)
 
+#define NR_IRQS_LEGACY		16
+
 /*
  * The flat IRQ space is divided into two regions:
  *  1. A one-to-one mapping of real physical IRQs. This space is only used
@@ -36,8 +38,10 @@
 
 #define PIRQ_BASE		0
 #if defined(NR_CPUS) && defined(MAX_IO_APICS)
-# if NR_CPUS < MAX_IO_APICS
+# if !defined(CONFIG_SPARSE_IRQ) && NR_CPUS < MAX_IO_APICS
 #  define NR_PIRQS		(NR_VECTORS + 32 * NR_CPUS)
+# elif defined(CONFIG_SPARSE_IRQ) && 8 * NR_CPUS > 32 * MAX_IO_APICS
+#  define NR_PIRQS		(NR_VECTORS + 8 * NR_CPUS)
 # else
 #  define NR_PIRQS		(NR_VECTORS + 32 * MAX_IO_APICS)
 # endif

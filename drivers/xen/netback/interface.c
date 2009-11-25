@@ -175,6 +175,14 @@ static struct ethtool_ops network_ethtool_ops =
 	.get_strings = netbk_get_strings,
 };
 
+static const struct net_device_ops netif_be_netdev_ops = {
+	.ndo_open               = net_open,
+	.ndo_stop               = net_close,
+	.ndo_start_xmit         = netif_be_start_xmit,
+	.ndo_change_mtu	        = netbk_change_mtu,
+	.ndo_get_stats          = netif_be_get_stats,
+};
+
 netif_t *netif_alloc(struct device *parent, domid_t domid, unsigned int handle)
 {
 	int err = 0;
@@ -209,11 +217,7 @@ netif_t *netif_alloc(struct device *parent, domid_t domid, unsigned int handle)
 
 	init_timer(&netif->tx_queue_timeout);
 
-	dev->hard_start_xmit = netif_be_start_xmit;
-	dev->get_stats       = netif_be_get_stats;
-	dev->open            = net_open;
-	dev->stop            = net_close;
-	dev->change_mtu	     = netbk_change_mtu;
+	dev->netdev_ops	     = &netif_be_netdev_ops;
 	dev->features        = NETIF_F_IP_CSUM;
 
 	SET_ETHTOOL_OPS(dev, &network_ethtool_ops);
