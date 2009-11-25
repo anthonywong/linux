@@ -312,7 +312,7 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 int amd_get_nb_id(int cpu)
 {
 	int id = 0;
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && !defined(CONFIG_XEN)
 	id = per_cpu(cpu_llc_id, cpu);
 #endif
 	return id;
@@ -470,8 +470,10 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 == 0x10 || c->x86 == 0x11)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
+#ifndef CONFIG_XEN
 	/* get apicid instead of initial apic id from cpuid */
 	c->apicid = hard_smp_processor_id();
+#endif
 #else
 
 	/*
