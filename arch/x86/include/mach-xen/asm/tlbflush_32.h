@@ -29,7 +29,12 @@
  * and page-granular flushes are available only on i486 and up.
  */
 
+#define TLB_FLUSH_ALL	0xffffffff
+
+
 #ifndef CONFIG_SMP
+
+#include <linux/sched.h>
 
 #define flush_tlb() __flush_tlb()
 #define flush_tlb_all() __flush_tlb_all()
@@ -55,7 +60,7 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 		__flush_tlb();
 }
 
-#else
+#else  /* SMP */
 
 #include <asm/smp.h>
 
@@ -84,9 +89,7 @@ struct tlb_state
 	char __cacheline_padding[L1_CACHE_BYTES-8];
 };
 DECLARE_PER_CPU(struct tlb_state, cpu_tlbstate);
-
-
-#endif
+#endif	/* SMP */
 
 #define flush_tlb_kernel_range(start, end) flush_tlb_all()
 

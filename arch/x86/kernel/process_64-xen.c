@@ -39,6 +39,7 @@
 #include <linux/random.h>
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
+#include <linux/kdebug.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -49,7 +50,6 @@
 #include <asm/mmu_context.h>
 #include <asm/pda.h>
 #include <asm/prctl.h>
-#include <asm/kdebug.h>
 #include <xen/interface/platform.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
@@ -232,16 +232,18 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 
 static int __init idle_setup (char *str)
 {
-	if (!strncmp(str, "poll", 4)) {
+	if (!strcmp(str, "poll")) {
 		printk("using polling idle threads.\n");
 		pm_idle = poll_idle;
-	}
+	} else if (!strcmp(str, "mwait"))
+		force_mwait = 1;
+	else
+		return -1;
 
 	boot_option_idle_override = 1;
-	return 1;
+	return 0;
 }
-
-__setup("idle=", idle_setup);
+early_param("idle", idle_setup);
 
 /* Prints also some state that isn't saved in the pt_regs */ 
 void __show_regs(struct pt_regs * regs)
@@ -546,7 +548,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	 * The AMD workaround requires it to be after DS reload, or
 	 * after DS has been cleared, which we do in __prepare_arch_switch.
 	 */
-	if (prev_p->thread_info->status & TS_USEDFPU) {
+	if (task_thread_info(prev_p)->status & TS_USEDFPU) {
 		__save_init_fpu(prev_p); /* _not_ save_init_fpu() */
 		mcl->op      = __HYPERVISOR_fpu_taskswitch;
 		mcl->args[0] = 1;
