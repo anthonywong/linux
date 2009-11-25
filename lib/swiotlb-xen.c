@@ -723,7 +723,6 @@ swiotlb_dma_supported (struct device *hwdev, u64 mask)
 	return (mask >= ((1UL << dma_bits) - 1));
 }
 
-EXPORT_SYMBOL(swiotlb_init);
 EXPORT_SYMBOL(swiotlb_map_single);
 EXPORT_SYMBOL(swiotlb_unmap_single);
 EXPORT_SYMBOL(swiotlb_map_sg);

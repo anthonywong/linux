@@ -100,7 +100,7 @@ static int pciback_do_attach(struct pciback_device *pdev, int gnt_ref,
 
 	err = bind_interdomain_evtchn_to_irqhandler(
 		pdev->xdev->otherend_id, remote_evtchn, pciback_handle_event,
-		SA_SAMPLE_RANDOM, "pciback", pdev);
+		IRQF_SAMPLE_RANDOM, "pciback", pdev);
 	if (err < 0) {
 		xenbus_dev_fatal(pdev->xdev, err,
 				 "Error binding event channel to IRQ");

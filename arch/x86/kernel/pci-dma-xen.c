@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/version.h>
+#include <linux/pci.h>
 #include <asm/io.h>
 #include <xen/balloon.h>
 #include <xen/gnttab.h>
@@ -275,7 +276,7 @@ int dma_declare_coherent_memory(struct device *dev, dma_addr_t bus_addr,
 {
 	void __iomem *mem_base = NULL;
 	int pages = size >> PAGE_SHIFT;
-	int bitmap_size = (pages + 31)/32;
+	int bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
 
 	if ((flags & (DMA_MEMORY_MAP | DMA_MEMORY_IO)) == 0)
 		goto out;
@@ -347,6 +348,32 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 }
 EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
 #endif /* ARCH_HAS_DMA_DECLARE_COHERENT_MEMORY */
+
+#if defined(CONFIG_PCI) && !defined(CONFIG_XEN)
+/* Many VIA bridges seem to corrupt data for DAC. Disable it here */
+
+int forbid_dac;
+EXPORT_SYMBOL(forbid_dac);
+
+static __devinit void via_no_dac(struct pci_dev *dev)
+{
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI && forbid_dac == 0) {
+		printk(KERN_INFO "PCI: VIA PCI bridge detected. Disabling DAC.\n");
+		forbid_dac = 1;
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, PCI_ANY_ID, via_no_dac);
+
+static int check_iommu(char *s)
+{
+	if (!strcmp(s, "usedac")) {
+		forbid_dac = -1;
+		return 1;
+	}
+	return 0;
+}
+__setup("iommu=", check_iommu);
+#endif
 
 dma_addr_t
 dma_map_single(struct device *dev, void *ptr, size_t size,
