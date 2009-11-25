@@ -60,6 +60,7 @@
 
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
+#include <asm/pda.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -104,28 +105,24 @@ EXPORT_SYMBOL(enable_hlt);
  */
 static void poll_idle (void)
 {
-	local_irq_enable();
-
-	asm volatile(
-		"2:"
-		"testl %0, %1;"
-		"rep; nop;"
-		"je 2b;"
-		: : "i"(_TIF_NEED_RESCHED), "m" (current_thread_info()->flags));
+	cpu_relax();
 }
 
 static void xen_idle(void)
 {
-	local_irq_disable();
+	current_thread_info()->status &= ~TS_POLLING;
+	/*
+	 * TS_POLLING-cleared state must be visible before we
+	 * test NEED_RESCHED:
+	 */
+	smp_mb();
 
-	if (need_resched())
+	local_irq_disable();
+	if (!need_resched())
+		safe_halt();	/* enables interrupts racelessly */
+	else
 		local_irq_enable();
-	else {
-		current_thread_info()->status &= ~TS_POLLING;
-		smp_mb__after_clear_bit();
-		safe_halt();
-		current_thread_info()->status |= TS_POLLING;
-	}
+	current_thread_info()->status |= TS_POLLING;
 }
 #ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(default_idle);
@@ -250,8 +247,8 @@ void show_regs(struct pt_regs * regs)
 		regs->eax,regs->ebx,regs->ecx,regs->edx);
 	printk("ESI: %08lx EDI: %08lx EBP: %08lx",
 		regs->esi, regs->edi, regs->ebp);
-	printk(" DS: %04x ES: %04x\n",
-		0xffff & regs->xds,0xffff & regs->xes);
+	printk(" DS: %04x ES: %04x GS: %04x\n",
+	       0xffff & regs->xds,0xffff & regs->xes, 0xffff & regs->xgs);
 
 	cr0 = read_cr0();
 	cr2 = read_cr2();
@@ -282,6 +279,7 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 
 	regs.xds = __USER_DS;
 	regs.xes = __USER_DS;
+	regs.xgs = __KERNEL_PDA;
 	regs.orig_eax = -1;
 	regs.eip = (unsigned long) kernel_thread_helper;
 	regs.xcs = __KERNEL_CS | get_kernel_rpl();
@@ -359,7 +357,6 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long esp,
 	p->thread.eip = (unsigned long) ret_from_fork;
 
 	savesegment(fs,p->thread.fs);
-	savesegment(gs,p->thread.gs);
 
 	tsk = current;
 	if (unlikely(test_tsk_thread_flag(tsk, TIF_IO_BITMAP))) {
@@ -438,7 +435,7 @@ void dump_thread(struct pt_regs * regs, struct user * dump)
 	dump->regs.ds = regs->xds;
 	dump->regs.es = regs->xes;
 	savesegment(fs,dump->regs.fs);
-	savesegment(gs,dump->regs.gs);
+	dump->regs.gs = regs->xgs;
 	dump->regs.orig_eax = regs->orig_eax;
 	dump->regs.eip = regs->eip;
 	dump->regs.cs = regs->xcs;
@@ -635,17 +632,19 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 	if (unlikely(HYPERVISOR_multicall_check(_mcl, mcl - _mcl, NULL)))
 		BUG();
 
+	/* we're going to use this soon, after a few expensive things */
+	if (next_p->fpu_counter > 5)
+		prefetch(&next->i387.fxsave);
+
 	/*
-	 * Restore %fs and %gs if needed.
+	 * Restore %fs if needed.
 	 *
-	 * Glibc normally makes %fs be zero, and %gs is one of
-	 * the TLS segments.
+	 * Glibc normally makes %fs be zero.
 	 */
 	if (unlikely(next->fs))
 		loadsegment(fs, next->fs);
 
-	if (next->gs)
-		loadsegment(gs, next->gs);
+	write_pda(pcurrent, next_p);
 
 	/*
 	 * Now maybe handle debug registers
@@ -654,6 +653,13 @@ struct task_struct fastcall * __switch_to(struct task_struct *prev_p, struct tas
 		__switch_to_xtra(next_p);
 
 	disable_tsc(prev_p, next_p);
+
+	/* If the task has used fpu the last 5 timeslices, just do a full
+	 * restore of the math state immediately to avoid the trap; the
+	 * chances of needing FPU soon are obviously high now
+	 */
+	if (next_p->fpu_counter > 5)
+		math_state_restore();
 
 	return prev_p;
 }

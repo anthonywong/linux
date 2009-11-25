@@ -33,7 +33,7 @@ static struct pciback_device *alloc_pdev(struct xenbus_device *xdev)
 	pdev->evtchn_irq = INVALID_EVTCHN_IRQ;
 	pdev->be_watching = 0;
 
-	INIT_WORK(&pdev->op_work, pciback_do_op, pdev);
+	INIT_WORK(&pdev->op_work, pciback_do_op);
 
 	if (pciback_init_devices(pdev)) {
 		kfree(pdev);
