@@ -532,7 +532,7 @@ static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
 #ifndef CONFIG_PROCESSOR_EXTERNAL_CONTROL
 	cx->latency_ticks = cx->latency;
 #else
-	cx->latency_ticks = US_TO_PM_TIMER_TICKS(cx->latency);
+	cx->latency_ticks = us_to_pm_timer_ticks(cx->latency);
 #endif
 
 	return;
@@ -619,7 +619,7 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 #ifndef CONFIG_PROCESSOR_EXTERNAL_CONTROL
 	cx->latency_ticks = cx->latency;
 #else
-	cx->latency_ticks = US_TO_PM_TIMER_TICKS(cx->latency);
+	cx->latency_ticks = us_to_pm_timer_ticks(cx->latency);
 #endif
 	/*
 	 * On older chipsets, BM_RLD needs to be set

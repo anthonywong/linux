@@ -158,21 +158,7 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 }
 
 #ifndef ARCH_HAS_DEV_MEM_MMAP_MEM
-static void mmap_mem_open(struct vm_area_struct *vma)
-{
-	map_devmem(vma->vm_pgoff,  vma->vm_end - vma->vm_start,
-			vma->vm_page_prot);
-}
-
-static void mmap_mem_close(struct vm_area_struct *vma)
-{
-	unmap_devmem(vma->vm_pgoff,  vma->vm_end - vma->vm_start,
-			vma->vm_page_prot);
-}
-
 static struct vm_operations_struct mmap_mem_ops = {
-	.open  = mmap_mem_open,
-	.close = mmap_mem_close,
 #ifdef CONFIG_HAVE_IOREMAP_PROT
 	.access = generic_access_phys
 #endif

@@ -188,7 +188,7 @@ static int usbstub_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
-	char *busid = intf->dev.parent->bus_id;
+	const char *busid = dev_name(intf->dev.parent);
 	struct vusb_port_id *portid = NULL;
 	struct usbstub *stub = NULL;
 	usbif_t *usbif = NULL;
