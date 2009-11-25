@@ -113,9 +113,9 @@ void __init setup_per_cpu_areas(void)
 		if (!NODE_DATA(cpu_to_node(i))) {
 			printk("cpu with no node %d, num_online_nodes %d\n",
 			       i, num_online_nodes());
-			ptr = alloc_bootmem(size);
+			ptr = alloc_bootmem_pages(size);
 		} else { 
-			ptr = alloc_bootmem_node(NODE_DATA(cpu_to_node(i)), size);
+			ptr = alloc_bootmem_pages_node(NODE_DATA(cpu_to_node(i)), size);
 		}
 		if (!ptr)
 			panic("Cannot allocate cpu data for CPU %d\n", i);
@@ -208,6 +208,8 @@ char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ + DEBUG_ST
 __attribute__((section(".bss.page_aligned")));
 #endif
 
+extern asmlinkage void ignore_sysret(void);
+
 /* May not be marked __init: used by software suspend */
 void syscall_init(void)
 {
@@ -219,12 +221,22 @@ void syscall_init(void)
 	 */ 
 	wrmsrl(MSR_STAR,  ((u64)__USER32_CS)<<48  | ((u64)__KERNEL_CS)<<32); 
 	wrmsrl(MSR_LSTAR, system_call); 
+	wrmsrl(MSR_CSTAR, ignore_sysret);
 
 	/* Flags to clear on syscall */
 	wrmsrl(MSR_SYSCALL_MASK, EF_TF|EF_DF|EF_IE|0x3000); 
 #endif
 #ifdef CONFIG_IA32_EMULATION   		
 	syscall32_cpu_init ();
+#else
+	{
+		static const struct callback_register cstar = {
+			.type = CALLBACKTYPE_syscall32,
+			.address = (unsigned long)ignore_sysret
+		};
+		if (HYPERVISOR_callback_op(CALLBACKOP_register, &cstar))
+			printk(KERN_WARNING "Unable to register CSTAR callback\n");
+	}
 #endif
 }
 
@@ -262,7 +274,6 @@ void __cpuinit cpu_init (void)
 	/* CPU 0 is initialised in head64.c */
 	if (cpu != 0) {
 		pda_init(cpu);
-		zap_low_mappings(cpu);
 	}
 #ifndef CONFIG_X86_NO_TSS
 	else
