@@ -1297,7 +1297,7 @@ static int make_aio_fd(struct kioctx *ioctx)
 	int fd;
 	struct file *file;
 
-	fd = anon_inode_getfd("[aioq]", &aioq_fops, ioctx);
+	fd = anon_inode_getfd("[aioq]", &aioq_fops, ioctx, 0);
 	if (fd < 0)
 		return fd;
 
