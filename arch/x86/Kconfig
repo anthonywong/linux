@@ -24,7 +24,7 @@ config X86
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_IDE
 	select HAVE_OPROFILE
-	select HAVE_PERF_EVENTS if (!M386 && !M486)
+	select HAVE_PERF_EVENTS if (!M386 && !M486 && !XEN)
 	select HAVE_IOREMAP_PROT
 	select HAVE_KPROBES
 	select ARCH_WANT_OPTIONAL_GPIOLIB
@@ -858,7 +858,7 @@ config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 
 config X86_MCE
 	bool "Machine Check / overheating reporting"
-	depends on !X86_XEN && !XEN_UNPRIVILEGED_GUEST
+	depends on !XEN_UNPRIVILEGED_GUEST
 	---help---
 	  Machine Check support allows the processor to notify the
 	  kernel if it detects a problem (e.g. overheating, data corruption).
@@ -891,7 +891,7 @@ config X86_MCE_AMD
 
 config X86_ANCIENT_MCE
 	def_bool n
-	depends on X86_32 && X86_MCE
+	depends on X86_32 && X86_MCE && !XEN
 	prompt "Support for old Pentium 5 / WinChip machine checks"
 	---help---
 	  Include support for machine check handling on old Pentium 5 or WinChip
@@ -1566,6 +1566,7 @@ config KEXEC_JUMP
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP || XEN)
+	default 0x100000 if XEN
 	default "0x1000000"
 	---help---
 	  This gives the physical address where the kernel is loaded.

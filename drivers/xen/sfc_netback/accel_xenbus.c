@@ -35,7 +35,7 @@
 #define NODENAME_PATH_FMT "backend/vif/%d/%d"
 
 #define NETBACK_ACCEL_FROM_XENBUS_DEVICE(_dev) (struct netback_accel *) \
-	((struct backend_info *)(_dev)->dev.driver_data)->netback_accel_priv
+	((struct backend_info *)dev_get_drvdata(&(_dev)->dev))->netback_accel_priv
 
 /* List of all the bends currently in existence. */
 struct netback_accel *bend_list = NULL;
@@ -614,7 +614,7 @@ int netback_accel_probe(struct xenbus_device *dev)
 	mutex_lock(&bend->bend_mutex);
 
 	/* ...and store it where we can get at it */
-	binfo = (struct backend_info *) dev->dev.driver_data;
+	binfo = dev_get_drvdata(&dev->dev);
 	binfo->netback_accel_priv = bend;
 	/* And vice-versa */
 	bend->hdev_data = dev;
@@ -728,7 +728,7 @@ int netback_accel_remove(struct xenbus_device *dev)
 	struct netback_accel *bend; 
 	int frontend_state;
 
-	binfo = (struct backend_info *) dev->dev.driver_data;
+	binfo = dev_get_drvdata(&dev->dev);
 	bend = (struct netback_accel *) binfo->netback_accel_priv;
 
 	DPRINTK("%s: dev %p bend %p\n", __FUNCTION__, dev, bend);
