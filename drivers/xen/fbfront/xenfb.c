@@ -18,6 +18,7 @@
  * frame buffer.
  */
 
+#include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/fb.h>
@@ -545,6 +546,28 @@ static unsigned long vmalloc_to_mfn(void *address)
 	return pfn_to_mfn(vmalloc_to_pfn(address));
 }
 
+static __devinit void
+xenfb_make_preferred_console(void)
+{
+	struct console *c;
+
+	if (console_set_on_cmdline)
+		return;
+
+	acquire_console_sem();
+	for (c = console_drivers; c; c = c->next) {
+		if (!strcmp(c->name, "tty") && c->index == 0)
+			break;
+	}
+	release_console_sem();
+	if (c) {
+		unregister_console(c);
+		c->flags |= CON_CONSDEV;
+		c->flags &= ~CON_PRINTBUFFER; /* don't print again */
+		register_console(c);
+	}
+}
+
 static int __devinit xenfb_probe(struct xenbus_device *dev,
 				 const struct xenbus_device_id *id)
 {
@@ -665,6 +688,7 @@ static int __devinit xenfb_probe(struct xenbus_device *dev,
 	if (ret < 0)
 		goto error;
 
+	xenfb_make_preferred_console();
 	return 0;
 
  error_nomem:
@@ -882,4 +906,5 @@ static void __exit xenfb_cleanup(void)
 module_init(xenfb_init);
 module_exit(xenfb_cleanup);
 
+MODULE_DESCRIPTION("Xen virtual framebuffer device frontend");
 MODULE_LICENSE("GPL");

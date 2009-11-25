@@ -5,13 +5,14 @@
  *		      2006	Shaohua Li <shaohua.li@intel.com>
  *
  *	This driver allows to upgrade microcode on Intel processors
- *	belonging to IA-32 family - PentiumPro, Pentium II, 
+ *	belonging to IA-32 family - PentiumPro, Pentium II,
  *	Pentium III, Xeon, Pentium 4, etc.
  *
- *	Reference: Section 8.10 of Volume III, Intel Pentium 4 Manual, 
- *	Order Number 245472 or free download from:
- *		
- *	http://developer.intel.com/design/pentium4/manuals/245472.htm
+ *	Reference: Section 8.11 of Volume 3a, IA-32 Intel? Architecture
+ *	Software Developer's Manual
+ *	Order Number 253668 or free download from:
+ *
+ *	http://developer.intel.com/design/pentium4/manuals/253668.htm
  *
  *	For more information, go to http://www.urbanmyth.org/microcode
  *
@@ -26,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -86,6 +88,7 @@ static int do_microcode_update (const void __user *ubuf, size_t len)
 
 static int microcode_open (struct inode *unused1, struct file *unused2)
 {
+	cycle_kernel_lock();
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
@@ -162,7 +165,7 @@ static int request_microcode(void)
 		c->x86, c->x86_model, c->x86_mask);
 	error = request_firmware(&firmware, name, &microcode_pdev->dev);
 	if (error) {
-		pr_debug("microcode: ucode data file %s load failed\n", name);
+		pr_debug("microcode: data file %s load failed\n", name);
 		return error;
 	}
 
@@ -183,6 +186,9 @@ static int __init microcode_init (void)
 {
 	int error;
 
+	printk(KERN_INFO
+		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@aivazian.fsnet.co.uk>\n");
+
 	error = microcode_dev_init();
 	if (error)
 		return error;
@@ -195,8 +201,6 @@ static int __init microcode_init (void)
 
 	request_microcode();
 
-	printk(KERN_INFO 
-		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@aivazian.fsnet.co.uk>\n");
 	return 0;
 }
 
