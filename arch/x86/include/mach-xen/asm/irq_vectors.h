@@ -1,8 +1,11 @@
 #ifndef _ASM_X86_IRQ_VECTORS_H
 #define _ASM_X86_IRQ_VECTORS_H
 
+#define MCE_VECTOR			0x12
+
 #ifdef CONFIG_X86_32
 # define SYSCALL_VECTOR			0x80
+# define IA32_SYSCALL_VECTOR		0x80
 #else
 # define IA32_SYSCALL_VECTOR		0x80
 #endif
@@ -11,7 +14,8 @@
 #define CALL_FUNCTION_VECTOR		1
 #define CALL_FUNC_SINGLE_VECTOR		2
 #define SPIN_UNLOCK_VECTOR		3
-#define NR_IPIS				4
+#define REBOOT_VECTOR			4
+#define NR_IPIS				5
 
 /*
  * The maximum number of vectors supported by i386 processors

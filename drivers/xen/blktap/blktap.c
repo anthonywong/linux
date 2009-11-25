@@ -561,7 +561,8 @@ void signal_tapdisk(int idx)
 		return;
 
 	if (info->pid > 0) {
-		ptask = find_task_by_pid_ns(info->pid, info->pid_ns);
+		ptask = pid_task(find_pid_ns(info->pid, info->pid_ns),
+				 PIDTYPE_PID);
 		if (ptask)
 			info->status = CLEANSHUTDOWN;
 	}
