@@ -1,5 +1,4 @@
-#ifdef CONFIG_X86_32
-# include "swiotlb_32.h"
-#else
-# include_next <asm/swiotlb.h>
-#endif
+#include_next <asm/swiotlb.h>
+
+dma_addr_t swiotlb_map_single_phys(struct device *, phys_addr_t, size_t size,
+				   int dir);

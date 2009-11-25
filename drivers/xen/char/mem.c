@@ -33,6 +33,27 @@ static inline int uncached_access(struct file *file)
 	return 0;
 }
 
+static inline int range_is_allowed(unsigned long pfn, unsigned long size)
+{
+#ifdef CONFIG_NONPROMISC_DEVMEM
+	u64 from = ((u64)pfn) << PAGE_SHIFT;
+	u64 to = from + size;
+	u64 cursor = from;
+
+	while (cursor < to) {
+		if (!devmem_is_allowed(pfn)) {
+			printk(KERN_INFO
+		"Program %s tried to access /dev/mem between %Lx->%Lx.\n",
+				current->comm, from, to);
+			return 0;
+		}
+		cursor += PAGE_SIZE;
+		pfn++;
+	}
+#endif
+	return 1;
+}
+
 /*
  * This funcion reads the *physical* memory. The f_pos points directly to the 
  * memory location. 
@@ -54,6 +75,9 @@ static ssize_t read_mem(struct file * file, char __user * buf,
 			sz = PAGE_SIZE;
 
 		sz = min_t(unsigned long, sz, count);
+
+		if (!range_is_allowed(p >> PAGE_SHIFT, count))
+			return -EPERM;
 
 		v = ioremap(p, sz);
 		if (IS_ERR(v) || v == NULL) {
@@ -103,6 +127,9 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 
 		sz = min_t(unsigned long, sz, count);
 
+		if (!range_is_allowed(p >> PAGE_SHIFT, sz))
+			return -EPERM;
+
 		v = ioremap(p, sz);
 		if (v == NULL)
 			break;
@@ -131,12 +158,38 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 }
 
 #ifndef ARCH_HAS_DEV_MEM_MMAP_MEM
+static void mmap_mem_open(struct vm_area_struct *vma)
+{
+	map_devmem(vma->vm_pgoff,  vma->vm_end - vma->vm_start,
+			vma->vm_page_prot);
+}
+
+static void mmap_mem_close(struct vm_area_struct *vma)
+{
+	unmap_devmem(vma->vm_pgoff,  vma->vm_end - vma->vm_start,
+			vma->vm_page_prot);
+}
+
+static struct vm_operations_struct mmap_mem_ops = {
+	.open  = mmap_mem_open,
+	.close = mmap_mem_close
+};
+
 static int xen_mmap_mem(struct file * file, struct vm_area_struct * vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
 
 	if (uncached_access(file))
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+
+	if (!range_is_allowed(vma->vm_pgoff, size))
+		return -EPERM;
+
+	if (!phys_mem_access_prot_allowed(file, vma->vm_pgoff, size,
+						&vma->vm_page_prot))
+		return -EINVAL;
+
+	vma->vm_ops = &mmap_mem_ops;
 
 	/* We want to return the real error code, not EAGAIN. */
 	return direct_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
