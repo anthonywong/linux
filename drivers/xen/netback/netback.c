@@ -1589,6 +1589,12 @@ static irqreturn_t netif_be_dbg(int irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+static struct irqaction netif_be_dbg_action = {
+	.handler = netif_be_dbg,
+	.flags   = IRQF_SHARED,
+	.name    = "net-be-dbg"
+};
 #endif
 
 static int __init netback_init(void)
@@ -1648,12 +1654,9 @@ static int __init netback_init(void)
 	netif_xenbus_init();
 
 #ifdef NETBE_DEBUG_INTERRUPT
-	(void)bind_virq_to_irqhandler(VIRQ_DEBUG,
-				      0,
-				      netif_be_dbg,
-				      IRQF_SHARED,
-				      "net-be-dbg",
-				      &netif_be_dbg);
+	(void)bind_virq_to_irqaction(VIRQ_DEBUG,
+				     0,
+				     &netif_be_dbg_action);
 #endif
 
 	return 0;
