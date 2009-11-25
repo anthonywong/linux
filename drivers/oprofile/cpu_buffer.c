@@ -464,7 +464,7 @@ fail:
 #ifdef CONFIG_XEN
 int oprofile_add_domain_switch(int32_t domain_id)
 {
-	struct oprofile_cpu_buffer * cpu_buf = &cpu_buffer[smp_processor_id()];
+	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
 
 	/* should have space for switching into and out of domain
 	   (2 slots each) plus one sample and one cpu mode switch */

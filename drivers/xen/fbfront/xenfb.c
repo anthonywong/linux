@@ -93,7 +93,7 @@ struct xenfb_info
  *    only mappings.  The former creates unfaulted pages.  Preserves
  *    invariant.  The latter removes pages.  Preserves invariant.
  *
- * 3. Holding both locks: xenfb_vm_nopage().  Extends the dirty
+ * 3. Holding both locks: xenfb_vm_fault().  Extends the dirty
  *    rectangle and updates mappings consistently.  Preserves
  *    invariant.
  *
@@ -112,13 +112,13 @@ struct xenfb_info
  *
  * But FIXME: the invariant is too weak.  It misses that the fault
  * record in mappings must be consistent with the mapping of pages in
- * the associated address space!  do_no_page() updates the PTE after
- * xenfb_vm_nopage() returns, i.e. outside the critical region.  This
+ * the associated address space!  __do_fault() updates the PTE after
+ * xenfb_vm_fault() returns, i.e. outside the critical region.  This
  * allows the following race:
  *
  * X writes to some address in the Xen frame buffer
- * Fault - call do_no_page()
- *     call xenfb_vm_nopage()
+ * Fault - call __do_fault()
+ *     call xenfb_vm_fault()
  *         grab mm_lock
  *         map->faults++;
  *         release mm_lock
@@ -387,18 +387,17 @@ static void xenfb_vm_close(struct vm_area_struct *vma)
 	mutex_unlock(&info->mm_lock);
 }
 
-static struct page *xenfb_vm_nopage(struct vm_area_struct *vma,
-				    unsigned long vaddr, int *type)
+static int xenfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct xenfb_mapping *map = vma->vm_private_data;
 	struct xenfb_info *info = map->info;
-	int pgnr = (vaddr - vma->vm_start) >> PAGE_SHIFT;
+	int pgnr = ((long)vmf->virtual_address - vma->vm_start) >> PAGE_SHIFT;
 	unsigned long flags;
 	struct page *page;
 	int y1, y2;
 
 	if (pgnr >= info->nr_pages)
-		return NOPAGE_SIGBUS;
+		return VM_FAULT_SIGBUS;
 
 	mutex_lock(&info->mm_lock);
 	spin_lock_irqsave(&info->dirty_lock, flags);
@@ -414,16 +413,15 @@ static struct page *xenfb_vm_nopage(struct vm_area_struct *vma,
 	spin_unlock_irqrestore(&info->dirty_lock, flags);
 	mutex_unlock(&info->mm_lock);
 
-	if (type)
-		*type = VM_FAULT_MINOR;
+	vmf->page = page;
 
-	return page;
+	return VM_FAULT_MINOR;
 }
 
 static struct vm_operations_struct xenfb_vm_ops = {
 	.open	= xenfb_vm_open,
 	.close	= xenfb_vm_close,
-	.nopage	= xenfb_vm_nopage,
+	.fault	= xenfb_vm_fault,
 };
 
 static int xenfb_mmap(struct fb_info *fb_info, struct vm_area_struct *vma)

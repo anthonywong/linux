@@ -682,8 +682,6 @@ int xen_update_persistent_clock(void)
 	return 0;
 }
 
-extern void (*late_time_init)(void);
-
 /* Dynamically-mapped IRQ. */
 DEFINE_PER_CPU(int, timer_irq);
 
