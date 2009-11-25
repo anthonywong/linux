@@ -73,7 +73,7 @@
  */
 static enum {
 	XC_OFF, XC_TTY, XC_SERIAL, XC_XVC, XC_HVC
-} xc_mode = XC_XVC;
+} xc_mode;
 static int xc_num = -1;
 
 /* /dev/xvc0 device number allocated by lanana.org. */
@@ -83,6 +83,16 @@ static int xc_num = -1;
 /* /dev/hvc0 device number */
 #define XEN_HVC_MAJOR 229
 #define XEN_HVC_MINOR 0
+
+void xencons_early_setup(void)
+{
+    if (is_initial_xendomain()) {
+        xc_mode = XC_SERIAL;
+    } else {
+        xc_mode = XC_TTY;
+        console_use_vt = 0;
+    }
+}
 
 static int __init xencons_setup(char *str)
 {
