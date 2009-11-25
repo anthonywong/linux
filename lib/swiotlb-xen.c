@@ -30,7 +30,6 @@
 #include <asm/gnttab_dma.h>
 
 int swiotlb;
-EXPORT_SYMBOL(swiotlb);
 
 #define OFFSET(val,align) ((unsigned long)((val) & ( (align) - 1)))
 
@@ -289,6 +288,15 @@ __sync_single(struct phys_addr buffer, char *dma_addr, size_t size, int dir)
 	}
 }
 
+static inline unsigned int is_span_boundary(unsigned int index,
+					    unsigned int nslots,
+					    unsigned long offset_slots,
+					    unsigned long max_slots)
+{
+	unsigned long offset = (offset_slots + index) & (max_slots - 1);
+	return offset + nslots > max_slots;
+}
+
 /*
  * Allocates bounce buffer and returns its kernel virtual address.
  */
@@ -300,6 +308,15 @@ map_single(struct device *hwdev, struct phys_addr buffer, size_t size, int dir)
 	unsigned int nslots, stride, index, wrap;
 	struct phys_addr slot_buf;
 	int i;
+	unsigned long mask;
+	unsigned long offset_slots;
+	unsigned long max_slots;
+
+	mask = dma_get_seg_boundary(hwdev);
+	offset_slots = -IO_TLB_SEGSIZE;
+	max_slots = mask + 1
+		    ? ALIGN(mask + 1, 1 << IO_TLB_SHIFT) >> IO_TLB_SHIFT
+		    : 1UL << (BITS_PER_LONG - IO_TLB_SHIFT);
 
 	/*
 	 * For mappings greater than a page, we limit the stride (and
@@ -319,12 +336,21 @@ map_single(struct device *hwdev, struct phys_addr buffer, size_t size, int dir)
 	 */
 	spin_lock_irqsave(&io_tlb_lock, flags);
 	{
-		wrap = index = ALIGN(io_tlb_index, stride);
-
+		index = ALIGN(io_tlb_index, stride);
 		if (index >= iotlb_nslabs)
-			wrap = index = 0;
+			index = 0;
+		wrap = index;
 
 		do {
+			while (is_span_boundary(index, nslots, offset_slots,
+						max_slots)) {
+				index += stride;
+				if (index >= iotlb_nslabs)
+					index = 0;
+				if (index == wrap)
+					goto not_found;
+			}
+
 			/*
 			 * If we find a slot that indicates we have 'nslots'
 			 * number of contiguous buffers, we allocate the
@@ -359,6 +385,7 @@ map_single(struct device *hwdev, struct phys_addr buffer, size_t size, int dir)
 				index = 0;
 		} while (index != wrap);
 
+  not_found:
 		spin_unlock_irqrestore(&io_tlb_lock, flags);
 		return NULL;
 	}

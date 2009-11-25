@@ -167,7 +167,7 @@ static int request_microcode(void)
 	}
 
 	op.cmd = XENPF_microcode_update;
-	set_xen_guest_handle(op.u.microcode.data, (void *)firmware->data);
+	set_xen_guest_handle(op.u.microcode.data, firmware->data);
 	op.u.microcode.length = firmware->size;
 	error = HYPERVISOR_platform_op(&op);
 

@@ -161,15 +161,12 @@ void __init machine_specific_arch_setup(void)
 
 	/* Do an early initialization of the fixmap area */
 	{
-		extern pte_t swapper_pg_pmd[PTRS_PER_PTE];
+		extern pte_t swapper_pg_fixmap[PTRS_PER_PTE];
 		unsigned long addr = __fix_to_virt(FIX_EARLYCON_MEM_BASE);
-		pgd_t *pgd = (pgd_t *)xen_start_info->pt_base;
-		pud_t *pud = pud_offset(pgd + pgd_index(addr), addr);
+		pud_t *pud = pud_offset(swapper_pg_dir + pgd_index(addr), addr);
 		pmd_t *pmd = pmd_offset(pud, addr);
 
-		swapper_pg_dir = pgd;
-		init_mm.pgd    = pgd;
-		make_lowmem_page_readonly(swapper_pg_pmd, XENFEAT_writable_page_tables);
-		set_pmd(pmd, __pmd(__pa_symbol(swapper_pg_pmd) | _PAGE_TABLE));
+		make_lowmem_page_readonly(swapper_pg_fixmap, XENFEAT_writable_page_tables);
+		set_pmd(pmd, __pmd(__pa_symbol(swapper_pg_fixmap) | _PAGE_TABLE));
 	}
 }

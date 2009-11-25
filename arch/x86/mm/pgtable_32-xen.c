@@ -29,8 +29,6 @@
 #include <xen/features.h>
 #include <asm/hypervisor.h>
 
-static void pgd_test_and_unpin(pgd_t *pgd);
-
 void show_mem(void)
 {
 	int total = 0, reserved = 0;
@@ -167,53 +165,6 @@ pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 	return pte;
 }
 
-static void _pte_free(struct page *page, unsigned int order)
-{
-	BUG_ON(order);
-	pte_free(page);
-}
-
-struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-	struct page *pte;
-
-#ifdef CONFIG_HIGHPTE
-	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
-#else
-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
-#endif
-	if (pte) {
-		SetPageForeign(pte, _pte_free);
-		init_page_count(pte);
-	}
-	return pte;
-}
-
-void pte_free(struct page *pte)
-{
-	unsigned long pfn = page_to_pfn(pte);
-
-	if (!PageHighMem(pte)) {
-		unsigned long va = (unsigned long)__va(pfn << PAGE_SHIFT);
-
-		if (!pte_write(*virt_to_ptep(va)))
-			if (HYPERVISOR_update_va_mapping(
-				va, pfn_pte(pfn, PAGE_KERNEL), 0))
-				BUG();
-	} else
-		ClearPagePinned(pte);
-
-	ClearPageForeign(pte);
-	init_page_count(pte);
-
-	__free_page(pte);
-}
-
-void pmd_ctor(struct kmem_cache *cache, void *pmd)
-{
-	memset(pmd, 0, PTRS_PER_PMD*sizeof(pmd_t));
-}
-
 /*
  * List of all pgd's needed for non-PAE so it can invalidate entries
  * in both cached and uncached pgd's; not needed for PAE since the
@@ -224,224 +175,191 @@ void pmd_ctor(struct kmem_cache *cache, void *pmd)
  * vmalloc faults work because attached pagetables are never freed.
  * -- wli
  */
-DEFINE_SPINLOCK(pgd_lock);
-struct page *pgd_list;
-
 static inline void pgd_list_add(pgd_t *pgd)
 {
 	struct page *page = virt_to_page(pgd);
-	page->index = (unsigned long)pgd_list;
-	if (pgd_list)
-		set_page_private(pgd_list, (unsigned long)&page->index);
-	pgd_list = page;
-	set_page_private(page, (unsigned long)&pgd_list);
+
+	list_add(&page->lru, &pgd_list);
 }
 
 static inline void pgd_list_del(pgd_t *pgd)
 {
-	struct page *next, **pprev, *page = virt_to_page(pgd);
-	next = (struct page *)page->index;
-	pprev = (struct page **)page_private(page);
-	*pprev = next;
-	if (next)
-		set_page_private(next, (unsigned long)pprev);
-}
+	struct page *page = virt_to_page(pgd);
 
-
-
-#if (PTRS_PER_PMD == 1)
-/* Non-PAE pgd constructor */
-static void pgd_ctor(void *pgd)
-{
-	unsigned long flags;
-
-	/* !PAE, no pagetable sharing */
-	memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
-
-	spin_lock_irqsave(&pgd_lock, flags);
-
-	/* must happen under lock */
-	clone_pgd_range((pgd_t *)pgd + USER_PTRS_PER_PGD,
-			swapper_pg_dir + USER_PTRS_PER_PGD,
-			KERNEL_PGD_PTRS);
-
-	paravirt_alloc_pd_clone(__pa(pgd) >> PAGE_SHIFT,
-				__pa(swapper_pg_dir) >> PAGE_SHIFT,
-				USER_PTRS_PER_PGD,
-				KERNEL_PGD_PTRS);
-	pgd_list_add(pgd);
-	spin_unlock_irqrestore(&pgd_lock, flags);
-}
-#else  /* PTRS_PER_PMD > 1 */
-/* PAE pgd constructor */
-static void pgd_ctor(void *pgd)
-{
-	/* PAE, kernel PMD may be shared */
-
-	if (SHARED_KERNEL_PMD) {
-		clone_pgd_range((pgd_t *)pgd + USER_PTRS_PER_PGD,
-				swapper_pg_dir + USER_PTRS_PER_PGD,
-				KERNEL_PGD_PTRS);
-	} else {
-		memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
-	}
-}
-#endif	/* PTRS_PER_PMD */
-
-static void pgd_dtor(void *pgd)
-{
-	unsigned long flags; /* can be called from interrupt context */
-
-	if (SHARED_KERNEL_PMD)
-		return;
-
-	paravirt_release_pd(__pa(pgd) >> PAGE_SHIFT);
-	spin_lock_irqsave(&pgd_lock, flags);
-	pgd_list_del(pgd);
-	spin_unlock_irqrestore(&pgd_lock, flags);
-
-	pgd_test_and_unpin(pgd);
+	list_del(&page->lru);
 }
 
 #define UNSHARED_PTRS_PER_PGD				\
 	(SHARED_KERNEL_PMD ? USER_PTRS_PER_PGD : PTRS_PER_PGD)
 
-/* If we allocate a pmd for part of the kernel address space, then
-   make sure its initialized with the appropriate kernel mappings.
-   Otherwise use a cached zeroed pmd.  */
-static pmd_t *pmd_cache_alloc(int idx)
+static void pgd_ctor(void *p)
 {
-	pmd_t *pmd;
-
-	if (idx >= USER_PTRS_PER_PGD) {
-		pmd = (pmd_t *)__get_free_page(GFP_KERNEL);
-
-#ifndef CONFIG_XEN
-		if (pmd)
-			memcpy(pmd,
-			       (void *)pgd_page_vaddr(swapper_pg_dir[idx]),
-			       sizeof(pmd_t) * PTRS_PER_PMD);
-#endif
-	} else
-		pmd = kmem_cache_alloc(pmd_cache, GFP_KERNEL);
-
-	return pmd;
-}
-
-static void pmd_cache_free(pmd_t *pmd, int idx)
-{
-	if (idx >= USER_PTRS_PER_PGD) {
-		make_lowmem_page_writable(pmd, XENFEAT_writable_page_tables);
-		memset(pmd, 0, PTRS_PER_PMD*sizeof(pmd_t));
-		free_page((unsigned long)pmd);
-	} else
-		kmem_cache_free(pmd_cache, pmd);
-}
-
-pgd_t *pgd_alloc(struct mm_struct *mm)
-{
-	int i;
-	pgd_t *pgd = quicklist_alloc(0, GFP_KERNEL, pgd_ctor);
-	pmd_t **pmds = NULL;
+	pgd_t *pgd = p;
 	unsigned long flags;
 
 	pgd_test_and_unpin(pgd);
 
-	if (PTRS_PER_PMD == 1 || !pgd)
-		return pgd;
+	/* Clear usermode parts of PGD */
+	memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
 
-#ifdef CONFIG_XEN
+	spin_lock_irqsave(&pgd_lock, flags);
+
+	/* If the pgd points to a shared pagetable level (either the
+	   ptes in non-PAE, or shared PMD in PAE), then just copy the
+	   references from swapper_pg_dir. */
+	if (PAGETABLE_LEVELS == 2 ||
+	    (PAGETABLE_LEVELS == 3 && SHARED_KERNEL_PMD)) {
+		clone_pgd_range(pgd + USER_PTRS_PER_PGD,
+				swapper_pg_dir + USER_PTRS_PER_PGD,
+				KERNEL_PGD_PTRS);
+		paravirt_alloc_pd_clone(__pa(pgd) >> PAGE_SHIFT,
+					__pa(swapper_pg_dir) >> PAGE_SHIFT,
+					USER_PTRS_PER_PGD,
+					KERNEL_PGD_PTRS);
+	}
+
+	/* list required to sync kernel mapping updates */
+	if (PAGETABLE_LEVELS == 2)
+		pgd_list_add(pgd);
+
+	spin_unlock_irqrestore(&pgd_lock, flags);
+}
+
+static void pgd_dtor(void *pgd)
+{
+	unsigned long flags; /* can be called from interrupt context */
+
 	if (!SHARED_KERNEL_PMD) {
-		/*
-		 * We can race save/restore (if we sleep during a GFP_KERNEL memory
-		 * allocation). We therefore store virtual addresses of pmds as they
-		 * do not change across save/restore, and poke the machine addresses
-		 * into the pgdir under the pgd_lock.
-		 */
-		pmds = kmalloc(PTRS_PER_PGD * sizeof(pmd_t *), GFP_KERNEL);
-		if (!pmds) {
-			quicklist_free(0, pgd_dtor, pgd);
-			return NULL;
+		spin_lock_irqsave(&pgd_lock, flags);
+		pgd_list_del(pgd);
+		spin_unlock_irqrestore(&pgd_lock, flags);
+	}
+
+	pgd_test_and_unpin(pgd);
+}
+
+#ifdef CONFIG_X86_PAE
+/*
+ * Mop up any pmd pages which may still be attached to the pgd.
+ * Normally they will be freed by munmap/exit_mmap, but any pmd we
+ * preallocate which never got a corresponding vma will need to be
+ * freed manually.
+ */
+static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
+{
+	int i;
+
+	for(i = 0; i < UNSHARED_PTRS_PER_PGD; i++) {
+		pgd_t pgd = pgdp[i];
+
+		if (__pgd_val(pgd) != 0) {
+			pmd_t *pmd = (pmd_t *)pgd_page_vaddr(pgd);
+
+			pgdp[i] = xen_make_pgd(0);
+
+			paravirt_release_pd(pgd_val(pgd) >> PAGE_SHIFT);
+			pmd_free(mm, pmd);
 		}
 	}
-#endif
+}
 
-	/* Allocate pmds, remember virtual addresses. */
-	for (i = 0; i < UNSHARED_PTRS_PER_PGD; ++i) {
-		pmd_t *pmd = pmd_cache_alloc(i);
+/*
+ * In PAE mode, we need to do a cr3 reload (=tlb flush) when
+ * updating the top-level pagetable entries to guarantee the
+ * processor notices the update.  Since this is expensive, and
+ * all 4 top-level entries are used almost immediately in a
+ * new process's life, we just pre-populate them here.
+ *
+ * Also, if we're in a paravirt environment where the kernel pmd is
+ * not shared between pagetables (!SHARED_KERNEL_PMDS), we allocate
+ * and initialize the kernel pmds here.
+ */
+static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
+{
+	pud_t *pud;
+	pmd_t *pmds[UNSHARED_PTRS_PER_PGD];
+	unsigned long addr, flags;
+	int i;
 
-		if (!pmd)
+	/*
+	 * We can race save/restore (if we sleep during a GFP_KERNEL memory
+	 * allocation). We therefore store virtual addresses of pmds as they
+	 * do not change across save/restore, and poke the machine addresses
+	 * into the pgdir under the pgd_lock.
+	 */
+ 	for (addr = i = 0; i < UNSHARED_PTRS_PER_PGD; i++, addr += PUD_SIZE) {
+		pmds[i] = pmd_alloc_one(mm, addr);
+		if (!pmds[i])
 			goto out_oom;
-
-		paravirt_alloc_pd(__pa(pmd) >> PAGE_SHIFT);
-		if (pmds)
-			pmds[i] = pmd;
-		else
-			set_pgd(&pgd[i], __pgd(1 + __pa(pmd)));
 	}
-
-#ifdef CONFIG_XEN
-	if (SHARED_KERNEL_PMD)
-		return pgd;
 
 	spin_lock_irqsave(&pgd_lock, flags);
 
 	/* Protect against save/restore: move below 4GB under pgd_lock. */
-	if (!xen_feature(XENFEAT_pae_pgdir_above_4gb)) {
-		int rc = xen_create_contiguous_region(
-			(unsigned long)pgd, 0, 32);
-		if (rc) {
-			spin_unlock_irqrestore(&pgd_lock, flags);
-			goto out_oom;
-		}
+	if (!xen_feature(XENFEAT_pae_pgdir_above_4gb)
+	    && xen_create_contiguous_region((unsigned long)pgd, 0, 32)) {
+		spin_unlock_irqrestore(&pgd_lock, flags);
+out_oom:
+		while (i--)
+			pmd_free(mm, pmds[i]);
+		return 0;
 	}
 
 	/* Copy kernel pmd contents and write-protect the new pmds. */
-	for (i = USER_PTRS_PER_PGD; i < PTRS_PER_PGD; i++) {
-		memcpy(pmds[i],
-		       (void *)pgd_page_vaddr(swapper_pg_dir[i]),
-		       sizeof(pmd_t) * PTRS_PER_PMD);
-		make_lowmem_page_readonly(
-			pmds[i], XENFEAT_writable_page_tables);
+	pud = pud_offset(pgd, 0);
+ 	for (addr = i = 0; i < UNSHARED_PTRS_PER_PGD;
+	     i++, pud++, addr += PUD_SIZE) {
+		if (i >= USER_PTRS_PER_PGD) {
+			memcpy(pmds[i],
+			       (pmd_t *)pgd_page_vaddr(swapper_pg_dir[i]),
+			       sizeof(pmd_t) * PTRS_PER_PMD);
+			make_lowmem_page_readonly(
+				pmds[i], XENFEAT_writable_page_tables);
+		}
+
+		/* It is safe to poke machine addresses of pmds under the pgd_lock. */
+		pud_populate(mm, pud, pmds[i]);
 	}
 
-	/* It is safe to poke machine addresses of pmds under the pmd_lock. */
-	for (i = 0; i < PTRS_PER_PGD; i++)
-		set_pgd(&pgd[i], __pgd(1 + __pa(pmds[i])));
-
-	/* Ensure this pgd gets picked up and pinned on save/restore. */
+	/* List required to sync kernel mapping updates and
+	 * to pin/unpin on save/restore. */
 	pgd_list_add(pgd);
 
 	spin_unlock_irqrestore(&pgd_lock, flags);
 
-	kfree(pmds);
-#endif
-
-	return pgd;
-
-out_oom:
-	if (!pmds) {
-		for (i--; i >= 0; i--) {
-			pgd_t pgdent = pgd[i];
-			void* pmd = (void *)__va(pgd_val(pgdent)-1);
-			paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
-			pmd_cache_free(pmd, i);
-		}
-	} else {
-		for (i--; i >= 0; i--) {
-			paravirt_release_pd(__pa(pmds[i]) >> PAGE_SHIFT);
-			pmd_cache_free(pmds[i], i);
-		}
-		kfree(pmds);
-	}
-	quicklist_free(0, pgd_dtor, pgd);
-	return NULL;
+	return 1;
+}
+#else  /* !CONFIG_X86_PAE */
+/* No need to prepopulate any pagetable entries in non-PAE modes. */
+static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
+{
+	return 1;
 }
 
-void pgd_free(pgd_t *pgd)
+static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
 {
-	int i;
+}
+#endif	/* CONFIG_X86_PAE */
 
+pgd_t *pgd_alloc(struct mm_struct *mm)
+{
+	pgd_t *pgd = (pgd_t *)__get_free_page(GFP_KERNEL | __GFP_ZERO);
+
+	/* so that alloc_pd can use it */
+	mm->pgd = pgd;
+	if (pgd)
+		pgd_ctor(pgd);
+
+	if (pgd && !pgd_prepopulate_pmd(mm, pgd)) {
+		free_page((unsigned long)pgd);
+		pgd = NULL;
+	}
+
+	return pgd;
+}
+
+void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+{
 	/*
 	 * After this the pgd should not be pinned for the duration of this
 	 * function's execution. We should never sleep and thus never race:
@@ -450,39 +368,43 @@ void pgd_free(pgd_t *pgd)
 	 *  2. The machine addresses in PGD entries will not become invalid
 	 *     due to a concurrent save/restore.
 	 */
-	pgd_test_and_unpin(pgd);
+	pgd_dtor(pgd);
 
-	/* in the PAE case user pgd entries are overwritten before usage */
-	if (PTRS_PER_PMD > 1) {
-		for (i = 0; i < UNSHARED_PTRS_PER_PGD; ++i) {
-			pgd_t pgdent = pgd[i];
-			void* pmd = (void *)__va(pgd_val(pgdent)-1);
-			paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
-			pmd_cache_free(pmd, i);
-		}
+	if (PTRS_PER_PMD > 1 && !xen_feature(XENFEAT_pae_pgdir_above_4gb))
+		xen_destroy_contiguous_region((unsigned long)pgd, 0);
 
-		if (!xen_feature(XENFEAT_pae_pgdir_above_4gb))
-			xen_destroy_contiguous_region((unsigned long)pgd, 0);
-	}
-
-	/* in the non-PAE case, free_pgtables() clears user pgd entries */
-	quicklist_free(0, pgd_dtor, pgd);
+	pgd_mop_up_pmds(mm, pgd);
+	free_page((unsigned long)pgd);
 }
 
-void check_pgt_cache(void)
+void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 {
-	quicklist_trim(0, pgd_dtor, 25, 16);
+	pgtable_page_dtor(pte);
+	paravirt_release_pt(page_to_pfn(pte));
+	tlb_remove_page(tlb, pte);
 }
+
+#ifdef CONFIG_X86_PAE
+
+void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+{
+	paravirt_release_pd(__pa(pmd) >> PAGE_SHIFT);
+	tlb_remove_page(tlb, virt_to_page(pmd));
+}
+
+#endif
 
 void make_lowmem_page_readonly(void *va, unsigned int feature)
 {
 	pte_t *pte;
+	unsigned int level;
 	int rc;
 
 	if (xen_feature(feature))
 		return;
 
-	pte = virt_to_ptep(va);
+	pte = lookup_address((unsigned long)va, &level);
+	BUG_ON(!pte || level != PG_LEVEL_4K || !pte_present(*pte));
 	rc = HYPERVISOR_update_va_mapping(
 		(unsigned long)va, pte_wrprotect(*pte), 0);
 	BUG_ON(rc);
@@ -491,313 +413,15 @@ void make_lowmem_page_readonly(void *va, unsigned int feature)
 void make_lowmem_page_writable(void *va, unsigned int feature)
 {
 	pte_t *pte;
+	unsigned int level;
 	int rc;
 
 	if (xen_feature(feature))
 		return;
 
-	pte = virt_to_ptep(va);
+	pte = lookup_address((unsigned long)va, &level);
+	BUG_ON(!pte || level != PG_LEVEL_4K || !pte_present(*pte));
 	rc = HYPERVISOR_update_va_mapping(
 		(unsigned long)va, pte_mkwrite(*pte), 0);
 	BUG_ON(rc);
-}
-
-void make_page_readonly(void *va, unsigned int feature)
-{
-	pte_t *pte;
-	int rc;
-
-	if (xen_feature(feature))
-		return;
-
-	pte = virt_to_ptep(va);
-	rc = HYPERVISOR_update_va_mapping(
-		(unsigned long)va, pte_wrprotect(*pte), 0);
-	if (rc) /* fallback? */
-		xen_l1_entry_update(pte, pte_wrprotect(*pte));
-	if ((unsigned long)va >= (unsigned long)high_memory) {
-		unsigned long pfn = pte_pfn(*pte);
-#ifdef CONFIG_HIGHMEM
-		if (pfn >= highstart_pfn)
-			kmap_flush_unused(); /* flush stale writable kmaps */
-		else
-#endif
-			make_lowmem_page_readonly(
-				phys_to_virt(pfn << PAGE_SHIFT), feature); 
-	}
-}
-
-void make_page_writable(void *va, unsigned int feature)
-{
-	pte_t *pte;
-	int rc;
-
-	if (xen_feature(feature))
-		return;
-
-	pte = virt_to_ptep(va);
-	rc = HYPERVISOR_update_va_mapping(
-		(unsigned long)va, pte_mkwrite(*pte), 0);
-	if (rc) /* fallback? */
-		xen_l1_entry_update(pte, pte_mkwrite(*pte));
-	if ((unsigned long)va >= (unsigned long)high_memory) {
-		unsigned long pfn = pte_pfn(*pte); 
-#ifdef CONFIG_HIGHMEM
-		if (pfn < highstart_pfn)
-#endif
-			make_lowmem_page_writable(
-				phys_to_virt(pfn << PAGE_SHIFT), feature);
-	}
-}
-
-void make_pages_readonly(void *va, unsigned int nr, unsigned int feature)
-{
-	if (xen_feature(feature))
-		return;
-
-	while (nr-- != 0) {
-		make_page_readonly(va, feature);
-		va = (void *)((unsigned long)va + PAGE_SIZE);
-	}
-}
-
-void make_pages_writable(void *va, unsigned int nr, unsigned int feature)
-{
-	if (xen_feature(feature))
-		return;
-
-	while (nr-- != 0) {
-		make_page_writable(va, feature);
-		va = (void *)((unsigned long)va + PAGE_SIZE);
-	}
-}
-
-static void _pin_lock(struct mm_struct *mm, int lock) {
-	if (lock)
-		spin_lock(&mm->page_table_lock);
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
-	/* While mm->page_table_lock protects us against insertions and
-	 * removals of higher level page table pages, it doesn't protect
-	 * against updates of pte-s. Such updates, however, require the
-	 * pte pages to be in consistent state (unpinned+writable or
-	 * pinned+readonly). The pinning and attribute changes, however
-	 * cannot be done atomically, which is why such updates must be
-	 * prevented from happening concurrently.
-	 * Note that no pte lock can ever elsewhere be acquired nesting
-	 * with an already acquired one in the same mm, or with the mm's
-	 * page_table_lock already acquired, as that would break in the
-	 * non-split case (where all these are actually resolving to the
-	 * one page_table_lock). Thus acquiring all of them here is not
-	 * going to result in dead locks, and the order of acquires
-	 * doesn't matter.
-	 */
-	{
-		pgd_t *pgd = mm->pgd;
-		unsigned g;
-
-		for (g = 0; g < USER_PTRS_PER_PGD; g++, pgd++) {
-			pud_t *pud;
-			unsigned u;
-
-			if (pgd_none(*pgd))
-				continue;
-			pud = pud_offset(pgd, 0);
-			for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
-				pmd_t *pmd;
-				unsigned m;
-
-				if (pud_none(*pud))
-					continue;
-				pmd = pmd_offset(pud, 0);
-				for (m = 0; m < PTRS_PER_PMD; m++, pmd++) {
-					spinlock_t *ptl;
-
-					if (pmd_none(*pmd))
-						continue;
-					ptl = pte_lockptr(0, pmd);
-					if (lock)
-						spin_lock(ptl);
-					else
-						spin_unlock(ptl);
-				}
-			}
-		}
-	}
-#endif
-	if (!lock)
-		spin_unlock(&mm->page_table_lock);
-}
-#define pin_lock(mm) _pin_lock(mm, 1)
-#define pin_unlock(mm) _pin_lock(mm, 0)
-
-#define PIN_BATCH 4
-static DEFINE_PER_CPU(multicall_entry_t[PIN_BATCH], pb_mcl);
-
-static inline unsigned int pgd_walk_set_prot(struct page *page, pgprot_t flags,
-                                             unsigned int cpu, unsigned seq)
-{
-	unsigned long pfn = page_to_pfn(page);
-
-	if (PageHighMem(page)) {
-		if (pgprot_val(flags) & _PAGE_RW)
-			ClearPagePinned(page);
-		else
-			SetPagePinned(page);
-	} else {
-		MULTI_update_va_mapping(per_cpu(pb_mcl, cpu) + seq,
-				(unsigned long)__va(pfn << PAGE_SHIFT),
-				pfn_pte(pfn, flags), 0);
-		if (unlikely(++seq == PIN_BATCH)) {
-			if (unlikely(HYPERVISOR_multicall_check(per_cpu(pb_mcl, cpu),
-		                                                PIN_BATCH, NULL)))
-				BUG();
-			seq = 0;
-		}
-	}
-
-	return seq;
-}
-
-static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
-{
-	pgd_t *pgd = pgd_base;
-	pud_t *pud;
-	pmd_t *pmd;
-	int    g, u, m;
-	unsigned int cpu, seq;
-
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
-
-	cpu = get_cpu();
-
-	for (g = 0, seq = 0; g < USER_PTRS_PER_PGD; g++, pgd++) {
-		if (pgd_none(*pgd))
-			continue;
-		pud = pud_offset(pgd, 0);
-		if (PTRS_PER_PUD > 1) /* not folded */
-			seq = pgd_walk_set_prot(virt_to_page(pud),flags,cpu,seq);
-		for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
-			if (pud_none(*pud))
-				continue;
-			pmd = pmd_offset(pud, 0);
-			if (PTRS_PER_PMD > 1) /* not folded */
-				seq = pgd_walk_set_prot(virt_to_page(pmd),flags,cpu,seq);
-			for (m = 0; m < PTRS_PER_PMD; m++, pmd++) {
-				if (pmd_none(*pmd))
-					continue;
-				seq = pgd_walk_set_prot(pmd_page(*pmd),flags,cpu,seq);
-			}
-		}
-	}
-
-	if (likely(seq != 0)) {
-		MULTI_update_va_mapping(per_cpu(pb_mcl, cpu) + seq,
-			(unsigned long)pgd_base,
-			pfn_pte(virt_to_phys(pgd_base)>>PAGE_SHIFT, flags),
-			UVMF_TLB_FLUSH);
-		if (unlikely(HYPERVISOR_multicall_check(per_cpu(pb_mcl, cpu),
-		                                        seq + 1, NULL)))
-			BUG();
-	} else if(HYPERVISOR_update_va_mapping((unsigned long)pgd_base,
-			pfn_pte(virt_to_phys(pgd_base)>>PAGE_SHIFT, flags),
-			UVMF_TLB_FLUSH))
-		BUG();
-
-	put_cpu();
-}
-
-static void __pgd_pin(pgd_t *pgd)
-{
-	pgd_walk(pgd, PAGE_KERNEL_RO);
-	kmap_flush_unused();
-	xen_pgd_pin(__pa(pgd));
-	SetPagePinned(virt_to_page(pgd));
-}
-
-static void __pgd_unpin(pgd_t *pgd)
-{
-	xen_pgd_unpin(__pa(pgd));
-	pgd_walk(pgd, PAGE_KERNEL);
-	ClearPagePinned(virt_to_page(pgd));
-}
-
-static void pgd_test_and_unpin(pgd_t *pgd)
-{
-	if (PagePinned(virt_to_page(pgd)))
-		__pgd_unpin(pgd);
-}
-
-void mm_pin(struct mm_struct *mm)
-{
-	if (xen_feature(XENFEAT_writable_page_tables))
-		return;
-	pin_lock(mm);
-	__pgd_pin(mm->pgd);
-	pin_unlock(mm);
-}
-
-void mm_unpin(struct mm_struct *mm)
-{
-	if (xen_feature(XENFEAT_writable_page_tables))
-		return;
-	pin_lock(mm);
-	__pgd_unpin(mm->pgd);
-	pin_unlock(mm);
-}
-
-void mm_pin_all(void)
-{
-	struct page *page;
-	unsigned long flags;
-
-	if (xen_feature(XENFEAT_writable_page_tables))
-		return;
-
-	/*
-	 * Allow uninterrupted access to the pgd_list. Also protects
-	 * __pgd_pin() by disabling preemption.
-	 * All other CPUs must be at a safe point (e.g., in stop_machine
-	 * or offlined entirely).
-	 */
-	spin_lock_irqsave(&pgd_lock, flags);
-	for (page = pgd_list; page; page = (struct page *)page->index) {
-		if (!PagePinned(page))
-			__pgd_pin((pgd_t *)page_address(page));
-	}
-	spin_unlock_irqrestore(&pgd_lock, flags);
-}
-
-void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
-{
-	if (!PagePinned(virt_to_page(mm->pgd)))
-		mm_pin(mm);
-}
-
-void arch_exit_mmap(struct mm_struct *mm)
-{
-	struct task_struct *tsk = current;
-
-	task_lock(tsk);
-
-	/*
-	 * We aggressively remove defunct pgd from cr3. We execute unmap_vmas()
-	 * *much* faster this way, as no tlb flushes means bigger wrpt batches.
-	 */
-	if (tsk->active_mm == mm) {
-		tsk->active_mm = &init_mm;
-		atomic_inc(&init_mm.mm_count);
-
-		switch_mm(mm, &init_mm, tsk);
-
-		atomic_dec(&mm->mm_count);
-		BUG_ON(atomic_read(&mm->mm_count) == 0);
-	}
-
-	task_unlock(tsk);
-
-	if (PagePinned(virt_to_page(mm->pgd)) &&
-	    (atomic_read(&mm->mm_count) == 1) &&
-	    !mm->context.has_foreign_mappings)
-		mm_unpin(mm);
 }

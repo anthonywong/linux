@@ -33,7 +33,7 @@ struct mtrr_ops generic_mtrr_ops = {
 
 struct mtrr_ops *mtrr_if = &generic_mtrr_ops;
 unsigned int num_var_ranges;
-unsigned int *usage_table;
+unsigned int mtrr_usage_table[MAX_VAR_RANGES];
 
 static void __init set_num_var_ranges(void)
 {
@@ -52,17 +52,12 @@ static void __init init_table(void)
 	int i, max;
 
 	max = num_var_ranges;
-	if ((usage_table = kmalloc(max * sizeof *usage_table, GFP_KERNEL))
-	    == NULL) {
-		printk(KERN_ERR "mtrr: could not allocate\n");
-		return;
-	}
 	for (i = 0; i < max; i++)
-		usage_table[i] = 0;
+		mtrr_usage_table[i] = 0;
 }
 
 int mtrr_add_page(unsigned long base, unsigned long size, 
-		  unsigned int type, char increment)
+		  unsigned int type, bool increment)
 {
 	int error;
 	struct xen_platform_op op;
@@ -81,7 +76,7 @@ int mtrr_add_page(unsigned long base, unsigned long size,
 	}
 
 	if (increment)
-		++usage_table[op.u.add_memtype.reg];
+		++mtrr_usage_table[op.u.add_memtype.reg];
 
 	mutex_unlock(&mtrr_mutex);
 
@@ -103,7 +98,7 @@ static int mtrr_check(unsigned long base, unsigned long size)
 
 int
 mtrr_add(unsigned long base, unsigned long size, unsigned int type,
-	 char increment)
+	 bool increment)
 {
 	if (mtrr_check(base, size))
 		return -EINVAL;
@@ -136,11 +131,11 @@ int mtrr_del_page(int reg, unsigned long base, unsigned long size)
 			goto out;
 		}
 	}
-	if (usage_table[reg] < 1) {
+	if (mtrr_usage_table[reg] < 1) {
 		printk(KERN_WARNING "mtrr: reg: %d has count=0\n", reg);
 		goto out;
 	}
-	if (--usage_table[reg] < 1) {
+	if (--mtrr_usage_table[reg] < 1) {
 		op.cmd = XENPF_del_memtype;
 		op.u.del_memtype.handle = 0;
 		op.u.del_memtype.reg    = reg;
