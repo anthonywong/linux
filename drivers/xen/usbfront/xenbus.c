@@ -240,10 +240,10 @@ static struct usb_hcd *create_hcd(struct xenbus_device *dev)
 	}
 	switch (usb_ver) {
 	case USB_VER_USB11:
-		hcd = usb_create_hcd(&xen_usb11_hc_driver, &dev->dev, dev->dev.bus_id);
+		hcd = usb_create_hcd(&xen_usb11_hc_driver, &dev->dev, dev_name(&dev->dev));
 		break;
 	case USB_VER_USB20:
-		hcd = usb_create_hcd(&xen_usb20_hc_driver, &dev->dev, dev->dev.bus_id);
+		hcd = usb_create_hcd(&xen_usb20_hc_driver, &dev->dev, dev_name(&dev->dev));
 		break;
 	default:
 		xenbus_dev_fatal(dev, err, "invalid usb-ver");
