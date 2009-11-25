@@ -714,7 +714,7 @@ config AMD_IOMMU
 	bool "AMD IOMMU support"
 	select SWIOTLB
 	select PCI_MSI
-	depends on X86_64 && PCI && ACPI
+	depends on X86_64 && PCI && ACPI && !XEN
 	---help---
 	  With this option you can enable support for AMD IOMMU hardware in
 	  your system. An IOMMU is a hardware component which provides
@@ -1447,7 +1447,7 @@ config MTRR
 config MTRR_SANITIZER
 	def_bool y
 	prompt "MTRR cleanup support"
-	depends on MTRR
+	depends on MTRR && !XEN
 	---help---
 	  Convert MTRR layout from continuous to discrete, so X drivers can
 	  add writeback entries.

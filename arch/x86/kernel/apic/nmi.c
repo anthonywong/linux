@@ -27,7 +27,9 @@
 #include <linux/kdebug.h>
 #include <linux/smp.h>
 
+#ifndef CONFIG_XEN
 #include <asm/i8259.h>
+#endif
 #include <asm/io_apic.h>
 #include <asm/proto.h>
 #include <asm/timer.h>
@@ -174,11 +176,13 @@ int __init check_nmi_watchdog(void)
 	kfree(prev_nmi_count);
 	return 0;
 error:
+#ifndef CONFIG_XEN
 	if (nmi_watchdog == NMI_IO_APIC) {
 		if (!timer_through_8259)
 			disable_8259A_irq(0);
 		on_each_cpu(__acpi_nmi_disable, NULL, 1);
 	}
+#endif
 
 #ifdef CONFIG_X86_32
 	timer_ack = 0;

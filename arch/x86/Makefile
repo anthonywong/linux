@@ -110,8 +110,8 @@ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 
 # Xen subarch support
-mflags-$(CONFIG_X86_XEN)	:= -Iinclude/asm-x86/mach-xen
-mcore-$(CONFIG_X86_XEN)		:= arch/x86/mach-xen/
+mflags-$(CONFIG_XEN)		:= -Iinclude/asm-x86/mach-xen
+mcore-$(CONFIG_XEN)		:= arch/x86/mach-xen/
 
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)

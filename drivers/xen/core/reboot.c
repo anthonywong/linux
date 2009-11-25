@@ -29,16 +29,11 @@ MODULE_LICENSE("Dual BSD/GPL");
 /* Ignore multiple shutdown requests. */
 static int shutting_down = SHUTDOWN_INVALID;
 
-/* Was last suspend request cancelled? */
-static int suspend_cancelled;
-
 /* Can we leave APs online when we suspend? */
 static int fast_suspend;
 
 static void __shutdown_handler(struct work_struct *unused);
 static DECLARE_DELAYED_WORK(shutdown_work, __shutdown_handler);
-
-static int setup_suspend_evtchn(void);
 
 int __xen_suspend(int fast_suspend, void (*resume_notifier)(int));
 
@@ -68,6 +63,13 @@ static int shutdown_process(void *__unused)
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+
+static int setup_suspend_evtchn(void);
+
+/* Was last suspend request cancelled? */
+static int suspend_cancelled;
 
 static void xen_resume_notifier(int _suspend_cancelled)
 {
@@ -117,6 +119,10 @@ static int xen_suspend(void *__unused)
 	BUG_ON(old_state != SHUTDOWN_SUSPEND);
 	return 0;
 }
+
+#else
+# define xen_suspend NULL
+#endif
 
 static void switch_shutdown_state(int new_state)
 {
@@ -194,8 +200,10 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		new_state = SHUTDOWN_POWEROFF;
 	else if (strcmp(str, "reboot") == 0)
 		ctrl_alt_del();
+#ifdef CONFIG_PM_SLEEP
 	else if (strcmp(str, "suspend") == 0)
 		new_state = SHUTDOWN_SUSPEND;
+#endif
 	else if (strcmp(str, "halt") == 0)
 		new_state = SHUTDOWN_HALT;
 	else
@@ -247,6 +255,7 @@ static struct xenbus_watch sysrq_watch = {
 	.callback = sysrq_handler
 };
 
+#ifdef CONFIG_PM_SLEEP
 static irqreturn_t suspend_int(int irq, void* dev_id)
 {
 	switch_shutdown_state(SHUTDOWN_SUSPEND);
@@ -274,6 +283,9 @@ static int setup_suspend_evtchn(void)
 
 	return 0;
 }
+#else
+#define setup_suspend_evtchn() 0
+#endif
 
 static int setup_shutdown_watcher(void)
 {

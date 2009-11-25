@@ -306,8 +306,8 @@ blktap_sysfs_create(struct blktap *tap)
 
 	ring = &tap->ring;
 
-	dev = device_create_drvdata(class, NULL, ring->devno, tap,
-				    "blktap%d", tap->minor);
+	dev = device_create(class, NULL, ring->devno, tap,
+			    "blktap%d", tap->minor);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 

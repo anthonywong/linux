@@ -35,7 +35,6 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/platform.h>
@@ -117,6 +116,8 @@ int xen_create_contiguous_region(
     unsigned long vstart, unsigned int order, unsigned int address_bits);
 void xen_destroy_contiguous_region(
     unsigned long vstart, unsigned int order);
+int early_create_contiguous_region(unsigned long pfn, unsigned int order,
+				   unsigned int address_bits);
 
 struct page;
 
@@ -185,6 +186,29 @@ static inline void xen_multicall_flush(bool ignore) {}
 #define xen_multi_mmuext_op(...) ({ BUG(); -ENOSYS; })
 
 #endif /* CONFIG_XEN && !MODULE */
+
+#ifdef CONFIG_XEN
+
+struct gnttab_map_grant_ref;
+bool gnttab_pre_map_adjust(unsigned int cmd, struct gnttab_map_grant_ref *,
+			   unsigned int count);
+#if CONFIG_XEN_COMPAT < 0x030400
+int gnttab_post_map_adjust(const struct gnttab_map_grant_ref *, unsigned int);
+#else
+static inline int gnttab_post_map_adjust(const struct gnttab_map_grant_ref *m,
+					 unsigned int count)
+{
+	BUG();
+	return -ENOSYS;
+}
+#endif
+
+#else /* !CONFIG_XEN */
+
+#define gnttab_pre_map_adjust(...) false
+#define gnttab_post_map_adjust(...) ({ BUG(); -ENOSYS; })
+
+#endif /* CONFIG_XEN */
 
 #if defined(CONFIG_X86_64)
 #define MULTI_UVMFLAGS_INDEX 2
