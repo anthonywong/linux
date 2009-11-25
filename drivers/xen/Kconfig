@@ -370,7 +370,7 @@ config XEN_SCRUB_PAGES
 
 config XEN_DEV_EVTCHN
 	tristate "Xen /dev/xen/evtchn device"
-	depends on XEN
+	depends on PARAVIRT_XEN
 	default y
 	help
 	  The evtchn driver allows a userspace process to triger event
@@ -403,7 +403,7 @@ config XEN_COMPAT_XENFS
 
 config XEN_SYS_HYPERVISOR
        bool "Create xen entries under /sys/hypervisor"
-       depends on XEN && SYSFS
+       depends on PARAVIRT_XEN && SYSFS
        select SYS_HYPERVISOR
        default y
        help

@@ -113,7 +113,7 @@ int __devinit xenkbd_probe(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, -ENOMEM, "allocating info structure");
 		return -ENOMEM;
 	}
-	dev->dev.driver_data = info;
+	dev_set_drvdata(&dev->dev, info);
 	info->xbdev = dev;
 	snprintf(info->phys, sizeof(info->phys), "xenbus/%s", dev->nodename);
 
@@ -186,7 +186,7 @@ int __devinit xenkbd_probe(struct xenbus_device *dev,
 
 static int xenkbd_resume(struct xenbus_device *dev)
 {
-	struct xenkbd_info *info = dev->dev.driver_data;
+	struct xenkbd_info *info = dev_get_drvdata(&dev->dev);
 
 	xenkbd_disconnect_backend(info);
 	info->page->in_cons = info->page->in_prod = 0;
@@ -196,7 +196,7 @@ static int xenkbd_resume(struct xenbus_device *dev)
 
 static int xenkbd_remove(struct xenbus_device *dev)
 {
-	struct xenkbd_info *info = dev->dev.driver_data;
+	struct xenkbd_info *info = dev_get_drvdata(&dev->dev);
 
 	xenkbd_disconnect_backend(info);
 	input_unregister_device(info->kbd);
@@ -262,7 +262,7 @@ static void xenkbd_disconnect_backend(struct xenkbd_info *info)
 static void xenkbd_backend_changed(struct xenbus_device *dev,
 				   enum xenbus_state backend_state)
 {
-	struct xenkbd_info *info = dev->dev.driver_data;
+	struct xenkbd_info *info = dev_get_drvdata(&dev->dev);
 	int ret, val;
 
 	switch (backend_state) {
