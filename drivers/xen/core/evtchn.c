@@ -194,7 +194,7 @@ static inline unsigned int cpu_from_evtchn(unsigned int evtchn)
 
 /* Upcall to generic IRQ layer. */
 #ifdef CONFIG_X86
-extern fastcall unsigned int do_IRQ(struct pt_regs *regs);
+extern unsigned int do_IRQ(struct pt_regs *regs);
 void __init xen_init_IRQ(void);
 void __init init_IRQ(void)
 {
@@ -203,13 +203,11 @@ void __init init_IRQ(void)
 }
 #if defined (__i386__)
 static inline void exit_idle(void) {}
-#define IRQ_REG orig_eax
 #elif defined (__x86_64__)
 #include <asm/idle.h>
-#define IRQ_REG orig_rax
 #endif
 #define do_IRQ(irq, regs) do {		\
-	(regs)->IRQ_REG = ~(irq);	\
+	(regs)->orig_ax = ~(irq);	\
 	do_IRQ((regs));			\
 } while (0)
 #endif
@@ -670,13 +668,12 @@ static void set_affinity_irq(unsigned int irq, cpumask_t dest)
 int resend_irq_on_evtchn(unsigned int irq)
 {
 	int masked, evtchn = evtchn_from_irq(irq);
-	shared_info_t *s = HYPERVISOR_shared_info;
 
 	if (!VALID_EVTCHN(evtchn))
 		return 1;
 
 	masked = test_and_set_evtchn_mask(evtchn);
-	synch_set_bit(evtchn, s->evtchn_pending);
+	set_evtchn(evtchn);
 	if (!masked)
 		unmask_evtchn(evtchn);
 
@@ -969,6 +966,43 @@ void disable_all_local_evtchn(void)
 			synch_set_bit(i, &s->evtchn_mask[0]);
 }
 
+/* Clear an irq's pending state, in preparation for polling on it. */
+void xen_clear_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		clear_evtchn(evtchn);
+}
+
+/* Set an irq's pending state, to avoid blocking on it. */
+void xen_set_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		set_evtchn(evtchn);
+}
+
+/* Test an irq's pending state. */
+int xen_test_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	return VALID_EVTCHN(evtchn) && test_evtchn(evtchn);
+}
+
+/* Poll waiting for an irq to become pending.  In the usual case, the
+   irq will be disabled so it won't deliver an interrupt. */
+void xen_poll_irq(int irq)
+{
+	evtchn_port_t evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn)
+	    && HYPERVISOR_poll_no_timeout(&evtchn, 1))
+		BUG();
+}
+
 static void restore_cpu_virqs(unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;
@@ -1022,8 +1056,8 @@ static void restore_cpu_ipis(unsigned int cpu)
 		bind_evtchn_to_cpu(evtchn, cpu);
 
 		/* Ready for use. */
-		unmask_evtchn(evtchn);
-
+		if (!(irq_desc[irq].status & IRQ_DISABLED))
+			unmask_evtchn(evtchn);
 	}
 }
 

@@ -7,4 +7,10 @@ extern void hpet_time_init(void);
 
 extern void time_init(void);
 
+#ifdef CONFIG_XEN
+extern int xen_independent_wallclock(void);
+extern unsigned long xen_read_persistent_clock(void);
+extern int xen_update_persistent_clock(void);
+#endif
+
 #endif /* _ASM_X86_TIME_H */

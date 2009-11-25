@@ -43,17 +43,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-static ssize_t show_statistics(struct class_device *class_dev, char *buf)
+static ssize_t show_statistics(struct device *dev,
+			       struct device_attribute *attr, char *buf)
 {
-	struct usb_bus *bus;
 	struct usb_hcd *hcd;
 	struct usbfront_info *info;
 	unsigned long flags;
 	unsigned temp, size;
 	char *next;
 
-	bus = class_get_devdata(class_dev);
-	hcd = bus->hcpriv;
+	hcd = dev_get_drvdata(dev);
 	info = hcd_to_info(hcd);
 	next = buf;
 	size = PAGE_SIZE;
@@ -85,18 +84,18 @@ static ssize_t show_statistics(struct class_device *class_dev, char *buf)
 	return PAGE_SIZE - size;
 }
 
-static CLASS_DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
+static DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
 
 static inline void create_debug_file(struct usbfront_info *info)
 {
-	struct class_device *cldev = info_to_hcd(info)->self.class_dev;
-	if (class_device_create_file(cldev, &class_device_attr_statistics))
+	struct device *dev = info_to_hcd(info)->self.controller;
+	if (device_create_file(dev, &dev_attr_statistics))
 		printk(KERN_WARNING "statistics file not created for %s\n",
 		       info_to_hcd(info)->self.bus_name);
 }
 
 static inline void remove_debug_file(struct usbfront_info *info)
 {
-	struct class_device *cldev = info_to_hcd(info)->self.class_dev;
-	class_device_remove_file(cldev, &class_device_attr_statistics);
+	struct device *dev = info_to_hcd(info)->self.controller;
+	device_remove_file(dev, &dev_attr_statistics);
 }

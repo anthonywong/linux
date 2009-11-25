@@ -50,7 +50,7 @@ static int __init hypervisor_subsys_init(void)
 	if (!is_running_on_xen())
 		return -ENODEV;
 
-	hypervisor_subsys.kobj.ktype = &hyp_sysfs_kobj_type;
+	hypervisor_kobj->ktype = &hyp_sysfs_kobj_type;
 	return 0;
 }
 
