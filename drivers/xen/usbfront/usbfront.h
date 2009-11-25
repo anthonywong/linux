@@ -195,7 +195,7 @@ timer_action(struct usbfront_info *info, enum xenhcd_timer_action action)
 extern struct kmem_cache *xenhcd_urbp_cachep;
 extern struct hc_driver xen_usb20_hc_driver;
 extern struct hc_driver xen_usb11_hc_driver;
-irqreturn_t xenhcd_int(int irq, void *dev_id, struct pt_regs *ptregs);
+irqreturn_t xenhcd_int(int irq, void *dev_id);
 void xenhcd_rhport_state_change(struct usbfront_info *info,
 				int port, enum usb_device_speed speed);
 int xenhcd_schedule(void *arg);

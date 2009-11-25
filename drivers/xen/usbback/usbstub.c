@@ -284,7 +284,7 @@ static ssize_t usbstub_show_portids(struct device_driver *driver,
 DRIVER_ATTR(port_ids, S_IRUSR, usbstub_show_portids, NULL);
 
 /* table of devices that matches any usbdevice */
-static struct usb_device_id usbstub_table[] = {
+static const struct usb_device_id usbstub_table[] = {
 		{ .driver_info = 1 }, /* wildcard, see usb_match_id() */
 		{ } /* Terminating entry */
 };
@@ -308,7 +308,7 @@ int __init usbstub_init(void)
 		goto out;
 	}
 
-	err = driver_create_file(&usbback_usb_driver.driver,
+	err = driver_create_file(&usbback_usb_driver.drvwrap.driver,
 				&driver_attr_port_ids);
 	if (err)
 		usb_deregister(&usbback_usb_driver);
@@ -319,7 +319,7 @@ out:
 
 void usbstub_exit(void)
 {
-	driver_remove_file(&usbback_usb_driver.driver,
+	driver_remove_file(&usbback_usb_driver.drvwrap.driver,
 				&driver_attr_port_ids);
 	usb_deregister(&usbback_usb_driver);
 }

@@ -54,34 +54,34 @@
  */
 int bind_caller_port_to_irqhandler(
 	unsigned int caller_port,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
 int bind_listening_port_to_irqhandler(
 	unsigned int remote_domain,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
 int bind_interdomain_evtchn_to_irqhandler(
 	unsigned int remote_domain,
 	unsigned int remote_port,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
 int bind_virq_to_irqhandler(
 	unsigned int virq,
 	unsigned int cpu,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
 int bind_ipi_to_irqhandler(
 	unsigned int ipi,
 	unsigned int cpu,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
