@@ -59,14 +59,10 @@
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
 #include <asm/kdebug.h>
+#include <asm/idle.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 asmlinkage void cstar_ret_from_fork(void) __asm__("cstar_ret_from_fork");
-
-static int hlt_counter;
-
-unsigned long boot_option_idle_override = 0;
-EXPORT_SYMBOL(boot_option_idle_override);
 
 DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
@@ -82,46 +78,27 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return ((unsigned long *)tsk->thread.sp)[3];
 }
 
-/*
- * Powermanagement idle function, if any..
- */
-void (*pm_idle)(void);
-EXPORT_SYMBOL(pm_idle);
+#ifdef CONFIG_HOTPLUG_CPU
+#ifndef CONFIG_XEN
+#include <asm/nmi.h>
 
-void disable_hlt(void)
+static void cpu_exit_clear(void)
 {
-	hlt_counter++;
+	int cpu = raw_smp_processor_id();
+
+	idle_task_exit();
+
+	cpu_uninit();
+	irq_ctx_exit(cpu);
+
+	cpu_clear(cpu, cpu_callout_map);
+	cpu_clear(cpu, cpu_callin_map);
+
+	numa_remove_cpu(cpu);
+	c1e_remove_cpu(cpu);
 }
-
-EXPORT_SYMBOL(disable_hlt);
-
-void enable_hlt(void)
-{
-	hlt_counter--;
-}
-
-EXPORT_SYMBOL(enable_hlt);
-
-static void xen_idle(void)
-{
-	current_thread_info()->status &= ~TS_POLLING;
-	/*
-	 * TS_POLLING-cleared state must be visible before we
-	 * test NEED_RESCHED:
-	 */
-	smp_mb();
-
-	if (!need_resched())
-		safe_halt();	/* enables interrupts racelessly */
-	else
-		local_irq_enable();
-	current_thread_info()->status |= TS_POLLING;
-}
-#ifdef CONFIG_APM_MODULE
-EXPORT_SYMBOL(default_idle);
 #endif
 
-#ifdef CONFIG_HOTPLUG_CPU
 static inline void play_dead(void)
 {
 	idle_task_exit();
@@ -152,13 +129,11 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched()) {
-			void (*idle)(void);
 
 			check_pgt_cache();
 			rmb();
-			idle = xen_idle; /* no alternatives */
 
 			if (rcu_pending(cpu))
 				rcu_check_callbacks(cpu, 0);
@@ -168,7 +143,10 @@ void cpu_idle(void)
 
 			local_irq_disable();
 			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
-			idle();
+			/* Don't trace irqs off for idle */
+			stop_critical_timings();
+			xen_idle();
+			start_critical_timings();
 		}
 		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
