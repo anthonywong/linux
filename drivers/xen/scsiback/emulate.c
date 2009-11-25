@@ -109,9 +109,10 @@ static void resp_not_supported_cmd(pending_req_t *pending_req, void *data)
 }
 
 
-static int __copy_to_sg(struct scatterlist *sg, unsigned int nr_sg,
+static int __copy_to_sg(struct scatterlist *sgl, unsigned int nr_sg,
 	       void *buf, unsigned int buflen)
 {
+	struct scatterlist *sg;
 	void *from = buf;
 	void *to;
 	unsigned int from_rest = buflen;
@@ -120,8 +121,8 @@ static int __copy_to_sg(struct scatterlist *sg, unsigned int nr_sg,
 	unsigned int i;
 	unsigned long pfn;
 
-	for (i = 0; i < nr_sg; i++) {
-		if (sg->page == NULL) {
+	for_each_sg (sgl, sg, nr_sg, i) {
+		if (sg_page(sg) == NULL) {
 			printk(KERN_WARNING "%s: inconsistent length field in "
 			       "scatterlist\n", __FUNCTION__);
 			return -ENOMEM;
@@ -130,7 +131,7 @@ static int __copy_to_sg(struct scatterlist *sg, unsigned int nr_sg,
 		to_capa  = sg->length;
 		copy_size = min_t(unsigned int, to_capa, from_rest);
 
-		pfn = page_to_pfn(sg->page);
+		pfn = page_to_pfn(sg_page(sg));
 		to = pfn_to_kaddr(pfn) + (sg->offset);
 		memcpy(to, from, copy_size);
 
@@ -139,7 +140,6 @@ static int __copy_to_sg(struct scatterlist *sg, unsigned int nr_sg,
 			return 0;
 		}
 		
-		sg++;
 		from += copy_size;
 	}
 
@@ -148,9 +148,10 @@ static int __copy_to_sg(struct scatterlist *sg, unsigned int nr_sg,
 	return -ENOMEM;
 }
 
-static int __copy_from_sg(struct scatterlist *sg, unsigned int nr_sg,
+static int __copy_from_sg(struct scatterlist *sgl, unsigned int nr_sg,
 		 void *buf, unsigned int buflen)
 {
+	struct scatterlist *sg;
 	void *from;
 	void *to = buf;
 	unsigned int from_rest;
@@ -159,8 +160,8 @@ static int __copy_from_sg(struct scatterlist *sg, unsigned int nr_sg,
 	unsigned int i;
 	unsigned long pfn;
 
-	for (i = 0; i < nr_sg; i++) {
-		if (sg->page == NULL) {
+	for_each_sg (sgl, sg, nr_sg, i) {
+		if (sg_page(sg) == NULL) {
 			printk(KERN_WARNING "%s: inconsistent length field in "
 			       "scatterlist\n", __FUNCTION__);
 			return -ENOMEM;
@@ -175,13 +176,11 @@ static int __copy_from_sg(struct scatterlist *sg, unsigned int nr_sg,
 		}
 		copy_size = from_rest;
 
-		pfn = page_to_pfn(sg->page);
+		pfn = page_to_pfn(sg_page(sg));
 		from = pfn_to_kaddr(pfn) + (sg->offset);
 		memcpy(to, from, copy_size);
 
 		to_capa  -= copy_size;
-		
-		sg++;
 		to += copy_size;
 	}
 

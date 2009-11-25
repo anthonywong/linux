@@ -18,6 +18,7 @@ blktap_control_initialize_tap(struct blktap *tap)
 	memset(tap, 0, sizeof(*tap));
 	set_bit(BLKTAP_CONTROL, &tap->dev_inuse);
 	init_rwsem(&tap->tap_sem);
+	sg_init_table(tap->sg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 	init_waitqueue_head(&tap->wq);
 	atomic_set(&tap->refcnt, 0);
 
