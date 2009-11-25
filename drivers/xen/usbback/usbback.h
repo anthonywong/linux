@@ -64,6 +64,12 @@
 
 struct usbstub;
 
+#ifndef BUS_ID_SIZE
+#define USBBACK_BUS_ID_SIZE 20
+#else
+#define USBBACK_BUS_ID_SIZE BUS_ID_SIZE
+#endif
+
 #define USB_DEV_ADDR_SIZE 128
 
 typedef struct usbif_st {
@@ -111,7 +117,7 @@ typedef struct usbif_st {
 struct vusb_port_id {
 	struct list_head id_list;
 
-	char phys_bus[BUS_ID_SIZE];
+	char phys_bus[USBBACK_BUS_ID_SIZE];
 	domid_t domid;
 	unsigned int handle;
 	int portnum;

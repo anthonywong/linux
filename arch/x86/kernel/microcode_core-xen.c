@@ -22,27 +22,21 @@
  *	2 of the License, or (at your option) any later version.
  */
 #include <linux/platform_device.h>
-#include <linux/capability.h>
 #include <linux/miscdevice.h>
-#include <linux/firmware.h>
+#include <linux/capability.h>
 #include <linux/smp_lock.h>
-#include <linux/spinlock.h>
-#include <linux/cpumask.h>
-#include <linux/uaccess.h>
-#include <linux/vmalloc.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/sched.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/firmware.h>
+#include <linux/uaccess.h>
+#include <linux/vmalloc.h>
 
 #include <asm/microcode.h>
 #include <asm/processor.h>
-#include <asm/msr.h>
 
 MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
@@ -53,7 +47,18 @@ module_param(verbose, int, 0644);
 
 #define MICROCODE_VERSION	"2.00-xen"
 
-/* no concurrent ->write()s are allowed on /dev/cpu/microcode */
+/*
+ * Synchronization.
+ *
+ * All non cpu-hotplug-callback call sites use:
+ *
+ * - microcode_mutex to synchronize with each other;
+ * - get/put_online_cpus() to synchronize with
+ *   the cpu-hotplug-callback call sites.
+ *
+ * We guarantee that only a single cpu is being
+ * updated at any particular moment of time.
+ */
 static DEFINE_MUTEX(microcode_mutex);
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
@@ -90,18 +95,16 @@ static int microcode_open(struct inode *unused1, struct file *unused2)
 static ssize_t microcode_write(struct file *file, const char __user *buf,
 			       size_t len, loff_t *ppos)
 {
-	ssize_t ret;
+	ssize_t ret = -EINVAL;
 
 	if ((len >> PAGE_SHIFT) > num_physpages) {
-		printk(KERN_ERR "microcode: too much data (max %ld pages)\n",
-		       num_physpages);
- 		return -EINVAL;
+		pr_err("microcode: too much data (max %ld pages)\n", num_physpages);
+		return ret;
  	}
 
 	mutex_lock(&microcode_mutex);
 
-	ret = do_microcode_update(buf, len);
-	if (!ret)
+	if (do_microcode_update(buf, len) == 0)
 		ret = (ssize_t)len;
 
 	mutex_unlock(&microcode_mutex);
@@ -110,15 +113,16 @@ static ssize_t microcode_write(struct file *file, const char __user *buf,
 }
 
 static const struct file_operations microcode_fops = {
-	.owner		= THIS_MODULE,
-	.write		= microcode_write,
-	.open		= microcode_open,
+	.owner			= THIS_MODULE,
+	.write			= microcode_write,
+	.open			= microcode_open,
 };
 
 static struct miscdevice microcode_dev = {
-	.minor		= MICROCODE_MINOR,
-	.name		= "microcode",
-	.fops		= &microcode_fops,
+	.minor			= MICROCODE_MINOR,
+	.name			= "microcode",
+	.devnode		= "cpu/microcode",
+	.fops			= &microcode_fops,
 };
 
 static int __init microcode_dev_init(void)
@@ -127,9 +131,7 @@ static int __init microcode_dev_init(void)
 
 	error = misc_register(&microcode_dev);
 	if (error) {
-		printk(KERN_ERR
-			"microcode: can't misc_register on minor=%d\n",
-			MICROCODE_MINOR);
+		pr_err("microcode: can't misc_register on minor=%d\n", MICROCODE_MINOR);
 		return error;
 	}
 
@@ -188,38 +190,35 @@ static int __init microcode_init(void)
 	else if (c->x86_vendor == X86_VENDOR_AMD)
 		fw_name = "amd-ucode/microcode_amd.bin";
 	else {
-		printk(KERN_ERR "microcode: no support for this CPU vendor\n");
+		pr_err("microcode: no support for this CPU vendor\n");
 		return -ENODEV;
+	}
+
+	microcode_pdev = platform_device_register_simple("microcode", -1,
+							 NULL, 0);
+	if (IS_ERR(microcode_pdev)) {
+		return PTR_ERR(microcode_pdev);
 	}
 
 	error = microcode_dev_init();
 	if (error)
 		return error;
-	microcode_pdev = platform_device_register_simple("microcode", -1,
-							 NULL, 0);
-	if (IS_ERR(microcode_pdev)) {
-		microcode_dev_exit();
-		return PTR_ERR(microcode_pdev);
-	}
 
 	request_microcode(fw_name);
 
-	printk(KERN_INFO
-	       "Microcode Update Driver: v" MICROCODE_VERSION
+	pr_info("Microcode Update Driver: v" MICROCODE_VERSION
 	       " <tigran@aivazian.fsnet.co.uk>,"
 	       " Peter Oruba\n");
 
 	return 0;
 }
+module_init(microcode_init);
 
 static void __exit microcode_exit(void)
 {
 	microcode_dev_exit();
 	platform_device_unregister(microcode_pdev);
 
-	printk(KERN_INFO
-	       "Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
+	pr_info("Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
 }
-
-module_init(microcode_init);
 module_exit(microcode_exit);

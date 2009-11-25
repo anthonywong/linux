@@ -589,6 +589,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 
 #ifdef CONFIG_XEN
 	if (PageForeign(page)) {
+		WARN_ON(wasMlocked);
 		PageForeignDestructor(page, order);
 		return;
 	}
@@ -1095,6 +1096,7 @@ static void free_hot_cold_page(struct page *page, int cold)
 
 #ifdef CONFIG_XEN
 	if (PageForeign(page)) {
+		WARN_ON(wasMlocked);
 		PageForeignDestructor(page, 0);
 		return;
 	}
