@@ -108,7 +108,7 @@ sysexit_scrit:	/**** START OF SYSEXIT CRITICAL REGION ****/		; \
 sysexit_ecrit:	/**** END OF SYSEXIT CRITICAL REGION ****/		; \
 	mov  $__KERNEL_PDA, %ecx					; \
 	push %esp							; \
-	mov  %ecx, %gs							; \
+	mov  %ecx, %fs							; \
 	call evtchn_do_upcall						; \
 	add  $4,%esp							; \
 	jmp  ret_from_intr
