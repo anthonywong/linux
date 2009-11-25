@@ -23,7 +23,7 @@
 #include <asm/dwarf2.h>
 #include <xen/interface/elfnote.h>
 
-	.section .bootstrap.text, "ax", @progbits
+	.section .text.head, "ax", @progbits
 	.code64
 	.globl startup_64
 startup_64:
@@ -39,7 +39,7 @@ startup_64:
 
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \
-	phys_##name = . - .bootstrap.text; \
+	phys_##name = . - .text.head; \
 ENTRY(name)
 
 NEXT_PAGE(init_level4_pgt)
@@ -62,6 +62,12 @@ NEXT_PAGE(level3_kernel_pgt)
          */
 NEXT_PAGE(level3_user_pgt)
         .fill	512,8,0
+
+NEXT_PAGE(level2_fixmap_pgt)
+	.fill	512,8,0
+
+NEXT_PAGE(level1_fixmap_pgt)
+	.fill	512,8,0
 
 NEXT_PAGE(hypercall_page)
 	CFI_STARTPROC
@@ -169,18 +175,18 @@ ENTRY(empty_zero_page)
 	.byte	0
 #endif /* CONFIG_XEN_COMPAT <= 0x030002 */
 	
-	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz, "linux")
-	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz, "2.6")
-	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz, "xen-3.0")
-	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      .quad,  __START_KERNEL_map)
+	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
+	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")
+	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz "xen-3.0")
+	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      .quad __START_KERNEL_map)
 #if CONFIG_XEN_COMPAT <= 0x030002
-	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .quad,  __START_KERNEL_map)
+	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .quad __START_KERNEL_map)
 #else
-	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .quad,  0)
+	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .quad 0)
 #endif
-	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .quad,  startup_64)
-	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .quad,  hypercall_page)
-	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .quad,  _PAGE_PRESENT,_PAGE_PRESENT)
-	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "writable_page_tables|writable_descriptor_tables|auto_translated_physmap|pae_pgdir_above_4gb|supervisor_mode_kernel")
-	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz, "generic")
-	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long,  1)
+	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .quad startup_64)
+	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .quad hypercall_page)
+	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .quad _PAGE_PRESENT, _PAGE_PRESENT)
+	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz "writable_page_tables|writable_descriptor_tables|auto_translated_physmap|pae_pgdir_above_4gb|supervisor_mode_kernel")
+	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
+	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long 1)
