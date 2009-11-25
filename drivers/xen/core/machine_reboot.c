@@ -211,8 +211,7 @@ static int take_machine_down(void *_suspend)
 		 * in fast-suspend mode as that implies a new enough Xen.
 		 */
 		if (!suspend->fast_suspend)
-			xen_new_user_pt(__pa(__user_pgd(
-				current->active_mm->pgd)));
+			xen_new_user_pt(current->active_mm->pgd);
 #endif
 	}
 

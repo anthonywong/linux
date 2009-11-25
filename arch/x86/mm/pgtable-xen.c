@@ -269,9 +269,11 @@ static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
 			BUG();
 		seq = 0;
 	}
+	pgd = __user_pgd(pgd_base);
+	BUG_ON(!pgd);
 	MULTI_update_va_mapping(mcl + seq,
-	       (unsigned long)__user_pgd(pgd_base),
-	       pfn_pte(virt_to_phys(__user_pgd(pgd_base))>>PAGE_SHIFT, flags),
+	       (unsigned long)pgd,
+	       pfn_pte(virt_to_phys(pgd)>>PAGE_SHIFT, flags),
 	       0);
 	MULTI_update_va_mapping(mcl + seq + 1,
 	       (unsigned long)pgd_base,
@@ -659,12 +661,29 @@ static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
 	}
 }
 
+static inline pgd_t *user_pgd_alloc(pgd_t *pgd)
+{
 #ifdef CONFIG_X86_64
-/* We allocate two contiguous pages for kernel and user. */
-#define PGD_ORDER 1
-#else
-#define PGD_ORDER 0
+	if (pgd) {
+		pgd_t *upgd = (void *)__get_free_page(PGALLOC_GFP);
+
+		if (upgd)
+			virt_to_page(pgd)->index = (long)upgd;
+		else {
+			free_page((unsigned long)pgd);
+			pgd = NULL;
+		}
+	}
 #endif
+	return pgd;
+}
+
+static inline void user_pgd_free(pgd_t *pgd)
+{
+#ifdef CONFIG_X86_64
+	free_page(virt_to_page(pgd)->index);
+#endif
+}
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -672,7 +691,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	pmd_t *pmds[PREALLOCATED_PMDS];
 	unsigned long flags;
 
-	pgd = (pgd_t *)__get_free_pages(PGALLOC_GFP, PGD_ORDER);
+	pgd = user_pgd_alloc((void *)__get_free_page(PGALLOC_GFP));
 
 	if (pgd == NULL)
 		goto out;
@@ -711,7 +730,8 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 out_free_pmds:
 	free_pmds(pmds, mm, !xen_feature(XENFEAT_pae_pgdir_above_4gb));
 out_free_pgd:
-	free_pages((unsigned long)pgd, PGD_ORDER);
+	user_pgd_free(pgd);
+	free_page((unsigned long)pgd);
 out:
 	return NULL;
 }
@@ -730,7 +750,8 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 	pgd_mop_up_pmds(mm, pgd);
 	paravirt_pgd_free(mm, pgd);
-	free_pages((unsigned long)pgd, PGD_ORDER);
+	user_pgd_free(pgd);
+	free_page((unsigned long)pgd);
 }
 
 /* blktap and gntdev need this, as otherwise they would implicitly (and

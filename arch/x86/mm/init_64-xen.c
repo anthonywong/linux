@@ -718,9 +718,6 @@ void __init xen_init_pt(void)
 	       (PTRS_PER_PUD - pud_index(__START_KERNEL_map))
 	       * sizeof(*level3_kernel_pgt));
 
-	__user_pgd(init_level4_pgt)[pgd_index(VSYSCALL_START)] =
-		__pgd(__pa_symbol(level3_user_pgt) | _PAGE_TABLE);
-
 	/* Do an early initialization of the fixmap area. */
 	addr = __fix_to_virt(FIX_EARLYCON_MEM_BASE);
 	if (pud_present(level3_kernel_pgt[pud_index(addr)])) {
@@ -735,8 +732,6 @@ void __init xen_init_pt(void)
 		__pmd(__pa_symbol(level1_fixmap_pgt) | _PAGE_TABLE);
 
 	early_make_page_readonly(init_level4_pgt,
-				 XENFEAT_writable_page_tables);
-	early_make_page_readonly(__user_pgd(init_level4_pgt),
 				 XENFEAT_writable_page_tables);
 	early_make_page_readonly(level3_kernel_pgt,
 				 XENFEAT_writable_page_tables);
