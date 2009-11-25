@@ -289,7 +289,7 @@ static void blkif_notify_work(blkif_t *blkif)
 	wake_up(&blkif->wq);
 }
 
-irqreturn_t blkif_be_int(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t blkif_be_int(int irq, void *dev_id)
 {
 	blkif_notify_work(dev_id);
 	return IRQ_HANDLED;

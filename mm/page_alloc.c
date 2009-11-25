@@ -4656,6 +4656,23 @@ void setup_per_zone_wmarks(void)
 		spin_unlock_irqrestore(&zone->lock, flags);
 	}
 
+#ifdef CONFIG_XEN
+	for_each_zone(zone) {
+		unsigned int cpu;
+
+		if (!populated_zone(zone))
+			continue;
+		for_each_online_cpu(cpu) {
+			unsigned long high;
+
+			high = percpu_pagelist_fraction
+			       ? zone->present_pages / percpu_pagelist_fraction
+			       : 5 * zone_batchsize(zone);
+			setup_pagelist_highmark(zone_pcp(zone, cpu), high);
+		}
+	}
+#endif
+
 	/* update totalreserve_pages */
 	calculate_totalreserve_pages();
 }
