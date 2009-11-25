@@ -129,7 +129,7 @@ static struct xen_bus_type xenbus_backend = {
 		.dev_attrs = xenbus_backend_attrs,
 	},
 	.dev = {
-		.bus_id = "xen-backend",
+		.init_name = "xen-backend",
 	},
 };
 
