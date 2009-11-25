@@ -1981,6 +1981,13 @@ and is between 256 and 4096 characters. It is defined in the file
 				off: Turn ECRC off
 				on: Turn ECRC on.
 
+	pci_reserve=	[PCI]
+			Format: [<sbdf>[+IO<size>][+MEM<size>]][,<sbdf>...]
+			Format of sbdf: [<segment>:]<bus>:<dev>.<func>
+			Specifies the least reserved io size or memory size
+			which is assigned to PCI bridge even when no child
+			pci device exists. This is useful with PCI hotplug.
+
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
 		off	Disable ASPM.
