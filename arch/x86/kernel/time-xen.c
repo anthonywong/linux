@@ -656,7 +656,7 @@ int xen_update_persistent_clock(void)
 /* Dynamically-mapped IRQ. */
 DEFINE_PER_CPU(int, timer_irq);
 
-static void setup_cpu0_timer_irq(void)
+static void __init setup_cpu0_timer_irq(void)
 {
 	per_cpu(timer_irq, 0) =
 		bind_virq_to_irqhandler(
@@ -868,7 +868,7 @@ int __cpuinit local_setup_timer(unsigned int cpu)
 	return 0;
 }
 
-void __cpuexit local_teardown_timer(unsigned int cpu)
+void __cpuinit local_teardown_timer(unsigned int cpu)
 {
 	BUG_ON(cpu == 0);
 	unbind_from_irqhandler(per_cpu(timer_irq, cpu), NULL);
