@@ -834,7 +834,7 @@ static void
 blktap_device_run_queue(struct blktap *tap)
 {
 	int queued, err;
-	request_queue_t *rq;
+	struct request_queue *rq;
 	struct request *req;
 	struct blktap_ring *ring;
 	struct blktap_device *dev;
@@ -911,7 +911,7 @@ blktap_device_run_queue(struct blktap *tap)
  * dev->lock held on entry
  */
 static void
-blktap_device_do_request(request_queue_t *rq)
+blktap_device_do_request(struct request_queue *rq)
 {
 	struct request *req;
 	struct blktap *tap;
@@ -1185,6 +1185,5 @@ void
 blktap_device_free(void)
 {
 	if (blktap_device_major)
-		if (unregister_blkdev(blktap_device_major, "tapdev"))
-			BTERR("blktap device unregister failed\n");
+		unregister_blkdev(blktap_device_major, "tapdev");
 }
