@@ -70,7 +70,7 @@ static int setup_blkring(struct xenbus_device *, struct blkfront_info *);
 
 static void kick_pending_request_queues(struct blkfront_info *);
 
-static irqreturn_t blkif_int(int irq, void *dev_id, struct pt_regs *ptregs);
+static irqreturn_t blkif_int(int irq, void *dev_id);
 static void blkif_restart_queue(void *arg);
 static void blkif_recover(struct blkfront_info *);
 static void blkif_completion(struct blk_shadow *);
@@ -707,7 +707,7 @@ void do_blkif_request(request_queue_t *rq)
 }
 
 
-static irqreturn_t blkif_int(int irq, void *dev_id, struct pt_regs *ptregs)
+static irqreturn_t blkif_int(int irq, void *dev_id)
 {
 	struct request *req;
 	blkif_response_t *bret;

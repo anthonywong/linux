@@ -62,7 +62,7 @@ ENTRY(startup_32)
 	movl %eax,%gs
 	cld			# gcc2 wants the direction flag cleared at all times
 
-	pushl %eax		# fake return address
+	pushl $0		# fake return address for unwinder
 	jmp start_kernel
 
 #define HYPERCALL_PAGE_OFFSET 0x1000
