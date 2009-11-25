@@ -150,13 +150,15 @@ DEFINE_PER_CPU(int, ipi_to_irq[NR_IPIS]) = {[0 ... NR_IPIS-1] = -1};
 #ifdef CONFIG_SMP
 
 static u8 cpu_evtchn[NR_EVENT_CHANNELS];
-static unsigned long cpu_evtchn_mask[NR_CPUS][NR_EVENT_CHANNELS/BITS_PER_LONG];
+static DEFINE_PER_CPU(unsigned long[BITS_TO_LONGS(NR_EVENT_CHANNELS)],
+		      cpu_evtchn_mask);
 
-static inline unsigned long active_evtchns(unsigned int cpu, shared_info_t *sh,
-					   unsigned int idx)
+static inline unsigned long active_evtchns(unsigned int idx)
 {
+	shared_info_t *sh = HYPERVISOR_shared_info;
+
 	return (sh->evtchn_pending[idx] &
-		cpu_evtchn_mask[cpu][idx] &
+		percpu_read(cpu_evtchn_mask[idx]) &
 		~sh->evtchn_mask[idx]);
 }
 
@@ -168,10 +170,10 @@ static void bind_evtchn_to_cpu(unsigned int chn, unsigned int cpu)
 	BUG_ON(!test_bit(chn, s->evtchn_mask));
 
 	if (irq != -1)
-		irq_to_desc(irq)->affinity = cpumask_of_cpu(cpu);
+		cpumask_copy(irq_to_desc(irq)->affinity, cpumask_of(cpu));
 
-	clear_bit(chn, (unsigned long *)cpu_evtchn_mask[cpu_evtchn[chn]]);
-	set_bit(chn, (unsigned long *)cpu_evtchn_mask[cpu]);
+	clear_bit(chn, per_cpu(cpu_evtchn_mask, cpu_evtchn[chn]));
+	set_bit(chn, per_cpu(cpu_evtchn_mask, cpu));
 	cpu_evtchn[chn] = cpu;
 }
 
@@ -184,11 +186,11 @@ static void init_evtchn_cpu_bindings(void)
 		struct irq_desc *desc = irq_to_desc(i);
 
 		if (desc)
-			desc->affinity = cpumask_of_cpu(0);
+			cpumask_copy(desc->affinity, cpumask_of(0));
 	}
 
 	memset(cpu_evtchn, 0, sizeof(cpu_evtchn));
-	memset(cpu_evtchn_mask[0], ~0, sizeof(cpu_evtchn_mask[0]));
+	memset(per_cpu(cpu_evtchn_mask, 0), ~0, sizeof(per_cpu(cpu_evtchn_mask, 0)));
 }
 
 static inline unsigned int cpu_from_evtchn(unsigned int evtchn)
@@ -198,9 +200,10 @@ static inline unsigned int cpu_from_evtchn(unsigned int evtchn)
 
 #else
 
-static inline unsigned long active_evtchns(unsigned int cpu, shared_info_t *sh,
-					   unsigned int idx)
+static inline unsigned long active_evtchns(unsigned int idx)
 {
+	shared_info_t *sh = HYPERVISOR_shared_info;
+
 	return (sh->evtchn_pending[idx] & ~sh->evtchn_mask[idx]);
 }
 
@@ -219,24 +222,14 @@ static inline unsigned int cpu_from_evtchn(unsigned int evtchn)
 
 #endif
 
-/* Upcall to generic IRQ layer. */
 #ifdef CONFIG_X86
-extern unsigned int do_IRQ(struct pt_regs *regs);
 void __init xen_init_IRQ(void);
 void __init init_IRQ(void)
 {
 	irq_ctx_init(0);
 	xen_init_IRQ();
 }
-#if defined (__i386__)
-static inline void exit_idle(void) {}
-#elif defined (__x86_64__)
 #include <asm/idle.h>
-#endif
-#define do_IRQ(irq, regs) do {		\
-	(regs)->orig_ax = ~(irq);	\
-	do_IRQ((regs));			\
-} while (0)
 #endif
 
 /* Xen will never allocate port zero for any purpose. */
@@ -261,13 +254,12 @@ static DEFINE_PER_CPU(unsigned int, last_processed_l2i) = { BITS_PER_LONG - 1 };
 /* NB. Interrupts are disabled on entry. */
 asmlinkage void __irq_entry evtchn_do_upcall(struct pt_regs *regs)
 {
+	struct pt_regs     *old_regs = set_irq_regs(regs);
 	unsigned long       l1, l2;
 	unsigned long       masked_l1, masked_l2;
 	unsigned int        l1i, l2i, port, count;
 	int                 irq;
-	unsigned int        cpu = smp_processor_id();
-	shared_info_t      *s = HYPERVISOR_shared_info;
-	vcpu_info_t        *vcpu_info = &s->vcpu_info[cpu];
+	vcpu_info_t        *vcpu_info = current_vcpu_info();
 
 	exit_idle();
 	irq_enter();
@@ -277,7 +269,8 @@ asmlinkage void __irq_entry evtchn_do_upcall(struct pt_regs *regs)
 		vcpu_info->evtchn_upcall_pending = 0;
 
 		/* Nested invocations bail immediately. */
-		if (unlikely(per_cpu(upcall_count, cpu)++))
+		percpu_add(upcall_count, 1);
+		if (unlikely(percpu_read(upcall_count) != 1))
 			break;
 
 #ifndef CONFIG_X86 /* No need for a barrier -- XCHG is a barrier on x86. */
@@ -286,8 +279,8 @@ asmlinkage void __irq_entry evtchn_do_upcall(struct pt_regs *regs)
 #endif
 		l1 = xchg(&vcpu_info->evtchn_pending_sel, 0);
 
-		l1i = per_cpu(last_processed_l1i, cpu);
-		l2i = per_cpu(last_processed_l2i, cpu);
+		l1i = percpu_read(last_processed_l1i);
+		l2i = percpu_read(last_processed_l2i);
 
 		while (l1 != 0) {
 
@@ -302,7 +295,7 @@ asmlinkage void __irq_entry evtchn_do_upcall(struct pt_regs *regs)
 			l1i = __ffs(masked_l1);
 
 			do {
-				l2 = active_evtchns(cpu, s, l1i);
+				l2 = active_evtchns(l1i);
 
 				l2i = (l2i + 1) % BITS_PER_LONG;
 				masked_l2 = l2 & ((~0UL) << l2i);
@@ -316,29 +309,31 @@ asmlinkage void __irq_entry evtchn_do_upcall(struct pt_regs *regs)
 
 				/* process port */
 				port = (l1i * BITS_PER_LONG) + l2i;
-				if ((irq = evtchn_to_irq[port]) != -1)
-					do_IRQ(irq, regs);
-				else
+				if (unlikely((irq = evtchn_to_irq[port]) == -1))
 					evtchn_device_upcall(port);
+				else if (!handle_irq(irq, regs) && printk_ratelimit())
+					printk(KERN_EMERG "%s(%d): No handler for irq %d\n",
+					       __func__, smp_processor_id(), irq);
 
 				/* if this is the final port processed, we'll pick up here+1 next time */
-				per_cpu(last_processed_l1i, cpu) = l1i;
-				per_cpu(last_processed_l2i, cpu) = l2i;
+				percpu_write(last_processed_l1i, l1i);
+				percpu_write(last_processed_l2i, l2i);
 
 			} while (l2i != BITS_PER_LONG - 1);
 
-			l2 = active_evtchns(cpu, s, l1i);
+			l2 = active_evtchns(l1i);
 			if (l2 == 0) /* we handled all ports, so we can clear the selector bit */
 				l1 &= ~(1UL << l1i);
 
 		}
 
 		/* If there were nested callbacks then we have more to do. */
-		count = per_cpu(upcall_count, cpu);
-		per_cpu(upcall_count, cpu) = 0;
+		count = percpu_read(upcall_count);
+		percpu_write(upcall_count, 0);
 	} while (unlikely(count != 1));
 
 	irq_exit();
+	set_irq_regs(old_regs);
 }
 
 static struct irq_chip dynirq_chip;
@@ -545,7 +540,7 @@ static void unbind_from_irq(unsigned int irq)
 
 		/* Zap stats across IRQ changes of use. */
 		for_each_possible_cpu(cpu)
-#ifdef CONFIG_SPARSE_IRQ
+#ifdef CONFIG_GENERIC_HARDIRQS
 			irq_to_desc(irq)->kstat_irqs[cpu] = 0;
 #else
 			kstat_cpu(cpu).irqs[irq] = 0;
@@ -663,7 +658,8 @@ int bind_ipi_to_irqhandler(
 	if (irq < 0)
 		return irq;
 
-	retval = request_irq(irq, handler, irqflags, devname, dev_id);
+	retval = request_irq(irq, handler, irqflags | IRQF_NO_SUSPEND,
+			     devname, dev_id);
 	if (retval != 0) {
 		unbind_from_irq(irq);
 		return retval;
@@ -1132,7 +1128,7 @@ void irq_resume(void)
 		mask_evtchn(evtchn);
 
 	/* Check that no PIRQs are still bound. */
-	for (irq = PIRQ_BASE; irq < (PIRQ_BASE + NR_PIRQS); irq++) {
+	for (irq = PIRQ_BASE; irq < (PIRQ_BASE + nr_pirqs); irq++) {
 		cfg = irq_cfg(irq);
 		BUG_ON(cfg && cfg->info != IRQ_UNBOUND);
 	}
@@ -1169,7 +1165,7 @@ int arch_init_chip_data(struct irq_desc *desc, int cpu)
 {
 	if (!desc->chip_data) {
 		/* By default all event channels notify CPU#0. */
-		desc->affinity = cpumask_of_cpu(0);
+		cpumask_copy(desc->affinity, cpumask_of(0));
 
 		desc->chip_data = kzalloc(sizeof(struct irq_cfg), GFP_ATOMIC);
 	}
@@ -1183,11 +1179,44 @@ int arch_init_chip_data(struct irq_desc *desc, int cpu)
 #endif
 
 #if defined(CONFIG_X86_IO_APIC)
+#ifdef CONFIG_SPARSE_IRQ
+int nr_pirqs = NR_PIRQS;
+EXPORT_SYMBOL_GPL(nr_pirqs);
+
+int __init arch_probe_nr_irqs(void)
+{
+	int nr_irqs_gsi, nr = acpi_probe_gsi();
+
+	if (nr <= NR_IRQS_LEGACY) {
+		/* for acpi=off or acpi not compiled in */
+		int idx;
+
+		for (nr = idx = 0; idx < nr_ioapics; idx++)
+			nr += io_apic_get_redir_entries(idx) + 1;
+	}
+	nr_irqs_gsi = max(nr, NR_IRQS_LEGACY);
+
+	nr = nr_irqs_gsi + 8 * nr_cpu_ids;
+#ifdef CONFIG_PCI_MSI
+	nr += nr_irqs_gsi * 16;
+#endif
+	if (nr_pirqs > nr) {
+		nr_pirqs = nr;
+		nr_irqs = nr + NR_DYNIRQS;
+	}
+
+	printk(KERN_DEBUG "nr_irqs_gsi=%d nr_pirqs=%d\n",
+	       nr_irqs_gsi, nr_pirqs);
+
+	return 0;
+}
+#endif
+
 int assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask)
 {
 	struct physdev_irq irq_op;
 
-	if (irq < PIRQ_BASE || irq - PIRQ_BASE >= NR_PIRQS)
+	if (irq < PIRQ_BASE || irq - PIRQ_BASE >= nr_pirqs)
 		return -EINVAL;
 
 	if (cfg->vector)
@@ -1210,7 +1239,7 @@ int assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask)
 
 void evtchn_register_pirq(int irq)
 {
-	BUG_ON(irq < PIRQ_BASE || irq - PIRQ_BASE >= NR_PIRQS);
+	BUG_ON(irq < PIRQ_BASE || irq - PIRQ_BASE >= nr_pirqs);
 	if (identity_mapped_irq(irq) || type_from_irq(irq) != IRQT_UNBOUND)
 		return;
 	irq_cfg(irq)->info = mk_irq_info(IRQT_PIRQ, irq, 0);
@@ -1223,7 +1252,7 @@ int evtchn_map_pirq(int irq, int xen_pirq)
 	if (irq < 0) {
 		static DEFINE_SPINLOCK(irq_alloc_lock);
 
-		irq = PIRQ_BASE + NR_PIRQS - 1;
+		irq = PIRQ_BASE + nr_pirqs - 1;
 		spin_lock(&irq_alloc_lock);
 		do {
 			struct irq_desc *desc;
@@ -1283,7 +1312,7 @@ void __init xen_init_IRQ(void)
 	init_evtchn_cpu_bindings();
 
 	pirq_needs_eoi = alloc_bootmem_pages(sizeof(unsigned long)
-		* BITS_TO_LONGS(ALIGN(NR_PIRQS, PAGE_SIZE * 8)));
+		* BITS_TO_LONGS(ALIGN(nr_pirqs, PAGE_SIZE * 8)));
  	eoi_gmfn.gmfn = virt_to_machine(pirq_needs_eoi) >> PAGE_SHIFT;
 	if (HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn, &eoi_gmfn) == 0)
 		pirq_eoi_does_unmask = true;
@@ -1299,7 +1328,7 @@ void __init xen_init_IRQ(void)
 					      handle_level_irq, "level");
 	}
 
-	for (i = PIRQ_BASE; i < (PIRQ_BASE + NR_PIRQS); i++) {
+	for (i = PIRQ_BASE; i < (PIRQ_BASE + nr_pirqs); i++) {
 #else
 	for (i = PIRQ_BASE; i < (PIRQ_BASE + NR_IRQS_LEGACY); i++) {
 #endif
