@@ -42,7 +42,11 @@ static void wq_sync_buffer(struct work_struct *work);
 #define DEFAULT_TIMER_EXPIRE (HZ / 10)
 static int work_enabled;
 
+#ifndef CONFIG_XEN
+#define current_domain COORDINATOR_DOMAIN
+#else
 static int32_t current_domain = COORDINATOR_DOMAIN;
+#endif
 
 unsigned long oprofile_get_cpu_buffer_size(void)
 {
@@ -424,6 +428,7 @@ fail:
 	return;
 }
 
+#ifdef CONFIG_XEN
 int oprofile_add_domain_switch(int32_t domain_id)
 {
 	struct oprofile_cpu_buffer * cpu_buf = &cpu_buffer[smp_processor_id()];
@@ -442,6 +447,7 @@ int oprofile_add_domain_switch(int32_t domain_id)
 
 	return 1;
 }
+#endif
 
 /*
  * This serves to avoid cpu buffer overflow, and makes sure
