@@ -201,19 +201,21 @@ static void loopback_set_multicast_list(struct net_device *dev)
 {
 }
 
+static const struct net_device_ops loopback_netdev_ops = {
+	.ndo_open               = loopback_open,
+	.ndo_stop               = loopback_close,
+	.ndo_start_xmit         = loopback_start_xmit,
+	.ndo_set_multicast_list = loopback_set_multicast_list,
+	.ndo_change_mtu	        = NULL, /* allow arbitrary mtu */
+	.ndo_get_stats          = loopback_get_stats,
+};
+
 static void loopback_construct(struct net_device *dev, struct net_device *lo)
 {
 	struct net_private *np = netdev_priv(dev);
 
 	np->loopback_dev     = lo;
-
-	dev->open            = loopback_open;
-	dev->stop            = loopback_close;
-	dev->hard_start_xmit = loopback_start_xmit;
-	dev->get_stats       = loopback_get_stats;
-	dev->set_multicast_list = loopback_set_multicast_list;
-	dev->change_mtu	     = NULL; /* allow arbitrary mtu */
-
+	dev->netdev_ops      = &loopback_netdev_ops;
 	dev->tx_queue_len    = 0;
 
 	dev->features        = (NETIF_F_HIGHDMA |
