@@ -61,12 +61,15 @@ static inline void __xen_pte_clear(pte_t *ptep)
 	ptep->pte_high = 0;
 }
 
-static inline void xen_pmd_clear(pmd_t *pmd)
-{
-	xen_l2_entry_update(pmd, __pmd(0));
-}
+#define xen_pmd_clear(pmd)			\
+({						\
+	pmd_t *__pmdp = (pmd);			\
+	PagePinned(virt_to_page(__pmdp))	\
+	? set_pmd(__pmdp, __pmd(0))		\
+	: (void)(*__pmdp = __pmd(0));		\
+})
 
-static inline void pud_clear(pud_t *pudp)
+static inline void __xen_pud_clear(pud_t *pudp)
 {
 	pgdval_t pgd;
 
@@ -86,6 +89,14 @@ static inline void pud_clear(pud_t *pudp)
 	    (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
 		xen_tlb_flush();
 }
+
+#define xen_pud_clear(pudp)			\
+({						\
+	pud_t *__pudp = (pudp);			\
+	PagePinned(virt_to_page(__pudp))	\
+	? __xen_pud_clear(__pudp)		\
+	: (void)(*__pudp = __pud(0));		\
+})
 
 #ifdef CONFIG_SMP
 static inline pte_t xen_ptep_get_and_clear(pte_t *ptep, pte_t res)
