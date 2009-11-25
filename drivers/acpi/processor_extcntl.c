@@ -32,9 +32,8 @@
 
 #define ACPI_PROCESSOR_COMPONENT        0x01000000
 #define ACPI_PROCESSOR_CLASS            "processor"
-#define ACPI_PROCESSOR_DRIVER_NAME      "ACPI Processor Driver"
 #define _COMPONENT              ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("acpi_processor")
+ACPI_MODULE_NAME("processor_extcntl")
 
 static int processor_extcntl_parse_csd(struct acpi_processor *pr);
 static int processor_extcntl_get_performance(struct acpi_processor *pr);
@@ -56,24 +55,17 @@ static int processor_notify_smm(void)
 		return 0;
 
 	/* Can't write pstate_cnt to smi_cmd if either value is zero */
-	if ((!acpi_fadt.smi_cmd) || (!acpi_fadt.pstate_cnt)) {
+	if (!acpi_gbl_FADT.smi_command || !acpi_gbl_FADT.pstate_control) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,"No SMI port or pstate_cnt\n"));
 		return 0;
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Writing pstate_cnt [0x%x] to smi_cmd [0x%x]\n",
-		acpi_fadt.pstate_cnt, acpi_fadt.smi_cmd));
+		acpi_gbl_FADT.pstate_control, acpi_gbl_FADT.smi_command));
 
-	/* FADT v1 doesn't support pstate_cnt, many BIOS vendors use
-	 * it anyway, so we need to support it... */
-	if (acpi_fadt_is_v1) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"Using v1.0 FADT reserved value for pstate_cnt\n"));
-	}
-
-	status = acpi_os_write_port(acpi_fadt.smi_cmd,
-				    (u32) acpi_fadt.pstate_cnt, 8);
+	status = acpi_os_write_port(acpi_gbl_FADT.smi_command,
+				    acpi_gbl_FADT.pstate_control, 8);
 	if (ACPI_FAILURE(status))
 		return status;
 
