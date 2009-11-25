@@ -16,7 +16,6 @@
 #include <asm/apicdef.h>
 #include <asm/page.h>
 #include <asm/vsyscall.h>
-#include <asm/efi.h>
 #include <asm/acpi.h>
 
 /*
@@ -51,11 +50,6 @@ enum fixed_addresses {
 #define NR_FIX_ISAMAPS	256
 	FIX_ISAMAP_END,
 	FIX_ISAMAP_BEGIN = FIX_ISAMAP_END + NR_FIX_ISAMAPS - 1,
-#endif
-#ifdef CONFIG_EFI
-	FIX_EFI_IO_MAP_LAST_PAGE,
-	FIX_EFI_IO_MAP_FIRST_PAGE = FIX_EFI_IO_MAP_LAST_PAGE
-				  + MAX_EFI_IO_PAGES - 1,
 #endif
 #ifdef CONFIG_PARAVIRT
 	FIX_PARAVIRT_BOOTMAP,

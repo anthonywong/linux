@@ -36,7 +36,7 @@ static void set_bitmap(unsigned long *bitmap, unsigned int base,
  */
 asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 {
-	struct thread_struct * t = &current->thread;
+	struct thread_struct *t = &current->thread;
 	struct physdev_set_iobitmap set_iobitmap;
 
 	if ((from + num <= from) || (from + num > IO_BITMAP_BITS))

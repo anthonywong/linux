@@ -855,7 +855,7 @@ config X86_XEN_GENAPIC
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 	bool "Reroute for broken boot IRQs"
 	default n
-	depends on X86_IO_APIC
+	depends on X86_IO_APIC && !XEN
 	---help---
 	  This option enables a workaround that fixes a source of
 	  spurious interrupts. This is recommended when threaded

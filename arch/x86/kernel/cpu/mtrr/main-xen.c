@@ -33,7 +33,7 @@ struct mtrr_ops generic_mtrr_ops = {
 
 struct mtrr_ops *mtrr_if = &generic_mtrr_ops;
 unsigned int num_var_ranges;
-unsigned int mtrr_usage_table[MAX_VAR_RANGES];
+unsigned int mtrr_usage_table[MTRR_MAX_VAR_RANGES];
 
 static u64 tom2;
 

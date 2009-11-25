@@ -44,6 +44,17 @@
 /*
  * LOW-LEVEL DEFINITIONS
  */
+struct irq_cfg {
+	u32 info;
+	union {
+		int bindcount; /* for dynamic IRQs */
+#ifdef CONFIG_X86_IO_APIC
+		u8 vector; /* for physical IRQs */
+#endif
+	};
+};
+
+int assign_irq_vector(int irq, struct irq_cfg *, const struct cpumask *);
 
 /*
  * Dynamically bind an event source to an IRQ-like callback handler.
