@@ -51,10 +51,10 @@
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/hw_irq.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
 #include <asm/irqflags.h>
 #include <asm/ftrace.h>
-#include <asm/errno.h>
+#include <asm/percpu.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/features.h>
 
@@ -81,20 +81,17 @@ ENTRY(ftrace_caller)
 	movq 8(%rbp), %rsi
 	subq $MCOUNT_INSN_SIZE, %rdi
 
-.globl ftrace_call
-ftrace_call:
+GLOBAL(ftrace_call)
 	call ftrace_stub
 
 	MCOUNT_RESTORE_FRAME
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-.globl ftrace_graph_call
-ftrace_graph_call:
+GLOBAL(ftrace_graph_call)
 	jmp ftrace_stub
 #endif
 
-.globl ftrace_stub
-ftrace_stub:
+GLOBAL(ftrace_stub)
 	retq
 END(ftrace_caller)
 
@@ -114,8 +111,7 @@ ENTRY(mcount)
 	jnz ftrace_graph_caller
 #endif
 
-.globl ftrace_stub
-ftrace_stub:
+GLOBAL(ftrace_stub)
 	retq
 
 trace:
@@ -152,9 +148,7 @@ ENTRY(ftrace_graph_caller)
 	retq
 END(ftrace_graph_caller)
 
-
-.globl return_to_handler
-return_to_handler:
+GLOBAL(return_to_handler)
 	subq  $80, %rsp
 
 	movq %rax, (%rsp)
@@ -192,6 +186,7 @@ return_to_handler:
 ENTRY(native_usergs_sysret64)
 	swapgs
 	sysretq
+ENDPROC(native_usergs_sysret64)
 #endif /* CONFIG_PARAVIRT */
 
 
@@ -375,15 +370,15 @@ ENTRY(save_args)
 	je 1f
 	SWAPGS
 	/*
-	 * irqcount is used to check if a CPU is already on an interrupt stack
+	 * irq_count is used to check if a CPU is already on an interrupt stack
 	 * or not. While this is essentially redundant with preempt_count it is
 	 * a little cheaper to use a separate counter in the PDA (short of
 	 * moving irq_enter into assembly, which would be too much work)
 	 */
-1:	incl %gs:pda_irqcount
+1:	incl PER_CPU_VAR(irq_count)
 	jne 2f
 	popq_cfi %rax			/* move return address... */
-	mov %gs:pda_irqstackptr,%rsp
+	mov PER_CPU_VAR(irq_stack_ptr),%rsp
 	EMPTY_FRAME 0
 	pushq_cfi %rbp			/* backlink for unwinder */
 	pushq_cfi %rax			/* ... to the new stack */
@@ -413,6 +408,7 @@ END(save_rest)
 
 #ifndef CONFIG_XEN
 /* save complete stack frame */
+	.pushsection .kprobes.text, "ax"
 ENTRY(save_paranoid)
 	XCPT_FRAME 1 RDI+8
 	cld
@@ -441,6 +437,7 @@ ENTRY(save_paranoid)
 1:	ret
 	CFI_ENDPROC
 END(save_paranoid)
+	.popsection
 #endif
 
 /*
@@ -451,6 +448,8 @@ END(save_paranoid)
 ENTRY(ret_from_fork)
 	DEFAULT_FRAME
 
+	LOCK ; btr $TIF_FORK,TI_flags(%r8)
+
 	push kernel_eflags(%rip)
 	CFI_ADJUST_CFA_OFFSET 8
 	popf					# reset kernel eflags
@@ -460,7 +459,6 @@ ENTRY(ret_from_fork)
 
 	GET_THREAD_INFO(%rcx)
 
-	CFI_REMEMBER_STATE
 	RESTORE_REST
 
 	testl $3, CS-ARGOFFSET(%rsp)		# from kernel_thread?
@@ -472,7 +470,6 @@ ENTRY(ret_from_fork)
 	RESTORE_TOP_OF_STACK %rdi, -ARGOFFSET
 	jmp ret_from_sys_call			# go to the SYSRET fastpath
 
-	CFI_RESTORE_STATE
 	CFI_ENDPROC
 END(ret_from_fork)
 
@@ -648,9 +645,7 @@ tracesys:
  * Syscall return path ending with IRET.
  * Has correct top of stack, but partial stack frame.
  */
-	.globl int_ret_from_sys_call
-	.globl int_with_check
-int_ret_from_sys_call:
+GLOBAL(int_ret_from_sys_call)
 	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testb $3,CS-ARGOFFSET(%rsp)
@@ -661,7 +656,7 @@ int_ret_from_sys_call:
 1:              
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
-int_with_check:
+GLOBAL(int_with_check)
 	LOCKDEP_SYS_EXIT_IRQ
 	GET_THREAD_INFO(%rcx)
 	movl TI_flags(%rcx),%edx
@@ -883,10 +878,14 @@ apicinterrupt IRQ_MOVE_CLEANUP_VECTOR \
 	irq_move_cleanup_interrupt smp_irq_move_cleanup_interrupt
 #endif
 
+#ifdef CONFIG_X86_UV
 apicinterrupt UV_BAU_MESSAGE \
 	uv_bau_message_intr1 uv_bau_message_interrupt
+#endif
 apicinterrupt LOCAL_TIMER_VECTOR \
 	apic_timer_interrupt smp_apic_timer_interrupt
+apicinterrupt GENERIC_INTERRUPT_VECTOR \
+	generic_interrupt smp_generic_interrupt
 
 #ifdef CONFIG_SMP
 apicinterrupt INVALIDATE_TLB_VECTOR_START+0 \
@@ -1004,15 +1003,15 @@ ENTRY(do_hypervisor_callback)   # do_hypervisor_callback(struct *pt_regs)
 	movq %rdi, %rsp            # we don't return, adjust the stack frame
 	CFI_ENDPROC
 	DEFAULT_FRAME
-11:	incl %gs:pda_irqcount
+11:	incl PER_CPU_VAR(irq_count)
 	movq %rsp,%rbp
 	CFI_DEF_CFA_REGISTER rbp
-	cmovzq %gs:pda_irqstackptr,%rsp
+	cmovzq PER_CPU_VAR(irq_stack_ptr),%rsp
 	pushq %rbp			# backlink for old unwinder
 	call evtchn_do_upcall
 	popq %rsp
 	CFI_DEF_CFA_REGISTER rsp
-	decl %gs:pda_irqcount
+	decl PER_CPU_VAR(irq_count)
 	jmp  error_exit
 	CFI_ENDPROC
 END(do_hypervisor_callback)
@@ -1203,14 +1202,14 @@ ENTRY(call_softirq)
 	CFI_REL_OFFSET rbp,0
 	mov  %rsp,%rbp
 	CFI_DEF_CFA_REGISTER rbp
-	incl %gs:pda_irqcount
-	cmove %gs:pda_irqstackptr,%rsp
+	incl PER_CPU_VAR(irq_count)
+	cmove PER_CPU_VAR(irq_stack_ptr),%rsp
 	push  %rbp			# backlink for old unwinder
 	call __do_softirq
 	leaveq
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET   -8
-	decl %gs:pda_irqcount
+	decl PER_CPU_VAR(irq_count)
 	ret
 	CFI_ENDPROC
 END(call_softirq)
@@ -1256,7 +1255,10 @@ ENTRY(paranoid_exit)
 paranoid_swapgs:
 	TRACE_IRQS_IRETQ 0
 	SWAPGS_UNSAFE_STACK
+	RESTORE_ALL 8
+	jmp irq_return
 paranoid_restore:
+	TRACE_IRQS_IRETQ 0
 	RESTORE_ALL 8
 	jmp irq_return
 paranoid_userspace:
