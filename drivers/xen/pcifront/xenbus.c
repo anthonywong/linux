@@ -11,10 +11,6 @@
 #include <xen/gnttab.h>
 #include "pcifront.h"
 
-#ifndef __init_refok
-#define __init_refok
-#endif
-
 #define INVALID_GRANT_REF (0)
 #define INVALID_EVTCHN    (-1)
 
@@ -95,7 +91,7 @@ static int pcifront_publish_info(struct pcifront_device *pdev)
 		goto out;
 
 	bind_caller_port_to_irqhandler(pdev->evtchn, pcifront_handler_aer, 
-		SA_SAMPLE_RANDOM, "pcifront", pdev); 
+		IRQF_SAMPLE_RANDOM, "pcifront", pdev);
 
       do_publish:
 	err = xenbus_transaction_start(&trans);
