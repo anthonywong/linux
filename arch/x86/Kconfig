@@ -40,7 +40,7 @@ config X86
 	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KVM if !XEN
-	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_KGDB if !XEN
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_DMA_COHERENT if X86_32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
@@ -605,6 +605,7 @@ config PARAVIRT_DEBUG
 
 config MEMTEST
 	bool "Memtest"
+	depends on !XEN
 	---help---
 	  This option adds a kernel parameter 'memtest', which allows memtest
 	  to be set.
@@ -1169,7 +1170,7 @@ config ARCH_PHYS_ADDR_T_64BIT
 config DIRECT_GBPAGES
 	bool "Enable 1GB pages for kernel pagetables" if EMBEDDED
 	default y
-	depends on X86_64
+	depends on X86_64 && !XEN
 	---help---
 	  Allow the kernel linear mapping to use 1GB pages on CPUs that
 	  support it. This can improve the kernel's performance a tiny bit by
@@ -2188,7 +2189,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "arch/x86/kvm/Kconfig"
-
-source "drivers/xen/Kconfig"
 
 source "lib/Kconfig"

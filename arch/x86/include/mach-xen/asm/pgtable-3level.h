@@ -8,25 +8,28 @@
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  */
 
-#define pte_ERROR(e) \
-	printk("%s:%d: bad pte %p(%016Lx pfn %08lx).\n", __FILE__, __LINE__, \
-	       &(e), __pte_val(e), pte_pfn(e))
-#define pmd_ERROR(e) \
-	printk("%s:%d: bad pmd %p(%016Lx pfn %08Lx).\n", __FILE__, __LINE__, \
-	       &(e), __pmd_val(e), (pmd_val(e) & PTE_MASK) >> PAGE_SHIFT)
-#define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd %p(%016Lx pfn %08Lx).\n", __FILE__, __LINE__, \
-	       &(e), __pgd_val(e), (pgd_val(e) & PTE_MASK) >> PAGE_SHIFT)
-
+#define pte_ERROR(e)							\
+	printk("%s:%d: bad pte %p(%016Lx pfn %08lx).\n",		\
+	        __FILE__, __LINE__, &(e), __pte_val(e), pte_pfn(e))
+#define pmd_ERROR(e)							\
+	printk("%s:%d: bad pmd %p(%016Lx pfn %08Lx).\n",		\
+	       __FILE__, __LINE__, &(e), __pmd_val(e),			\
+	       (pmd_val(e) & PTE_MASK) >> PAGE_SHIFT)
+#define pgd_ERROR(e)							\
+	printk("%s:%d: bad pgd %p(%016Lx pfn %08Lx).\n",		\
+	       __FILE__, __LINE__, &(e), __pgd_val(e),			\
+	       (pgd_val(e) & PTE_MASK) >> PAGE_SHIFT)
 
 static inline int pud_none(pud_t pud)
 {
 	return __pud_val(pud) == 0;
+
 }
 static inline int pud_bad(pud_t pud)
 {
 	return (__pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
 }
+
 static inline int pud_present(pud_t pud)
 {
 	return __pud_val(pud) & _PAGE_PRESENT;
@@ -48,12 +51,14 @@ static inline void xen_set_pte(pte_t *ptep, pte_t pte)
 
 static inline void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
 {
-	set_64bit((unsigned long long *)(ptep),__pte_val(pte));
+	set_64bit((unsigned long long *)(ptep), __pte_val(pte));
 }
+
 static inline void xen_set_pmd(pmd_t *pmdp, pmd_t pmd)
 {
 	xen_l2_entry_update(pmdp, pmd);
 }
+
 static inline void xen_set_pud(pud_t *pudp, pud_t pud)
 {
 	xen_l3_entry_update(pudp, pud);
@@ -92,20 +97,19 @@ static inline void pud_clear(pud_t *pudp)
 	 * current pgd to avoid unnecessary TLB flushes.
 	 */
 	pgd = read_cr3();
-	if (__pa(pudp) >= pgd && __pa(pudp) < (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
+	if (__pa(pudp) >= pgd && __pa(pudp) <
+	    (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
 		xen_tlb_flush();
 }
 
-#define pud_page(pud) \
-((struct page *) __va(pud_val(pud) & PAGE_MASK))
+#define pud_page(pud) ((struct page *) __va(pud_val(pud) & PTE_MASK))
 
-#define pud_page_vaddr(pud) \
-((unsigned long) __va(pud_val(pud) & PAGE_MASK))
+#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_MASK))
 
 
 /* Find an entry in the second-level page table.. */
-#define pmd_offset(pud, address) ((pmd_t *) pud_page(*(pud)) + \
-			pmd_index(address))
+#define pmd_offset(pud, address) ((pmd_t *)pud_page(*(pud)) +	\
+				  pmd_index(address))
 
 #ifdef CONFIG_SMP
 static inline pte_t xen_ptep_get_and_clear(pte_t *ptep, pte_t res)
@@ -150,7 +154,8 @@ static inline int pte_none(pte_t pte)
  * put the 32 bits of offset into the high part.
  */
 #define pte_to_pgoff(pte) ((pte).pte_high)
-#define pgoff_to_pte(off) ((pte_t) { { .pte_low = _PAGE_FILE, .pte_high = (off) } })
+#define pgoff_to_pte(off)						\
+	((pte_t) { { .pte_low = _PAGE_FILE, .pte_high = (off) } })
 #define PTE_FILE_MAX_BITS       32
 
 /* Encode and de-code a swap entry */
