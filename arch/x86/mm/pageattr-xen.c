@@ -1396,7 +1396,7 @@ static void __make_page_writable(unsigned long va)
 
 	pte = lookup_address(va, &level);
 	BUG_ON(!pte || level != PG_LEVEL_4K);
-	if (HYPERVISOR_update_va_mapping(va, pte_mkwrite(*pte), 0))
+	if (HYPERVISOR_update_va_mapping(va, pte_mkwrite(*pte), UVMF_INVLPG))
 		BUG();
 	if (in_secondary_range(va)) {
 		unsigned long pfn = pte_pfn(*pte);
