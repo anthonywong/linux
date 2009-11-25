@@ -13,10 +13,10 @@
 #include <linux/ioport.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
-#include <linux/smp_lock.h>
 #include <linux/stddef.h>
 #include <linux/slab.h>
 #include <linux/thread_info.h>
+#include <linux/syscalls.h>
 #include <xen/interface/physdev.h>
 
 /* Set EXTENT bits starting at BASE in BITMAP to value TURN_ON. */
