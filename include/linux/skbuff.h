@@ -2092,7 +2092,7 @@ static inline void skb_forward_csum(struct sk_buff *skb)
 
 bool skb_partial_csum_set(struct sk_buff *skb, u16 start, u16 off);
 
-#ifdef CONFIG_XEN
+#if defined(CONFIG_XEN) || defined(CONFIG_PARAVIRT_XEN)
 int skb_checksum_setup(struct sk_buff *skb);
 #else
 static inline int skb_checksum_setup(struct sk_buff *skb) { return 0; }
