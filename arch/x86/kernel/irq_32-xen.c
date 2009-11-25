@@ -227,6 +227,8 @@ void fixup_irqs(void)
 			continue;
 		if (irq == 2)
 			continue;
+		if (desc->status & IRQ_PER_CPU)
+			continue;
 
 		affinity = desc->affinity;
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
