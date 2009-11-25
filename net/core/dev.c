@@ -1835,17 +1835,15 @@ inline int skb_checksum_setup(struct sk_buff *skb)
 		}
 		if ((skb->h.raw + skb->csum + 2) > skb->tail)
 			goto out;
-		skb->ip_summed = CHECKSUM_HW;
+		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->proto_csum_blank = 0;
 	}
 	return 0;
 out:
 	return -EPROTO;
 }
-#else
-inline int skb_checksum_setup(struct sk_buff *skb) { return 0; }
-#endif
 EXPORT_SYMBOL(skb_checksum_setup);
+#endif
 
 static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct net_device *dev,
@@ -2382,7 +2380,7 @@ int netif_receive_skb(struct sk_buff *skb)
 	case CHECKSUM_UNNECESSARY:
 		skb->proto_data_valid = 1;
 		break;
-	case CHECKSUM_HW:
+	case CHECKSUM_PARTIAL:
 		/* XXX Implement me. */
 	default:
 		skb->proto_data_valid = 0;
