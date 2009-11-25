@@ -58,6 +58,10 @@ SECTIONS
 {
 #ifdef CONFIG_X86_32
         . = LOAD_OFFSET + LOAD_PHYSICAL_ADDR;
+#if defined(CONFIG_XEN) && CONFIG_XEN_COMPAT <= 0x030002
+#undef LOAD_OFFSET
+#define LOAD_OFFSET 0
+#endif
         phys_startup_32 = startup_32 - LOAD_OFFSET;
 #else
         . = __START_KERNEL;

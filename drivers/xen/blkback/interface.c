@@ -34,7 +34,7 @@
 #include <xen/evtchn.h>
 #include <linux/kthread.h>
 
-static kmem_cache_t *blkif_cachep;
+static struct kmem_cache *blkif_cachep;
 
 blkif_t *blkif_alloc(domid_t domid)
 {
