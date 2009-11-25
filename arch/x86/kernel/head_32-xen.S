@@ -6,12 +6,14 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
-#include <asm/page.h>
+#include <asm/page_types.h>
+#include <asm/pgtable_types.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 #include <asm/boot.h>
 #include <asm/dwarf2.h>
+#include <asm/percpu.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/elfnote.h>
 
@@ -38,9 +40,6 @@ ENTRY(startup_32)
 	/* Set up the stack pointer */
 	movl $(init_thread_union+THREAD_SIZE),%esp
 
-	movl %ss,%eax
-	movl %eax,%fs			# gets reset once there's real percpu
-
 	/* get vendor info */
 	xorl %eax,%eax			# call CPUID with 0 -> return vendor ID
 	XEN_CPUID
@@ -63,7 +62,49 @@ ENTRY(startup_32)
 
 	movb $1,X86_HARD_MATH
 
-	xorl %eax,%eax		# Clear GS
+#ifdef CONFIG_CC_STACKPROTECTOR
+	/*
+	 * The linker can't handle this by relocation.  Manually set
+	 * base address in stack canary segment descriptor.
+	 */
+	movl $per_cpu__gdt_page,%eax
+	movl $per_cpu__stack_canary,%ecx
+	subl $20, %ecx
+	movw %cx, 8 * GDT_ENTRY_STACK_CANARY + 2(%eax)
+	shrl $16, %ecx
+	movb %cl, 8 * GDT_ENTRY_STACK_CANARY + 4(%eax)
+	movb %ch, 8 * GDT_ENTRY_STACK_CANARY + 7(%eax)
+#endif
+
+	# %esi still points to start_info, and no registers
+	# need to be preserved.
+
+	movl XEN_START_mfn_list(%esi), %ebx
+	movl $(per_cpu__gdt_page - __PAGE_OFFSET), %eax
+	shrl $PAGE_SHIFT, %eax
+	movl (%ebx,%eax,4), %ecx
+	pushl %ecx			# frame number for set_gdt below
+
+	xorl %esi, %esi
+	xorl %edx, %edx
+	shldl $PAGE_SHIFT, %ecx, %edx
+	shll $PAGE_SHIFT, %ecx
+	orl $_PAGE_PRESENT|_PAGE_ACCESSED|_PAGE_DIRTY, %ecx
+	movl $per_cpu__gdt_page, %ebx
+	movl $__HYPERVISOR_update_va_mapping, %eax
+	int $0x82
+
+	movl $(PAGE_SIZE_asm / 8), %ecx
+	movl %esp, %ebx
+	movl $__HYPERVISOR_set_gdt, %eax
+	int $0x82
+
+	popl %ecx
+
+	movl $(__KERNEL_PERCPU), %eax
+	movl %eax,%fs			# set this cpu's percpu
+
+	movl $(__KERNEL_STACK_CANARY),%eax
 	movl %eax,%gs
 
 	cld			# gcc2 wants the direction flag cleared at all times
