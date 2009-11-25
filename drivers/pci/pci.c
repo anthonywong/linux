@@ -2684,6 +2684,13 @@ resource_size_t pci_specified_resource_alignment(struct pci_dev *dev)
  */
 int pci_is_reassigndev(struct pci_dev *dev)
 {
+#ifdef CONFIG_PCI_GUESTDEV
+	int result;
+
+	result = pci_is_guestdev_to_reassign(dev);
+	if (result)
+		return result;
+#endif /* CONFIG_PCI_GUESTDEV */
 	return (pci_specified_resource_alignment(dev) != 0);
 }
 
