@@ -751,10 +751,20 @@ static void net_rx_action(unsigned long unused)
 		npo.meta_cons += nr_frags + 1;
 	}
 
-	while (notify_nr != 0) {
-		irq = notify_list[--notify_nr];
+	if (notify_nr == 1) {
+		irq = *notify_list;
 		__clear_bit(irq, rx_notify);
 		notify_remote_via_irq(irq + DYNIRQ_BASE);
+	} else {
+		for (count = ret = 0; ret < notify_nr; ++ret) {
+			irq = notify_list[ret];
+			__clear_bit(irq, rx_notify);
+			if (!multi_notify_remote_via_irq(rx_mcl + count,
+							 irq + DYNIRQ_BASE))
+				++count;
+		}
+		if (HYPERVISOR_multicall(rx_mcl, count))
+			BUG();
 	}
 
 	/* More work to do? */
