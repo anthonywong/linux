@@ -49,6 +49,9 @@
 #define get_xen_guest_handle(val, hnd)  do { val = (hnd).p; } while (0)
 #endif
 
+/* Allow co-existing Linux 2.6.23+ Xen interface definitions. */
+#define DEFINE_GUEST_HANDLE_STRUCT(name) struct name
+
 #if defined(__i386__)
 #include "xen-x86_32.h"
 #elif defined(__x86_64__)
