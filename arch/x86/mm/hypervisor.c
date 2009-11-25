@@ -610,26 +610,38 @@ EXPORT_SYMBOL_GPL(xen_invlpg_mask);
 
 #endif /* CONFIG_SMP */
 
-void xen_pgd_pin(unsigned long ptr)
-{
-	struct mmuext_op op;
 #ifdef CONFIG_X86_64
-	op.cmd = MMUEXT_PIN_L4_TABLE;
-#elif defined(CONFIG_X86_PAE)
-	op.cmd = MMUEXT_PIN_L3_TABLE;
+#define NR_PGD_PIN_OPS 2
 #else
-	op.cmd = MMUEXT_PIN_L2_TABLE;
+#define NR_PGD_PIN_OPS 1
 #endif
-	op.arg1.mfn = pfn_to_mfn(ptr >> PAGE_SHIFT);
-	BUG_ON(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+
+void xen_pgd_pin(pgd_t *pgd)
+{
+	struct mmuext_op op[NR_PGD_PIN_OPS];
+
+	op[0].cmd = MMUEXT_PIN_L3_TABLE;
+	op[0].arg1.mfn = virt_to_mfn(pgd);
+#ifdef CONFIG_X86_64
+	op[1].cmd = op[0].cmd = MMUEXT_PIN_L4_TABLE;
+	op[1].arg1.mfn = virt_to_mfn(__user_pgd(pgd));
+#endif
+	if (HYPERVISOR_mmuext_op(op, NR_PGD_PIN_OPS, NULL, DOMID_SELF) < 0)
+		BUG();
 }
 
-void xen_pgd_unpin(unsigned long ptr)
+void xen_pgd_unpin(pgd_t *pgd)
 {
-	struct mmuext_op op;
-	op.cmd = MMUEXT_UNPIN_TABLE;
-	op.arg1.mfn = pfn_to_mfn(ptr >> PAGE_SHIFT);
-	BUG_ON(HYPERVISOR_mmuext_op(&op, 1, NULL, DOMID_SELF) < 0);
+	struct mmuext_op op[NR_PGD_PIN_OPS];
+
+	op[0].cmd = MMUEXT_UNPIN_TABLE;
+	op[0].arg1.mfn = virt_to_mfn(pgd);
+#ifdef CONFIG_X86_64
+	op[1].cmd = MMUEXT_UNPIN_TABLE;
+	op[1].arg1.mfn = virt_to_mfn(__user_pgd(pgd));
+#endif
+	if (HYPERVISOR_mmuext_op(op, NR_PGD_PIN_OPS, NULL, DOMID_SELF) < 0)
+		BUG();
 }
 
 void xen_set_ldt(const void *ptr, unsigned int ents)
