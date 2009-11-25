@@ -57,8 +57,7 @@ void __init xen_machine_kexec_setup_resources(void)
 
 	/* allocate xen_phys_cpus */
 
-	xen_phys_cpus = alloc_bootmem_low(k * sizeof(struct resource));
-	BUG_ON(xen_phys_cpus == NULL);
+	xen_phys_cpus = alloc_bootmem(k * sizeof(struct resource));
 
 	/* fill in xen_phys_cpus with per-cpu crash note information */
 
@@ -91,7 +90,7 @@ void __init xen_machine_kexec_setup_resources(void)
 	xen_hypervisor_res.start = range.start;
 	xen_hypervisor_res.end = range.start + range.size - 1;
 	xen_hypervisor_res.flags = IORESOURCE_BUSY | IORESOURCE_MEM;
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86
 	insert_resource(&iomem_resource, &xen_hypervisor_res);
 #endif
 
@@ -106,7 +105,7 @@ void __init xen_machine_kexec_setup_resources(void)
 	if (range.size) {
 		crashk_res.start = range.start;
 		crashk_res.end = range.start + range.size - 1;
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86
 		insert_resource(&iomem_resource, &crashk_res);
 #endif
 	}
@@ -141,15 +140,13 @@ void __init xen_machine_kexec_setup_resources(void)
 					  xen_max_nr_phys_cpus))
 		goto err;
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86
 	for (k = 0; k < xen_max_nr_phys_cpus; k++) {
 		res = xen_phys_cpus + k;
 		if (!res->parent) /* outside of xen_hypervisor_res range */
 			insert_resource(&iomem_resource, res);
 	}
-#endif
 
-#ifdef CONFIG_X86
 	if (xen_create_contiguous_region((unsigned long)&vmcoreinfo_note,
 					 get_order(sizeof(vmcoreinfo_note)),
 					 BITS_PER_LONG))
@@ -168,7 +165,7 @@ void __init xen_machine_kexec_setup_resources(void)
 	return;
 }
 
-#ifndef CONFIG_X86_64
+#ifndef CONFIG_X86
 void __init xen_machine_kexec_register_resources(struct resource *res)
 {
 	int k;
