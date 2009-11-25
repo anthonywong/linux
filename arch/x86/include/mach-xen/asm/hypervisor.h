@@ -47,15 +47,6 @@
 #include <asm/percpu.h>
 #include <asm/ptrace.h>
 #include <asm/page.h>
-#if defined(__i386__)
-#  ifdef CONFIG_X86_PAE
-#   include <asm-generic/pgtable-nopud.h>
-#  else
-#   include <asm-generic/pgtable-nopmd.h>
-#  endif
-#elif defined(__x86_64__) && LINUX_VERSION_CODE < KERNEL_VERSION(2,6,11)
-#  include <asm-generic/pgtable-nopud.h>
-#endif
 
 extern shared_info_t *HYPERVISOR_shared_info;
 
