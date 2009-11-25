@@ -341,28 +341,27 @@ static inline void SetPageUptodate(struct page *page)
 
 CLEARPAGEFLAG(Uptodate, uptodate)
 
-#define PageForeign(page)	test_bit(PG_foreign, &(page)->flags)
-#define SetPageForeign(_page, dtor) do {		\
-	set_bit(PG_foreign, &(_page)->flags);		\
-	BUG_ON((dtor) == (void (*)(struct page *, unsigned int))0); \
-	(_page)->index = (long)(dtor);			\
-} while (0)
-#define ClearPageForeign(page) do {			\
-	clear_bit(PG_foreign, &(page)->flags);		\
-	(page)->index = 0;				\
-} while (0)
-#define PageForeignDestructor(_page, order)		\
-	((void (*)(struct page *, unsigned int))(_page)->index)(_page, order)
-
-#if 0
-#define PageNetback(page)       test_bit(PG_netback, &(page)->flags)
-#define SetPageNetback(page)    set_bit(PG_netback, &(page)->flags)
-#define ClearPageNetback(page)  clear_bit(PG_netback, &(page)->flags)
+#ifdef CONFIG_XEN
+TESTPAGEFLAG(Foreign, foreign)
+static inline void SetPageForeign(struct page *page,
+				  void (*dtor)(struct page *, unsigned int))
+{
+	BUG_ON(!dtor);
+	set_bit(PG_foreign, &page->flags);
+	page->index = (long)dtor;
+}
+static inline void ClearPageForeign(struct page *page)
+{
+	clear_bit(PG_foreign, &page->flags);
+	page->index = 0;
+}
+static inline void PageForeignDestructor(struct page *page, unsigned int order)
+{
+	((void (*)(struct page *, unsigned int))page->index)(page, order);
+}
+/*PAGEFLAG(Netback, netback)*/
+PAGEFLAG(Blkback, blkback)
 #endif
-
-#define PageBlkback(page)       test_bit(PG_blkback, &(page)->flags)
-#define SetPageBlkback(page)    set_bit(PG_blkback, &(page)->flags)
-#define ClearPageBlkback(page)  clear_bit(PG_blkback, &(page)->flags)
 
 extern void cancel_dirty_page(struct page *page, unsigned int account_size);
 

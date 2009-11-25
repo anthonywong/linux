@@ -261,15 +261,13 @@ static long privcmd_ioctl(struct file *file,
 }
 
 #ifndef HAVE_ARCH_PRIVCMD_MMAP
-static struct page *privcmd_nopage(struct vm_area_struct *vma,
-				   unsigned long address,
-				   int *type)
+static int privcmd_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
-	return NOPAGE_SIGBUS;
+	return VM_FAULT_SIGBUS;
 }
 
 static struct vm_operations_struct privcmd_vm_ops = {
-	.nopage = privcmd_nopage
+	.fault = privcmd_fault
 };
 
 static int privcmd_mmap(struct file * file, struct vm_area_struct * vma)
