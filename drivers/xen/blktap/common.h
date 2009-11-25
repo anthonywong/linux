@@ -68,7 +68,7 @@ typedef struct blkif_st {
 	wait_queue_head_t   wq;
 	struct task_struct  *xenblkd;
 	unsigned int        waiting_reqs;
-	request_queue_t     *plug;
+	struct request_queue *plug;
 
 	/* statistics */
 	unsigned long       st_print;

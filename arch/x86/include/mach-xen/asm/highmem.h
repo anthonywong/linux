@@ -76,8 +76,7 @@ struct page *kmap_atomic_to_page(void *ptr);
 
 #define kmap_atomic_pte(page, type) \
 	kmap_atomic_prot(page, type, \
-	                 test_bit(PG_pinned, &(page)->flags) \
-	                 ? PAGE_KERNEL_RO : kmap_prot)
+	                 PagePinned(page) ? PAGE_KERNEL_RO : kmap_prot)
 
 #define flush_cache_kmaps()	do { } while (0)
 
