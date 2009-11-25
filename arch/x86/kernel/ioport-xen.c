@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/thread_info.h>
 #include <linux/syscalls.h>
+#include <asm/syscalls.h>
 #include <xen/interface/physdev.h>
 
 /* Set EXTENT bits starting at BASE in BITMAP to value TURN_ON. */
