@@ -167,7 +167,7 @@ void scsiback_free(struct vscsibk_info *info)
 int __init scsiback_interface_init(void)
 {
 	scsiback_cachep = kmem_cache_create("vscsiif_cache",
-		sizeof(struct vscsibk_info), 0, 0, NULL, NULL);
+		sizeof(struct vscsibk_info), 0, 0, NULL);
 	if (!scsiback_cachep) {
 		printk(KERN_ERR "scsiback: can't init scsi cache\n");
 		return -ENOMEM;
