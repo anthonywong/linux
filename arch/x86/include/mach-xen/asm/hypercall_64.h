@@ -135,6 +135,23 @@
 	__res;							\
 })
 
+#define _hypercall(type, op, a1, a2, a3, a4, a5)		\
+({								\
+	type __res;						\
+	register typeof((a1)+0) __arg1 asm("rdi") = (a1);	\
+	register typeof((a2)+0) __arg2 asm("rsi") = (a2);	\
+	register typeof((a3)+0) __arg3 asm("rdx") = (a3);	\
+	register typeof((a4)+0) __arg4 asm("r10") = (a4);	\
+	register typeof((a5)+0) __arg5 asm("r8") = (a5);	\
+	asm volatile (						\
+		"call *%6"					\
+		: "=a" (__res), "+r" (__arg1), "+r" (__arg2),	\
+		  "+r" (__arg3), "+r" (__arg4), "+r" (__arg5)	\
+		: "0" (hypercall_page + (op) * 32)		\
+		: "memory" );					\
+	__res;							\
+})
+
 static inline int __must_check
 HYPERVISOR_set_trap_table(
 	const trap_info_t *table)
@@ -147,6 +164,8 @@ HYPERVISOR_mmu_update(
 	mmu_update_t *req, unsigned int count, unsigned int *success_count,
 	domid_t domid)
 {
+	if (arch_use_lazy_mmu_mode())
+		return xen_multi_mmu_update(req, count, success_count, domid);
 	return _hypercall4(int, mmu_update, req, count, success_count, domid);
 }
 
@@ -155,6 +174,8 @@ HYPERVISOR_mmuext_op(
 	struct mmuext_op *op, unsigned int count, unsigned int *success_count,
 	domid_t domid)
 {
+	if (arch_use_lazy_mmu_mode())
+		return xen_multi_mmuext_op(op, count, success_count, domid);
 	return _hypercall4(int, mmuext_op, op, count, success_count, domid);
 }
 
@@ -248,6 +269,8 @@ static inline int __must_check
 HYPERVISOR_memory_op(
 	unsigned int cmd, void *arg)
 {
+	if (arch_use_lazy_mmu_mode())
+		xen_multicall_flush(false);
 	return _hypercall2(int, memory_op, cmd, arg);
 }
 
@@ -262,6 +285,8 @@ static inline int __must_check
 HYPERVISOR_update_va_mapping(
 	unsigned long va, pte_t new_val, unsigned long flags)
 {
+	if (arch_use_lazy_mmu_mode())
+		return xen_multi_update_va_mapping(va, new_val, flags);
 	return _hypercall3(int, update_va_mapping, va, new_val.pte, flags);
 }
 
@@ -321,6 +346,8 @@ static inline int __must_check
 HYPERVISOR_grant_table_op(
 	unsigned int cmd, void *uop, unsigned int count)
 {
+	if (arch_use_lazy_mmu_mode())
+		xen_multicall_flush(false);
 	return _hypercall3(int, grant_table_op, cmd, uop, count);
 }
 

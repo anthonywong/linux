@@ -2,6 +2,7 @@
  *	Intel CPU Microcode Update Driver for Linux
  *
  *	Copyright (C) 2000-2004 Tigran Aivazian
+ *		      2006	Shaohua Li <shaohua.li@intel.com>
  *
  *	This driver allows to upgrade microcode on Intel processors
  *	belonging to IA-32 family - PentiumPro, Pentium II, 
@@ -33,7 +34,9 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
-#include <linux/syscalls.h>
+#include <linux/cpu.h>
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
 
 #include <asm/msr.h>
 #include <asm/uaccess.h>
@@ -55,12 +58,7 @@ module_param(verbose, int, 0644);
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
 static DEFINE_MUTEX(microcode_mutex);
 				
-static int microcode_open (struct inode *unused1, struct file *unused2)
-{
-	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
-}
-
-
+#ifdef CONFIG_MICROCODE_OLD_INTERFACE
 static int do_microcode_update (const void __user *ubuf, size_t len)
 {
 	int err;
@@ -83,6 +81,11 @@ static int do_microcode_update (const void __user *ubuf, size_t len)
 	vfree(kbuf);
 
 	return err;
+}
+
+static int microcode_open (struct inode *unused1, struct file *unused2)
+{
+	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
 static ssize_t microcode_write (struct file *file, const char __user *buf, size_t len, loff_t *ppos)
@@ -117,7 +120,7 @@ static struct miscdevice microcode_dev = {
 	.fops		= &microcode_fops,
 };
 
-static int __init microcode_init (void)
+static int __init microcode_dev_init (void)
 {
 	int error;
 
@@ -129,6 +132,68 @@ static int __init microcode_init (void)
 		return error;
 	}
 
+	return 0;
+}
+
+static void __exit microcode_dev_exit (void)
+{
+	misc_deregister(&microcode_dev);
+}
+
+MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
+#else
+#define microcode_dev_init() 0
+#define microcode_dev_exit() do { } while(0)
+#endif
+
+/* fake device for request_firmware */
+static struct platform_device *microcode_pdev;
+
+static int request_microcode(void)
+{
+	char name[30];
+	const struct cpuinfo_x86 *c = &boot_cpu_data;
+	const struct firmware *firmware;
+	int error;
+	struct xen_platform_op op;
+
+	sprintf(name,"intel-ucode/%02x-%02x-%02x",
+		c->x86, c->x86_model, c->x86_mask);
+	error = request_firmware(&firmware, name, &microcode_pdev->dev);
+	if (error) {
+		pr_debug("ucode data file %s load failed\n", name);
+		return error;
+	}
+
+	op.cmd = XENPF_microcode_update;
+	set_xen_guest_handle(op.u.microcode.data, (void *)firmware->data);
+	op.u.microcode.length = firmware->size;
+	error = HYPERVISOR_platform_op(&op);
+
+	release_firmware(firmware);
+
+	if (error)
+		pr_debug("ucode load failed\n");
+
+	return error;
+}
+
+static int __init microcode_init (void)
+{
+	int error;
+
+	error = microcode_dev_init();
+	if (error)
+		return error;
+	microcode_pdev = platform_device_register_simple("microcode", -1,
+							 NULL, 0);
+	if (IS_ERR(microcode_pdev)) {
+		microcode_dev_exit();
+		return PTR_ERR(microcode_pdev);
+	}
+
+	request_microcode();
+
 	printk(KERN_INFO 
 		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@veritas.com>\n");
 	return 0;
@@ -136,9 +201,9 @@ static int __init microcode_init (void)
 
 static void __exit microcode_exit (void)
 {
-	misc_deregister(&microcode_dev);
+	microcode_dev_exit();
+	platform_device_unregister(microcode_pdev);
 }
 
 module_init(microcode_init)
 module_exit(microcode_exit)
-MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);

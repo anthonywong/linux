@@ -260,31 +260,89 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 # include <asm/pgtable-2level.h>
 #endif
 
-#define ptep_test_and_clear_dirty(vma, addr, ptep)			\
-({									\
-	pte_t __pte = *(ptep);						\
-	int __ret = pte_dirty(__pte);					\
-	if (__ret) {							\
-		__pte = pte_mkclean(__pte);				\
-		if ((vma)->vm_mm != current->mm ||			\
-		    HYPERVISOR_update_va_mapping(addr, __pte, 0))	\
-			(ptep)->pte_low = __pte.pte_low;		\
+/*
+ * Rules for using pte_update - it must be called after any PTE update which
+ * has not been done using the set_pte / clear_pte interfaces.  It is used by
+ * shadow mode hypervisors to resynchronize the shadow page tables.  Kernel PTE
+ * updates should either be sets, clears, or set_pte_atomic for P->P
+ * transitions, which means this hook should only be called for user PTEs.
+ * This hook implies a P->P protection or access change has taken place, which
+ * requires a subsequent TLB flush.  The notification can optionally be delayed
+ * until the TLB flush event by using the pte_update_defer form of the
+ * interface, but care must be taken to assure that the flush happens while
+ * still holding the same page table lock so that the shadow and primary pages
+ * do not become out of sync on SMP.
+ */
+#define pte_update(mm, addr, ptep)		do { } while (0)
+#define pte_update_defer(mm, addr, ptep)	do { } while (0)
+
+
+/*
+ * We only update the dirty/accessed state if we set
+ * the dirty bit by hand in the kernel, since the hardware
+ * will do the accessed bit for us, and we don't want to
+ * race with other CPU's that might be updating the dirty
+ * bit at the same time.
+ */
+#define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
+#define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
+do {									\
+	if (dirty)							\
+		ptep_establish(vma, address, ptep, entry);		\
+} while (0)
+
+/*
+ * We don't actually have these, but we want to advertise them so that
+ * we can encompass the flush here.
+ */
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+
+/*
+ * Rules for using ptep_establish: the pte MUST be a user pte, and
+ * must be a present->present transition.
+ */
+#define __HAVE_ARCH_PTEP_ESTABLISH
+#define ptep_establish(vma, address, ptep, pteval)			\
+do {									\
+	if ( likely((vma)->vm_mm == current->mm) ) {			\
+		BUG_ON(HYPERVISOR_update_va_mapping(address,		\
+			pteval,						\
+			(unsigned long)(vma)->vm_mm->cpu_vm_mask.bits|	\
+				UVMF_INVLPG|UVMF_MULTI));		\
+	} else {							\
+		xen_l1_entry_update(ptep, pteval);			\
+		flush_tlb_page(vma, address);				\
 	}								\
-	__ret;								\
-})
+} while (0)
 
-#define ptep_test_and_clear_young(vma, addr, ptep)			\
+#define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
+#define ptep_clear_flush_dirty(vma, address, ptep)			\
 ({									\
 	pte_t __pte = *(ptep);						\
-	int __ret = pte_young(__pte);					\
-	if (__ret)							\
-		__pte = pte_mkold(__pte);				\
-		if ((vma)->vm_mm != current->mm ||			\
-		    HYPERVISOR_update_va_mapping(addr, __pte, 0))	\
-			(ptep)->pte_low = __pte.pte_low;		\
-	__ret;								\
+	int __dirty = pte_dirty(__pte);					\
+	__pte = pte_mkclean(__pte);					\
+	if (test_bit(PG_pinned, &virt_to_page((vma)->vm_mm->pgd)->flags)) \
+		ptep_set_access_flags(vma, address, ptep, __pte, __dirty); \
+	else if (__dirty)						\
+		(ptep)->pte_low = __pte.pte_low;			\
+	__dirty;							\
 })
 
+#define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
+#define ptep_clear_flush_young(vma, address, ptep)			\
+({									\
+	pte_t __pte = *(ptep);						\
+	int __young = pte_young(__pte);					\
+	__pte = pte_mkold(__pte);					\
+	if (test_bit(PG_pinned, &virt_to_page((vma)->vm_mm->pgd)->flags)) \
+		ptep_set_access_flags(vma, address, ptep, __pte, __young); \
+	else if (__young)						\
+		(ptep)->pte_low = __pte.pte_low;			\
+	__young;							\
+})
+
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 #define ptep_get_and_clear_full(mm, addr, ptep, full)			\
 	((full) ? ({							\
 		pte_t __res = *(ptep);					\
@@ -296,6 +354,7 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 	 }) :								\
 	 ptep_get_and_clear(mm, addr, ptep))
 
+#define __HAVE_ARCH_PTEP_SET_WRPROTECT
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
@@ -391,11 +450,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define pte_index(address) \
 		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) \
-	((pte_t *) pmd_page_kernel(*(dir)) +  pte_index(address))
+	((pte_t *) pmd_page_vaddr(*(dir)) +  pte_index(address))
 
 #define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
 
-#define pmd_page_kernel(pmd) \
+#define pmd_page_vaddr(pmd) \
 		((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 /*
@@ -418,8 +477,6 @@ extern pte_t *lookup_address(unsigned long address);
  static inline int set_kernel_exec(unsigned long vaddr, int enable) { return 0;}
 #endif
 
-extern void noexec_setup(const char *str);
-
 #if defined(CONFIG_HIGHPTE)
 #define pte_offset_map(dir, address) \
 	((pte_t *)kmap_atomic_pte(pmd_page(*(dir)),KM_PTE0) + \
@@ -437,37 +494,17 @@ extern void noexec_setup(const char *str);
 #define pte_unmap_nested(pte) do { } while (0)
 #endif
 
-#define __HAVE_ARCH_PTEP_ESTABLISH
-#define ptep_establish(vma, address, ptep, pteval)			\
-	do {								\
-		if ( likely((vma)->vm_mm == current->mm) ) {		\
-			BUG_ON(HYPERVISOR_update_va_mapping(address,	\
-				pteval,					\
-				(unsigned long)(vma)->vm_mm->cpu_vm_mask.bits| \
-					UVMF_INVLPG|UVMF_MULTI));	\
-		} else {						\
-			xen_l1_entry_update(ptep, pteval);		\
-			flush_tlb_page(vma, address);			\
-		}							\
-	} while (0)
+/* Clear a kernel PTE and flush it from the TLB */
+#define kpte_clear_flush(ptep, vaddr) do { \
+	if (HYPERVISOR_update_va_mapping(vaddr, __pte(0), UVMF_INVLPG)) \
+		BUG(); \
+} while (0)
 
 /*
  * The i386 doesn't have any external MMU info: the kernel page
  * tables contain all the necessary information.
- *
- * Also, we only update the dirty/accessed state if we set
- * the dirty bit by hand in the kernel, since the hardware
- * will do the accessed bit for us, and we don't want to
- * race with other CPU's that might be updating the dirty
- * bit at the same time.
  */
 #define update_mmu_cache(vma,address,pte) do { } while (0)
-#define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
-#define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
-	do {								\
-		if (dirty)						\
-			ptep_establish(vma, address, ptep, entry);	\
-	} while (0)
 
 #include <xen/features.h>
 void make_lowmem_page_readonly(void *va, unsigned int feature);
@@ -526,10 +563,11 @@ int touch_pte_range(struct mm_struct *mm,
                     unsigned long size);
 
 int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
-		unsigned long addr, unsigned long end, pgprot_t newprot);
+		unsigned long addr, unsigned long end, pgprot_t newprot,
+		int dirty_accountable);
 
-#define arch_change_pte_range(mm, pmd, addr, end, newprot)	\
-		xen_change_pte_range(mm, pmd, addr, end, newprot)
+#define arch_change_pte_range(mm, pmd, addr, end, newprot, dirty_accountable) \
+	xen_change_pte_range(mm, pmd, addr, end, newprot, dirty_accountable)
 
 #define io_remap_pfn_range(vma,from,pfn,size,prot) \
 direct_remap_pfn_range(vma,from,pfn,size,prot,DOMID_IO)
@@ -538,13 +576,6 @@ direct_remap_pfn_range(vma,from,pfn,size,prot,DOMID_IO)
 #define GET_IOSPACE(pfn)		0
 #define GET_PFN(pfn)			(pfn)
 
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-#define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
-#define __HAVE_ARCH_PTEP_CLEAR_FLUSH
-#define __HAVE_ARCH_PTEP_SET_WRPROTECT
-#define __HAVE_ARCH_PTE_SAME
 #include <asm-generic/pgtable.h>
 
 #endif /* _I386_PGTABLE_H */
