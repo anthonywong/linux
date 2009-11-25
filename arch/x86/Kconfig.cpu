@@ -497,7 +497,7 @@ config CPU_SUP_TRANSMETA_32
 config CPU_SUP_UMC_32
 	default y
 	bool "Support UMC processors" if PROCESSOR_SELECT
-	depends on !64BIT
+	depends on !64BIT && !XEN
 	---help---
 	  This enables detection, tunings and quirks for UMC processors
 
@@ -510,13 +510,13 @@ config CPU_SUP_UMC_32
 
 config X86_DS
 	def_bool X86_PTRACE_BTS
-	depends on X86_DEBUGCTLMSR
+	depends on X86_DEBUGCTLMSR && !XEN
 	select HAVE_HW_BRANCH_TRACER
 
 config X86_PTRACE_BTS
 	bool "Branch Trace Store"
 	default y
-	depends on X86_DEBUGCTLMSR
+	depends on X86_DEBUGCTLMSR && !XEN
 	depends on BROKEN
 	---help---
 	  This adds a ptrace interface to the hardware's branch trace store.

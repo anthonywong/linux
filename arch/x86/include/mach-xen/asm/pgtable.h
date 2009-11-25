@@ -14,11 +14,11 @@
 #define _PAGE_BIT_PAT		7	/* on 4KB pages */
 #define _PAGE_BIT_GLOBAL	8	/* Global TLB entry PPro+ */
 #define _PAGE_BIT_UNUSED1	9	/* available for programmer */
-#define _PAGE_BIT_UNUSED2	10
-#define _PAGE_BIT_IO		11	/* Mapped page is I/O or foreign and
-					 * has no associated page struct. */
+#define _PAGE_BIT_IOMAP		10	/* flag used to indicate IO mapping */
+#define _PAGE_BIT_UNUSED3	11
 #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
 #define _PAGE_BIT_SPECIAL	_PAGE_BIT_UNUSED1
+#define _PAGE_BIT_CPA_TEST	_PAGE_BIT_UNUSED1
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
 
 /* If _PAGE_BIT_PRESENT is clear, we use these: */
@@ -39,11 +39,12 @@
 #define _PAGE_PSE	(_AT(pteval_t, 1) << _PAGE_BIT_PSE)
 #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
 #define _PAGE_UNUSED1	(_AT(pteval_t, 1) << _PAGE_BIT_UNUSED1)
-#define _PAGE_UNUSED2	(_AT(pteval_t, 1) << _PAGE_BIT_UNUSED2)
-#define _PAGE_IO	(_AT(pteval_t, 1) << _PAGE_BIT_IO)
+#define _PAGE_IOMAP	(_AT(pteval_t, 1) << _PAGE_BIT_IOMAP)
+#define _PAGE_UNUSED3	(_AT(pteval_t, 1) << _PAGE_BIT_UNUSED3)
 #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
 #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
 #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
+#define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
 #define __HAVE_ARCH_PTE_SPECIAL
 
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
@@ -69,7 +70,7 @@ extern unsigned int __kernel_page_user;
 			 _PAGE_DIRTY | __kernel_page_user)
 
 /* Set of bits not changed in pte_modify */
-#define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_CACHE_MASK | _PAGE_IO |	\
+#define _PAGE_CHG_MASK	(PTE_PFN_MASK | _PAGE_CACHE_MASK | _PAGE_IOMAP | \
 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY)
 
 /*
@@ -116,6 +117,11 @@ extern unsigned int __kernel_page_user;
 #define __PAGE_KERNEL_LARGE_NOCACHE	(__PAGE_KERNEL | _PAGE_CACHE_UC | _PAGE_PSE)
 #define __PAGE_KERNEL_LARGE_EXEC	(__PAGE_KERNEL_EXEC | _PAGE_PSE)
 
+#define __PAGE_KERNEL_IO		(__PAGE_KERNEL | _PAGE_IOMAP)
+#define __PAGE_KERNEL_IO_NOCACHE	(__PAGE_KERNEL_NOCACHE | _PAGE_IOMAP)
+#define __PAGE_KERNEL_IO_UC_MINUS	(__PAGE_KERNEL_UC_MINUS | _PAGE_IOMAP)
+#define __PAGE_KERNEL_IO_WC		(__PAGE_KERNEL_WC | _PAGE_IOMAP)
+
 #define PAGE_KERNEL			__pgprot(__PAGE_KERNEL)
 #define PAGE_KERNEL_RO			__pgprot(__PAGE_KERNEL_RO)
 #define PAGE_KERNEL_EXEC		__pgprot(__PAGE_KERNEL_EXEC)
@@ -129,6 +135,11 @@ extern unsigned int __kernel_page_user;
 #define PAGE_KERNEL_LARGE_EXEC		__pgprot(__PAGE_KERNEL_LARGE_EXEC)
 #define PAGE_KERNEL_VSYSCALL		__pgprot(__PAGE_KERNEL_VSYSCALL)
 #define PAGE_KERNEL_VSYSCALL_NOCACHE	__pgprot(__PAGE_KERNEL_VSYSCALL_NOCACHE)
+
+#define PAGE_KERNEL_IO			__pgprot(__PAGE_KERNEL_IO)
+#define PAGE_KERNEL_IO_NOCACHE		__pgprot(__PAGE_KERNEL_IO_NOCACHE)
+#define PAGE_KERNEL_IO_UC_MINUS		__pgprot(__PAGE_KERNEL_IO_UC_MINUS)
+#define PAGE_KERNEL_IO_WC		__pgprot(__PAGE_KERNEL_IO_WC)
 
 /*         xwr */
 #define __P000	PAGE_NONE
@@ -148,6 +159,22 @@ extern unsigned int __kernel_page_user;
 #define __S101	PAGE_READONLY_EXEC
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
+
+/*
+ * early identity mapping  pte attrib macros.
+ */
+#ifdef CONFIG_X86_64
+#define __PAGE_KERNEL_IDENT_LARGE_EXEC	__PAGE_KERNEL_LARGE_EXEC
+#else
+/*
+ * For PDE_IDENT_ATTR include USER bit. As the PDE and PTE protection
+ * bits are combined, this will alow user to access the high address mapped
+ * VDSO in the presence of CONFIG_COMPAT_VDSO
+ */
+#define PTE_IDENT_ATTR	 0x003		/* PRESENT+RW */
+#define PDE_IDENT_ATTR	 0x067		/* PRESENT+RW+USER+DIRTY+ACCESSED */
+#define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
+#endif
 
 #ifndef __ASSEMBLY__
 
@@ -204,6 +231,15 @@ static inline int pte_special(pte_t pte)
 {
 	return pte_flags(pte) & _PAGE_SPECIAL;
 }
+
+#define pte_mfn(_pte) ((_pte).pte_low & _PAGE_PRESENT ? \
+	__pte_mfn(_pte) : pfn_to_mfn(__pte_mfn(_pte)))
+#define pte_pfn(_pte) ((_pte).pte_low & _PAGE_IOMAP ? max_mapnr : \
+		       (_pte).pte_low & _PAGE_PRESENT ?		  \
+		       mfn_to_local_pfn(__pte_mfn(_pte)) :	  \
+		       __pte_mfn(_pte))
+
+#define pte_page(pte)	pfn_to_page(pte_pfn(pte))
 
 static inline int pmd_large(pmd_t pte)
 {
@@ -346,6 +382,9 @@ extern void native_pagetable_setup_done(pgd_t *base);
 static inline void xen_pagetable_setup_start(pgd_t *base) {}
 static inline void xen_pagetable_setup_done(pgd_t *base) {}
 #endif
+
+struct seq_file;
+extern void arch_report_meminfo(struct seq_file *m);
 
 #define set_pte(ptep, pte)		xen_set_pte(ptep, pte)
 #define set_pte_at(mm, addr, ptep, pte)	xen_set_pte_at(mm, addr, ptep, pte)
@@ -641,4 +680,4 @@ int touch_pte_range(struct mm_struct *mm,
 
 #endif	/* __ASSEMBLY__ */
 
-#endif	/* _ASM_X86_PGTABLE_H */
+#endif /* _ASM_X86_PGTABLE_H */

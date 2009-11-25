@@ -1,5 +1,5 @@
-#ifndef _ASM_IRQ_VECTORS_H
-#define _ASM_IRQ_VECTORS_H
+#ifndef _ASM_X86_IRQ_VECTORS_H
+#define _ASM_X86_IRQ_VECTORS_H
 
 #ifdef CONFIG_X86_32
 # define SYSCALL_VECTOR		0x80
@@ -47,6 +47,5 @@
 #define NR_DYNIRQS		256
 
 #define NR_IRQS			(NR_PIRQS + NR_DYNIRQS)
-#define NR_IRQ_VECTORS		NR_IRQS
 
-#endif /* _ASM_IRQ_VECTORS_H */
+#endif /* _ASM_X86_IRQ_VECTORS_H */
