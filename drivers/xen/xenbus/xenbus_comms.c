@@ -54,7 +54,7 @@ static DECLARE_WORK(probe_work, xenbus_probe, NULL);
 
 static DECLARE_WAIT_QUEUE_HEAD(xb_waitq);
 
-static irqreturn_t wake_waiting(int irq, void *unused, struct pt_regs *regs)
+static irqreturn_t wake_waiting(int irq, void *unused)
 {
 	int old, new;
 

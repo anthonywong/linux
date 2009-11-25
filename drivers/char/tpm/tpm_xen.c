@@ -85,8 +85,7 @@ static struct tpm_private *my_priv;
 
 /* local function prototypes */
 static irqreturn_t tpmif_int(int irq,
-                             void *tpm_priv,
-                             struct pt_regs *ptregs);
+                             void *tpm_priv);
 static void tpmif_rx_action(unsigned long unused);
 static int tpmif_connect(struct xenbus_device *dev,
                          struct tpm_private *tp,
@@ -559,7 +558,7 @@ static void tpmif_rx_action(unsigned long priv)
 }
 
 
-static irqreturn_t tpmif_int(int irq, void *tpm_priv, struct pt_regs *ptregs)
+static irqreturn_t tpmif_int(int irq, void *tpm_priv)
 {
 	struct tpm_private *tp = tpm_priv;
 	unsigned long flags;

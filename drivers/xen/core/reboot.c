@@ -14,6 +14,7 @@
 
 #ifdef HAVE_XEN_PLATFORM_COMPAT_H
 #include <xen/platform-compat.h>
+#undef handle_sysrq
 #endif
 
 MODULE_LICENSE("Dual BSD/GPL");
@@ -231,7 +232,7 @@ static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 
 #ifdef CONFIG_MAGIC_SYSRQ
 	if (sysrq_key != '\0')
-		handle_sysrq(sysrq_key, NULL, NULL);
+		handle_sysrq(sysrq_key, NULL);
 #endif
 }
 
@@ -245,7 +246,7 @@ static struct xenbus_watch sysrq_watch = {
 	.callback = sysrq_handler
 };
 
-static irqreturn_t suspend_int(int irq, void* dev_id, struct pt_regs *ptregs)
+static irqreturn_t suspend_int(int irq, void* dev_id)
 {
 	switch_shutdown_state(SHUTDOWN_SUSPEND);
 	return IRQ_HANDLED;

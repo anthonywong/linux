@@ -18,7 +18,6 @@
  * Authors: Jimi Xenidis <jimix@watson.ibm.com>
  */
 
-#include <linux/config.h>
 #include <linux/compat.h>
 #include <linux/ioctl.h>
 #include <linux/syscalls.h>

@@ -132,7 +132,7 @@ void blkif_interface_init(void);
 
 void blkif_xenbus_init(void);
 
-irqreturn_t blkif_be_int(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t blkif_be_int(int irq, void *dev_id);
 int blkif_schedule(void *arg);
 
 int blkback_barrier(struct xenbus_transaction xbt,

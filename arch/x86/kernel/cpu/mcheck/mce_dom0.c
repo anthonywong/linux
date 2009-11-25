@@ -53,8 +53,7 @@ static struct mc_info *g_mi;
 
 /*dom0 mce virq handler, logging physical mce error info*/
 
-static irqreturn_t mce_dom0_interrupt(int irq, void *dev_id,
-									struct pt_regs *regs)
+static irqreturn_t mce_dom0_interrupt(int irq, void *dev_id)
 {
 	xen_mc_t mc_op;
 	int result = 0;
@@ -129,6 +128,6 @@ void bind_virq_for_mce(void)
 		printk(KERN_ERR "MCE_DOM0_LOG: bind_virq for DOM0 failed\n");
 
 	/* Log the machine checks left over from the previous reset. */
-	mce_dom0_interrupt(VIRQ_MCA, NULL, NULL);
+	mce_dom0_interrupt(VIRQ_MCA, NULL);
 }
 

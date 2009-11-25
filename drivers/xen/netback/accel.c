@@ -65,7 +65,7 @@ static int match_accelerator(struct xenbus_device *xendev,
 	
 	if (IS_ERR(eth_name)) {
 		/* Probably means not present */
-		DPRINTK("%s: no match due to xenbus_read accel error %d\n", 
+		DPRINTK("%s: no match due to xenbus_read accel error %ld\n",
 			__FUNCTION__, PTR_ERR(eth_name));
 		return 0;
 	} else {
