@@ -25,6 +25,7 @@ config STRICT_DEVMEM
 config X86_VERBOSE_BOOTUP
 	bool "Enable verbose x86 bootup info messages"
 	default y
+	depends on !XEN
 	---help---
 	  Enables the informational output from the decompression stage
 	  (e.g. bzImage) of the boot. If you disable this you will still
@@ -185,6 +186,7 @@ config X86_DS_SELFTEST
 
 config HAVE_MMIOTRACE_SUPPORT
 	def_bool y
+	depends on !XEN
 
 #
 # IO delay types:
