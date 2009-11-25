@@ -353,8 +353,8 @@ static void xen_network_done_notify(void)
 {
 	static struct net_device *eth0_dev = NULL;
 	if (unlikely(eth0_dev == NULL))
-		eth0_dev = __dev_get_by_name("eth0");
-	netif_rx_schedule(eth0_dev);
+		eth0_dev = __dev_get_by_name(&init_net, "eth0");
+	netif_rx_schedule(eth0_dev, ???);
 }
 /* 
  * Add following to poll() function in NAPI driver (Tigon3 is example):

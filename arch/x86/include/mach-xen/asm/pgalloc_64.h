@@ -112,6 +112,8 @@ static inline void pgd_list_del(pgd_t *pgd)
 	spin_unlock(&pgd_lock);
 }
 
+extern void pgd_test_and_unpin(pgd_t *);
+
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	/*
@@ -122,6 +124,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 	if (!pgd)
 		return NULL;
 	pgd_list_add(pgd);
+	pgd_test_and_unpin(pgd);
 	/*
 	 * Copy kernel pointers in from init.
 	 * Could keep a freelist or slab cache of those because the kernel
@@ -144,27 +147,7 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 
 static inline void pgd_free(pgd_t *pgd)
 {
-	pte_t *ptep = virt_to_ptep(pgd);
-
-	if (!pte_write(*ptep)) {
-		xen_pgd_unpin(__pa(pgd));
-		BUG_ON(HYPERVISOR_update_va_mapping(
-			       (unsigned long)pgd,
-			       pfn_pte(virt_to_phys(pgd)>>PAGE_SHIFT, PAGE_KERNEL),
-			       0));
-	}
-
-	ptep = virt_to_ptep(__user_pgd(pgd));
-
-	if (!pte_write(*ptep)) {
-		xen_pgd_unpin(__pa(__user_pgd(pgd)));
-		BUG_ON(HYPERVISOR_update_va_mapping(
-			       (unsigned long)__user_pgd(pgd),
-			       pfn_pte(virt_to_phys(__user_pgd(pgd))>>PAGE_SHIFT, 
-				       PAGE_KERNEL),
-			       0));
-	}
-
+	pgd_test_and_unpin(pgd);
 	pgd_list_del(pgd);
 	free_pages((unsigned long)pgd, 1);
 }
