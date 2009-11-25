@@ -26,7 +26,7 @@ void pciback_reset_device(struct pci_dev *dev)
 
 		pci_write_config_word(dev, PCI_COMMAND, 0);
 
-		dev->is_enabled = 0;
+		atomic_set(&dev->enable_cnt, 0);
 		dev->is_busmaster = 0;
 	} else {
 		pci_read_config_word(dev, PCI_COMMAND, &cmd);
@@ -67,9 +67,9 @@ void test_and_schedule_op(struct pciback_device *pdev)
  * context because some of the pci_* functions can sleep (mostly due to ACPI
  * use of semaphores). This function is intended to be called from a work
  * queue in process context taking a struct pciback_device as a parameter */
-void pciback_do_op(void *data)
+void pciback_do_op(struct work_struct *work)
 {
-	struct pciback_device *pdev = data;
+	struct pciback_device *pdev = container_of(work, struct pciback_device, op_work);
 	struct pci_dev *dev;
 	struct xen_pci_op *op = &pdev->sh_info->op;
 
