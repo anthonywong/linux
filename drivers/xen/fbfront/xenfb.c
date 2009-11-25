@@ -524,8 +524,7 @@ static struct fb_ops xenfb_fb_ops = {
 	.fb_set_par     = xenfb_set_par,
 };
 
-static irqreturn_t xenfb_event_handler(int rq, void *dev_id,
-				       struct pt_regs *regs)
+static irqreturn_t xenfb_event_handler(int rq, void *dev_id)
 {
 	/*
 	 * No in events recognized, simply ignore them all.
