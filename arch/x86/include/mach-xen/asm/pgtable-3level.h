@@ -18,16 +18,18 @@
 	printk("%s:%d: bad pgd %p(%016Lx pfn %08Lx).\n", __FILE__, __LINE__, \
 	       &(e), __pgd_val(e), (pgd_val(e) & PTE_MASK) >> PAGE_SHIFT)
 
-#define pud_none(pud)				0
-#define pud_bad(pud)				0
-#define pud_present(pud)			1
 
-/*
- * All present pages with !NX bit are kernel-executable:
- */
-static inline int pte_exec_kernel(pte_t pte)
+static inline int pud_none(pud_t pud)
 {
-	return !(__pte_val(pte) & _PAGE_NX);
+	return __pud_val(pud) == 0;
+}
+static inline int pud_bad(pud_t pud)
+{
+	return (__pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
+}
+static inline int pud_present(pud_t pud)
+{
+	return __pud_val(pud) & _PAGE_PRESENT;
 }
 
 /* Rules for using set_pte: the pte being assigned *must* be
@@ -42,14 +44,6 @@ static inline void xen_set_pte(pte_t *ptep, pte_t pte)
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
-}
-
-static inline void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
-				  pte_t *ptep , pte_t pte)
-{
-	if ((mm != current->mm && mm != &init_mm) ||
-	    HYPERVISOR_update_va_mapping(addr, pte, 0))
-		xen_set_pte(ptep, pte);
 }
 
 static inline void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
@@ -70,14 +64,11 @@ static inline void xen_set_pud(pud_t *pudp, pud_t pud)
  * entry, so clear the bottom half first and enforce ordering with a compiler
  * barrier.
  */
-static inline void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static inline void __xen_pte_clear(pte_t *ptep)
 {
-	if ((mm != current->mm && mm != &init_mm)
-	    || HYPERVISOR_update_va_mapping(addr, __pte(0), 0)) {
-		ptep->pte_low = 0;
-		smp_wmb();
-		ptep->pte_high = 0;
-	}
+	ptep->pte_low = 0;
+	smp_wmb();
+	ptep->pte_high = 0;
 }
 
 static inline void xen_pmd_clear(pmd_t *pmd)
@@ -85,21 +76,25 @@ static inline void xen_pmd_clear(pmd_t *pmd)
 	xen_l2_entry_update(pmd, __pmd(0));
 }
 
-#define set_pte(ptep, pte)			xen_set_pte(ptep, pte)
-#define set_pte_at(mm, addr, ptep, pte)		xen_set_pte_at(mm, addr, ptep, pte)
-#define set_pte_atomic(ptep, pte)		xen_set_pte_atomic(ptep, pte)
-#define set_pmd(pmdp, pmd)			xen_set_pmd(pmdp, pmd)
-#define set_pud(pudp, pud)			xen_set_pud(pudp, pud)
-#define pte_clear(mm, addr, ptep)		xen_pte_clear(mm, addr, ptep)
-#define pmd_clear(pmd)				xen_pmd_clear(pmd)
+static inline void pud_clear(pud_t *pudp)
+{
+	pgdval_t pgd;
 
-/*
- * Pentium-II erratum A13: in PAE mode we explicitly have to flush
- * the TLB via cr3 if the top-level pgd is changed...
- * We do not let the generic code free and clear pgd entries due to
- * this erratum.
- */
-static inline void pud_clear (pud_t * pud) { }
+	set_pud(pudp, __pud(0));
+
+	/*
+	 * According to Intel App note "TLBs, Paging-Structure Caches,
+	 * and Their Invalidation", April 2007, document 317080-001,
+	 * section 8.1: in PAE mode we explicitly have to flush the
+	 * TLB via cr3 if the top-level pgd is changed...
+	 *
+	 * Make sure the pud entry we're updating is within the
+	 * current pgd to avoid unnecessary TLB flushes.
+	 */
+	pgd = read_cr3();
+	if (__pa(pudp) >= pgd && __pa(pudp) < (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
+		xen_tlb_flush();
+}
 
 #define pud_page(pud) \
 ((struct page *) __va(pud_val(pud) & PAGE_MASK))
@@ -128,24 +123,6 @@ static inline pte_t xen_ptep_get_and_clear(pte_t *ptep, pte_t res)
 #define xen_ptep_get_and_clear(xp, pte) xen_local_ptep_get_and_clear(xp, pte)
 #endif
 
-#define __HAVE_ARCH_PTEP_CLEAR_FLUSH
-#define ptep_clear_flush(vma, addr, ptep)			\
-({								\
-	pte_t *__ptep = (ptep);					\
-	pte_t __res = *__ptep;					\
-	if (!pte_none(__res) &&					\
-	    ((vma)->vm_mm != current->mm ||			\
-	     HYPERVISOR_update_va_mapping(addr,	__pte(0),	\
-			(unsigned long)(vma)->vm_mm->cpu_vm_mask.bits| \
-				UVMF_INVLPG|UVMF_MULTI))) {	\
-		__ptep->pte_low = 0;				\
-		smp_wmb();					\
-		__ptep->pte_high = 0;				\
-		flush_tlb_page(vma, addr);			\
-	}							\
-	__res;							\
-})
-
 #define __HAVE_ARCH_PTE_SAME
 static inline int pte_same(pte_t a, pte_t b)
 {
@@ -168,26 +145,12 @@ static inline int pte_none(pte_t pte)
 		       mfn_to_local_pfn(__pte_mfn(_pte)) :	\
 		       __pte_mfn(_pte))
 
-extern unsigned long long __supported_pte_mask;
-
-static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
-{
-	return __pte((((unsigned long long)page_nr << PAGE_SHIFT) |
-		      pgprot_val(pgprot)) & __supported_pte_mask);
-}
-
-static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
-{
-	return __pmd((((unsigned long long)page_nr << PAGE_SHIFT) |
-		      pgprot_val(pgprot)) & __supported_pte_mask);
-}
-
 /*
  * Bits 0, 6 and 7 are taken in the low part of the pte,
  * put the 32 bits of offset into the high part.
  */
 #define pte_to_pgoff(pte) ((pte).pte_high)
-#define pgoff_to_pte(off) ((pte_t) { _PAGE_FILE, (off) })
+#define pgoff_to_pte(off) ((pte_t) { { .pte_low = _PAGE_FILE, .pte_high = (off) } })
 #define PTE_FILE_MAX_BITS       32
 
 /* Encode and de-code a swap entry */
@@ -195,8 +158,6 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 #define __swp_offset(x)			((x).val >> 5)
 #define __swp_entry(type, offset)	((swp_entry_t){(type) | (offset) << 5})
 #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
-#define __swp_entry_to_pte(x)		((pte_t){ 0, (x).val })
-
-#define __pmd_free_tlb(tlb, x)		do { } while (0)
+#define __swp_entry_to_pte(x)		((pte_t){ { .pte_high = (x).val } })
 
 #endif /* _I386_PGTABLE_3LEVEL_H */
