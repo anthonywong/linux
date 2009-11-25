@@ -174,7 +174,7 @@ static int read_backend_details(struct xenbus_device *xendev)
 	return read_otherend_details(xendev, "backend-id", "backend");
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16) && (defined(CONFIG_XEN) || defined(MODULE))
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
 static int xenbus_uevent_frontend(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct xenbus_device *xdev;
@@ -186,8 +186,10 @@ static int xenbus_uevent_frontend(struct device *dev, struct kobj_uevent_env *en
 		return -ENODEV;
 
 	/* stuff we want to pass to /sbin/hotplug */
+#if defined(CONFIG_XEN) || defined(MODULE)
 	add_uevent_var(env, "XENBUS_TYPE=%s", xdev->devicetype);
 	add_uevent_var(env, "XENBUS_PATH=%s", xdev->nodename);
+#endif
 	add_uevent_var(env, "MODALIAS=xen:%s", xdev->devicetype);
 
 	return 0;
@@ -208,9 +210,7 @@ static struct xen_bus_type xenbus_frontend = {
 		.probe    = xenbus_dev_probe,
 		.remove   = xenbus_dev_remove,
 		.shutdown = xenbus_dev_shutdown,
-#if defined(CONFIG_XEN) || defined(MODULE)
 		.uevent   = xenbus_uevent_frontend,
-#endif
 #endif
 	},
 #if defined(CONFIG_XEN) || defined(MODULE)
@@ -523,7 +523,17 @@ static ssize_t xendev_show_devtype(struct device *dev,
 {
 	return sprintf(buf, "%s\n", to_xenbus_device(dev)->devicetype);
 }
-static DEVICE_ATTR(devtype, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_devtype, NULL);
+DEVICE_ATTR(devtype, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_devtype, NULL);
+
+static ssize_t xendev_show_modalias(struct device *dev,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
+				    struct device_attribute *attr,
+#endif
+				    char *buf)
+{
+	return sprintf(buf, "xen:%s\n", to_xenbus_device(dev)->devicetype);
+}
+DEVICE_ATTR(modalias, S_IRUSR | S_IRGRP | S_IROTH, xendev_show_modalias, NULL);
 
 int xenbus_probe_node(struct xen_bus_type *bus,
 		      const char *type,
@@ -584,10 +594,16 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 
 	err = device_create_file(&xendev->dev, &dev_attr_devtype);
 	if (err)
-		goto fail_remove_file;
+		goto fail_remove_nodename;
+
+	err = device_create_file(&xendev->dev, &dev_attr_modalias);
+	if (err)
+		goto fail_remove_devtype;
 
 	return 0;
-fail_remove_file:
+fail_remove_devtype:
+	device_remove_file(&xendev->dev, &dev_attr_devtype);
+fail_remove_nodename:
 	device_remove_file(&xendev->dev, &dev_attr_nodename);
 fail_unregister:
 	device_unregister(&xendev->dev);
