@@ -49,11 +49,11 @@ struct efx_vi_state;
  * Allocate an efx_vi, including event queue and pt_endpoint
  *
  * \param vih_out Pointer to a handle that is set on success
- * \param nic_index Index of NIC to apply this resource to
+ * \param ifindex Index of the network interface desired
  * \return Zero on success (and vih_out set), non-zero on failure.
  */
 extern int
-efx_vi_alloc(struct efx_vi_state **vih_out, int nic_index);
+efx_vi_alloc(struct efx_vi_state **vih_out, int ifindex);
 
 /*!
  * Free a previously allocated efx_vi
