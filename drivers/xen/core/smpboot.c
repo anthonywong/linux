@@ -25,10 +25,6 @@
 #include <xen/cpu_hotplug.h>
 #include <xen/xenbus.h>
 
-extern irqreturn_t smp_reschedule_interrupt(int, void *);
-extern irqreturn_t smp_call_function_interrupt(int, void *);
-extern irqreturn_t smp_call_function_single_interrupt(int, void *);
-
 extern int local_setup_timer(unsigned int cpu);
 extern void local_teardown_timer(unsigned int cpu);
 
@@ -179,7 +175,7 @@ static void __cpuexit xen_smp_intr_exit(unsigned int cpu)
 }
 #endif
 
-void __cpuinit cpu_bringup(void)
+static void __cpuinit cpu_bringup(void)
 {
 	cpu_init();
 	identify_secondary_cpu(&current_cpu_data);
@@ -430,6 +426,20 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	BUG_ON(rc);
 
 	return 0;
+}
+
+void __ref play_dead(void)
+{
+	idle_task_exit();
+	local_irq_disable();
+	cpu_clear(smp_processor_id(), cpu_initialized);
+	preempt_enable_no_resched();
+	VOID(HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL));
+#ifdef CONFIG_HOTPLUG_CPU
+	cpu_bringup();
+#else
+	BUG();
+#endif
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
