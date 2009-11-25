@@ -151,7 +151,7 @@ static int loopback_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	np->stats.rx_bytes += skb->len;
 	np->stats.rx_packets++;
 
-	if (skb->ip_summed == CHECKSUM_HW) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		/* Defer checksum calculation. */
 		skb->proto_csum_blank = 1;
 		/* Must be a local packet: assert its integrity. */
