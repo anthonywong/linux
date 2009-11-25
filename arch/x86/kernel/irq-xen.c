@@ -15,7 +15,9 @@
 #include <asm/mce.h>
 #include <asm/hw_irq.h>
 
+#ifndef CONFIG_XEN
 atomic_t irq_err_count;
+#endif
 
 /* Function pointer for generic interrupt vector handling */
 void (*generic_interrupt_extension)(void) = NULL;
@@ -55,7 +57,7 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->__nmi_count);
 	seq_printf(p, "  Non-maskable interrupts\n");
-#ifdef CONFIG_X86_LOCAL_APIC
+#if defined(CONFIG_X86_LOCAL_APIC) && !defined(CONFIG_XEN)
 	seq_printf(p, "%*s: ", prec, "LOC");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", irq_stats(j)->apic_timer_irqs);
@@ -118,9 +120,11 @@ static int show_other_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(mce_poll_count, j));
 	seq_printf(p, "  Machine check polls\n");
 #endif
+#ifndef CONFIG_XEN
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 #if defined(CONFIG_X86_IO_APIC)
 	seq_printf(p, "%*s: %10u\n", prec, "MIS", atomic_read(&irq_mis_count));
+#endif
 #endif
 	return 0;
 }
@@ -215,12 +219,16 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 
 u64 arch_irq_stat(void)
 {
+#ifndef CONFIG_XEN
 	u64 sum = atomic_read(&irq_err_count);
 
 #ifdef CONFIG_X86_IO_APIC
 	sum += atomic_read(&irq_mis_count);
 #endif
 	return sum;
+#else
+	return 0;
+#endif
 }
 
 
