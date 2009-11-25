@@ -418,7 +418,7 @@ static int __init gntdev_init(void)
 	}
 
 	device = device_create(class, NULL, MKDEV(gntdev_major, 0),
-			       GNTDEV_NAME);
+			       NULL, GNTDEV_NAME);
 	if (IS_ERR(device)) {
 		printk(KERN_ERR "Error creating gntdev device in xen_class\n");
 		printk(KERN_ERR "gntdev created with major number = %d\n",

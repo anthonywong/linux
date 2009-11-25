@@ -249,14 +249,11 @@ int xb_init_comms(void)
 		intf->rsp_cons = intf->rsp_prod;
 	}
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 	if (xenbus_irq)
 		unbind_from_irqhandler(xenbus_irq, &xb_waitq);
 
-#if defined(CONFIG_XEN) || defined(MODULE)
 	err = bind_caller_port_to_irqhandler(
-#else
-	err = bind_evtchn_to_irqhandler(
-#endif
 		xen_store_evtchn, wake_waiting,
 		0, "xenbus", &xb_waitq);
 	if (err <= 0) {
@@ -265,6 +262,20 @@ int xb_init_comms(void)
 	}
 
 	xenbus_irq = err;
+#else
+	if (xenbus_irq) {
+		/* Already have an irq; assume we're resuming */
+		rebind_evtchn_irq(xen_store_evtchn, xenbus_irq);
+	} else {
+		err = bind_evtchn_to_irqhandler(xen_store_evtchn, wake_waiting,
+						0, "xenbus", &xb_waitq);
+		if (err <= 0) {
+			printk(KERN_ERR "XENBUS request irq failed %i\n", err);
+			return err;
+		}
+		xenbus_irq = err;
+	}
+#endif
 
 	return 0;
 }
