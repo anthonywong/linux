@@ -204,6 +204,12 @@ $(obj)/vmlinux-stripped: OBJCOPYFLAGS := -g --strip-unneeded
 $(obj)/vmlinux-stripped: vmlinux FORCE
 	$(call if_changed,objcopy)
 
+ifndef CONFIG_XEN
+bzImage := bzImage
+else
+bzImage := vmlinuz
+endif
+
 install:
-	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(obj)/bzImage \
+	sh $(srctree)/$(src)/install.sh $(KERNELRELEASE) $(obj)/$(bzImage) \
 		System.map "$(INSTALL_PATH)"
