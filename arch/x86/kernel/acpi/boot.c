@@ -114,11 +114,6 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	if (!phys || !size)
 		return NULL;
 
-#ifdef CONFIG_XEN
-	if (phys + size <= (NR_FIX_ISAMAPS << PAGE_SHIFT))
-		return isa_bus_to_virt(phys);
-#endif
-
 	return early_ioremap(phys, size);
 }
 void __init __acpi_unmap_table(char *map, unsigned long size)
@@ -150,8 +145,10 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 		       madt->address);
 	}
 
+#ifndef CONFIG_XEN
 	default_acpi_madt_oem_check(madt->header.oem_id,
 				    madt->header.oem_table_id);
+#endif
 
 	return 0;
 }
