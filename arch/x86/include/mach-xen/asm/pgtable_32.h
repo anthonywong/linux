@@ -38,14 +38,14 @@ struct vm_area_struct;
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
 extern unsigned long empty_zero_page[1024];
 extern pgd_t *swapper_pg_dir;
-extern kmem_cache_t *pgd_cache;
-extern kmem_cache_t *pmd_cache;
+extern struct kmem_cache *pgd_cache;
+extern struct kmem_cache *pmd_cache;
 extern spinlock_t pgd_lock;
 extern struct page *pgd_list;
 
-void pmd_ctor(void *, kmem_cache_t *, unsigned long);
-void pgd_ctor(void *, kmem_cache_t *, unsigned long);
-void pgd_dtor(void *, kmem_cache_t *, unsigned long);
+void pmd_ctor(void *, struct kmem_cache *, unsigned long);
+void pgd_ctor(void *, struct kmem_cache *, unsigned long);
+void pgd_dtor(void *, struct kmem_cache *, unsigned long);
 void pgtable_cache_init(void);
 void paging_init(void);
 
@@ -276,7 +276,6 @@ static inline pte_t pte_mkhuge(pte_t pte)	{ (pte).pte_low |= _PAGE_PSE; return p
 #define pte_update(mm, addr, ptep)		do { } while (0)
 #define pte_update_defer(mm, addr, ptep)	do { } while (0)
 
-
 /*
  * We only update the dirty/accessed state if we set
  * the dirty bit by hand in the kernel, since the hardware
@@ -341,6 +340,19 @@ do {									\
 		(ptep)->pte_low = __pte.pte_low;			\
 	__young;							\
 })
+
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	pte_t pte = *ptep;
+	if (!pte_none(pte)
+	    && (mm != &init_mm
+	        || HYPERVISOR_update_va_mapping(addr, __pte(0), 0))) {
+		pte = raw_ptep_get_and_clear(ptep, pte);
+		pte_update(mm, addr, ptep);
+	}
+	return pte;
+}
 
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 #define ptep_get_and_clear_full(mm, addr, ptep, full)			\
