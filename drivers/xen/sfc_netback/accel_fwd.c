@@ -308,7 +308,7 @@ static struct netback_accel *for_a_vnic(struct netback_pkt_buf *skb,
 static inline int packet_is_arp_reply(struct sk_buff *skb)
 {
 	return skb->protocol == ntohs(ETH_P_ARP) 
-		&& skb->nh.arph->ar_op == ntohs(ARPOP_REPLY);
+		&& arp_hdr(skb)->ar_op == ntohs(ARPOP_REPLY);
 }
 
 
@@ -392,12 +392,13 @@ void netback_accel_tx_packet(struct sk_buff *skb, void *fwd_priv)
 
 	BUG_ON(fwd_priv == NULL);
 
-	if (is_broadcast_ether_addr(skb->mac.raw) && packet_is_arp_reply(skb)) {
+	if (is_broadcast_ether_addr(skb_mac_header(skb))
+	    && packet_is_arp_reply(skb)) {
 		/*
 		 * update our fast path forwarding to reflect this
 		 * gratuitous ARP
 		 */ 
-		mac = skb->mac.raw+ETH_ALEN;
+		mac = skb_mac_header(skb)+ETH_ALEN;
 
 		DPRINTK("%s: found gratuitous ARP for " MAC_FMT "\n",
 			__FUNCTION__, MAC_ARG(mac));
