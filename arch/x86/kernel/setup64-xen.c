@@ -363,5 +363,7 @@ void __cpuinit cpu_init (void)
 
 	fpu_init(); 
 
-	raw_local_save_flags(kernel_eflags);
+	asm ("pushfq; popq %0" : "=rm" (kernel_eflags));
+	if (raw_irqs_disabled())
+		kernel_eflags &= ~X86_EFLAGS_IF;
 }

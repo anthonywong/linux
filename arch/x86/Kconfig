@@ -63,7 +63,6 @@ config ARCH_DEFCONFIG
 
 config GENERIC_TIME
 	def_bool y
-	depends on !X86_XEN
 
 config GENERIC_CMOS_UPDATE
 	def_bool y
@@ -1564,7 +1563,7 @@ config KEXEC_JUMP
 	  code in physical address mode via KEXEC
 
 config PHYSICAL_START
-	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP)
+	hex "Physical address where the kernel is loaded" if (EMBEDDED || CRASH_DUMP || XEN)
 	default "0x1000000"
 	---help---
 	  This gives the physical address where the kernel is loaded.
