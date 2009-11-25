@@ -1689,6 +1689,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
  * Device reset and suspend
  *
  **************************************************************************/
+#ifdef CONFIG_SFC_DRIVERLINK
 /* Serialise access to the driverlink callbacks, by quiescing event processing
  * (without flushing the descriptor queues), and acquiring the rtnl_lock */
 void efx_suspend(struct efx_nic *efx)
@@ -1706,6 +1707,7 @@ void efx_resume(struct efx_nic *efx)
 	efx_start_all(efx);
 	rtnl_unlock();
 }
+#endif
 
 /* Tears down the entire software state and most of the hardware state
  * before reset.  */
@@ -1978,9 +1980,11 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->mac_op = &efx_dummy_mac_operations;
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
+#ifdef CONFIG_SFC_DRIVERLINK
 	INIT_LIST_HEAD(&efx->dl_node);
 	INIT_LIST_HEAD(&efx->dl_device_list);
 	efx->dl_cb = efx_default_callbacks;
+#endif
 	INIT_WORK(&efx->phy_work, efx_phy_work);
 	INIT_WORK(&efx->mac_work, efx_mac_work);
 	atomic_set(&efx->netif_stop_count, 1);
