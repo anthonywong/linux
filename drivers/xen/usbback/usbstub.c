@@ -56,7 +56,7 @@ struct vusb_port_id *find_portid_by_busid(const char *busid)
 
 	spin_lock_irqsave(&port_list_lock, flags);
 	list_for_each_entry(portid, &port_list, id_list) {
-		if (!(strncmp(portid->phys_bus, busid, BUS_ID_SIZE))) {
+		if (!(strncmp(portid->phys_bus, busid, USBBACK_BUS_ID_SIZE))) {
 			found = 1;
 			break;
 		}
@@ -110,7 +110,7 @@ int portid_add(const char *busid,
 	portid->handle = handle;
 	portid->portnum = portnum;
 
-	strncpy(portid->phys_bus, busid, BUS_ID_SIZE);
+	strncpy(portid->phys_bus, busid, USBBACK_BUS_ID_SIZE);
 
 	spin_lock_irqsave(&port_list_lock, flags);
 	list_add(&portid->id_list, &port_list);
@@ -228,7 +228,7 @@ static int usbstub_probe(struct usb_interface *intf,
 		usbbk_hotplug_notify(usbif, portid->portnum, udev->speed);
 	} else {
 		/* maybe already called and connected by other intf */
-		if (strncmp(stub->portid->phys_bus, busid, BUS_ID_SIZE))
+		if (strncmp(stub->portid->phys_bus, busid, USBBACK_BUS_ID_SIZE))
 			goto out; /* invalid call */
 	}
 
