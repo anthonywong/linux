@@ -14,7 +14,6 @@
 #include <linux/rtnetlink.h>
 #include "net_driver.h"
 #include "efx.h"
-#include "driverlink_api.h"
 #include "driverlink.h"
 
 /* Protects @efx_driverlink_lock and @efx_driver_list */

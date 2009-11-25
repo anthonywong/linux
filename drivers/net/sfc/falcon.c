@@ -36,6 +36,7 @@
 
 /**
  * struct falcon_nic_data - Falcon NIC state
+ * @next_buffer_table: First available buffer table id
  * @resources: Resource information for driverlink client
  * @pci_dev2: The secondary PCI device if present
  * @i2c_data: Operations and state for I2C bit-bashing algorithm
@@ -43,7 +44,11 @@
  * @int_error_expire: Time at which error count will be expired
  */
 struct falcon_nic_data {
+#ifndef CONFIG_SFC_DRIVERLINK
+	unsigned next_buffer_table;
+#else
 	struct efx_dl_falcon_resources resources;
+#endif
 	struct pci_dev *pci_dev2;
 	struct i2c_algo_bit_data i2c_data;
 
@@ -336,8 +341,13 @@ static int falcon_alloc_special_buffer(struct efx_nic *efx,
 	memset(buffer->addr, 0xff, len);
 
 	/* Select new buffer ID */
+#ifndef CONFIG_SFC_DRIVERLINK
+	buffer->index = nic_data->next_buffer_table;
+	nic_data->next_buffer_table += buffer->entries;
+#else
 	buffer->index = nic_data->resources.buffer_table_min;
 	nic_data->resources.buffer_table_min += buffer->entries;
+#endif
 
 	EFX_LOG(efx, "allocating special buffers %d-%d at %llx+%x "
 		"(virt %p phys %llx)\n", buffer->index,
@@ -2755,6 +2765,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
  * should live. */
 static int falcon_dimension_resources(struct efx_nic *efx)
 {
+#ifdef CONFIG_SFC_DRIVERLINK
 	unsigned internal_dcs_entries;
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct efx_dl_falcon_resources *res = &nic_data->resources;
@@ -2799,6 +2810,7 @@ static int falcon_dimension_resources(struct efx_nic *efx)
 
 	if (EFX_INT_MODE_USE_MSI(efx))
 		res->flags |= EFX_DL_FALCON_USE_MSI;
+#endif
 
 	return 0;
 }
@@ -2962,7 +2974,9 @@ int falcon_probe_nic(struct efx_nic *efx)
 	return 0;
 
  fail6:
+#ifdef CONFIG_SFC_DRIVERLINK
 	efx->dl_info = NULL;
+#endif
  fail5:
 	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
@@ -3150,7 +3164,9 @@ void falcon_remove_nic(struct efx_nic *efx)
 	/* Tear down the private nic state */
 	kfree(efx->nic_data);
 	efx->nic_data = NULL;
+#ifdef CONFIG_SFC_DRIVERLINK
 	efx->dl_info = NULL;
+#endif
 }
 
 void falcon_update_nic_stats(struct efx_nic *efx)
