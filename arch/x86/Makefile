@@ -153,8 +153,8 @@ BOOT_TARGETS = bzlilo bzdisk fdimage fdimage144 fdimage288 isoimage
 PHONY += bzImage vmlinuz $(BOOT_TARGETS)
 
 ifdef CONFIG_XEN
-KBUILD_CPPFLAGS := -D__XEN_INTERFACE_VERSION__=$(CONFIG_XEN_INTERFACE_VERSION) \
-	-I$(srctree)/arch/x86/include/mach-xen $(KBUILD_CPPFLAGS)
+LINUXINCLUDE := -D__XEN_INTERFACE_VERSION__=$(CONFIG_XEN_INTERFACE_VERSION) \
+	-I$(srctree)/arch/x86/include/mach-xen $(LINUXINCLUDE)
 
 ifdef CONFIG_X86_64
 LDFLAGS_vmlinux := -e startup_64
