@@ -1,5 +1,5 @@
-#ifndef _I386_PGTABLE_H
-#define _I386_PGTABLE_H
+#ifndef _ASM_X86_PGTABLE_32_H
+#define _ASM_X86_PGTABLE_32_H
 
 /*
  * The Linux memory management assumes a three-level page table setup. On
@@ -29,6 +29,7 @@ static inline void pgtable_cache_init(void) { }
 static inline void check_pgt_cache(void) { }
 void paging_init(void);
 
+extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
 
 /*
  * The Linux x86 paging architecture is 'compile-time dual-mode', it
@@ -54,8 +55,7 @@ void paging_init(void);
  * area for the same reason. ;)
  */
 #define VMALLOC_OFFSET	(8 * 1024 * 1024)
-#define VMALLOC_START	(((unsigned long)high_memory + 2 * VMALLOC_OFFSET - 1) \
-			 & ~(VMALLOC_OFFSET - 1))
+#define VMALLOC_START	((unsigned long)high_memory + VMALLOC_OFFSET)
 #ifdef CONFIG_X86_PAE
 #define LAST_PKMAP 512
 #else
@@ -70,6 +70,8 @@ void paging_init(void);
 #else
 # define VMALLOC_END	(FIXADDR_START - 2 * PAGE_SIZE)
 #endif
+
+#define MAXMEM	(VMALLOC_END - PAGE_OFFSET - __VMALLOC_RESERVE)
 
 /*
  * Define this if things work differently on an i386 and an i486:
@@ -195,4 +197,4 @@ void make_lowmem_page_writable(void *va, unsigned int feature);
 #define io_remap_pfn_range(vma, from, pfn, size, prot)			\
 	direct_remap_pfn_range(vma, from, pfn, size, prot, DOMID_IO)
 
-#endif /* _I386_PGTABLE_H */
+#endif /* _ASM_X86_PGTABLE_32_H */
