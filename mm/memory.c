@@ -1339,7 +1339,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 					vmas[i] = vma;
 				i++;
 				start += PAGE_SIZE;
-				len--;
+				nr_pages--;
 				continue;
 			}
 		}
