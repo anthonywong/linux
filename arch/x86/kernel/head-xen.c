@@ -151,6 +151,8 @@ void __init xen_start_kernel(void)
 	HYPERVISOR_shared_info = (shared_info_t *)fix_to_virt(FIX_SHARED_INFO);
 	memset(empty_zero_page, 0, sizeof(empty_zero_page));
 
+	setup_vcpu_info(0);
+
 	/* Set up mapping of lowest 1MB of physical memory. */
 	for (i = 0; i < NR_FIX_ISAMAPS; i++)
 		if (is_initial_xendomain())
