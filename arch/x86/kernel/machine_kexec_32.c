@@ -26,48 +26,6 @@
 #include <asm/system.h>
 #include <asm/cacheflush.h>
 
-static void set_idt(void *newidt, __u16 limit)
-{
-	struct desc_ptr curidt;
-
-	/* ia32 supports unaliged loads & stores */
-	curidt.size    = limit;
-	curidt.address = (unsigned long)newidt;
-
-	load_idt(&curidt);
-}
-
-
-static void set_gdt(void *newgdt, __u16 limit)
-{
-	struct desc_ptr curgdt;
-
-	/* ia32 supports unaligned loads & stores */
-	curgdt.size    = limit;
-	curgdt.address = (unsigned long)newgdt;
-
-	load_gdt(&curgdt);
-}
-
-static void load_segments(void)
-{
-#define __STR(X) #X
-#define STR(X) __STR(X)
-
-	__asm__ __volatile__ (
-		"\tljmp $"STR(__KERNEL_CS)",$1f\n"
-		"\t1:\n"
-		"\tmovl $"STR(__KERNEL_DS)",%%eax\n"
-		"\tmovl %%eax,%%ds\n"
-		"\tmovl %%eax,%%es\n"
-		"\tmovl %%eax,%%fs\n"
-		"\tmovl %%eax,%%gs\n"
-		"\tmovl %%eax,%%ss\n"
-		: : : "eax", "memory");
-#undef STR
-#undef __STR
-}
-
 static void machine_kexec_free_page_tables(struct kimage *image)
 {
 	free_page((unsigned long)image->arch.pgd);
@@ -227,24 +185,6 @@ void machine_kexec(struct kimage *image)
 	if (image->type == KEXEC_TYPE_DEFAULT)
 		page_list[PA_SWAP_PAGE] = (page_to_pfn(image->swap_page)
 						<< PAGE_SHIFT);
-
-	/*
-	 * The segment registers are funny things, they have both a
-	 * visible and an invisible part.  Whenever the visible part is
-	 * set to a specific selector, the invisible part is loaded
-	 * with from a table in memory.  At no other time is the
-	 * descriptor table in memory accessed.
-	 *
-	 * I take advantage of this here by force loading the
-	 * segments, before I zap the gdt with an invalid value.
-	 */
-	load_segments();
-	/*
-	 * The gdt & idt are now invalid.
-	 * If you want to load them you must set up your own idt & gdt.
-	 */
-	set_gdt(phys_to_virt(0), 0);
-	set_idt(phys_to_virt(0), 0);
 
 	/* now call it */
 	image->start = relocate_kernel_ptr((unsigned long)image->head,
