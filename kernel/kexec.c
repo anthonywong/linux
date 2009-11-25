@@ -38,8 +38,10 @@
 #include <asm/system.h>
 #include <asm/sections.h>
 
+#ifndef CONFIG_XEN
 /* Per cpu memory for storing cpu states in case of system crash. */
 note_buf_t* crash_notes;
+#endif
 
 /* vmcoreinfo stuff */
 static unsigned char vmcoreinfo_data[VMCOREINFO_BYTES];
@@ -1150,6 +1152,7 @@ static void final_note(u32 *buf)
 	memcpy(buf, &note, sizeof(note));
 }
 
+#ifndef CONFIG_XEN
 void crash_save_cpu(struct pt_regs *regs, int cpu)
 {
 	struct elf_prstatus prstatus;
@@ -1175,9 +1178,11 @@ void crash_save_cpu(struct pt_regs *regs, int cpu)
 		      	      &prstatus, sizeof(prstatus));
 	final_note(buf);
 }
+#endif
 
 static int __init crash_notes_memory_init(void)
 {
+#ifndef CONFIG_XEN
 	/* Allocate memory for saving cpu registers. */
 	crash_notes = alloc_percpu(note_buf_t);
 	if (!crash_notes) {
@@ -1185,6 +1190,7 @@ static int __init crash_notes_memory_init(void)
 		" states failed\n");
 		return -ENOMEM;
 	}
+#endif
 	return 0;
 }
 module_init(crash_notes_memory_init)
