@@ -58,6 +58,23 @@ static DEFINE_SPINLOCK(irq_mapping_update_lock);
 static int evtchn_to_irq[NR_EVENT_CHANNELS] = {
 	[0 ...  NR_EVENT_CHANNELS-1] = -1 };
 
+#if defined(CONFIG_SMP) && defined(CONFIG_X86)
+static struct per_cpu_irqaction {
+	struct irqaction action; /* must be first */
+	struct per_cpu_irqaction *next;
+	cpumask_t cpus;
+} *virq_actions[NR_VIRQS];
+/* IRQ <-> VIRQ mapping. */
+static DECLARE_BITMAP(virq_per_cpu, NR_VIRQS) __read_mostly;
+static DEFINE_PER_CPU(int[NR_VIRQS], virq_to_evtchn);
+#define BUG_IF_VIRQ_PER_CPU(irq) \
+	BUG_ON(type_from_irq(irq) == IRQT_VIRQ \
+	       && test_bit(index_from_irq(irq), virq_per_cpu))
+#else
+#define BUG_IF_VIRQ_PER_CPU(irq) ((void)(irq))
+#define PER_CPU_VIRQ_IRQ
+#endif
+
 /* IRQ <-> IPI mapping. */
 #ifndef NR_IPIS
 #define NR_IPIS 1
@@ -132,15 +149,6 @@ static inline u32 mk_irq_info(u32 type, u32 index, u32 evtchn)
  * Accessors for packed IRQ information.
  */
 
-#ifdef PER_CPU_IPI_IRQ
-static inline unsigned int evtchn_from_irq(int irq)
-{
-	const struct irq_cfg *cfg = irq_cfg(irq);
-
-	return cfg ? cfg->info & ((1U << _EVTCHN_BITS) - 1) : 0;
-}
-#endif
-
 static inline unsigned int index_from_irq(int irq)
 {
 	const struct irq_cfg *cfg = irq_cfg(irq);
@@ -156,24 +164,39 @@ static inline unsigned int type_from_irq(int irq)
 	return cfg ? cfg->info >> (32 - _IRQT_BITS) : IRQT_UNBOUND;
 }
 
-#ifndef PER_CPU_IPI_IRQ
 static inline unsigned int evtchn_from_per_cpu_irq(unsigned int irq,
 						    unsigned int cpu)
 {
-	BUG_ON(type_from_irq(irq) != IRQT_IPI);
-	return per_cpu(ipi_to_evtchn, cpu)[index_from_irq(irq)];
+	switch (type_from_irq(irq)) {
+#ifndef PER_CPU_VIRQ_IRQ
+	case IRQT_VIRQ:
+		return per_cpu(virq_to_evtchn, cpu)[index_from_irq(irq)];
+#endif
+#ifndef PER_CPU_IPI_IRQ
+	case IRQT_IPI:
+		return per_cpu(ipi_to_evtchn, cpu)[index_from_irq(irq)];
+#endif
+	}
+	BUG();
+	return 0;
 }
 
 static inline unsigned int evtchn_from_irq(unsigned int irq)
 {
-	if (type_from_irq(irq) != IRQT_IPI) {
-		const struct irq_cfg *cfg = irq_cfg(irq);
+	const struct irq_cfg *cfg;
 
-		return cfg ? cfg->info & ((1U << _EVTCHN_BITS) - 1) : 0;
-	}
-	return evtchn_from_per_cpu_irq(irq, smp_processor_id());
-}
+	switch (type_from_irq(irq)) {
+#ifndef PER_CPU_VIRQ_IRQ
+	case IRQT_VIRQ:
 #endif
+#ifndef PER_CPU_IPI_IRQ
+	case IRQT_IPI:
+#endif
+		return evtchn_from_per_cpu_irq(irq, smp_processor_id());
+	}
+	cfg = irq_cfg(irq);
+	return cfg ? cfg->info & ((1U << _EVTCHN_BITS) - 1) : 0;
+}
 
 /* IRQ <-> VIRQ mapping. */
 DEFINE_PER_CPU(int[NR_VIRQS], virq_to_irq) = {[0 ... NR_VIRQS-1] = -1};
@@ -510,6 +533,14 @@ static int bind_virq_to_irq(unsigned int virq, unsigned int cpu)
 		evtchn = bind_virq.port;
 
 		evtchn_to_irq[evtchn] = irq;
+#ifndef PER_CPU_VIRQ_IRQ
+		{
+			unsigned int cpu;
+
+			for_each_possible_cpu(cpu)
+				per_cpu(virq_to_evtchn, cpu)[virq] = evtchn;
+		}
+#endif
 		irq_cfg(irq)->info = mk_irq_info(IRQT_VIRQ, virq, evtchn);
 
 		per_cpu(virq_to_irq, cpu)[virq] = irq;
@@ -564,7 +595,9 @@ static void unbind_from_irq(unsigned int irq)
 	unsigned int cpu;
 	int evtchn = evtchn_from_irq(irq);
 
+	BUG_IF_VIRQ_PER_CPU(irq);
 	BUG_IF_IPI(irq);
+
 	spin_lock(&irq_mapping_update_lock);
 
 	if (!--irq_cfg(irq)->bindcount && VALID_EVTCHN(evtchn)) {
@@ -577,6 +610,11 @@ static void unbind_from_irq(unsigned int irq)
 		case IRQT_VIRQ:
 			per_cpu(virq_to_irq, cpu_from_evtchn(evtchn))
 				[index_from_irq(irq)] = -1;
+#ifndef PER_CPU_VIRQ_IRQ
+			for_each_possible_cpu(cpu)
+				per_cpu(virq_to_evtchn, cpu)
+					[index_from_irq(irq)] = 0;
+#endif
 			break;
 #if defined(CONFIG_SMP) && defined(PER_CPU_IPI_IRQ)
 		case IRQT_IPI:
@@ -606,11 +644,13 @@ static void unbind_from_irq(unsigned int irq)
 	spin_unlock(&irq_mapping_update_lock);
 }
 
-#if defined(CONFIG_SMP) && !defined(PER_CPU_IPI_IRQ)
-void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu)
+#if defined(CONFIG_SMP) && (!defined(PER_CPU_IPI_IRQ) || !defined(PER_CPU_VIRQ_IRQ))
+void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu,
+			     struct irqaction *action)
 {
 	struct evtchn_close close;
 	int evtchn = evtchn_from_per_cpu_irq(irq, cpu);
+	struct irqaction *free_action = NULL;
 
 	spin_lock(&irq_mapping_update_lock);
 
@@ -621,6 +661,32 @@ void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu)
 
 		BUG_ON(irq_cfg(irq)->bindcount <= 1);
 		irq_cfg(irq)->bindcount--;
+
+#ifndef PER_CPU_VIRQ_IRQ
+		if (type_from_irq(irq) == IRQT_VIRQ) {
+			unsigned int virq = index_from_irq(irq);
+			struct per_cpu_irqaction *cur, *prev = NULL;
+
+			cur = virq_actions[virq];
+			while (cur) {
+				if (cur->action.dev_id == action) {
+					cpu_clear(cpu, cur->cpus);
+					if (cpus_empty(cur->cpus)) {
+						if (prev)
+							prev->next = cur->next;
+						else
+							virq_actions[virq] = cur->next;
+						free_action = action;
+					}
+				} else if (cpu_isset(cpu, cur->cpus))
+					evtchn = 0;
+				cur = (prev = cur)->next;
+			}
+			if (!VALID_EVTCHN(evtchn))
+				goto done;
+		}
+#endif
+
 		cpumask_clear_cpu(cpu, desc->affinity);
 
 		close.port = evtchn;
@@ -628,9 +694,16 @@ void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu)
 			BUG();
 
 		switch (type_from_irq(irq)) {
+#ifndef PER_CPU_VIRQ_IRQ
+		case IRQT_VIRQ:
+			per_cpu(virq_to_evtchn, cpu)[index_from_irq(irq)] = 0;
+			break;
+#endif
+#ifndef PER_CPU_IPI_IRQ
 		case IRQT_IPI:
 			per_cpu(ipi_to_evtchn, cpu)[index_from_irq(irq)] = 0;
 			break;
+#endif
 		default:
 			BUG();
 			break;
@@ -642,9 +715,16 @@ void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu)
 		evtchn_to_irq[evtchn] = -1;
 	}
 
+#ifndef PER_CPU_VIRQ_IRQ
+done:
+#endif
 	spin_unlock(&irq_mapping_update_lock);
+
+	if (free_action)
+		free_irq(irq, free_action);
 }
-#endif /* CONFIG_SMP && !PER_CPU_IPI_IRQ */
+EXPORT_SYMBOL_GPL(unbind_from_per_cpu_irq);
+#endif /* CONFIG_SMP && (!PER_CPU_IPI_IRQ || !PER_CPU_VIRQ_IRQ) */
 
 int bind_caller_port_to_irqhandler(
 	unsigned int caller_port,
@@ -726,6 +806,8 @@ int bind_virq_to_irqhandler(
 {
 	int irq, retval;
 
+	BUG_IF_VIRQ_PER_CPU(virq);
+
 	irq = bind_virq_to_irq(virq, cpu);
 	if (irq < 0)
 		return irq;
@@ -741,6 +823,108 @@ int bind_virq_to_irqhandler(
 EXPORT_SYMBOL_GPL(bind_virq_to_irqhandler);
 
 #ifdef CONFIG_SMP
+#ifndef PER_CPU_VIRQ_IRQ
+int bind_virq_to_irqaction(
+	unsigned int virq,
+	unsigned int cpu,
+	struct irqaction *action)
+{
+	struct evtchn_bind_virq bind_virq;
+	int evtchn, irq, retval = 0;
+	struct per_cpu_irqaction *cur = NULL, *new;
+
+	BUG_ON(!test_bit(virq, virq_per_cpu));
+
+	if (action->dev_id)
+		return -EINVAL;
+
+	new = kzalloc(sizeof(*new), GFP_ATOMIC);
+	if (new) {
+		new->action = *action;
+		new->action.dev_id = action;
+	}
+
+	spin_lock(&irq_mapping_update_lock);
+
+	for (cur = virq_actions[virq]; cur; cur = cur->next)
+		if (cur->action.dev_id == action)
+			break;
+	if (!cur) {
+		if (!new) {
+			spin_unlock(&irq_mapping_update_lock);
+			return -ENOMEM;
+		}
+		new->next = virq_actions[virq];
+		virq_actions[virq] = cur = new;
+		retval = 1;
+	}
+	cpu_set(cpu, cur->cpus);
+	action = &cur->action;
+
+	if ((irq = per_cpu(virq_to_irq, cpu)[virq]) == -1) {
+		unsigned int nr;
+
+		BUG_ON(!retval);
+
+		if ((irq = find_unbound_irq(cpu, true)) < 0) {
+			if (cur)
+				virq_actions[virq] = cur->next;
+			spin_unlock(&irq_mapping_update_lock);
+			if (cur != new)
+				kfree(new);
+			return irq;
+		}
+
+		/* Extra reference so count will never drop to zero. */
+		irq_cfg(irq)->bindcount++;
+
+		for_each_possible_cpu(nr)
+			per_cpu(virq_to_irq, nr)[virq] = irq;
+		irq_cfg(irq)->info = mk_irq_info(IRQT_VIRQ, virq, 0);
+	}
+
+	evtchn = per_cpu(virq_to_evtchn, cpu)[virq];
+	if (!VALID_EVTCHN(evtchn)) {
+		bind_virq.virq = virq;
+		bind_virq.vcpu = cpu;
+		if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
+						&bind_virq) != 0)
+			BUG();
+		evtchn = bind_virq.port;
+		evtchn_to_irq[evtchn] = irq;
+		per_cpu(virq_to_evtchn, cpu)[virq] = evtchn;
+
+		bind_evtchn_to_cpu(evtchn, cpu);
+	}
+
+	irq_cfg(irq)->bindcount++;
+
+	spin_unlock(&irq_mapping_update_lock);
+
+	if (cur != new)
+		kfree(new);
+
+	if (retval == 0) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		unmask_evtchn(evtchn);
+		local_irq_restore(flags);
+	} else {
+		action->flags |= IRQF_PERCPU;
+		retval = setup_irq(irq, action);
+		if (retval) {
+			unbind_from_per_cpu_irq(irq, cpu, cur->action.dev_id);
+			BUG_ON(retval > 0);
+			irq = retval;
+		}
+	}
+
+	return irq;
+}
+EXPORT_SYMBOL_GPL(bind_virq_to_irqaction);
+#endif
+
 #ifdef PER_CPU_IPI_IRQ
 int bind_ipi_to_irqhandler(
 	unsigned int ipi,
@@ -820,7 +1004,7 @@ int __cpuinit bind_ipi_to_irqaction(
 		action->flags |= IRQF_PERCPU | IRQF_NO_SUSPEND;
 		retval = setup_irq(irq, action);
 		if (retval) {
-			unbind_from_per_cpu_irq(irq, cpu);
+			unbind_from_per_cpu_irq(irq, cpu, NULL);
 			BUG_ON(retval > 0);
 			irq = retval;
 		}
@@ -855,7 +1039,9 @@ static void rebind_irq_to_cpu(unsigned int irq, unsigned int tcpu)
 {
 	int evtchn = evtchn_from_irq(irq);
 
+	BUG_IF_VIRQ_PER_CPU(irq);
 	BUG_IF_IPI(irq);
+
 	if (VALID_EVTCHN(evtchn))
 		rebind_evtchn_to_cpu(evtchn, tcpu);
 }
@@ -1135,7 +1321,9 @@ void notify_remote_via_irq(int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
 
+	BUG_ON(type_from_irq(irq) == IRQT_VIRQ);
 	BUG_IF_IPI(irq);
+
 	if (VALID_EVTCHN(evtchn))
 		notify_remote_via_evtchn(evtchn);
 }
@@ -1143,6 +1331,7 @@ EXPORT_SYMBOL_GPL(notify_remote_via_irq);
 
 int irq_to_evtchn_port(int irq)
 {
+	BUG_IF_VIRQ_PER_CPU(irq);
 	BUG_IF_IPI(irq);
 	return evtchn_from_irq(irq);
 }
@@ -1237,6 +1426,12 @@ static void restore_cpu_virqs(unsigned int cpu)
 		if ((irq = per_cpu(virq_to_irq, cpu)[virq]) == -1)
 			continue;
 
+#ifndef PER_CPU_VIRQ_IRQ
+		if (test_bit(virq, virq_per_cpu)
+		    && !VALID_EVTCHN(per_cpu(virq_to_evtchn, cpu)[virq]))
+			continue;
+#endif
+
 		BUG_ON(irq_cfg(irq)->info != mk_irq_info(IRQT_VIRQ, virq, 0));
 
 		/* Get a new binding from Xen. */
@@ -1249,7 +1444,20 @@ static void restore_cpu_virqs(unsigned int cpu)
 
 		/* Record the new mapping. */
 		evtchn_to_irq[evtchn] = irq;
+#ifdef PER_CPU_VIRQ_IRQ
 		irq_cfg(irq)->info = mk_irq_info(IRQT_VIRQ, virq, evtchn);
+#else
+		if (test_bit(virq, virq_per_cpu))
+			per_cpu(virq_to_evtchn, cpu)[virq] = evtchn;
+		else {
+			unsigned int cpu;
+
+			irq_cfg(irq)->info = mk_irq_info(IRQT_VIRQ, virq,
+							 evtchn);
+			for_each_possible_cpu(cpu)
+				per_cpu(virq_to_evtchn, cpu)[virq] = evtchn;
+		}
+#endif
 		bind_evtchn_to_cpu(evtchn, cpu);
 
 		/* Ready for use. */
@@ -1305,7 +1513,11 @@ static int evtchn_resume(struct sys_device *dev)
 
 	/* Avoid doing anything in the 'suspend cancelled' case. */
 	status.dom = DOMID_SELF;
+#ifdef PER_CPU_VIRQ_IRQ
 	status.port = evtchn_from_irq(percpu_read(virq_to_irq[VIRQ_TIMER]));
+#else
+	status.port = percpu_read(virq_to_evtchn[VIRQ_TIMER]);
+#endif
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_status, &status))
 		BUG();
 	if (status.status == EVTCHNSTAT_virq
@@ -1533,6 +1745,15 @@ void __init xen_init_IRQ(void)
 {
 	unsigned int i;
 	struct physdev_pirq_eoi_gmfn eoi_gmfn;
+
+#ifndef PER_CPU_VIRQ_IRQ
+	__set_bit(VIRQ_TIMER, virq_per_cpu);
+	__set_bit(VIRQ_DEBUG, virq_per_cpu);
+	__set_bit(VIRQ_XENOPROF, virq_per_cpu);
+#ifdef CONFIG_IA64
+	__set_bit(VIRQ_ITC, virq_per_cpu);
+#endif
+#endif
 
 	init_evtchn_cpu_bindings();
 
