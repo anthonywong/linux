@@ -226,7 +226,7 @@ xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 #endif
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
-	blk_queue_hardsect_size(rq, sector_size);
+	blk_queue_logical_block_size(rq, sector_size);
 	blk_queue_max_sectors(rq, 512);
 
 	/* Each segment in a request is up to an aligned page in size. */
@@ -401,7 +401,7 @@ static ssize_t show_media(struct device *dev,
 		                  struct device_attribute *attr, char *buf)
 {
 	struct xenbus_device *xendev = to_xenbus_device(dev);
-	struct blkfront_info *info = xendev->dev.driver_data;
+	struct blkfront_info *info = dev_get_drvdata(&xendev->dev);
 
 	if (info->gd->flags & GENHD_FL_CD)
 		return sprintf(buf, "cdrom\n");

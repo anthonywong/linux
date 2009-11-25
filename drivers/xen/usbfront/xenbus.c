@@ -187,7 +187,7 @@ out:
 
 static int connect(struct xenbus_device *dev)
 {
-	struct usbfront_info *info = dev->dev.driver_data;
+	struct usbfront_info *info = dev_get_drvdata(&dev->dev);
 
 	usbif_conn_request_t *req;
 	int i, idx, err;
@@ -288,7 +288,7 @@ static int usbfront_probe(struct xenbus_device *dev,
 	}
 
 	info = hcd_to_info(hcd);
-	dev->dev.driver_data = info;
+	dev_set_drvdata(&dev->dev, info);
 
 	err = usb_add_hcd(hcd, 0, 0);
 	if (err != 0) {
@@ -310,13 +310,13 @@ static int usbfront_probe(struct xenbus_device *dev,
 
 fail:
 	usb_put_hcd(hcd);
-	dev->dev.driver_data = NULL;
+	dev_set_drvdata(&dev->dev, NULL);
 	return err;
 }
 
 static void usbfront_disconnect(struct xenbus_device *dev)
 {
-	struct usbfront_info *info = dev->dev.driver_data;
+	struct usbfront_info *info = dev_get_drvdata(&dev->dev);
 	struct usb_hcd *hcd = info_to_hcd(info);
 
 	usb_remove_hcd(hcd);
@@ -360,7 +360,7 @@ static void backend_changed(struct xenbus_device *dev,
 
 static int usbfront_remove(struct xenbus_device *dev)
 {
-	struct usbfront_info *info = dev->dev.driver_data;
+	struct usbfront_info *info = dev_get_drvdata(&dev->dev);
 	struct usb_hcd *hcd = info_to_hcd(info);
 
 	destroy_rings(info);
