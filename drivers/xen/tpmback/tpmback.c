@@ -923,22 +923,30 @@ static int __init tpmback_init(void)
 	spin_lock_init(&tpm_schedule_list_lock);
 	INIT_LIST_HEAD(&tpm_schedule_list);
 
-	tpmif_interface_init();
-	tpmif_xenbus_init();
+	rc = tpmif_interface_init();
+	if (!rc) {
+		rc = tpmif_xenbus_init();
+		if (rc)
+			tpmif_interface_exit();
+	}
+	if (rc) {
+		misc_deregister(&vtpms_miscdevice);
+		return rc;
+	}
 
 	printk(KERN_ALERT "Successfully initialized TPM backend driver.\n");
 
 	return 0;
 }
-
 module_init(tpmback_init);
 
-void __exit tpmback_exit(void)
+static void __exit tpmback_exit(void)
 {
 	vtpm_release_packets(NULL, 0);
 	tpmif_xenbus_exit();
 	tpmif_interface_exit();
 	misc_deregister(&vtpms_miscdevice);
 }
+module_exit(tpmback_exit)
 
 MODULE_LICENSE("Dual BSD/GPL");
