@@ -179,12 +179,10 @@ void __init xen_arch_setup(void)
 		.address = CALLBACK_ADDR(system_call)
 	};
 #endif
-#if defined(CONFIG_X86_LOCAL_APIC) || defined(CONFIG_X86_32)
 	static const struct callback_register __initconst nmi_cb = {
 		.type = CALLBACKTYPE_nmi,
 		.address = CALLBACK_ADDR(nmi)
 	};
-#endif
 
 	ret = HYPERVISOR_callback_op(CALLBACKOP_register, &event);
 	if (ret == 0)
@@ -208,7 +206,6 @@ void __init xen_arch_setup(void)
 #endif
 	BUG_ON(ret);
 
-#if defined(CONFIG_X86_LOCAL_APIC) || defined(CONFIG_X86_32)
 	ret = HYPERVISOR_callback_op(CALLBACKOP_register, &nmi_cb);
 #if CONFIG_XEN_COMPAT <= 0x030002
 	if (ret == -ENOSYS) {
@@ -218,7 +215,6 @@ void __init xen_arch_setup(void)
 
 		HYPERVISOR_nmi_op(XENNMI_register_callback, &cb);
 	}
-#endif
 #endif
 }
 #endif /* CONFIG_XEN */
