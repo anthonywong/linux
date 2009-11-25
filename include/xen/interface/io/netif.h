@@ -183,8 +183,22 @@ typedef struct netif_rx_response netif_rx_response_t;
  * Generate netif ring structures and types.
  */
 
+#if defined(CONFIG_XEN) || defined(HAVE_XEN_PLATFORM_COMPAT_H)
 DEFINE_RING_TYPES(netif_tx, struct netif_tx_request, struct netif_tx_response);
 DEFINE_RING_TYPES(netif_rx, struct netif_rx_request, struct netif_rx_response);
+#else
+#define xen_netif_tx_request netif_tx_request
+#define xen_netif_rx_request netif_rx_request
+#define xen_netif_tx_response netif_tx_response
+#define xen_netif_rx_response netif_rx_response
+DEFINE_RING_TYPES(xen_netif_tx,
+		  struct xen_netif_tx_request,
+		  struct xen_netif_tx_response);
+DEFINE_RING_TYPES(xen_netif_rx,
+		  struct xen_netif_rx_request,
+		  struct xen_netif_rx_response);
+#define xen_netif_extra_info netif_extra_info
+#endif
 
 #define NETIF_RSP_DROPPED         -2
 #define NETIF_RSP_ERROR           -1

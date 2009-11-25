@@ -20,7 +20,9 @@
 #include <asm/elf.h>
 #include <asm/suspend.h>
 
+#if defined(CONFIG_XEN) || defined(CONFIG_PARAVIRT_XEN)
 #include <xen/interface/xen.h>
+#endif
 
 #include <linux/lguest.h>
 #include "../../../drivers/lguest/lg.h"
@@ -123,7 +125,7 @@ void foo(void)
 	OFFSET(PV_CPU_read_cr0, pv_cpu_ops, read_cr0);
 #endif
 
-#ifdef CONFIG_XEN
+#ifdef CONFIG_PARAVIRT_XEN
 	BLANK();
 	OFFSET(XEN_vcpu_info_mask, vcpu_info, evtchn_upcall_mask);
 	OFFSET(XEN_vcpu_info_pending, vcpu_info, evtchn_upcall_pending);
