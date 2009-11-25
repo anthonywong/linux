@@ -1937,6 +1937,10 @@ int apply_to_page_range(struct mm_struct *mm, unsigned long addr,
 	unsigned long start = addr, end = addr + size;
 	int err;
 
+#ifdef CONFIG_XEN
+	if (!mm)
+		mm = &init_mm;
+#endif
 	BUG_ON(addr >= end);
 	mmu_notifier_invalidate_range_start(mm, start, end);
 	pgd = pgd_offset(mm, addr);

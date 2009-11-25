@@ -134,6 +134,10 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 	per_cpu(callfunc_irq, cpu) = rc;
 
+	rc = xen_spinlock_init(cpu);
+	if (rc < 0)
+		goto fail;
+
 	if ((cpu != 0) && ((rc = local_setup_timer(cpu)) != 0))
 		goto fail;
 
@@ -144,6 +148,7 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
 	if (per_cpu(callfunc_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	xen_spinlock_cleanup(cpu);
 	return rc;
 }
 
@@ -155,6 +160,7 @@ static void xen_smp_intr_exit(unsigned int cpu)
 
 	unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	xen_spinlock_cleanup(cpu);
 }
 #endif
 
@@ -207,36 +213,25 @@ static void __cpuinit cpu_initialize_context(unsigned int cpu)
 	smp_trap_init(ctxt.trap_ctxt);
 
 	ctxt.ldt_ents = 0;
+	ctxt.gdt_frames[0] = virt_to_mfn(get_cpu_gdt_table(cpu));
 	ctxt.gdt_ents = GDT_SIZE / 8;
 
-#ifdef __i386__
-	ctxt.gdt_frames[0] = virt_to_mfn(get_cpu_gdt_table(cpu));
-
 	ctxt.user_regs.cs = __KERNEL_CS;
-	ctxt.user_regs.esp = idle->thread.esp0 - sizeof(struct pt_regs);
+	ctxt.user_regs.esp = idle->thread.sp0 - sizeof(struct pt_regs);
 
 	ctxt.kernel_ss = __KERNEL_DS;
-	ctxt.kernel_sp = idle->thread.esp0;
+	ctxt.kernel_sp = idle->thread.sp0;
 
-	ctxt.event_callback_cs     = __KERNEL_CS;
 	ctxt.event_callback_eip    = (unsigned long)hypervisor_callback;
-	ctxt.failsafe_callback_cs  = __KERNEL_CS;
 	ctxt.failsafe_callback_eip = (unsigned long)failsafe_callback;
+#ifdef __i386__
+	ctxt.event_callback_cs     = __KERNEL_CS;
+	ctxt.failsafe_callback_cs  = __KERNEL_CS;
 
 	ctxt.ctrlreg[3] = xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
 
 	ctxt.user_regs.fs = __KERNEL_PERCPU;
 #else /* __x86_64__ */
-	ctxt.gdt_frames[0] = virt_to_mfn(cpu_gdt_descr[cpu].address);
-
-	ctxt.user_regs.cs = __KERNEL_CS;
-	ctxt.user_regs.esp = idle->thread.rsp0 - sizeof(struct pt_regs);
-
-	ctxt.kernel_ss = __KERNEL_DS;
-	ctxt.kernel_sp = idle->thread.rsp0;
-
-	ctxt.event_callback_eip    = (unsigned long)hypervisor_callback;
-	ctxt.failsafe_callback_eip = (unsigned long)failsafe_callback;
 	ctxt.syscall_callback_eip  = (unsigned long)system_call;
 
 	ctxt.ctrlreg[3] = xen_pfn_to_cr3(virt_to_mfn(init_level4_pgt));
