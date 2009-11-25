@@ -8,9 +8,11 @@
 #include <asm/hypervisor.h>
 #include <asm/mmu_context.h>
 
+#define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
+
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
 {
-	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
+	pte_t *pte = (pte_t *)__get_free_page(PGALLOC_GFP);
 	if (pte)
 		make_lowmem_page_readonly(pte, XENFEAT_writable_page_tables);
 	return pte;
@@ -27,9 +29,9 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 	struct page *pte;
 
 #ifdef CONFIG_HIGHPTE
-	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
+	pte = alloc_pages(PGALLOC_GFP | __GFP_HIGHMEM, 0);
 #else
-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
+	pte = alloc_pages(PGALLOC_GFP, 0);
 #endif
 	if (pte) {
 		pgtable_page_ctor(pte);
@@ -65,7 +67,7 @@ void __pte_free(pgtable_t pte)
 	__free_page(pte);
 }
 
-void __pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
+void ___pte_free_tlb(struct mmu_gather *tlb, struct page *pte)
 {
 	pgtable_page_dtor(pte);
 	paravirt_release_pte(page_to_pfn(pte));
@@ -83,7 +85,7 @@ pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *pmd;
 
-	pmd = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
+	pmd = alloc_pages(PGALLOC_GFP, 0);
 	if (!pmd)
 		return NULL;
 	SetPageForeign(pmd, _pmd_free);
@@ -107,14 +109,14 @@ void __pmd_free(pgtable_t pmd)
 	__free_page(pmd);
 }
 
-void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
+void ___pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmd)
 {
 	paravirt_release_pmd(__pa(pmd) >> PAGE_SHIFT);
 	tlb_remove_page(tlb, virt_to_page(pmd));
 }
 
 #if PAGETABLE_LEVELS > 3
-void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
+void ___pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 {
 	paravirt_release_pud(__pa(pud) >> PAGE_SHIFT);
 	tlb_remove_page(tlb, virt_to_page(pud));
@@ -609,7 +611,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
 	pmd_t *pmds[PREALLOCATED_PMDS];
 	unsigned long flags;
 
-	pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, PGD_ORDER);
+	pgd = (pgd_t *)__get_free_pages(PGALLOC_GFP, PGD_ORDER);
 
 	if (pgd == NULL)
 		goto out;

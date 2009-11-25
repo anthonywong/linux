@@ -20,23 +20,12 @@
 #include <asm/apic.h>
 #include <asm/setup.h>
 
-#include <linux/threads.h>
-#include <linux/cpumask.h>
-#include <asm/mpspec.h>
-#include <asm/fixmap.h>
-#include <asm/apicdef.h>
-#include <linux/kernel.h>
-#include <linux/string.h>
 #include <linux/smp.h>
-#include <linux/init.h>
 #include <asm/ipi.h>
 
-#include <linux/smp.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <asm/acpi.h>
 #include <asm/e820.h>
-#include <asm/setup.h>
 
 static int xen_phys_pkg_id(int cpuid_apic, int index_msb)
 {
