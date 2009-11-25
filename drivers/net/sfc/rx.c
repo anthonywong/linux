@@ -447,7 +447,21 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 			      struct efx_rx_buffer *rx_buf,
 			      bool checksummed)
 {
+	struct efx_nic *efx = channel->efx;
 	struct napi_struct *napi = &channel->napi_str;
+	enum efx_veto veto;
+
+	/* It would be faster if we had access to packets at the
+	 * other side of generic LRO. Unfortunately, there isn't
+	 * an obvious interface to this, so veto packets before LRO */
+	veto = EFX_DL_CALLBACK(efx, rx_packet, rx_buf->data, rx_buf->len);
+	if (unlikely(veto)) {
+		EFX_TRACE(efx, "LRO RX vetoed by driverlink %s driver\n",
+			  efx->dl_cb_dev.rx_packet->driver->name);
+		/* Free the buffer now */
+		efx_free_rx_buffer(efx, rx_buf);
+		return;
+	}
 
 	/* Pass the skb/page into the LRO engine */
 	if (rx_buf->page) {
@@ -550,6 +564,7 @@ void __efx_rx_packet(struct efx_channel *channel,
 		     struct efx_rx_buffer *rx_buf, bool checksummed)
 {
 	struct efx_nic *efx = channel->efx;
+	enum efx_veto veto;
 	struct sk_buff *skb;
 
 	/* If we're in loopback test, then pass the packet directly to the
@@ -557,6 +572,16 @@ void __efx_rx_packet(struct efx_channel *channel,
 	 */
 	if (unlikely(efx->loopback_selftest)) {
 		efx_loopback_rx_packet(efx, rx_buf->data, rx_buf->len);
+		efx_free_rx_buffer(efx, rx_buf);
+		goto done;
+	}
+
+	/* Allow callback to veto the packet */
+	veto = EFX_DL_CALLBACK(efx, rx_packet, rx_buf->data, rx_buf->len);
+	if (unlikely(veto)) {
+		EFX_LOG(efx, "RX vetoed by driverlink %s driver\n",
+			efx->dl_cb_dev.rx_packet->driver->name);
+		/* Free the buffer now */
 		efx_free_rx_buffer(efx, rx_buf);
 		goto done;
 	}
