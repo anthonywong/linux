@@ -15,7 +15,7 @@
 #  include <asm/io_apic.h>
 # endif
 #endif
-#include <asm/thread_info.h>
+#include <linux/thread_info.h>
 #include <asm/cpumask.h>
 
 extern int smp_num_siblings;
@@ -171,7 +171,7 @@ extern unsigned disabled_cpus __cpuinitdata;
 
 #include <asm/smp-processor-id.h>
 
-#ifdef CONFIG_X86_LOCAL_APIC
+#if defined(CONFIG_X86_LOCAL_APIC) && !defined(CONFIG_XEN)
 
 #ifndef CONFIG_X86_64
 static inline int logical_smp_processor_id(void)
