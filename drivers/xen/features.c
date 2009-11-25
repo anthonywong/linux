@@ -9,7 +9,14 @@
 #include <linux/cache.h>
 #include <linux/module.h>
 
+#ifdef CONFIG_PARAVIRT_XEN
 #include <asm/xen/hypercall.h>
+#else
+#include <asm/hypervisor.h>
+#endif
+#ifdef HAVE_XEN_PLATFORM_COMPAT_H
+#include <xen/platform-compat.h>
+#endif
 
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>

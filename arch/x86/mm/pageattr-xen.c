@@ -9,6 +9,8 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
+#include <linux/seq_file.h>
+#include <linux/debugfs.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
@@ -17,371 +19,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/proto.h>
-#include <asm/mmu_context.h>
-
-#ifndef CONFIG_X86_64
-#define TASK_SIZE64 TASK_SIZE
-#endif
-
-static void _pin_lock(struct mm_struct *mm, int lock) {
-	if (lock)
-		spin_lock(&mm->page_table_lock);
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
-	/* While mm->page_table_lock protects us against insertions and
-	 * removals of higher level page table pages, it doesn't protect
-	 * against updates of pte-s. Such updates, however, require the
-	 * pte pages to be in consistent state (unpinned+writable or
-	 * pinned+readonly). The pinning and attribute changes, however
-	 * cannot be done atomically, which is why such updates must be
-	 * prevented from happening concurrently.
-	 * Note that no pte lock can ever elsewhere be acquired nesting
-	 * with an already acquired one in the same mm, or with the mm's
-	 * page_table_lock already acquired, as that would break in the
-	 * non-split case (where all these are actually resolving to the
-	 * one page_table_lock). Thus acquiring all of them here is not
-	 * going to result in dead locks, and the order of acquires
-	 * doesn't matter.
-	 */
-	{
-		pgd_t *pgd = mm->pgd;
-		unsigned g;
-
-		for (g = 0; g <= ((TASK_SIZE64-1) / PGDIR_SIZE); g++, pgd++) {
-			pud_t *pud;
-			unsigned u;
-
-			if (pgd_none(*pgd))
-				continue;
-			pud = pud_offset(pgd, 0);
-			for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
-				pmd_t *pmd;
-				unsigned m;
-
-				if (pud_none(*pud))
-					continue;
-				pmd = pmd_offset(pud, 0);
-				for (m = 0; m < PTRS_PER_PMD; m++, pmd++) {
-					spinlock_t *ptl;
-
-					if (pmd_none(*pmd))
-						continue;
-					ptl = pte_lockptr(0, pmd);
-					if (lock)
-						spin_lock(ptl);
-					else
-						spin_unlock(ptl);
-				}
-			}
-		}
-	}
-#endif
-	if (!lock)
-		spin_unlock(&mm->page_table_lock);
-}
-#define pin_lock(mm) _pin_lock(mm, 1)
-#define pin_unlock(mm) _pin_lock(mm, 0)
-
-#define PIN_BATCH sizeof(void *)
-static DEFINE_PER_CPU(multicall_entry_t[PIN_BATCH], pb_mcl);
-
-static inline unsigned int pgd_walk_set_prot(struct page *page, pgprot_t flags,
-					     unsigned int cpu, unsigned int seq)
-{
-	unsigned long pfn = page_to_pfn(page);
-
-	if (PageHighMem(page)) {
-		if (pgprot_val(flags) & _PAGE_RW)
-			ClearPagePinned(page);
-		else
-			SetPagePinned(page);
-	} else {
-		MULTI_update_va_mapping(per_cpu(pb_mcl, cpu) + seq,
-					(unsigned long)__va(pfn << PAGE_SHIFT),
-					pfn_pte(pfn, flags), 0);
-		if (unlikely(++seq == PIN_BATCH)) {
-			if (unlikely(HYPERVISOR_multicall_check(per_cpu(pb_mcl, cpu),
-								PIN_BATCH, NULL)))
-				BUG();
-			seq = 0;
-		}
-	}
-
-	return seq;
-}
-
-static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
-{
-	pgd_t       *pgd = pgd_base;
-	pud_t       *pud;
-	pmd_t       *pmd;
-	int          g,u,m;
-	unsigned int cpu, seq;
-	multicall_entry_t *mcl;
-
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return;
-
-	cpu = get_cpu();
-
-	/*
-	 * Cannot iterate up to USER_PTRS_PER_PGD on x86-64 as these pagetables
-	 * may not be the 'current' task's pagetables (e.g., current may be
-	 * 32-bit, but the pagetables may be for a 64-bit task).
-	 * Subtracting 1 from TASK_SIZE64 means the loop limit is correct
-	 * regardless of whether TASK_SIZE64 is a multiple of PGDIR_SIZE.
-	 */
-	for (g = 0, seq = 0; g <= ((TASK_SIZE64-1) / PGDIR_SIZE); g++, pgd++) {
-		if (pgd_none(*pgd))
-			continue;
-		pud = pud_offset(pgd, 0);
-		if (PTRS_PER_PUD > 1) /* not folded */
-			seq = pgd_walk_set_prot(virt_to_page(pud),flags,cpu,seq);
-		for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
-			if (pud_none(*pud))
-				continue;
-			pmd = pmd_offset(pud, 0);
-			if (PTRS_PER_PMD > 1) /* not folded */
-				seq = pgd_walk_set_prot(virt_to_page(pmd),flags,cpu,seq);
-			for (m = 0; m < PTRS_PER_PMD; m++, pmd++) {
-				if (pmd_none(*pmd))
-					continue;
-				seq = pgd_walk_set_prot(pmd_page(*pmd),flags,cpu,seq);
-			}
-		}
-	}
-
-	mcl = per_cpu(pb_mcl, cpu);
-#ifdef CONFIG_X86_64
-	if (unlikely(seq > PIN_BATCH - 2)) {
-		if (unlikely(HYPERVISOR_multicall_check(mcl, seq, NULL)))
-			BUG();
-		seq = 0;
-	}
-	MULTI_update_va_mapping(mcl + seq,
-	       (unsigned long)__user_pgd(pgd_base),
-	       pfn_pte(virt_to_phys(__user_pgd(pgd_base))>>PAGE_SHIFT, flags),
-	       0);
-	MULTI_update_va_mapping(mcl + seq + 1,
-	       (unsigned long)pgd_base,
-	       pfn_pte(virt_to_phys(pgd_base)>>PAGE_SHIFT, flags),
-	       UVMF_TLB_FLUSH);
-	if (unlikely(HYPERVISOR_multicall_check(mcl, seq + 2, NULL)))
-		BUG();
-#else
-	if (likely(seq != 0)) {
-		MULTI_update_va_mapping(per_cpu(pb_mcl, cpu) + seq,
-			(unsigned long)pgd_base,
-			pfn_pte(virt_to_phys(pgd_base)>>PAGE_SHIFT, flags),
-			UVMF_TLB_FLUSH);
-		if (unlikely(HYPERVISOR_multicall_check(per_cpu(pb_mcl, cpu),
-		                                        seq + 1, NULL)))
-			BUG();
-	} else if(HYPERVISOR_update_va_mapping((unsigned long)pgd_base,
-			pfn_pte(virt_to_phys(pgd_base)>>PAGE_SHIFT, flags),
-			UVMF_TLB_FLUSH))
-		BUG();
-#endif
-
-	put_cpu();
-}
-
-static void __pgd_pin(pgd_t *pgd)
-{
-	pgd_walk(pgd, PAGE_KERNEL_RO);
-	kmap_flush_unused();
-	xen_pgd_pin(__pa(pgd)); /* kernel */
-#ifdef CONFIG_X86_64
-	xen_pgd_pin(__pa(__user_pgd(pgd))); /* user */
-#endif
-	SetPagePinned(virt_to_page(pgd));
-}
-
-static void __pgd_unpin(pgd_t *pgd)
-{
-	xen_pgd_unpin(__pa(pgd));
-#ifdef CONFIG_X86_64
-	xen_pgd_unpin(__pa(__user_pgd(pgd)));
-#endif
-	pgd_walk(pgd, PAGE_KERNEL);
-	ClearPagePinned(virt_to_page(pgd));
-}
-
-void pgd_test_and_unpin(pgd_t *pgd)
-{
-	if (PagePinned(virt_to_page(pgd)))
-		__pgd_unpin(pgd);
-}
-
-void mm_pin(struct mm_struct *mm)
-{
-	if (xen_feature(XENFEAT_writable_page_tables))
-		return;
-
-	pin_lock(mm);
-	__pgd_pin(mm->pgd);
-	pin_unlock(mm);
-}
-
-void mm_unpin(struct mm_struct *mm)
-{
-	if (xen_feature(XENFEAT_writable_page_tables))
-		return;
-
-	pin_lock(mm);
-	__pgd_unpin(mm->pgd);
-	pin_unlock(mm);
-}
-
-void mm_pin_all(void)
-{
-	struct page *page;
-	unsigned long flags;
-
-	if (xen_feature(XENFEAT_writable_page_tables))
-		return;
-
-	/*
-	 * Allow uninterrupted access to the pgd_list. Also protects
-	 * __pgd_pin() by disabling preemption.
-	 * All other CPUs must be at a safe point (e.g., in stop_machine
-	 * or offlined entirely).
-	 */
-	spin_lock_irqsave(&pgd_lock, flags);
-	list_for_each_entry(page, &pgd_list, lru) {
-		if (!PagePinned(page))
-			__pgd_pin((pgd_t *)page_address(page));
-	}
-	spin_unlock_irqrestore(&pgd_lock, flags);
-}
-
-void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
-{
-	if (!PagePinned(virt_to_page(mm->pgd)))
-		mm_pin(mm);
-}
-
-void arch_exit_mmap(struct mm_struct *mm)
-{
-	struct task_struct *tsk = current;
-
-	task_lock(tsk);
-
-	/*
-	 * We aggressively remove defunct pgd from cr3. We execute unmap_vmas()
-	 * *much* faster this way, as no tlb flushes means bigger wrpt batches.
-	 */
-	if (tsk->active_mm == mm) {
-		tsk->active_mm = &init_mm;
-		atomic_inc(&init_mm.mm_count);
-
-		switch_mm(mm, &init_mm, tsk);
-
-		atomic_dec(&mm->mm_count);
-		BUG_ON(atomic_read(&mm->mm_count) == 0);
-	}
-
-	task_unlock(tsk);
-
-	if (PagePinned(virt_to_page(mm->pgd))
-	    && atomic_read(&mm->mm_count) == 1
-	    && !mm->context.has_foreign_mappings)
-		mm_unpin(mm);
-}
-
-static void _pte_free(struct page *page, unsigned int order)
-{
-	BUG_ON(order);
-	__pte_free(page);
-}
-
-pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-	struct page *pte;
-
-#ifdef CONFIG_HIGHPTE
-	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
-#else
-	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
-#endif
-	if (pte) {
-		pgtable_page_ctor(pte);
-		SetPageForeign(pte, _pte_free);
-		init_page_count(pte);
-	}
-	return pte;
-}
-
-void __pte_free(pgtable_t pte)
-{
-	if (!PageHighMem(pte)) {
-		unsigned long va = (unsigned long)page_address(pte);
-		unsigned int level;
-		pte_t *ptep = lookup_address(va, &level);
-
-		BUG_ON(!ptep || level != PG_LEVEL_4K || !pte_present(*ptep));
-		if (!pte_write(*ptep)
-		    && HYPERVISOR_update_va_mapping(va,
-						    mk_pte(pte, PAGE_KERNEL),
-						    0))
-			BUG();
-	} else
-#ifdef CONFIG_HIGHPTE
-		ClearPagePinned(pte);
-#else
-		BUG();
-#endif
-
-	ClearPageForeign(pte);
-	init_page_count(pte);
-	pgtable_page_dtor(pte);
-	__free_page(pte);
-}
-
-#if PAGETABLE_LEVELS >= 3
-static void _pmd_free(struct page *page, unsigned int order)
-{
-	BUG_ON(order);
-	__pmd_free(page);
-}
-
-pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
-{
-	struct page *pmd;
-
-	pmd = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
-	if (!pmd)
-		return NULL;
-	SetPageForeign(pmd, _pmd_free);
-	init_page_count(pmd);
-	return page_address(pmd);
-}
-
-void __pmd_free(pgtable_t pmd)
-{
-	unsigned long va = (unsigned long)page_address(pmd);
-	unsigned int level;
-	pte_t *ptep = lookup_address(va, &level);
-
-	BUG_ON(!ptep || level != PG_LEVEL_4K || !pte_present(*ptep));
-	if (!pte_write(*ptep)
-	    && HYPERVISOR_update_va_mapping(va, mk_pte(pmd, PAGE_KERNEL), 0))
-		BUG();
-
-	ClearPageForeign(pmd);
-	init_page_count(pmd);
-	__free_page(pmd);
-}
-#endif
-
-/* blktap and gntdev need this, as otherwise they would implicitly (and
- * needlessly, as they never use it) reference init_mm. */
-pte_t xen_ptep_get_and_clear_full(struct vm_area_struct *vma,
-				  unsigned long addr, pte_t *ptep, int full)
-{
-	return ptep_get_and_clear_full(vma ? vma->vm_mm : &init_mm,
-				       addr, ptep, full);
-}
-EXPORT_SYMBOL_GPL(xen_ptep_get_and_clear_full);
+#include <asm/pat.h>
 
 /*
  * The current flushing context - we pass it instead of 5 arguments:
@@ -393,6 +31,7 @@ struct cpa_data {
 	int		numpages;
 	int		flushtlb;
 	unsigned long	pfn;
+	unsigned	force_split : 1;
 };
 
 #ifdef CONFIG_X86_64
@@ -638,6 +277,9 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	int i, do_split = 1;
 	unsigned int level;
 
+	if (cpa->force_split)
+		return 1;
+
 	spin_lock_irqsave(&pgd_lock, flags);
 	/*
 	 * Check for races, another CPU might have split this page
@@ -857,9 +499,7 @@ static int split_large_page(pte_t *kpte, unsigned long address)
 		goto out_unlock;
 
 	pbase = (pte_t *)page_address(base);
-#ifdef CONFIG_X86_32
-	paravirt_alloc_pt(&init_mm, page_to_pfn(base));
-#endif
+	paravirt_alloc_pte(&init_mm, page_to_pfn(base));
 	ref_prot = pte_pgprot(pte_clrhuge(*kpte));
 
 #ifdef CONFIG_X86_64
@@ -920,7 +560,7 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 repeat:
 	kpte = lookup_address(address, &level);
 	if (!kpte)
-		return primary ? -EINVAL : 0;
+		return 0;
 
 	old_pte = *kpte;
 	if (!__pte_val(old_pte)) {
@@ -1079,7 +719,8 @@ static inline int cache_attr(pgprot_t attr)
 }
 
 static int change_page_attr_set_clr(unsigned long addr, int numpages,
-				    pgprot_t mask_set, pgprot_t mask_clr)
+				    pgprot_t mask_set, pgprot_t mask_clr,
+				    int force_split)
 {
 	struct cpa_data cpa;
 	int ret, cache, checkalias;
@@ -1090,7 +731,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	 */
 	mask_set = canon_pgprot(mask_set);
 	mask_clr = canon_pgprot(mask_clr);
-	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr))
+	if (!pgprot_val(mask_set) && !pgprot_val(mask_clr) && !force_split)
 		return 0;
 
 	/* Ensure we are PAGE_SIZE aligned */
@@ -1107,6 +748,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	cpa.mask_set = mask_set;
 	cpa.mask_clr = mask_clr;
 	cpa.flushtlb = 0;
+	cpa.force_split = force_split;
 
 	/* No alias checking for _NX bit modifications */
 	checkalias = (pgprot_val(mask_set) | pgprot_val(mask_clr)) != _PAGE_NX;
@@ -1145,26 +787,67 @@ out:
 static inline int change_page_attr_set(unsigned long addr, int numpages,
 				       pgprot_t mask)
 {
-	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0));
+	return change_page_attr_set_clr(addr, numpages, mask, __pgprot(0), 0);
 }
 
 static inline int change_page_attr_clear(unsigned long addr, int numpages,
 					 pgprot_t mask)
 {
-	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask);
+	return change_page_attr_set_clr(addr, numpages, __pgprot(0), mask, 0);
+}
+
+int _set_memory_uc(unsigned long addr, int numpages)
+{
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
+	return change_page_attr_set(addr, numpages,
+				    __pgprot(_PAGE_CACHE_UC_MINUS));
 }
 
 int set_memory_uc(unsigned long addr, int numpages)
 {
-	return change_page_attr_set(addr, numpages,
-				    __pgprot(_PAGE_PCD));
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
+	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+			    _PAGE_CACHE_UC_MINUS, NULL))
+		return -EINVAL;
+
+	return _set_memory_uc(addr, numpages);
 }
 EXPORT_SYMBOL(set_memory_uc);
 
-int set_memory_wb(unsigned long addr, int numpages)
+int _set_memory_wc(unsigned long addr, int numpages)
+{
+	return change_page_attr_set(addr, numpages,
+				    __pgprot(_PAGE_CACHE_WC));
+}
+
+int set_memory_wc(unsigned long addr, int numpages)
+{
+	if (!pat_wc_enabled)
+		return set_memory_uc(addr, numpages);
+
+	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+		_PAGE_CACHE_WC, NULL))
+		return -EINVAL;
+
+	return _set_memory_wc(addr, numpages);
+}
+EXPORT_SYMBOL(set_memory_wc);
+
+int _set_memory_wb(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages,
-				      __pgprot(_PAGE_PCD | _PAGE_PWT));
+				      __pgprot(_PAGE_CACHE_MASK));
+}
+
+int set_memory_wb(unsigned long addr, int numpages)
+{
+	free_memtype(addr, addr + numpages * PAGE_SIZE);
+
+	return _set_memory_wb(addr, numpages);
 }
 EXPORT_SYMBOL(set_memory_wb);
 
@@ -1193,6 +876,12 @@ int set_memory_rw(unsigned long addr, int numpages)
 int set_memory_np(unsigned long addr, int numpages)
 {
 	return change_page_attr_clear(addr, numpages, __pgprot(_PAGE_PRESENT));
+}
+
+int set_memory_4k(unsigned long addr, int numpages)
+{
+	return change_page_attr_set_clr(addr, numpages, __pgprot(0),
+					__pgprot(0), 1);
 }
 
 int set_pages_uc(struct page *page, int numpages)
@@ -1303,6 +992,45 @@ void kernel_map_pages(struct page *page, int numpages, int enable)
 	 */
 	cpa_fill_pool(NULL);
 }
+
+#ifdef CONFIG_DEBUG_FS
+static int dpa_show(struct seq_file *m, void *v)
+{
+	seq_puts(m, "DEBUG_PAGEALLOC\n");
+	seq_printf(m, "pool_size     : %lu\n", pool_size);
+	seq_printf(m, "pool_pages    : %lu\n", pool_pages);
+	seq_printf(m, "pool_low      : %lu\n", pool_low);
+	seq_printf(m, "pool_used     : %lu\n", pool_used);
+	seq_printf(m, "pool_failed   : %lu\n", pool_failed);
+
+	return 0;
+}
+
+static int dpa_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, dpa_show, NULL);
+}
+
+static const struct file_operations dpa_fops = {
+	.open		= dpa_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int __init debug_pagealloc_proc_init(void)
+{
+	struct dentry *de;
+
+	de = debugfs_create_file("debug_pagealloc", 0600, NULL, NULL,
+				 &dpa_fops);
+	if (!de)
+		return -ENOMEM;
+
+	return 0;
+}
+__initcall(debug_pagealloc_proc_init);
+#endif
 
 #ifdef CONFIG_HIBERNATION
 
