@@ -465,7 +465,6 @@ static const struct xenbus_device_id blktap_ids[] = {
 
 static struct xenbus_driver blktap = {
 	.name = "tap",
-	.owner = THIS_MODULE,
 	.ids = blktap_ids,
 	.probe = blktap_probe,
 	.remove = blktap_remove,
@@ -475,5 +474,6 @@ static struct xenbus_driver blktap = {
 
 void tap_blkif_xenbus_init(void)
 {
-	xenbus_register_backend(&blktap);
+	if (xenbus_register_backend(&blktap))
+		BUG();
 }
