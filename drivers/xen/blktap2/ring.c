@@ -103,8 +103,8 @@ blktap_ring_clear_pte(struct vm_area_struct *vma,
 	 * mapped region.
 	 */
 	if (uvaddr < ring->user_vstart)
-		return ptep_get_and_clear_full(vma->vm_mm, uvaddr,
-					       ptep, is_fullmm);
+		return xen_ptep_get_and_clear_full(vma, uvaddr,
+						   ptep, is_fullmm);
 
 	offset  = (int)((uvaddr - ring->user_vstart) >> PAGE_SHIFT);
 	usr_idx = offset / BLKIF_MAX_SEGMENTS_PER_REQUEST;
@@ -146,8 +146,8 @@ blktap_ring_clear_pte(struct vm_area_struct *vma,
 				    khandle->user);
 		count++;
 	} else
-		copy = ptep_get_and_clear_full(vma->vm_mm, uvaddr, ptep,
-					       is_fullmm);
+		copy = xen_ptep_get_and_clear_full(vma, uvaddr, ptep,
+						   is_fullmm);
 
 	if (count)
 		if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref,

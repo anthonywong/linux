@@ -3,6 +3,7 @@
 .text
 #include <linux/elfnote.h>
 #include <linux/threads.h>
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page.h>
@@ -88,7 +89,7 @@ ENTRY(_stext)
  */
 .section ".bss.page_aligned","wa"
 	.align PAGE_SIZE_asm
-ENTRY(swapper_pg_pmd)
+ENTRY(swapper_pg_fixmap)
 	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
