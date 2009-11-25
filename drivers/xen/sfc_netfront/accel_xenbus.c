@@ -727,8 +727,7 @@ int netfront_accel_probe(struct net_device *net_dev, struct xenbus_device *dev)
 
 int netfront_accel_remove(struct xenbus_device *dev)
 {
-	struct netfront_info *np =
-		(struct netfront_info *)dev->dev.driver_data;
+	struct netfront_info *np = dev_get_drvdata(&dev->dev);
 	netfront_accel_vnic *vnic = (netfront_accel_vnic *)np->accel_priv;
 
 	DPRINTK("%s %s\n", __FUNCTION__, dev->nodename);

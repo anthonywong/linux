@@ -97,7 +97,8 @@ extern void pci_iommu_alloc(void);
 
 #define PCI_DMA_BUS_IS_PHYS 0
 
-#if defined(CONFIG_X86_64) || defined(CONFIG_DMA_API_DEBUG) || defined(CONFIG_SWIOTLB)
+#if defined(CONFIG_X86_64) || defined(CONFIG_DMAR) || defined(CONFIG_DMA_API_DEBUG) \
+	|| defined(CONFIG_SWIOTLB)
 
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)       \
 	        dma_addr_t ADDR_NAME;
@@ -136,6 +137,7 @@ extern void pci_iommu_alloc(void);
 
 /* generic pci stuff */
 #include <asm-generic/pci.h>
+#define PCIBIOS_MAX_MEM_32 0xffffffff
 
 #ifdef CONFIG_NUMA
 /* Returns the node based on pci bus */

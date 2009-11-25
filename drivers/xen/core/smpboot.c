@@ -43,9 +43,11 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 static DEFINE_PER_CPU(int, resched_irq);
 static DEFINE_PER_CPU(int, callfunc_irq);
 static DEFINE_PER_CPU(int, call1func_irq);
+static DEFINE_PER_CPU(int, reboot_irq);
 static char resched_name[NR_CPUS][15];
 static char callfunc_name[NR_CPUS][15];
 static char call1func_name[NR_CPUS][15];
+static char reboot_name[NR_CPUS][15];
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #define set_cpu_to_apicid(cpu, apicid) (per_cpu(x86_cpu_to_apicid, cpu) = (apicid))
@@ -102,7 +104,7 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 	int rc;
 
 	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) =
-		per_cpu(call1func_irq, cpu) = -1;
+		per_cpu(call1func_irq, cpu) = per_cpu(reboot_irq, cpu) = -1;
 
 	sprintf(resched_name[cpu], "resched%u", cpu);
 	rc = bind_ipi_to_irqhandler(RESCHEDULE_VECTOR,
@@ -137,6 +139,17 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 	per_cpu(call1func_irq, cpu) = rc;
 
+	sprintf(reboot_name[cpu], "reboot%u", cpu);
+	rc = bind_ipi_to_irqhandler(REBOOT_VECTOR,
+				    cpu,
+				    smp_reboot_interrupt,
+				    IRQF_DISABLED|IRQF_NOBALANCING,
+				    reboot_name[cpu],
+				    NULL);
+	if (rc < 0)
+		goto fail;
+	per_cpu(reboot_irq, cpu) = rc;
+
 	rc = xen_spinlock_init(cpu);
 	if (rc < 0)
 		goto fail;
@@ -153,6 +166,8 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
 	if (per_cpu(call1func_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(call1func_irq, cpu), NULL);
+	if (per_cpu(reboot_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(reboot_irq, cpu), NULL);
 	xen_spinlock_cleanup(cpu);
 	return rc;
 }
@@ -166,6 +181,7 @@ static void __cpuexit xen_smp_intr_exit(unsigned int cpu)
 	unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(call1func_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(reboot_irq, cpu), NULL);
 	xen_spinlock_cleanup(cpu);
 }
 #endif
