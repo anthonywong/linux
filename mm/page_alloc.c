@@ -587,6 +587,13 @@ static void __free_pages_ok(struct page *page, unsigned int order)
 	int bad = 0;
 	int wasMlocked = __TestClearPageMlocked(page);
 
+#ifdef CONFIG_XEN
+	if (PageForeign(page)) {
+		PageForeignDestructor(page, order);
+		return;
+	}
+#endif
+
 	kmemcheck_free_shadow(page, order);
 
 	for (i = 0 ; i < (1 << order) ; ++i)
@@ -1085,6 +1092,13 @@ static void free_hot_cold_page(struct page *page, int cold)
 	unsigned long flags;
 	int migratetype;
 	int wasMlocked = __TestClearPageMlocked(page);
+
+#ifdef CONFIG_XEN
+	if (PageForeign(page)) {
+		PageForeignDestructor(page, 0);
+		return;
+	}
+#endif
 
 	kmemcheck_free_shadow(page, 0);
 
