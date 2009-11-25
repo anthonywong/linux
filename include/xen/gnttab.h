@@ -110,8 +110,9 @@ static inline void __gnttab_dma_unmap_page(struct page *page)
 
 void gnttab_reset_grant_page(struct page *page);
 
-int gnttab_suspend(void);
+#ifndef CONFIG_XEN
 int gnttab_resume(void);
+#endif
 
 void *arch_gnttab_alloc_shared(unsigned long *frames);
 

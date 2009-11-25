@@ -17,6 +17,7 @@
 #include <xen/xencons.h>
 #include <xen/cpu_hotplug.h>
 #include <xen/interface/vcpu.h>
+#include "../../base/base.h"
 
 #if defined(__i386__) || defined(__x86_64__)
 #include <asm/pci_x86.h>
@@ -144,7 +145,6 @@ static int take_machine_down(void *_suspend)
 {
 	struct suspend *suspend = _suspend;
 	int suspend_cancelled, err;
-	extern void time_resume(void);
 
 	if (suspend->fast_suspend) {
 		BUG_ON(!irqs_disabled());
@@ -170,20 +170,23 @@ static int take_machine_down(void *_suspend)
 	}
 
 	mm_pin_all();
-	gnttab_suspend();
-	pre_suspend();
-
-	/*
-	 * This hypercall returns 1 if suspend was cancelled or the domain was
-	 * merely checkpointed, and 0 if it is resuming in a new domain.
-	 */
-	suspend_cancelled = HYPERVISOR_suspend(virt_to_mfn(xen_start_info));
-
-	suspend->resume_notifier(suspend_cancelled);
-	post_suspend(suspend_cancelled);
-	gnttab_resume();
+	suspend_cancelled = sysdev_suspend(PMSG_SUSPEND);
 	if (!suspend_cancelled) {
-		irq_resume();
+		pre_suspend();
+
+		/*
+		 * This hypercall returns 1 if suspend was cancelled or the domain was
+		 * merely checkpointed, and 0 if it is resuming in a new domain.
+		 */
+		suspend_cancelled = HYPERVISOR_suspend(virt_to_mfn(xen_start_info));
+	} else
+		BUG_ON(suspend_cancelled > 0);
+	suspend->resume_notifier(suspend_cancelled);
+	if (suspend_cancelled >= 0) {
+		post_suspend(suspend_cancelled);
+		sysdev_resume();
+	}
+	if (!suspend_cancelled) {
 #ifdef __x86_64__
 		/*
 		 * Older versions of Xen do not save/restore the user %cr3.
@@ -195,7 +198,6 @@ static int take_machine_down(void *_suspend)
 				current->active_mm->pgd)));
 #endif
 	}
-	time_resume();
 
 	if (!suspend->fast_suspend)
 		local_irq_enable();
@@ -219,6 +221,12 @@ int __xen_suspend(int fast_suspend, void (*resume_notifier)(int))
 	}
 #endif
 
+	err = dpm_suspend_noirq(PMSG_SUSPEND);
+	if (err) {
+		printk(KERN_ERR "dpm_suspend_noirq() failed: %d\n", err);
+		return err;
+	}
+
 	/* If we are definitely UP then 'slow mode' is actually faster. */
 	if (num_possible_cpus() == 1)
 		fast_suspend = 0;
@@ -236,8 +244,10 @@ int __xen_suspend(int fast_suspend, void (*resume_notifier)(int))
 		err = take_machine_down(&suspend);
 	}
 
-	if (err < 0)
+	if (err < 0) {
+		dpm_resume_noirq(PMSG_RESUME);
 		return err;
+	}
 
 	suspend_cancelled = err;
 	if (!suspend_cancelled) {
@@ -249,6 +259,8 @@ int __xen_suspend(int fast_suspend, void (*resume_notifier)(int))
 
 	if (!fast_suspend)
 		smp_resume();
+
+	dpm_resume_noirq(PMSG_RESUME);
 
 	return 0;
 }
