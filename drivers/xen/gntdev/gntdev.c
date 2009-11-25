@@ -782,7 +782,7 @@ static pte_t gntdev_clear_pte(struct vm_area_struct *vma, unsigned long addr,
 				       op.status);
 		} else {
 			/* USING SHADOW PAGE TABLES. */
-			copy = ptep_get_and_clear_full(vma->vm_mm, addr, ptep, is_fullmm);
+			copy = xen_ptep_get_and_clear_full(vma, addr, ptep, is_fullmm);
 		}
 
 		/* Finally, we unmap the grant from kernel space. */
@@ -810,7 +810,7 @@ static pte_t gntdev_clear_pte(struct vm_area_struct *vma, unsigned long addr,
 				    >> PAGE_SHIFT, INVALID_P2M_ENTRY);
 
 	} else {
-		copy = ptep_get_and_clear_full(vma->vm_mm, addr, ptep, is_fullmm);
+		copy = xen_ptep_get_and_clear_full(vma, addr, ptep, is_fullmm);
 	}
 
 	return copy;
