@@ -16,8 +16,9 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
-
+#ifdef CONFIG_XEN
 #include <xen/interface/xenoprof.h>
+#endif
  
 /* Each escaped entry is prefixed by ESCAPE_CODE
  * then one of the following codes, then the
@@ -55,11 +56,12 @@ struct oprofile_operations {
 	/* create any necessary configuration files in the oprofile fs.
 	 * Optional. */
 	int (*create_files)(struct super_block * sb, struct dentry * root);
+#ifdef CONFIG_XEN
 	/* setup active domains with Xen */
 	int (*set_active)(int *active_domains, unsigned int adomains);
 	/* setup passive domains with Xen */
 	int (*set_passive)(int *passive_domains, unsigned int pdomains);
-
+#endif
 	/* Do any necessary interrupt setup. Optional. */
 	int (*setup)(void);
 	/* Do any necessary interrupt shutdown. Optional. */

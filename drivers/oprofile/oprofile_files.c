@@ -171,6 +171,8 @@ static const struct file_operations dump_fops = {
 	.write		= dump_write,
 };
 
+#ifdef CONFIG_XEN
+
 #define TMPBUFSIZE 512
 
 static unsigned int adomains = 0;
@@ -360,6 +362,8 @@ static const struct file_operations passive_domain_ops = {
 	.write		= pdomain_write,
 };
 
+#endif /* CONFIG_XEN */
+
 void oprofile_create_files(struct super_block *sb, struct dentry *root)
 {
 	/* reinitialize default values */
@@ -370,8 +374,10 @@ void oprofile_create_files(struct super_block *sb, struct dentry *root)
 
 	oprofilefs_create_file(sb, root, "enable", &enable_fops);
 	oprofilefs_create_file_perm(sb, root, "dump", &dump_fops, 0666);
+#ifdef CONFIG_XEN
 	oprofilefs_create_file(sb, root, "active_domains", &active_domain_ops);
 	oprofilefs_create_file(sb, root, "passive_domains", &passive_domain_ops);
+#endif
 	oprofilefs_create_file(sb, root, "buffer", &event_buffer_fops);
 	oprofilefs_create_ulong(sb, root, "buffer_size", &oprofile_buffer_size);
 	oprofilefs_create_ulong(sb, root, "buffer_watershed", &oprofile_buffer_watershed);
