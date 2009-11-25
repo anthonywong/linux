@@ -129,7 +129,7 @@ struct vscsifrnt_info {
 int scsifront_xenbus_init(void);
 void scsifront_xenbus_unregister(void);
 int scsifront_schedule(void *data);
-irqreturn_t scsifront_intr(int irq, void *dev_id, struct pt_regs *ptregs);
+irqreturn_t scsifront_intr(int irq, void *dev_id);
 int scsifront_cmd_done(struct vscsifrnt_info *info);
 
 

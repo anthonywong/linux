@@ -83,7 +83,7 @@ int xencons_ring_send(const char *data, unsigned len)
 	return sent;
 }
 
-static irqreturn_t handle_input(int irq, void *unused, struct pt_regs *regs)
+static irqreturn_t handle_input(int irq, void *unused)
 {
 	struct xencons_interface *intf = xencons_interface();
 	XENCONS_RING_IDX cons, prod;
@@ -94,7 +94,7 @@ static irqreturn_t handle_input(int irq, void *unused, struct pt_regs *regs)
 	BUG_ON((prod - cons) > sizeof(intf->in));
 
 	while (cons != prod) {
-		xencons_rx(intf->in+MASK_XENCONS_IDX(cons,intf->in), 1, regs);
+		xencons_rx(intf->in+MASK_XENCONS_IDX(cons,intf->in), 1);
 		cons++;
 	}
 

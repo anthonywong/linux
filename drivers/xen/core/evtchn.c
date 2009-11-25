@@ -516,7 +516,7 @@ static void unbind_from_irq(unsigned int irq)
 
 int bind_caller_port_to_irqhandler(
 	unsigned int caller_port,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id)
@@ -539,7 +539,7 @@ EXPORT_SYMBOL_GPL(bind_caller_port_to_irqhandler);
 
 int bind_listening_port_to_irqhandler(
 	unsigned int remote_domain,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id)
@@ -563,7 +563,7 @@ EXPORT_SYMBOL_GPL(bind_listening_port_to_irqhandler);
 int bind_interdomain_evtchn_to_irqhandler(
 	unsigned int remote_domain,
 	unsigned int remote_port,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id)
@@ -587,7 +587,7 @@ EXPORT_SYMBOL_GPL(bind_interdomain_evtchn_to_irqhandler);
 int bind_virq_to_irqhandler(
 	unsigned int virq,
 	unsigned int cpu,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id)
@@ -611,7 +611,7 @@ EXPORT_SYMBOL_GPL(bind_virq_to_irqhandler);
 int bind_ipi_to_irqhandler(
 	unsigned int ipi,
 	unsigned int cpu,
-	irqreturn_t (*handler)(int, void *, struct pt_regs *),
+	irq_handler_t handler,
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id)
@@ -696,15 +696,7 @@ static unsigned int startup_dynirq(unsigned int irq)
 	return 0;
 }
 
-static void shutdown_dynirq(unsigned int irq)
-{
-	int evtchn = evtchn_from_irq(irq);
-
-	if (VALID_EVTCHN(evtchn))
-		mask_evtchn(evtchn);
-}
-
-static void enable_dynirq(unsigned int irq)
+static void unmask_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
 
@@ -712,7 +704,7 @@ static void enable_dynirq(unsigned int irq)
 		unmask_evtchn(evtchn);
 }
 
-static void disable_dynirq(unsigned int irq)
+static void mask_dynirq(unsigned int irq)
 {
 	int evtchn = evtchn_from_irq(irq);
 
@@ -740,12 +732,13 @@ static void end_dynirq(unsigned int irq)
 		unmask_evtchn(evtchn);
 }
 
-static struct hw_interrupt_type dynirq_type = {
-	.typename = "Dynamic-irq",
+static struct irq_chip dynirq_chip = {
+	.name     = "Dynamic",
 	.startup  = startup_dynirq,
-	.shutdown = shutdown_dynirq,
-	.enable   = enable_dynirq,
-	.disable  = disable_dynirq,
+	.shutdown = mask_dynirq,
+	.mask     = mask_dynirq,
+	.unmask   = unmask_dynirq,
+	.mask_ack = ack_dynirq,
 	.ack      = ack_dynirq,
 	.end      = end_dynirq,
 #ifdef CONFIG_SMP
@@ -859,12 +852,12 @@ static void shutdown_pirq(unsigned int irq)
 	irq_info[irq] = mk_irq_info(IRQT_PIRQ, index_from_irq(irq), 0);
 }
 
-static void enable_pirq(unsigned int irq)
+static void unmask_pirq(unsigned int irq)
 {
 	startup_pirq(irq);
 }
 
-static void disable_pirq(unsigned int irq)
+static void mask_pirq(unsigned int irq)
 {
 }
 
@@ -891,12 +884,13 @@ static void end_pirq(unsigned int irq)
 		pirq_unmask_and_notify(evtchn, irq);
 }
 
-static struct hw_interrupt_type pirq_type = {
-	.typename = "Phys-irq",
+static struct irq_chip pirq_chip = {
+	.name     = "Phys",
 	.startup  = startup_pirq,
 	.shutdown = shutdown_pirq,
-	.enable   = enable_pirq,
-	.disable  = disable_pirq,
+	.mask     = mask_pirq,
+	.unmask   = unmask_pirq,
+	.mask_ack = ack_pirq,
 	.ack      = ack_pirq,
 	.end      = end_pirq,
 #ifdef CONFIG_SMP
@@ -1081,7 +1075,8 @@ void evtchn_register_pirq(int irq)
 	if (identity_mapped_irq(irq) || type_from_irq(irq) != IRQT_UNBOUND)
 		return;
 	irq_info[irq] = mk_irq_info(IRQT_PIRQ, irq, 0);
-	irq_desc[irq].chip = &pirq_type;
+	set_irq_chip_and_handler_name(irq, &pirq_chip, handle_level_irq,
+				      "level");
 }
 
 int evtchn_map_pirq(int irq, int xen_pirq)
@@ -1104,11 +1099,18 @@ int evtchn_map_pirq(int irq, int xen_pirq)
 		spin_unlock(&irq_alloc_lock);
 		if (irq < PIRQ_BASE)
 			return -ENOSPC;
-		irq_desc[irq].chip = &pirq_type;
+		set_irq_chip_and_handler_name(irq, &pirq_chip,
+					      handle_level_irq, "level");
 	} else if (!xen_pirq) {
 		if (unlikely(type_from_irq(irq) != IRQT_PIRQ))
 			return -EINVAL;
-		irq_desc[irq].chip = &no_irq_type;
+		/*
+		 * dynamic_irq_cleanup(irq) would seem to be the correct thing
+		 * here, but cannot be used as we get here also during shutdown
+		 * when a driver didn't free_irq() its MSI(-X) IRQ(s), which
+		 * then causes a warning in dynamic_irq_cleanup().
+		 */
+		set_irq_chip_and_handler(irq, NULL, NULL);
 		irq_info[irq] = IRQ_UNBOUND;
 		return 0;
 	} else if (type_from_irq(irq) != IRQT_PIRQ
@@ -1154,10 +1156,9 @@ void __init xen_init_IRQ(void)
 	for (i = DYNIRQ_BASE; i < (DYNIRQ_BASE + NR_DYNIRQS); i++) {
 		irq_bindcount[i] = 0;
 
-		irq_desc[i].status = IRQ_DISABLED|IRQ_NOPROBE;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &dynirq_type;
+		irq_desc[i].status |= IRQ_NOPROBE;
+		set_irq_chip_and_handler_name(i, &dynirq_chip,
+					      handle_level_irq, "level");
 	}
 
 	/* Phys IRQ space is statically bound (1:1 mapping). Nail refcnts. */
@@ -1173,9 +1174,7 @@ void __init xen_init_IRQ(void)
 			continue;
 #endif
 
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
-		irq_desc[i].chip = &pirq_type;
+		set_irq_chip_and_handler_name(i, &pirq_chip,
+					      handle_level_irq, "level");
 	}
 }

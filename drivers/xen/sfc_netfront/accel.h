@@ -467,10 +467,8 @@ void netfront_accel_msg_tx_fastpath(netfront_accel_vnic *vnic, const void *mac,
 				    u32 ip, u16 port, u8 protocol);
 
 /* Process an IRQ received from back end driver */
-irqreturn_t netfront_accel_msg_channel_irq_from_bend(int irq, void *context, 
-						     struct pt_regs *unused);
-irqreturn_t netfront_accel_net_channel_irq_from_bend(int irq, void *context, 
-						     struct pt_regs *unused);
+irqreturn_t netfront_accel_msg_channel_irq_from_bend(int irq, void *context);
+irqreturn_t netfront_accel_net_channel_irq_from_bend(int irq, void *context);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
 extern void netfront_accel_msg_from_bend(struct work_struct *context);
