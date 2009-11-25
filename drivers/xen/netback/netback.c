@@ -583,8 +583,12 @@ static void net_rx_action(unsigned long unused)
 	static mmu_update_t rx_mmu[NET_RX_RING_SIZE];
 	static gnttab_transfer_t grant_trans_op[NET_RX_RING_SIZE];
 	static gnttab_copy_t grant_copy_op[NET_RX_RING_SIZE];
-	static unsigned char rx_notify[NR_IRQS];
+	static DECLARE_BITMAP(rx_notify, NR_DYNIRQS);
+#if NR_DYNIRQS <= 0x10000
 	static u16 notify_list[NET_RX_RING_SIZE];
+#else
+	static int notify_list[NET_RX_RING_SIZE];
+#endif
 	static struct netbk_rx_meta meta[NET_RX_RING_SIZE];
 
 	struct netrx_pending_operations npo = {
@@ -733,11 +737,9 @@ static void net_rx_action(unsigned long unused)
 					 nr_frags);
 
 		RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&netif->rx, ret);
-		irq = netif->irq;
-		if (ret && !rx_notify[irq]) {
-			rx_notify[irq] = 1;
+		irq = netif->irq - DYNIRQ_BASE;
+		if (ret && !__test_and_set_bit(irq, rx_notify))
 			notify_list[notify_nr++] = irq;
-		}
 
 		if (netif_queue_stopped(netif->dev) &&
 		    netif_schedulable(netif) &&
@@ -751,8 +753,8 @@ static void net_rx_action(unsigned long unused)
 
 	while (notify_nr != 0) {
 		irq = notify_list[--notify_nr];
-		rx_notify[irq] = 0;
-		notify_remote_via_irq(irq);
+		__clear_bit(irq, rx_notify);
+		notify_remote_via_irq(irq + DYNIRQ_BASE);
 	}
 
 	/* More work to do? */
