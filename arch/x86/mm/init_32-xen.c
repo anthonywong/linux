@@ -748,6 +748,8 @@ static void __init zone_sizes_init(void)
 #endif
 
 	free_area_init_nodes(max_zone_pfns);
+
+	xen_init_pgd_pin();
 }
 
 static unsigned long __init setup_node_bootmem(int nodeid,
@@ -1018,8 +1020,6 @@ void __init mem_init(void)
 
 	save_pg_dir();
 	zap_low_mappings(true);
-
-	SetPagePinned(virt_to_page(init_mm.pgd));
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
