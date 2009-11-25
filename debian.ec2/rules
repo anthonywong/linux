@@ -7,30 +7,28 @@
 # Copyright (c) 2007 Ben Collins <bcollins@ubuntu.com>
 #
 
-DEBIAN=$(shell awk -F= '($$1 == "DEBIAN") { print $$2 }' <debian/debian.env)
-#ifeq ($(DEBIAN),)
-#DEBIAN=debian.ec2
-#endif
+ifeq ($(DEBIAN),)
+DEBIAN=debian.master
+endif
 
 # dpkg-buildpackage passes options that are incomptatible
 # with the kernel build.
 unexport CFLAGS
 unexport LDFLAGS
 
+# This is the debhelper compatability version to use.
+export DH_COMPAT=4
 export LC_ALL=C
 export SHELL=/bin/bash -e
 
-# Where do we find the common configuration.
-export DROOT=debian
-
 # Common variables for all architectures
-include $(DROOT)/rules.d/0-common-vars.mk
+include $(DEBIAN)/rules.d/0-common-vars.mk
 
 # Pull in some arch specific stuff
--include $(DEBIAN)/rules.d/$(arch).mk
+include $(DEBIAN)/rules.d/$(arch).mk
 
 # Maintainer targets
-include $(DROOT)/rules.d/1-maintainer.mk
+include $(DEBIAN)/rules.d/1-maintainer.mk
 
 # Debian Build System targets
 binary: binary-indep binary-arch
@@ -58,26 +56,21 @@ clean: debian/control
 	# Install the copyright information.
 	cp $(DEBIAN)/copyright debian/copyright
 
-distclean: clean
-	rm -rf $(DEBIAN)/control $(DEBIAN)/control.stub \
-		$(DEBIAN)/d-i/kernel-versions debian/changelog \
-		debian/control debian/control.stub debian/copyright
-
 # Builds the image, arch headers and debug packages
-include $(DROOT)/rules.d/2-binary-arch.mk
+include $(DEBIAN)/rules.d/2-binary-arch.mk
 
 # Rules for building the udebs ($(DEBIAN)-installer)
-include $(DROOT)/rules.d/5-udebs.mk
+include $(DEBIAN)/rules.d/5-udebs.mk
 
 # Builds the source, doc and linux-headers indep packages
-include $(DROOT)/rules.d/3-binary-indep.mk
+include $(DEBIAN)/rules.d/3-binary-indep.mk
 
 # Various checks to be performed on builds
-include $(DROOT)/rules.d/4-checks.mk
+include $(DEBIAN)/rules.d/4-checks.mk
 
 # Misc stuff
 $(DEBIAN)/control.stub: $(DEBIAN)/d-i/kernel-versions.in	\
-		$(DROOT)/scripts/control-create		\
+		$(DEBIAN)/scripts/control-create		\
 		$(DEBIAN)/control.stub.in			\
 		$(DEBIAN)/changelog			\
 		$(wildcard $(DEBIAN)/control.d/* $(DEBIAN)/sub-flavours/*.vars)
@@ -90,7 +83,7 @@ $(DEBIAN)/control.stub: $(DEBIAN)/d-i/kernel-versions.in	\
 	done
 	flavours="$(wildcard $(DEBIAN)/control.d/vars.* $(DEBIAN)/sub-flavours/*.vars)";\
 	for i in $$flavours; do							\
-	  $(SHELL) $(DROOT)/scripts/control-create $$i |				\
+	  $(SHELL) $(DEBIAN)/scripts/control-create $$i |				\
 		sed -e 's/PKGVER/$(release)/g'                                  \
 		-e 's/ABINUM/$(abinum)/g'                                       \
 		-e 's/SRCPKGNAME/$(src_pkg_name)/g'                             \

@@ -1,0 +1,15 @@
+# arch	version		flavour		installedname			suffix	bdep
+amd64	2.6.31-302	generic		2.6.31-302-generic		-	
+
+i386	2.6.31-302	generic		2.6.31-302-generic		-	
+
+lpia	2.6.31-302	lpia		2.6.31-302-lpia
+
+# Ports
+# arch	version		flavour		installedname			suffix	bdep
+ia64	2.6.31-302	ia64			2.6.31-302-ia64	-	
+
+powerpc	2.6.31-302	powerpc			2.6.31-302-powerpc		-	
+powerpc	2.6.31-302	powerpc64-smp		2.6.31-302-powerpc64-smp	-	
+
+sparc	2.6.31-302	sparc64			2.6.31-302-sparc64		-	
