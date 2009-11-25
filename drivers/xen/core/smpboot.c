@@ -36,11 +36,7 @@ extern void smp_trap_init(trap_info_t *);
 /* Number of siblings per CPU package */
 int smp_num_siblings = 1;
 
-cpumask_t cpu_online_map;
-EXPORT_SYMBOL(cpu_online_map);
-cpumask_t cpu_possible_map;
-EXPORT_SYMBOL(cpu_possible_map);
-cpumask_t cpu_initialized_map;
+cpumask_var_t vcpu_initialized_mask;
 
 DEFINE_PER_CPU(struct cpuinfo_x86, cpu_info);
 EXPORT_PER_CPU_SYMBOL(cpu_info);
@@ -72,7 +68,7 @@ void __init prefill_possible_map(void)
 	for (i = 0; i < NR_CPUS; i++) {
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
 		if (rc >= 0) {
-			cpu_set(i, cpu_possible_map);
+			set_cpu_possible(i, true);
 			nr_cpu_ids = i + 1;
 		}
 	}
@@ -199,7 +195,7 @@ static void __cpuinit cpu_initialize_context(unsigned int cpu)
 
 	struct task_struct *idle = idle_task(cpu);
 
-	if (cpu_test_and_set(cpu, cpu_initialized_map))
+	if (cpumask_test_and_set_cpu(cpu, vcpu_initialized_mask))
 		return;
 
 	spin_lock(&ctxt_lock);
@@ -280,13 +276,15 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	if (xen_smp_intr_init(0))
 		BUG();
 
-	cpu_initialized_map = cpumask_of_cpu(0);
+	if (!alloc_cpumask_var(&vcpu_initialized_mask, GFP_KERNEL))
+		BUG();
+	cpumask_copy(vcpu_initialized_mask, cpumask_of(0));
 
 	/* Restrict the possible_map according to max_cpus. */
 	while ((num_possible_cpus() > 1) && (num_possible_cpus() > max_cpus)) {
-		for (cpu = NR_CPUS-1; !cpu_isset(cpu, cpu_possible_map); cpu--)
+		for (cpu = nr_cpu_ids-1; !cpumask_test_cpu(cpu, cpu_possible_mask); cpu--)
 			continue;
-		cpu_clear(cpu, cpu_possible_map);
+		set_cpu_possible(cpu, false);
 	}
 
 	for_each_possible_cpu (cpu) {
@@ -324,10 +322,8 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 #ifdef CONFIG_HOTPLUG_CPU
 		if (is_initial_xendomain())
-			cpu_set(cpu, cpu_present_map);
-#else
-		cpu_set(cpu, cpu_present_map);
 #endif
+			set_cpu_present(cpu, true);
 	}
 
 	init_xenbus_allowed_cpumask();
@@ -360,14 +356,17 @@ void __init smp_prepare_boot_cpu(void)
  */
 static int __init initialize_cpu_present_map(void)
 {
-	cpu_present_map = cpu_possible_map;
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu)
+		set_cpu_present(cpu, true);
+
 	return 0;
 }
 core_initcall(initialize_cpu_present_map);
 
 int __cpuexit __cpu_disable(void)
 {
-	cpumask_t map = cpu_online_map;
 	unsigned int cpu = smp_processor_id();
 
 	if (cpu == 0)
@@ -375,9 +374,8 @@ int __cpuexit __cpu_disable(void)
 
 	remove_siblinginfo(cpu);
 
-	cpu_clear(cpu, map);
-	fixup_irqs(map);
-	cpu_clear(cpu, cpu_online_map);
+	set_cpu_online(cpu, false);
+	fixup_irqs();
 
 	return 0;
 }
@@ -420,7 +418,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 		return rc;
 	}
 
-	cpu_set(cpu, cpu_online_map);
+	set_cpu_online(cpu, true);
 
 	rc = HYPERVISOR_vcpu_op(VCPUOP_up, cpu, NULL);
 	BUG_ON(rc);
@@ -432,7 +430,7 @@ void __ref play_dead(void)
 {
 	idle_task_exit();
 	local_irq_disable();
-	cpu_clear(smp_processor_id(), cpu_initialized);
+	cpumask_clear_cpu(smp_processor_id(), cpu_initialized_mask);
 	preempt_enable_no_resched();
 	VOID(HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL));
 #ifdef CONFIG_HOTPLUG_CPU

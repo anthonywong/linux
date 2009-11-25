@@ -10,10 +10,10 @@
  * Set of CPUs that remote admin software will allow us to bring online.
  * Notified to us via xenbus.
  */
-static cpumask_t xenbus_allowed_cpumask;
+static cpumask_var_t xenbus_allowed_cpumask;
 
 /* Set of CPUs that local admin will allow us to bring online. */
-static cpumask_t local_allowed_cpumask = CPU_MASK_ALL;
+static cpumask_var_t local_allowed_cpumask;
 
 static int local_cpu_hotplug_request(void)
 {
@@ -40,10 +40,10 @@ static void vcpu_hotplug(unsigned int cpu)
 	}
 
 	if (strcmp(state, "online") == 0) {
-		cpu_set(cpu, xenbus_allowed_cpumask);
+		cpumask_set_cpu(cpu, xenbus_allowed_cpumask);
 		(void)cpu_up(cpu);
 	} else if (strcmp(state, "offline") == 0) {
-		cpu_clear(cpu, xenbus_allowed_cpumask);
+		cpumask_clear_cpu(cpu, xenbus_allowed_cpumask);
 		(void)cpu_down(cpu);
 	} else {
 		printk(KERN_ERR "XENBUS: unknown state(%s) on CPU%d\n",
@@ -75,7 +75,7 @@ static int smpboot_cpu_notify(struct notifier_block *notifier,
 	 * as it's always executed from within a stopmachine kthread.
 	 */
 	if ((action == CPU_DOWN_PREPARE) && local_cpu_hotplug_request())
-		cpu_clear(cpu, local_allowed_cpumask);
+		cpumask_clear_cpu(cpu, local_allowed_cpumask);
 
 	return NOTIFY_OK;
 }
@@ -156,21 +156,26 @@ int cpu_up_check(unsigned int cpu)
 	int rc = 0;
 
 	if (local_cpu_hotplug_request()) {
-		cpu_set(cpu, local_allowed_cpumask);
-		if (!cpu_isset(cpu, xenbus_allowed_cpumask)) {
+		cpumask_set_cpu(cpu, local_allowed_cpumask);
+		if (!cpumask_test_cpu(cpu, xenbus_allowed_cpumask)) {
 			printk("%s: attempt to bring up CPU %u disallowed by "
 			       "remote admin.\n", __FUNCTION__, cpu);
 			rc = -EBUSY;
 		}
-	} else if (!cpu_isset(cpu, local_allowed_cpumask) ||
-		   !cpu_isset(cpu, xenbus_allowed_cpumask)) {
+	} else if (!cpumask_test_cpu(cpu, local_allowed_cpumask) ||
+		   !cpumask_test_cpu(cpu, xenbus_allowed_cpumask)) {
 		rc = -EBUSY;
 	}
 
 	return rc;
 }
 
-void init_xenbus_allowed_cpumask(void)
+void __init init_xenbus_allowed_cpumask(void)
 {
-	xenbus_allowed_cpumask = cpu_present_map;
+	if (!alloc_cpumask_var(&xenbus_allowed_cpumask, GFP_KERNEL))
+		BUG();
+	cpumask_copy(xenbus_allowed_cpumask, cpu_present_mask);
+	if (!alloc_cpumask_var(&local_allowed_cpumask, GFP_KERNEL))
+		BUG();
+	cpumask_setall(local_allowed_cpumask);
 }
