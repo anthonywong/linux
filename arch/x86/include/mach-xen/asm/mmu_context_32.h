@@ -6,6 +6,20 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
+void arch_exit_mmap(struct mm_struct *mm);
+void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
+
+void mm_pin(struct mm_struct *mm);
+void mm_unpin(struct mm_struct *mm);
+void mm_pin_all(void);
+
+static inline void xen_activate_mm(struct mm_struct *prev,
+				   struct mm_struct *next)
+{
+	if (!test_bit(PG_pinned, &virt_to_page(next->pgd)->flags))
+		mm_pin(next);
+}
+
 /*
  * Used for LDT copy/destruction.
  */
@@ -36,10 +50,6 @@ static inline void __prepare_arch_switch(void)
 	asm volatile ( "movl %0,%%gs"
 		: : "r" (0) );
 }
-
-extern void mm_pin(struct mm_struct *mm);
-extern void mm_unpin(struct mm_struct *mm);
-void mm_pin_all(void);
 
 static inline void switch_mm(struct mm_struct *prev,
 			     struct mm_struct *next,
@@ -97,11 +107,10 @@ static inline void switch_mm(struct mm_struct *prev,
 #define deactivate_mm(tsk, mm)			\
 	asm("movl %0,%%gs": :"r" (0));
 
-static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
-{
-	if (!test_bit(PG_pinned, &virt_to_page(next->pgd)->flags))
-		mm_pin(next);
-	switch_mm(prev, next, NULL);
-}
+#define activate_mm(prev, next)				\
+	do {						\
+		xen_activate_mm(prev, next);		\
+		switch_mm((prev),(next),NULL);		\
+	} while(0)
 
 #endif

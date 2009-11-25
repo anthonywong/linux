@@ -1,12 +1,14 @@
 #ifndef _X86_64_PGTABLE_H
 #define _X86_64_PGTABLE_H
 
+#include <linux/const.h>
+#ifndef __ASSEMBLY__
+
 /*
  * This file contains the functions and defines necessary to modify and use
  * the x86-64 page table tree.
  */
 #include <asm/processor.h>
-#include <asm/fixmap.h>
 #include <asm/bitops.h>
 #include <linux/threads.h>
 #include <linux/sched.h>
@@ -35,11 +37,9 @@ extern pte_t *lookup_address(unsigned long address);
 #endif
 
 extern pud_t level3_kernel_pgt[512];
-extern pud_t level3_physmem_pgt[512];
 extern pud_t level3_ident_pgt[512];
 extern pmd_t level2_kernel_pgt[512];
 extern pgd_t init_level4_pgt[];
-extern pgd_t boot_level4_pgt[];
 extern unsigned long __supported_pte_mask;
 
 #define swapper_pg_dir init_level4_pgt
@@ -53,6 +53,8 @@ extern void clear_kernel_mapping(unsigned long addr, unsigned long size);
  */
 extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
 #define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+
+#endif /* !__ASSEMBLY__ */
 
 /*
  * PGDIR_SHIFT determines what a top-level page table entry can map
@@ -77,6 +79,8 @@ extern unsigned long empty_zero_page[PAGE_SIZE/sizeof(unsigned long)];
  * entries per page directory level
  */
 #define PTRS_PER_PTE	512
+
+#ifndef __ASSEMBLY__
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %p(%016lx pfn %010lx).\n", __FILE__, __LINE__, \
@@ -120,22 +124,23 @@ static inline void pgd_clear (pgd_t * pgd)
 
 #define pte_pgprot(a)	(__pgprot((a).pte & ~PHYSICAL_PAGE_MASK))
 
-#define PMD_SIZE	(1UL << PMD_SHIFT)
+#endif /* !__ASSEMBLY__ */
+
+#define PMD_SIZE	(_AC(1,UL) << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define PUD_SIZE	(1UL << PUD_SHIFT)
+#define PUD_SIZE	(_AC(1,UL) << PUD_SHIFT)
 #define PUD_MASK	(~(PUD_SIZE-1))
-#define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+#define PGDIR_SIZE	(_AC(1,UL) << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define USER_PTRS_PER_PGD	((TASK_SIZE-1)/PGDIR_SIZE+1)
 #define FIRST_USER_ADDRESS	0
 
-#ifndef __ASSEMBLY__
-#define MAXMEM		 0x6fffffffffUL
-#define VMALLOC_START    0xffffc20000000000UL
-#define VMALLOC_END      0xffffe1ffffffffffUL
-#define MODULES_VADDR    0xffffffff88000000UL
-#define MODULES_END      0xffffffffff000000UL
+#define MAXMEM		 _AC(0x6fffffffff, UL)
+#define VMALLOC_START    _AC(0xffffc20000000000, UL)
+#define VMALLOC_END      _AC(0xffffe1ffffffffff, UL)
+#define MODULES_VADDR    _AC(0xffffffff88000000, UL)
+#define MODULES_END      _AC(0xffffffffff000000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
 
 #define _PAGE_BIT_PRESENT	0
@@ -161,15 +166,17 @@ static inline void pgd_clear (pgd_t * pgd)
 #define _PAGE_GLOBAL	0x100	/* Global TLB entry */
 
 #define _PAGE_PROTNONE	0x080	/* If not present */
-#define _PAGE_NX        (1UL<<_PAGE_BIT_NX)
+#define _PAGE_NX        (_AC(1,UL)<<_PAGE_BIT_NX)
 
 /* Mapped page is I/O or foreign and has no associated page struct. */
 #define _PAGE_IO	0x200
 
+#ifndef __ASSEMBLY__
 #if CONFIG_XEN_COMPAT <= 0x030002
 extern unsigned int __kernel_page_user;
 #else
 #define __kernel_page_user 0
+#endif
 #endif
 
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
@@ -234,6 +241,8 @@ extern unsigned int __kernel_page_user;
 #define __S101	PAGE_READONLY_EXEC
 #define __S110	PAGE_SHARED_EXEC
 #define __S111	PAGE_SHARED_EXEC
+
+#ifndef __ASSEMBLY__
 
 static inline unsigned long pgd_bad(pgd_t pgd)
 {
@@ -345,6 +354,20 @@ static inline pte_t pte_mkyoung(pte_t pte)	{ __pte_val(pte) |= _PAGE_ACCESSED; r
 static inline pte_t pte_mkwrite(pte_t pte)	{ __pte_val(pte) |= _PAGE_RW; return pte; }
 static inline pte_t pte_mkhuge(pte_t pte)	{ __pte_val(pte) |= _PAGE_PSE; return pte; }
 static inline pte_t pte_clrhuge(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_PSE; return pte; }
+
+static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+{
+	if (!pte_dirty(*ptep))
+		return 0;
+	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte);
+}
+
+static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
+{
+	if (!pte_young(*ptep))
+		return 0;
+	return test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte);
+}
 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
@@ -470,18 +493,12 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  * bit at the same time. */
 #define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 #define ptep_set_access_flags(vma, address, ptep, entry, dirty)		\
-	do {								\
-		if (dirty)						\
-			ptep_establish(vma, address, ptep, entry);	\
-	} while (0)
-
-
-/*
- * i386 says: We don't actually have these, but we want to advertise
- * them so that we can encompass the flush here.
- */
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+({									\
+	int __changed = !pte_same(*(ptep), entry);			\
+	if (__changed && (dirty))					\
+		ptep_establish(vma, address, ptep, entry);		\
+	__changed;							\
+})
 
 #define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
 #define ptep_clear_flush_dirty(vma, address, ptep)			\
@@ -490,7 +507,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	int __dirty = pte_dirty(__pte);					\
 	__pte = pte_mkclean(__pte);					\
 	if ((vma)->vm_mm->context.pinned)				\
-		ptep_set_access_flags(vma, address, ptep, __pte, __dirty); \
+		(void)ptep_set_access_flags(vma, address, ptep, __pte, __dirty); \
 	else if (__dirty)						\
 		set_pte(ptep, __pte);					\
 	__dirty;							\
@@ -503,7 +520,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	int __young = pte_young(__pte);					\
 	__pte = pte_mkold(__pte);					\
 	if ((vma)->vm_mm->context.pinned)				\
-		ptep_set_access_flags(vma, address, ptep, __pte, __young); \
+		(void)ptep_set_access_flags(vma, address, ptep, __pte, __young); \
 	else if (__young)						\
 		set_pte(ptep, __pte);					\
 	__young;							\
@@ -517,10 +534,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
 extern spinlock_t pgd_lock;
-extern struct page *pgd_list;
-void vmalloc_sync_all(void);
-
-#endif /* !__ASSEMBLY__ */
+extern struct list_head pgd_list;
 
 extern int kern_addr_valid(unsigned long addr); 
 
@@ -559,10 +573,6 @@ int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		direct_remap_pfn_range(vma,vaddr,pfn,size,prot,DOMID_IO)
 
-#define MK_IOSPACE_PFN(space, pfn)	(pfn)
-#define GET_IOSPACE(pfn)		0
-#define GET_PFN(pfn)			(pfn)
-
 #define HAVE_ARCH_UNMAPPED_AREA
 
 #define pgtable_cache_init()   do { } while (0)
@@ -576,11 +586,14 @@ int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 #define	kc_offset_to_vaddr(o) \
    (((o) & (1UL << (__VIRTUAL_MASK_SHIFT-1))) ? ((o) | (~__VIRTUAL_MASK)) : (o))
 
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
 #include <asm-generic/pgtable.h>
+#endif /* !__ASSEMBLY__ */
 
 #endif /* _X86_64_PGTABLE_H */
