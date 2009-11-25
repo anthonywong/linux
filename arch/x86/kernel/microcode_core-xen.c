@@ -21,8 +21,6 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  */
-
-//#define DEBUG /* pr_debug */
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -44,25 +42,22 @@
 #include <asm/msr.h>
 #include <asm/uaccess.h>
 #include <asm/processor.h>
+#include <asm/microcode.h>
 
-MODULE_DESCRIPTION("Intel CPU (IA-32) Microcode Update Driver");
+MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
 MODULE_LICENSE("GPL");
 
 static int verbose;
 module_param(verbose, int, 0644);
 
-#define MICROCODE_VERSION 	"1.14a-xen"
-
-#define DEFAULT_UCODE_DATASIZE 	(2000) 	  /* 2000 bytes */
-#define MC_HEADER_SIZE		(sizeof (microcode_header_t))  	  /* 48 bytes */
-#define DEFAULT_UCODE_TOTALSIZE (DEFAULT_UCODE_DATASIZE + MC_HEADER_SIZE) /* 2048 bytes */
+#define MICROCODE_VERSION 	"2.00-xen"
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
 static DEFINE_MUTEX(microcode_mutex);
-				
+
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
-static int do_microcode_update (const void __user *ubuf, size_t len)
+static int do_microcode_update(const void __user *ubuf, size_t len)
 {
 	int err;
 	void *kbuf;
@@ -86,20 +81,22 @@ static int do_microcode_update (const void __user *ubuf, size_t len)
 	return err;
 }
 
-static int microcode_open (struct inode *unused1, struct file *unused2)
+static int microcode_open(struct inode *unused1, struct file *unused2)
 {
 	cycle_kernel_lock();
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
-static ssize_t microcode_write (struct file *file, const char __user *buf, size_t len, loff_t *ppos)
+static ssize_t microcode_write(struct file *file, const char __user *buf,
+			       size_t len, loff_t *ppos)
 {
 	ssize_t ret;
 
-	if (len < MC_HEADER_SIZE) {
-		printk(KERN_ERR "microcode: not enough data\n"); 
-		return -EINVAL;
-	}
+	if ((len >> PAGE_SHIFT) > num_physpages) {
+		printk(KERN_ERR "microcode: too much data (max %ld pages)\n",
+		       num_physpages);
+ 		return -EINVAL;
+ 	}
 
 	mutex_lock(&microcode_mutex);
 
@@ -124,7 +121,7 @@ static struct miscdevice microcode_dev = {
 	.fops		= &microcode_fops,
 };
 
-static int __init microcode_dev_init (void)
+static int __init microcode_dev_init(void)
 {
 	int error;
 
@@ -139,7 +136,7 @@ static int __init microcode_dev_init (void)
 	return 0;
 }
 
-static void microcode_dev_exit (void)
+static void microcode_dev_exit(void)
 {
 	misc_deregister(&microcode_dev);
 }
@@ -147,22 +144,18 @@ static void microcode_dev_exit (void)
 MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #else
 #define microcode_dev_init() 0
-#define microcode_dev_exit() do { } while(0)
+#define microcode_dev_exit() do { } while (0)
 #endif
 
 /* fake device for request_firmware */
 static struct platform_device *microcode_pdev;
 
-static int request_microcode(void)
+static int request_microcode(const char *name)
 {
-	char name[30];
-	const struct cpuinfo_x86 *c = &boot_cpu_data;
 	const struct firmware *firmware;
 	int error;
 	struct xen_platform_op op;
 
-	sprintf(name,"intel-ucode/%02x-%02x-%02x",
-		c->x86, c->x86_model, c->x86_mask);
 	error = request_firmware(&firmware, name, &microcode_pdev->dev);
 	if (error) {
 		pr_debug("microcode: data file %s load failed\n", name);
@@ -182,12 +175,22 @@ static int request_microcode(void)
 	return error;
 }
 
-static int __init microcode_init (void)
+static int __init microcode_init(void)
 {
+	const struct cpuinfo_x86 *c = &boot_cpu_data;
+	char buf[32];
+	const char *fw_name = buf;
 	int error;
 
-	printk(KERN_INFO
-		"IA-32 Microcode Update Driver: v" MICROCODE_VERSION " <tigran@aivazian.fsnet.co.uk>\n");
+	if (c->x86_vendor == X86_VENDOR_INTEL)
+		sprintf(buf, "intel-ucode/%02x-%02x-%02x",
+			c->x86, c->x86_model, c->x86_mask);
+	else if (c->x86_vendor == X86_VENDOR_AMD)
+		fw_name = "amd-ucode/microcode_amd.bin";
+	else {
+		printk(KERN_ERR "microcode: no support for this CPU vendor\n");
+		return -ENODEV;
+	}
 
 	error = microcode_dev_init();
 	if (error)
@@ -199,16 +202,24 @@ static int __init microcode_init (void)
 		return PTR_ERR(microcode_pdev);
 	}
 
-	request_microcode();
+	request_microcode(fw_name);
+
+	printk(KERN_INFO
+	       "Microcode Update Driver: v" MICROCODE_VERSION
+	       " <tigran@aivazian.fsnet.co.uk>,"
+	       " Peter Oruba\n");
 
 	return 0;
 }
 
-static void __exit microcode_exit (void)
+static void __exit microcode_exit(void)
 {
 	microcode_dev_exit();
 	platform_device_unregister(microcode_pdev);
+
+	printk(KERN_INFO
+	       "Microcode Update Driver: v" MICROCODE_VERSION " removed.\n");
 }
 
-module_init(microcode_init)
-module_exit(microcode_exit)
+module_init(microcode_init);
+module_exit(microcode_exit);

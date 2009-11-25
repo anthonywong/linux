@@ -1,5 +1,5 @@
-#ifndef __X86_64_MMU_CONTEXT_H
-#define __X86_64_MMU_CONTEXT_H
+#ifndef _ASM_X86_MMU_CONTEXT_64_H
+#define _ASM_X86_MMU_CONTEXT_64_H
 
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
@@ -103,4 +103,4 @@ do {						\
 	asm volatile("movl %0,%%fs"::"r"(0));	\
 } while (0)
 
-#endif
+#endif /* _ASM_X86_MMU_CONTEXT_64_H */

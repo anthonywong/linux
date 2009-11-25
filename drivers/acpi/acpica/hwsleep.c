@@ -396,8 +396,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 	err = acpi_notify_hypervisor_state(sleep_state,
 			PM1Acontrol, PM1Bcontrol);
 	if (err) {
-		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-				  "Hypervisor failure [%d]\n", err));
+		printk(KERN_ERR "ACPI: Hypervisor failure [%d]\n", err);
 		return_ACPI_STATUS(AE_ERROR);
 	}
 #endif
