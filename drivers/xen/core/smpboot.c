@@ -168,13 +168,13 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
  fail:
 	xen_spinlock_cleanup(cpu);
  unbind_reboot:
-	unbind_from_per_cpu_irq(reboot_irq, cpu);
+	unbind_from_per_cpu_irq(reboot_irq, cpu, NULL);
  unbind_call1:
-	unbind_from_per_cpu_irq(call1func_irq, cpu);
+	unbind_from_per_cpu_irq(call1func_irq, cpu, NULL);
  unbind_call:
-	unbind_from_per_cpu_irq(callfunc_irq, cpu);
+	unbind_from_per_cpu_irq(callfunc_irq, cpu, NULL);
  unbind_resched:
-	unbind_from_per_cpu_irq(resched_irq, cpu);
+	unbind_from_per_cpu_irq(resched_irq, cpu, NULL);
 	return rc;
 }
 
@@ -184,10 +184,10 @@ static void __cpuinit xen_smp_intr_exit(unsigned int cpu)
 	if (cpu != 0)
 		local_teardown_timer(cpu);
 
-	unbind_from_per_cpu_irq(resched_irq, cpu);
-	unbind_from_per_cpu_irq(callfunc_irq, cpu);
-	unbind_from_per_cpu_irq(call1func_irq, cpu);
-	unbind_from_per_cpu_irq(reboot_irq, cpu);
+	unbind_from_per_cpu_irq(resched_irq, cpu, NULL);
+	unbind_from_per_cpu_irq(callfunc_irq, cpu, NULL);
+	unbind_from_per_cpu_irq(call1func_irq, cpu, NULL);
+	unbind_from_per_cpu_irq(reboot_irq, cpu, NULL);
 	xen_spinlock_cleanup(cpu);
 }
 #endif
