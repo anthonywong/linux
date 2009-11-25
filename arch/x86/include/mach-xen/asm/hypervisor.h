@@ -112,8 +112,8 @@ void xen_l1_entry_update(pte_t *ptr, pte_t val);
 void xen_l2_entry_update(pmd_t *ptr, pmd_t val);
 void xen_l3_entry_update(pud_t *ptr, pud_t val); /* x86_64/PAE */
 void xen_l4_entry_update(pgd_t *ptr, int user, pgd_t val); /* x86_64 only */
-void xen_pgd_pin(unsigned long ptr);
-void xen_pgd_unpin(unsigned long ptr);
+void xen_pgd_pin(pgd_t *);
+void xen_pgd_unpin(pgd_t *);
 
 void xen_init_pgd_pin(void);
 
