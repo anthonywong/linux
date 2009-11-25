@@ -4,6 +4,7 @@
 
 config XEN
 	bool
+	select IRQ_PER_CPU if SMP
 
 if XEN
 config XEN_INTERFACE_VERSION
@@ -347,6 +348,9 @@ endmenu
 
 config HAVE_IRQ_IGNORE_UNHANDLED
 	def_bool y
+
+config IRQ_PER_CPU
+	bool
 
 config NO_IDLE_HZ
 	def_bool y
