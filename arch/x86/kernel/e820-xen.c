@@ -129,19 +129,50 @@ int __init e820_all_mapped(u64 start, u64 end, unsigned type)
 /*
  * Add a memory region to the kernel e820 map.
  */
-void __init e820_add_region(u64 start, u64 size, int type)
+static void __init __e820_add_region(struct e820map *e820x, u64 start, u64 size,
+					 int type)
 {
-	int x = e820.nr_map;
+	int x = e820x->nr_map;
 
-	if (x == ARRAY_SIZE(e820.map)) {
+	if (x == ARRAY_SIZE(e820x->map)) {
 		printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
 		return;
 	}
 
-	e820.map[x].addr = start;
-	e820.map[x].size = size;
-	e820.map[x].type = type;
-	e820.nr_map++;
+	e820x->map[x].addr = start;
+	e820x->map[x].size = size;
+	e820x->map[x].type = type;
+	e820x->nr_map++;
+}
+
+void __init e820_add_region(u64 start, u64 size, int type)
+{
+	__e820_add_region(&e820, start, size, type);
+}
+
+static void __init e820_print_type(u32 type)
+{
+	switch (type) {
+	case E820_RAM:
+	case E820_RESERVED_KERN:
+		printk(KERN_CONT "(usable)");
+		break;
+	case E820_RESERVED:
+		printk(KERN_CONT "(reserved)");
+		break;
+	case E820_ACPI:
+		printk(KERN_CONT "(ACPI data)");
+		break;
+	case E820_NVS:
+		printk(KERN_CONT "(ACPI NVS)");
+		break;
+	case E820_UNUSABLE:
+		printk(KERN_CONT "(unusable)");
+		break;
+	default:
+		printk(KERN_CONT "type %u", type);
+		break;
+	}
 }
 
 static void __init _e820_print_map(const struct e820map *e820, const char *who)
@@ -153,27 +184,8 @@ static void __init _e820_print_map(const struct e820map *e820, const char *who)
 		       (unsigned long long) e820->map[i].addr,
 		       (unsigned long long)
 		       (e820->map[i].addr + e820->map[i].size));
-		switch (e820->map[i].type) {
-		case E820_RAM:
-		case E820_RESERVED_KERN:
-			printk(KERN_CONT "(usable)\n");
-			break;
-		case E820_RESERVED:
-			printk(KERN_CONT "(reserved)\n");
-			break;
-		case E820_ACPI:
-			printk(KERN_CONT "(ACPI data)\n");
-			break;
-		case E820_NVS:
-			printk(KERN_CONT "(ACPI NVS)\n");
-			break;
-		case E820_UNUSABLE:
-			printk("(unusable)\n");
-			break;
-		default:
-			printk(KERN_CONT "type %u\n", e820->map[i].type);
-			break;
-		}
+		e820_print_type(e820->map[i].type);
+		printk(KERN_CONT "\n");
 	}
 }
 
@@ -240,7 +252,7 @@ static void __init _e820_print_map(const struct e820map *e820, const char *who)
  */
 
 int __init sanitize_e820_map(struct e820entry *biosmap, int max_nr_map,
-				int *pnr_map)
+			     u32 *pnr_map)
 {
 	struct change_member {
 		struct e820entry *pbios; /* pointer to original bios entry */
@@ -444,11 +456,12 @@ static int __init append_e820_map(struct e820entry *biosmap, int nr_map)
 	return __append_e820_map(biosmap, nr_map);
 }
 
-static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
+static u64 __init __e820_update_range(struct e820map *e820x, u64 start,
 					u64 size, unsigned old_type,
 					unsigned new_type)
 {
-	unsigned int i, x;
+	u64 end;
+	unsigned int i;
 	u64 real_updated_size = 0;
 
 	BUG_ON(old_type == new_type);
@@ -456,40 +469,59 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 	if (size > (ULLONG_MAX - start))
 		size = ULLONG_MAX - start;
 
+	end = start + size;
+	printk(KERN_DEBUG "e820 update range: %016Lx - %016Lx ",
+		       (unsigned long long) start,
+		       (unsigned long long) end);
+	e820_print_type(old_type);
+	printk(KERN_CONT " ==> ");
+	e820_print_type(new_type);
+	printk(KERN_CONT "\n");
+
 	for (i = 0; i < e820x->nr_map; i++) {
 		struct e820entry *ei = &e820x->map[i];
 		u64 final_start, final_end;
+		u64 ei_end;
+
 		if (ei->type != old_type)
 			continue;
-		/* totally covered? */
-		if (ei->addr >= start &&
-		    (ei->addr + ei->size) <= (start + size)) {
+
+		ei_end = ei->addr + ei->size;
+		/* totally covered by new range? */
+		if (ei->addr >= start && ei_end <= end) {
 			ei->type = new_type;
 			real_updated_size += ei->size;
 			continue;
 		}
+
+		/* new range is totally covered? */
+		if (ei->addr < start && ei_end > end) {
+			__e820_add_region(e820x, start, size, new_type);
+			__e820_add_region(e820x, end, ei_end - end, ei->type);
+			ei->size = start - ei->addr;
+			real_updated_size += size;
+			continue;
+		}
+
 		/* partially covered */
 		final_start = max(start, ei->addr);
-		final_end = min(start + size, ei->addr + ei->size);
+		final_end = min(end, ei_end);
 		if (final_start >= final_end)
 			continue;
 
-		x = e820x->nr_map;
-		if (x == ARRAY_SIZE(e820x->map)) {
-			printk(KERN_ERR "Too many memory map entries!\n");
-			break;
-		}
-		e820x->map[x].addr = final_start;
-		e820x->map[x].size = final_end - final_start;
-		e820x->map[x].type = new_type;
-		e820x->nr_map++;
+		__e820_add_region(e820x, final_start, final_end - final_start,
+				  new_type);
 
 		real_updated_size += final_end - final_start;
 
+		/*
+		 * left range could be head or tail, so need to update
+		 * size at first.
+		 */
+		ei->size -= final_end - final_start;
 		if (ei->addr < final_start)
 			continue;
 		ei->addr = final_end;
-		ei->size -= final_end - final_start;
 	}
 	return real_updated_size;
 }
@@ -497,7 +529,7 @@ static u64 __init e820_update_range_map(struct e820map *e820x, u64 start,
 u64 __init e820_update_range(u64 start, u64 size, unsigned old_type,
 			     unsigned new_type)
 {
-	return e820_update_range_map(&e820, start, size, old_type, new_type);
+	return __e820_update_range(&e820, start, size, old_type, new_type);
 }
 
 static u64 __init e820_update_range_saved(u64 start, u64 size,
@@ -505,11 +537,11 @@ static u64 __init e820_update_range_saved(u64 start, u64 size,
 {
 #ifdef CONFIG_XEN
 	if (is_initial_xendomain())
-		return e820_update_range_map(&machine_e820,
-					     phys_to_machine(start), size,
-					     old_type, new_type);
+		return __e820_update_range(&machine_e820,
+					   phys_to_machine(start), size,
+					   old_type, new_type);
 #endif
-	return e820_update_range_map(&e820_saved, start, size, old_type,
+	return __e820_update_range(&e820_saved, start, size, old_type,
 				     new_type);
 }
 
@@ -553,7 +585,7 @@ u64 __init e820_remove_range(u64 start, u64 size, unsigned old_type,
 
 void __init update_e820(void)
 {
-	int nr_map;
+	u32 nr_map;
 
 	nr_map = e820.nr_map;
 	if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr_map))
@@ -564,7 +596,7 @@ void __init update_e820(void)
 }
 static void __init update_e820_saved(void)
 {
-	int nr_map;
+	u32 nr_map;
 
 	nr_map = e820_saved.nr_map;
 	if (sanitize_e820_map(e820_saved.map, ARRAY_SIZE(e820_saved.map), &nr_map))
@@ -916,6 +948,9 @@ void __init reserve_early_overlap_ok(u64 start, u64 end, char *name)
  */
 void __init reserve_early(u64 start, u64 end, char *name)
 {
+	if (start >= end)
+		return;
+
 	drop_overlaps_that_are_ok(start, end);
 	__reserve_early(start, end, name, 0);
 }
@@ -1389,7 +1424,7 @@ early_param("memmap", parse_memmap_opt);
 void __init finish_e820_parsing(void)
 {
 	if (userdef) {
-		int nr = e820.nr_map;
+		u32 nr = e820.nr_map;
 
 		if (sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &nr) < 0)
 			early_panic("Invalid user supplied memory map");
@@ -1479,7 +1514,7 @@ void __init e820_reserve_resources_late(void)
 char *__init default_machine_specific_memory_setup(void)
 {
 	char *who = "BIOS-e820";
-	int new_nr;
+	u32 new_nr;
 	/*
 	 * Try to copy the BIOS-supplied E820-map.
 	 *

@@ -577,7 +577,7 @@ EXPORT_SYMBOL_GPL(mark_tsc_unstable);
 
 static cycle_t cs_last;
 
-static cycle_t xen_clocksource_read(void)
+static cycle_t xen_clocksource_read(struct clocksource *cs)
 {
 #ifdef CONFIG_SMP
 	cycle_t last = get64(&cs_last);
