@@ -1166,6 +1166,14 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr)
 	if (!pr->flags.power_setup_done)
 		return -ENODEV;
 
+	if (processor_pm_external()) {
+		pr->flags.power = 0;
+		ret = acpi_processor_get_power_info(pr);
+		processor_notify_external(pr,
+			PROCESSOR_PM_CHANGE, PM_TYPE_IDLE);
+		return ret;
+	}
+
 	cpuidle_pause_and_lock();
 	cpuidle_disable_device(&pr->power.dev);
 	acpi_processor_get_power_info(pr);

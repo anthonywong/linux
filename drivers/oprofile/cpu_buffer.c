@@ -404,6 +404,39 @@ void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)
 	log_sample(cpu_buf, pc, 0, is_kernel, event);
 }
 
+#ifdef CONFIG_XEN
+/*
+ * This is basically log_sample(b, ESCAPE_CODE, cpu_mode, CPU_TRACE_BEGIN),
+ * as was previously accessible through oprofile_add_pc().
+ */
+void oprofile_add_mode(int cpu_mode)
+{
+	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
+	struct task_struct *task;
+
+	if (nr_available_slots(cpu_buf) < 3) {
+		cpu_buf->sample_lost_overflow++;
+		return;
+	}
+
+	task = current;
+
+	/* notice a switch from user->kernel or vice versa */
+	if (cpu_buf->last_cpu_mode != cpu_mode) {
+		cpu_buf->last_cpu_mode = cpu_mode;
+		add_code(cpu_buf, cpu_mode);
+	}
+
+	/* notice a task switch */
+	if (cpu_buf->last_task != task) {
+		cpu_buf->last_task = task;
+		add_code(cpu_buf, (unsigned long)task);
+	}
+
+	add_code(cpu_buf, CPU_TRACE_BEGIN);
+}
+#endif
+
 void oprofile_add_trace(unsigned long pc)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);

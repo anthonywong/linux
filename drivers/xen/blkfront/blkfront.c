@@ -233,7 +233,7 @@ static int setup_blkring(struct xenbus_device *dev,
 	SHARED_RING_INIT(sring);
 	FRONT_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	memset(info->sg, 0, sizeof(info->sg));
+	sg_init_table(info->sg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 
 	err = xenbus_grant_ring(dev, virt_to_mfn(info->ring.sring));
 	if (err < 0) {
@@ -625,9 +625,8 @@ static int blkif_queue_request(struct request *req)
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
 	BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
-	for (i = 0; i < ring_req->nr_segments; ++i) {
-			sg = info->sg + i;
-			buffer_mfn = page_to_phys(sg->page) >> PAGE_SHIFT;
+	for_each_sg(info->sg, sg, ring_req->nr_segments, i) {
+			buffer_mfn = page_to_phys(sg_page(sg)) >> PAGE_SHIFT;
 			fsect = sg->offset >> 9;
 			lsect = fsect + (sg->length >> 9) - 1;
 			/* install a grant reference. */
