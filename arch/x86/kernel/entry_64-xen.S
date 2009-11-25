@@ -57,7 +57,7 @@
 #include <xen/interface/arch-x86_64.h>
 #include <xen/interface/features.h>
 
-#include "xen_entry.S"
+#include "xen_entry_64.S"
 	
 	.code64
 
@@ -275,6 +275,7 @@ ret_from_sys_call:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	flagmask */
 sysret_check:		
+	LOCKDEP_SYS_EXIT
 	GET_THREAD_INFO(%rcx)
         XEN_BLOCK_EVENTS(%rsi)        
 	TRACE_IRQS_OFF
@@ -365,6 +366,7 @@ int_ret_from_sys_call:
 	movl $_TIF_ALLWORK_MASK,%edi
 	/* edi:	mask to check */
 int_with_check:
+	LOCKDEP_SYS_EXIT_IRQ
 	GET_THREAD_INFO(%rcx)
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
@@ -516,11 +518,12 @@ END(stub_rt_sigreturn)
 
 retint_check:
 	CFI_DEFAULT_STACK adj=1
+	LOCKDEP_SYS_EXIT_IRQ
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
 	CFI_REMEMBER_STATE
 	jnz  retint_careful
-retint_restore_args:
+retint_restore_args:	/* return to kernel space */
 	movl EFLAGS-REST_SKIP(%rsp), %eax
 	shr $9, %eax			# EAX[0] == IRET_EFLAGS.IF
 	XEN_GET_VCPU_INFO(%rsi)
@@ -841,7 +844,7 @@ error_call_handler:
 	movq ORIG_RAX(%rsp),%rsi	# get error code 
 	movq $-1,ORIG_RAX(%rsp)
 	call *%rax
-error_exit:		
+error_exit:
 	RESTORE_REST
 /*	cli */
 	XEN_BLOCK_EVENTS(%rsi)		
@@ -849,14 +852,11 @@ error_exit:
 	GET_THREAD_INFO(%rcx)	
 	testb $3,CS-ARGOFFSET(%rsp)
 	jz retint_kernel
+	LOCKDEP_SYS_EXIT_IRQ
 	movl  threadinfo_flags(%rcx),%edx
 	movl  $_TIF_WORK_MASK,%edi	
 	andl  %edi,%edx
 	jnz   retint_careful
-	/*
-	 * The iret might restore flags:
-	 */
-	TRACE_IRQS_IRETQ
 	jmp   retint_restore_args
 
 #if 0
@@ -1071,7 +1071,7 @@ child_rip:
 	movq %rsi, %rdi
 	call *%rax
 	# exit
-	xorl %edi, %edi
+	mov %eax, %edi
 	call do_exit
 	CFI_ENDPROC
 ENDPROC(child_rip)
