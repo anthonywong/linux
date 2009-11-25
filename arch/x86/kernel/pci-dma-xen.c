@@ -431,3 +431,23 @@ dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t siz
 		swiotlb_sync_single_for_device(dev, dma_handle, size, direction);
 }
 EXPORT_SYMBOL(dma_sync_single_for_device);
+
+void
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+		    enum dma_data_direction direction)
+{
+	if (swiotlb)
+		swiotlb_sync_sg_for_cpu(dev,sg,nelems,direction);
+	flush_write_buffers();
+}
+EXPORT_SYMBOL(dma_sync_sg_for_cpu);
+
+void
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
+		    enum dma_data_direction direction)
+{
+	if (swiotlb)
+		swiotlb_sync_sg_for_device(dev,sg,nelems,direction);
+	flush_write_buffers();
+}
+EXPORT_SYMBOL(dma_sync_sg_for_device);

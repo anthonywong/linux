@@ -12,7 +12,6 @@
 #include <asm/ia32_unistd.h>	
 #include <asm/thread_info.h>	
 #include <asm/segment.h>
-#include <asm/vsyscall32.h>
 #include <asm/irqflags.h>
 #include <linux/linkage.h>
 
@@ -99,10 +98,11 @@ ENTRY(ia32_sysenter_target)
 	CFI_RESTORE	rcx
  	movl	%ebp,%ebp		/* zero extension */
 	movl	%eax,%eax
+	movl	48-THREAD_SIZE+threadinfo_sysenter_return(%rsp),%r10d
 	movl	$__USER32_DS,40(%rsp)
 	movq	%rbp,32(%rsp)
 	movl	$__USER32_CS,16(%rsp)
-	movl	$VSYSCALL32_SYSEXIT,8(%rsp)
+	movq	%r10,8(%rsp)
 	movq	%rax,(%rsp)
 	cld
 	SAVE_ARGS 0,0,1
@@ -582,8 +582,8 @@ ia32_sys_call_table:
 	.quad compat_sys_futex		/* 240 */
 	.quad compat_sys_sched_setaffinity
 	.quad compat_sys_sched_getaffinity
-	.quad sys32_set_thread_area
-	.quad sys32_get_thread_area
+	.quad sys_set_thread_area
+	.quad sys_get_thread_area
 	.quad compat_sys_io_setup	/* 245 */
 	.quad sys_io_destroy
 	.quad compat_sys_io_getevents
@@ -661,7 +661,9 @@ ia32_sys_call_table:
 	.quad sys_epoll_pwait
 	.quad compat_sys_utimensat	/* 320 */
 	.quad compat_sys_signalfd
-	.quad compat_sys_timerfd
+	.quad sys_timerfd_create
 	.quad sys_eventfd
 	.quad sys32_fallocate
+	.quad compat_sys_timerfd_settime	/* 325 */
+	.quad compat_sys_timerfd_gettime
 ia32_syscall_end:
