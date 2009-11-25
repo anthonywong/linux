@@ -416,6 +416,10 @@ static struct page *i8xx_alloc_pages(void)
 
 	if (set_pages_uc(page, 4) < 0) {
 		set_pages_wb(page, 4);
+#ifdef CONFIG_XEN
+		xen_destroy_contiguous_region((unsigned long)page_address(page),
+					      2);
+#endif
 		__free_pages(page, 2);
 		return NULL;
 	}
