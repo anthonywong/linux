@@ -87,7 +87,7 @@ extern int nr_pirqs;
 #endif
 
 #define DYNIRQ_BASE			(PIRQ_BASE + nr_pirqs)
-#define NR_DYNIRQS			256
+#define NR_DYNIRQS			(64 + CONFIG_XEN_NR_GUEST_DEVICES)
 
 #define NR_IRQS				(NR_PIRQS + NR_DYNIRQS)
 
