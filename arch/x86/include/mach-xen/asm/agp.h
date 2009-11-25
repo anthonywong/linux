@@ -40,4 +40,4 @@
 #define free_gatt_pages(table, order)	\
 	dma_free_coherent(NULL,PAGE_SIZE<<(order),(table),virt_to_bus(table))
 
-#endif
+#endif /* _ASM_X86_AGP_H */
