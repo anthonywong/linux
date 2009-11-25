@@ -38,16 +38,40 @@
 #include <asm/proto.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
+#include <asm/hypervisor.h>
 
 #ifdef CONFIG_XEN
 #if defined(CONFIG_X86_32) && !defined(CONFIG_X86_LOCAL_APIC)
 #define phys_pkg_id(a,b) a
 #endif
-#include <asm/hypervisor.h>
 #include <xen/interface/callback.h>
 #endif
 
 #include "cpu.h"
+
+#ifdef CONFIG_X86_64
+
+/* all of these masks are initialized in setup_cpu_local_masks() */
+#ifndef CONFIG_XEN
+cpumask_var_t cpu_callin_mask;
+cpumask_var_t cpu_callout_mask;
+#endif
+cpumask_var_t cpu_initialized_mask;
+
+/* representing cpus for which sibling maps can be computed */
+cpumask_var_t cpu_sibling_setup_mask;
+
+#else /* CONFIG_X86_32 */
+
+#ifndef CONFIG_XEN
+cpumask_t cpu_callin_map;
+cpumask_t cpu_callout_map;
+#endif
+cpumask_t cpu_initialized;
+cpumask_t cpu_sibling_setup_map;
+
+#endif /* CONFIG_X86_32 */
+
 
 static struct cpu_dev *this_cpu __cpuinitdata;
 
@@ -377,7 +401,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
 	} else if (smp_num_siblings > 1) {
 
-		if (smp_num_siblings > NR_CPUS) {
+		if (smp_num_siblings > nr_cpu_ids) {
 			printk(KERN_WARNING "CPU: Unsupported number of siblings %d",
 					smp_num_siblings);
 			smp_num_siblings = 1;
@@ -728,6 +752,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	detect_ht(c);
 #endif
 
+	init_hypervisor(c);
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
 	 * all CPUs; so make sure that we indicate which features are
@@ -879,8 +904,6 @@ static __init int setup_disablecpuid(char *arg)
 }
 __setup("clearcpuid=", setup_disablecpuid);
 
-cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
-
 #ifdef CONFIG_X86_64
 struct x8664_pda **_cpu_pda __read_mostly;
 EXPORT_SYMBOL(_cpu_pda);
@@ -889,7 +912,7 @@ EXPORT_SYMBOL(_cpu_pda);
 struct desc_ptr idt_descr = { 256 * 16 - 1, (unsigned long) idt_table };
 #endif
 
-char boot_cpu_stack[IRQSTACKSIZE] __page_aligned_bss;
+static char boot_cpu_stack[IRQSTACKSIZE] __page_aligned_bss;
 
 static void __ref switch_pt(int cpu)
 {
@@ -949,8 +972,8 @@ void __cpuinit pda_init(int cpu)
 }
 
 #ifndef CONFIG_X86_NO_TSS
-char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ +
-			   DEBUG_STKSZ] __page_aligned_bss;
+static char boot_exception_stacks[(N_EXCEPTION_STACKS - 1) * EXCEPTION_STKSZ +
+				  DEBUG_STKSZ] __page_aligned_bss;
 #endif
 
 extern asmlinkage void ignore_sysret(void);
@@ -1038,7 +1061,7 @@ void __cpuinit cpu_init(void)
 
 	me = current;
 
-	if (cpu_test_and_set(cpu, cpu_initialized))
+	if (cpumask_test_and_set_cpu(cpu, cpu_initialized_mask))
 		panic("CPU#%d already initialized!\n", cpu);
 
 	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
@@ -1163,7 +1186,7 @@ void __cpuinit cpu_init(void)
 #endif
 	struct thread_struct *thread = &curr->thread;
 
-	if (cpu_test_and_set(cpu, cpu_initialized)) {
+	if (cpumask_test_and_set_cpu(cpu, cpu_initialized_mask)) {
 		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
 		for (;;) local_irq_enable();
 	}

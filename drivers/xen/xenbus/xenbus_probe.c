@@ -42,6 +42,7 @@
 #include <linux/ctype.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
+#include <linux/proc_fs.h>
 #include <linux/notifier.h>
 #include <linux/mutex.h>
 #include <linux/io.h>
@@ -73,6 +74,10 @@
 #endif
 
 int xen_store_evtchn;
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+EXPORT_SYMBOL(xen_store_evtchn);
+#endif
+
 struct xenstore_domain_interface *xen_store_interface;
 static unsigned long xen_store_mfn;
 
@@ -197,6 +202,12 @@ static int xenbus_uevent_frontend(struct device *dev, struct kobj_uevent_env *en
 }
 #endif
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+static struct device_attribute xenbus_dev_attrs[] = {
+	__ATTR_NULL
+};
+#endif
+
 /* Bus type for frontend drivers. */
 static struct xen_bus_type xenbus_frontend = {
 	.root = "device",
@@ -205,13 +216,16 @@ static struct xen_bus_type xenbus_frontend = {
 	.probe = xenbus_probe_frontend,
 	.error = -ENODEV,
 	.bus = {
-		.name     = "xen",
-		.match    = xenbus_match,
+		.name      = "xen",
+		.match     = xenbus_match,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,16)
-		.probe    = xenbus_dev_probe,
-		.remove   = xenbus_dev_remove,
-		.shutdown = xenbus_dev_shutdown,
-		.uevent   = xenbus_uevent_frontend,
+		.probe     = xenbus_dev_probe,
+		.remove    = xenbus_dev_remove,
+		.shutdown  = xenbus_dev_shutdown,
+		.uevent    = xenbus_uevent_frontend,
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
+		.dev_attrs = xenbus_dev_attrs,
 #endif
 	},
 #if defined(CONFIG_XEN) || defined(MODULE)
@@ -580,7 +594,17 @@ int xenbus_probe_node(struct xen_bus_type *bus,
 	xendev->dev.bus = &bus->bus;
 	xendev->dev.release = xenbus_dev_release;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26)
+	{
+		char devname[XEN_BUS_ID_SIZE];
+
+		err = bus->get_bus_id(devname, xendev->nodename);
+		if (!err)
+			dev_set_name(&xendev->dev, devname);
+	}
+#else
 	err = bus->get_bus_id(xendev->dev.bus_id, xendev->nodename);
+#endif
 	if (err)
 		goto fail;
 
@@ -763,7 +787,7 @@ static int suspend_dev(struct device *dev, void *data)
 		err = drv->suspend(xdev);
 	if (err)
 		printk(KERN_WARNING
-		       "xenbus: suspend %s failed: %i\n", dev->bus_id, err);
+		       "xenbus: suspend %s failed: %i\n", dev_name(dev), err);
 	return 0;
 }
 
@@ -784,7 +808,7 @@ static int suspend_cancel_dev(struct device *dev, void *data)
 	if (err)
 		printk(KERN_WARNING
 		       "xenbus: suspend_cancel %s failed: %i\n",
-		       dev->bus_id, err);
+		       dev_name(dev), err);
 	return 0;
 }
 
@@ -806,7 +830,7 @@ static int resume_dev(struct device *dev, void *data)
 	if (err) {
 		printk(KERN_WARNING
 		       "xenbus: resume (talk_to_otherend) %s failed: %i\n",
-		       dev->bus_id, err);
+		       dev_name(dev), err);
 		return err;
 	}
 
@@ -817,7 +841,7 @@ static int resume_dev(struct device *dev, void *data)
 		if (err) {
 			printk(KERN_WARNING
 			       "xenbus: resume %s failed: %i\n",
-			       dev->bus_id, err);
+			       dev_name(dev), err);
 			return err;
 		}
 	}
@@ -826,7 +850,7 @@ static int resume_dev(struct device *dev, void *data)
 	if (err) {
 		printk(KERN_WARNING
 		       "xenbus_probe: resume (watch_otherend) %s failed: "
-		       "%d.\n", dev->bus_id, err);
+		       "%d.\n", dev_name(dev), err);
 		return err;
 	}
 
@@ -1137,6 +1161,14 @@ static int __devinit xenbus_probe_init(void)
 
 	if (!is_initial_xendomain())
 		xenbus_probe(NULL);
+
+#if defined(CONFIG_XEN_COMPAT_XENFS) && !defined(MODULE)
+	/*
+	 * Create xenfs mountpoint in /proc for compatibility with
+	 * utilities that expect to find "xenbus" under "/proc/xen".
+	 */
+	proc_mkdir("xen", NULL);
+#endif
 
 	return 0;
 

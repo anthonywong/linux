@@ -97,7 +97,8 @@ int xen_spin_wait(raw_spinlock_t *lock, unsigned int token)
 
 	/* Leave the irq pending so that any interrupted blocker will
 	 * re-check. */
-	kstat_this_cpu.irqs[irq] += !rc;
+	if (!rc)
+		kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 
 	/* announce we're done */
 	x86_write_percpu(spinning, spinning.prev);
