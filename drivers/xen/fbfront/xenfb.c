@@ -857,7 +857,6 @@ MODULE_ALIAS("xen:vfb");
 
 static struct xenbus_driver xenfb_driver = {
 	.name = "vfb",
-	.owner = THIS_MODULE,
 	.ids = xenfb_ids,
 	.probe = xenfb_probe,
 	.remove = xenfb_remove,
