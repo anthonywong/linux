@@ -140,7 +140,7 @@ ifeq ($(CONFIG_X86_64),y)
 	time_64-$(CONFIG_XEN)		+= time_32.o
 endif
 
-disabled-obj-$(CONFIG_XEN) := %_uv.o crash.o early-quirks.o hpet.o i8253.o \
-	i8259.o irqinit_$(BITS).o pci-swiotlb_64.o reboot.o smpboot.o \
-	tlb_$(BITS).o tsc.o tsc_sync.o vsmp_64.o
+disabled-obj-$(CONFIG_XEN) := %_uv.o crash.o early-quirks.o genx2apic_%.o \
+	hpet.o i8253.o i8259.o irqinit_$(BITS).o pci-swiotlb_64.o reboot.o \
+	smpboot.o tlb_$(BITS).o tsc.o tsc_sync.o uv_%.o vsmp_64.o
 disabled-obj-$(CONFIG_XEN_UNPRIVILEGED_GUEST) += probe_roms_32.o
