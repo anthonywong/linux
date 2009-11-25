@@ -12,6 +12,8 @@
 #include <linux/module.h>
 #include <xen/evtchn.h>
 
+#ifdef TICKET_SHIFT
+
 static DEFINE_PER_CPU(int, spinlock_irq) = -1;
 static char spinlock_name[NR_CPUS][15];
 
@@ -57,7 +59,7 @@ void __cpuinit xen_spinlock_cleanup(unsigned int cpu)
 
 int xen_spin_wait(raw_spinlock_t *lock, unsigned int token)
 {
-	int rc = 0, irq = __get_cpu_var(spinlock_irq);
+	int rc = 0, irq = percpu_read(spinlock_irq);
 	raw_rwlock_t *rm_lock;
 	unsigned long flags;
 	struct spinning spinning;
@@ -71,9 +73,9 @@ int xen_spin_wait(raw_spinlock_t *lock, unsigned int token)
 	/* announce we're spinning */
 	spinning.ticket = token;
 	spinning.lock = lock;
-	spinning.prev = x86_read_percpu(spinning);
+	spinning.prev = percpu_read(spinning);
 	smp_wmb();
-	x86_write_percpu(spinning, &spinning);
+	percpu_write(spinning, &spinning);
 
 	/* clear pending */
 	xen_clear_irq_pending(irq);
@@ -101,7 +103,7 @@ int xen_spin_wait(raw_spinlock_t *lock, unsigned int token)
 		kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 
 	/* announce we're done */
-	x86_write_percpu(spinning, spinning.prev);
+	percpu_write(spinning, spinning.prev);
 	rm_lock = &__get_cpu_var(spinning_rm_lock);
 	raw_local_irq_save(flags);
 	__raw_write_lock(rm_lock);
@@ -155,3 +157,5 @@ void xen_spin_kick(raw_spinlock_t *lock, unsigned int token)
 	}
 }
 EXPORT_SYMBOL(xen_spin_kick);
+
+#endif /* TICKET_SHIFT */

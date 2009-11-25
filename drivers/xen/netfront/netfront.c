@@ -102,7 +102,7 @@ static const int MODPARM_rx_flip = 0;
 static inline void dev_disable_gso_features(struct net_device *dev)
 {
 	/* Turn off all GSO bits except ROBUST. */
-	dev->features &= (1 << NETIF_F_GSO_SHIFT) - 1;
+	dev->features &= ~NETIF_F_GSO_MASK;
 	dev->features |= NETIF_F_GSO_ROBUST;
 }
 #elif defined(NETIF_F_TSO)
@@ -635,7 +635,7 @@ static int network_open(struct net_device *dev)
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx)){
 			netfront_accelerator_call_stop_napi_irq(np, dev);
 
-			netif_rx_schedule(&np->napi);
+			napi_schedule(&np->napi);
 		}
 	}
 	spin_unlock_bh(&np->rx_lock);
@@ -707,7 +707,7 @@ static void rx_refill_timeout(unsigned long data)
 
 	netfront_accelerator_call_stop_napi_irq(np, dev);
 
-	netif_rx_schedule(&np->napi);
+	napi_schedule(&np->napi);
 }
 
 static void network_alloc_rx_buffers(struct net_device *dev)
@@ -1064,7 +1064,7 @@ static irqreturn_t netif_int(int irq, void *dev_id)
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx)) {
 			netfront_accelerator_call_stop_napi_irq(np, dev);
 
-			netif_rx_schedule(&np->napi);
+			napi_schedule(&np->napi);
 		}
 	}
 
@@ -1521,7 +1521,7 @@ err:
 		}
 
 		if (!more_to_do && !accel_more_to_do)
-			__netif_rx_complete(napi);
+			__napi_complete(napi);
 
 		local_irq_restore(flags);
 	}
