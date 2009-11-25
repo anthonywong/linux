@@ -449,7 +449,6 @@ MODULE_ALIAS("xen:pci");
 
 static struct xenbus_driver xenbus_pcifront_driver = {
 	.name 			= "pcifront",
-	.owner 			= THIS_MODULE,
 	.ids 			= xenpci_ids,
 	.probe 			= pcifront_xenbus_probe,
 	.remove 		= pcifront_xenbus_remove,

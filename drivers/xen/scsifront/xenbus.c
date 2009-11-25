@@ -401,7 +401,6 @@ static struct xenbus_device_id scsifront_ids[] = {
 
 static struct xenbus_driver scsifront_driver = {
 	.name			= "vscsi",
-	.owner			= THIS_MODULE,
 	.ids			= scsifront_ids,
 	.probe			= scsifront_probe,
 	.remove			= scsifront_remove,
