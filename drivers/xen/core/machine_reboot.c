@@ -79,7 +79,7 @@ static void post_suspend(int suspend_cancelled)
 	unsigned long shinfo_mfn;
 	extern unsigned long max_pfn;
 	extern unsigned long *pfn_to_mfn_frame_list_list;
-	extern unsigned long *pfn_to_mfn_frame_list[];
+	extern unsigned long **pfn_to_mfn_frame_list;
 
 	if (suspend_cancelled) {
 		xen_start_info->store_mfn =

@@ -128,12 +128,7 @@ static struct notifier_block xen_panic_block = {
 unsigned long *phys_to_machine_mapping;
 EXPORT_SYMBOL(phys_to_machine_mapping);
 
-unsigned long *pfn_to_mfn_frame_list_list,
-#ifdef CONFIG_X86_64
-	*pfn_to_mfn_frame_list[512];
-#else
-	*pfn_to_mfn_frame_list[128];
-#endif
+unsigned long *pfn_to_mfn_frame_list_list, **pfn_to_mfn_frame_list;
 
 /* Raw start-of-day parameters from the hypervisor. */
 start_info_t *xen_start_info;
@@ -1137,17 +1132,17 @@ void __init setup_arch(char **cmdline_p)
 		p2m_pages = xen_start_info->nr_pages;
 
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
-		unsigned long i, j;
+		unsigned long i, j, size;
 		unsigned int k, fpp;
 
 		/* Make sure we have a large enough P->M table. */
 		phys_to_machine_mapping = alloc_bootmem_pages(
 			max_pfn * sizeof(unsigned long));
-		memset(phys_to_machine_mapping, ~0,
-		       max_pfn * sizeof(unsigned long));
 		memcpy(phys_to_machine_mapping,
 		       (unsigned long *)xen_start_info->mfn_list,
 		       p2m_pages * sizeof(unsigned long));
+		memset(phys_to_machine_mapping + p2m_pages, ~0,
+		       (max_pfn - p2m_pages) * sizeof(unsigned long));
 		free_bootmem(
 			__pa(xen_start_info->mfn_list),
 			PFN_PHYS(PFN_UP(xen_start_info->nr_pages *
@@ -1157,15 +1152,26 @@ void __init setup_arch(char **cmdline_p)
 		 * Initialise the list of the frames that specify the list of
 		 * frames that make up the p2m table. Used by save/restore.
 		 */
-		pfn_to_mfn_frame_list_list = alloc_bootmem_pages(PAGE_SIZE);
-
 		fpp = PAGE_SIZE/sizeof(unsigned long);
+		size = (max_pfn + fpp - 1) / fpp;
+		size = (size + fpp - 1) / fpp;
+		++size; /* include a zero terminator for crash tools */
+		size *= sizeof(unsigned long);
+		pfn_to_mfn_frame_list_list = alloc_bootmem_pages(size);
+		if (size > PAGE_SIZE
+		    && xen_create_contiguous_region((unsigned long)
+						    pfn_to_mfn_frame_list_list,
+						    get_order(size), 0))
+			BUG();
+		size -= sizeof(unsigned long);
+		pfn_to_mfn_frame_list = alloc_bootmem(size);
+
 		for (i = j = 0, k = -1; i < max_pfn; i += fpp, j++) {
 			if (j == fpp)
 				j = 0;
 			if (j == 0) {
 				k++;
-				BUG_ON(k>=ARRAY_SIZE(pfn_to_mfn_frame_list));
+				BUG_ON(k * sizeof(unsigned long) >= size);
 				pfn_to_mfn_frame_list[k] =
 					alloc_bootmem_pages(PAGE_SIZE);
 				pfn_to_mfn_frame_list_list[k] =
