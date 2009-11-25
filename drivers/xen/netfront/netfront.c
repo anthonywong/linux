@@ -1464,8 +1464,7 @@ err:
 		}
 	}
 
-	while ((skb = __skb_dequeue(&errq)))
-		kfree_skb(skb);
+	__skb_queue_purge(&errq);
 
 	while ((skb = __skb_dequeue(&rxq)) != NULL) {
 		struct page *page = NETFRONT_SKB_CB(skb)->page;
@@ -1630,8 +1629,7 @@ static void netif_release_rx_bufs_flip(struct netfront_info *np)
 		}
 	}
 
-	while ((skb = __skb_dequeue(&free_list)) != NULL)
-		dev_kfree_skb(skb);
+	__skb_queue_purge(&free_list);
 
 	spin_unlock_bh(&np->rx_lock);
 }

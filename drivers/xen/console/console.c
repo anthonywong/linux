@@ -551,16 +551,18 @@ static int xencons_write(
 	return i;
 }
 
-static void xencons_put_char(struct tty_struct *tty, u_char ch)
+static int xencons_put_char(struct tty_struct *tty, u_char ch)
 {
 	unsigned long flags;
+	int ret;
 
 	if (DUMMY_TTY(tty))
-		return;
+		return 0;
 
 	spin_lock_irqsave(&xencons_lock, flags);
-	(void)__xencons_put_char(ch);
+	ret = __xencons_put_char(ch);
 	spin_unlock_irqrestore(&xencons_lock, flags);
+	return ret;
 }
 
 static void xencons_flush_chars(struct tty_struct *tty)
@@ -582,7 +584,7 @@ static void xencons_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (DUMMY_TTY(tty))
 		return;
 
-	while (DRV(tty->driver)->chars_in_buffer(tty)) {
+	while (tty_chars_in_buffer(tty)) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(1);
 		if (signal_pending(current))
@@ -631,8 +633,7 @@ static void xencons_close(struct tty_struct *tty, struct file *filp)
 
 	tty->closing = 1;
 	tty_wait_until_sent(tty, 0);
-	if (DRV(tty->driver)->flush_buffer != NULL)
-		DRV(tty->driver)->flush_buffer(tty);
+	tty_driver_flush_buffer(tty);
 	if (tty->ldisc.flush_buffer != NULL)
 		tty->ldisc.flush_buffer(tty);
 	tty->closing = 0;
