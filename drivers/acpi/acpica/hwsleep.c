@@ -394,7 +394,7 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 #else
 	/* PV ACPI just need check hypercall return value */
 	err = acpi_notify_hypervisor_state(sleep_state,
-			PM1Acontrol, PM1Bcontrol);
+			pm1a_control, pm1b_control);
 	if (err) {
 		printk(KERN_ERR "ACPI: Hypervisor failure [%d]\n", err);
 		return_ACPI_STATUS(AE_ERROR);

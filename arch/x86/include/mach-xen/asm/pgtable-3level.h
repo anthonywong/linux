@@ -20,21 +20,6 @@
 	       __FILE__, __LINE__, &(e), __pgd_val(e),			\
 	       (pgd_val(e) & PTE_PFN_MASK) >> PAGE_SHIFT)
 
-static inline int pud_none(pud_t pud)
-{
-	return __pud_val(pud) == 0;
-
-}
-static inline int pud_bad(pud_t pud)
-{
-	return (__pud_val(pud) & ~(PTE_PFN_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
-}
-
-static inline int pud_present(pud_t pud)
-{
-	return __pud_val(pud) & _PAGE_PRESENT;
-}
-
 /* Rules for using set_pte: the pte being assigned *must* be
  * either not present or in a state where the hardware will
  * not attempt to update the pte.  In places where this is
@@ -102,15 +87,6 @@ static inline void pud_clear(pud_t *pudp)
 		xen_tlb_flush();
 }
 
-#define pud_page(pud) pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
-
-#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_PFN_MASK))
-
-
-/* Find an entry in the second-level page table.. */
-#define pmd_offset(pud, address) ((pmd_t *)pud_page_vaddr(*(pud)) +	\
-				  pmd_index(address))
-
 #ifdef CONFIG_SMP
 static inline pte_t xen_ptep_get_and_clear(pte_t *ptep, pte_t res)
 {
@@ -126,17 +102,6 @@ static inline pte_t xen_ptep_get_and_clear(pte_t *ptep, pte_t res)
 #else
 #define xen_ptep_get_and_clear(xp, pte) xen_local_ptep_get_and_clear(xp, pte)
 #endif
-
-#define __HAVE_ARCH_PTE_SAME
-static inline int pte_same(pte_t a, pte_t b)
-{
-	return a.pte_low == b.pte_low && a.pte_high == b.pte_high;
-}
-
-static inline int pte_none(pte_t pte)
-{
-	return !(pte.pte_low | pte.pte_high);
-}
 
 #define __pte_mfn(_pte) (((_pte).pte_low >> PAGE_SHIFT) | \
 			 ((_pte).pte_high << (32-PAGE_SHIFT)))

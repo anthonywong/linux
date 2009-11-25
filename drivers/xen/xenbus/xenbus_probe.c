@@ -230,7 +230,7 @@ static struct xen_bus_type xenbus_frontend = {
 	},
 #if defined(CONFIG_XEN) || defined(MODULE)
 	.dev = {
-		.bus_id = "xen",
+		.init_name = "xen",
 	},
 #endif
 };
