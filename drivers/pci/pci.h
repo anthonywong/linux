@@ -323,4 +323,19 @@ extern int pci_is_iomuldev(struct pci_dev *dev);
 #define pci_is_iomuldev(dev)	0
 #endif
 
+#ifdef CONFIG_PCI_RESERVE
+unsigned long pci_reserve_size_io(struct pci_bus *bus);
+unsigned long pci_reserve_size_mem(struct pci_bus *bus);
+#else
+static inline unsigned long pci_reserve_size_io(struct pci_bus *bus)
+{
+	return 0;
+}
+
+static inline unsigned long pci_reserve_size_mem(struct pci_bus *bus)
+{
+	return 0;
+}
+#endif /* CONFIG_PCI_RESERVE */
+
 #endif /* DRIVERS_PCI_H */
