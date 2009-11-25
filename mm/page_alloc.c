@@ -4644,11 +4644,9 @@ void setup_per_zone_wmarks(void)
 	}
 
 #ifdef CONFIG_XEN
-	for_each_zone(zone) {
+	for_each_populated_zone(zone) {
 		unsigned int cpu;
 
-		if (!populated_zone(zone))
-			continue;
 		for_each_online_cpu(cpu) {
 			unsigned long high;
 

@@ -7,9 +7,6 @@
  *	Modified for Xen.
  */
 
-/* PDA is not ready to be used until the end of x86_64_start_kernel(). */
-#define arch_use_lazy_mmu_mode() false
-
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/types.h>
@@ -18,12 +15,12 @@
 #include <linux/percpu.h>
 #include <linux/start_kernel.h>
 #include <linux/io.h>
-#include <linux/module.h>
 
 #include <asm/processor.h>
 #include <asm/proto.h>
 #include <asm/smp.h>
 #include <asm/setup.h>
+#include <asm/setup_arch.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
@@ -32,27 +29,6 @@
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
 #include <asm/trampoline.h>
-
-/* boot cpu pda */
-static struct x8664_pda _boot_cpu_pda;
-
-#ifdef CONFIG_SMP
-/*
- * We install an empty cpu_pda pointer table to indicate to early users
- * (numa_set_node) that the cpu_pda pointer table for cpus other than
- * the boot cpu is not yet setup.
- */
-static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
-#else
-static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
-#endif
-
-void __init x86_64_init_pda(void)
-{
-	_cpu_pda = __cpu_pda;
-	cpu_pda(0) = &_boot_cpu_pda;
-	pda_init(0);
-}
 
 #ifndef CONFIG_XEN
 static void __init zap_identity_mappings(void)
@@ -92,16 +68,9 @@ static void __init copy_bootdata(char *real_mode_data)
 }
 
 #include <xen/interface/memory.h>
-unsigned long *machine_to_phys_mapping;
-EXPORT_SYMBOL(machine_to_phys_mapping);
-unsigned int machine_to_phys_order;
-EXPORT_SYMBOL(machine_to_phys_order);
 
 void __init x86_64_start_kernel(char * real_mode_data)
 {
-	struct xen_machphys_mapping mapping;
-	unsigned long machine_to_phys_nr_ents;
-
 	/*
 	 * Build-time sanity checks on the kernel image and module
 	 * area mappings. (these are purely build-time and produce no code)
@@ -116,21 +85,8 @@ void __init x86_64_start_kernel(char * real_mode_data)
 				(__START_KERNEL & PGDIR_MASK)));
 	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
 
-	xen_setup_features();
-
 	xen_start_info = (struct start_info *)real_mode_data;
-	if (!xen_feature(XENFEAT_auto_translated_physmap))
-		phys_to_machine_mapping =
-			(unsigned long *)xen_start_info->mfn_list;
-
-	machine_to_phys_mapping = (unsigned long *)MACH2PHYS_VIRT_START;
-	machine_to_phys_nr_ents = MACH2PHYS_NR_ENTRIES;
-	if (HYPERVISOR_memory_op(XENMEM_machphys_mapping, &mapping) == 0) {
-		machine_to_phys_mapping = (unsigned long *)mapping.v_start;
-		machine_to_phys_nr_ents = mapping.max_mfn + 1;
-	}
-	while ((1UL << machine_to_phys_order) < machine_to_phys_nr_ents )
-		machine_to_phys_order++;
+	xen_start_kernel();
 
 #ifndef CONFIG_XEN
 	/* clear bss before set_intr_gate with early_idt_handler */
@@ -155,7 +111,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	if (console_loglevel == 10)
 		early_printk("Kernel alive\n");
 
-	x86_64_init_pda();
+	xen_switch_pt();
 
 	x86_64_start_reservations(real_mode_data);
 }
@@ -166,12 +122,7 @@ void __init x86_64_start_reservations(char *real_mode_data)
 
 	reserve_trampoline_memory();
 
-	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
-
-	reserve_early(round_up(__pa_symbol(&_end), PAGE_SIZE),
-		      __pa(xen_start_info->pt_base)
-		      + (xen_start_info->nr_pt_frames << PAGE_SHIFT),
-		      "Xen provided");
+	reserve_early(__pa_symbol(&_text), __pa_symbol(&__bss_stop), "TEXT DATA BSS");
 
 	/*
 	 * At this point everything still needed from the boot loader

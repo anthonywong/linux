@@ -9,6 +9,7 @@
 #include <linux/start_kernel.h>
 
 #include <asm/setup.h>
+#include <asm/setup_arch.h>
 #include <asm/sections.h>
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
@@ -18,7 +19,7 @@ void __init i386_start_kernel(void)
 {
 	reserve_trampoline_memory();
 
-	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
+	reserve_early(__pa_symbol(&_text), __pa_symbol(&__bss_stop), "TEXT DATA BSS");
 
 #ifndef CONFIG_XEN
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -30,14 +31,8 @@ void __init i386_start_kernel(void)
 		reserve_early(ramdisk_image, ramdisk_end, "RAMDISK");
 	}
 #endif
-	reserve_early(init_pg_tables_start, init_pg_tables_end,
-			"INIT_PG_TABLE");
+	reserve_ebda_region();
 #else
-	reserve_early(ALIGN(__pa_symbol(&_end), PAGE_SIZE),
-		      __pa(xen_start_info->pt_base)
-		      + (xen_start_info->nr_pt_frames << PAGE_SHIFT),
-		      "Xen provided");
-
 	{
 		int max_cmdline;
 
@@ -46,9 +41,9 @@ void __init i386_start_kernel(void)
 		memcpy(boot_command_line, xen_start_info->cmd_line, max_cmdline);
 		boot_command_line[max_cmdline-1] = '\0';
 	}
-#endif
 
-	reserve_ebda_region();
+	xen_start_kernel();
+#endif
 
 	/*
 	 * At this point everything still needed from the boot loader
