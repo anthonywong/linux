@@ -23,7 +23,7 @@
 #include <xen/interface/physdev.h>
 
 /* flag for disabling the tsc */
-extern int tsc_disable;
+#define tsc_disable 0
 
 struct desc_struct {
 	unsigned long a,b;

@@ -94,7 +94,6 @@ static int __init xencons_setup(char *str)
 {
 	char *q;
 	int n;
-	extern int console_use_vt;
 
 	console_use_vt = 1;
 	if (!strncmp(str, "ttyS", 4)) {

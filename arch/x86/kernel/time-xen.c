@@ -76,7 +76,12 @@
 
 #if defined (__i386__)
 #include <asm/i8259.h>
+#include <asm/i8253.h>
+DEFINE_SPINLOCK(i8253_lock);
+EXPORT_SYMBOL(i8253_lock);
 #endif
+
+#define XEN_SHIFT 22
 
 int pit_latch_buggy;              /* extern */
 
@@ -96,10 +101,6 @@ extern unsigned long wall_jiffies;
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
-
-extern struct init_timer_opts timer_tsc_init;
-extern struct timer_opts timer_tsc;
-#define timer_none timer_tsc
 
 /* These are peridically updated in shared_info, and then copied here. */
 struct shadow_time_info {
@@ -175,24 +176,6 @@ static int __init __permitted_clock_jitter(char *str)
 }
 __setup("permitted_clock_jitter=", __permitted_clock_jitter);
 
-#if 0
-static void delay_tsc(unsigned long loops)
-{
-	unsigned long bclock, now;
-
-	rdtscl(bclock);
-	do {
-		rep_nop();
-		rdtscl(now);
-	} while ((now - bclock) < loops);
-}
-
-struct timer_opts timer_tsc = {
-	.name = "tsc",
-	.delay = delay_tsc,
-};
-#endif
-
 /*
  * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
  * yielding a 64-bit result.
@@ -229,14 +212,6 @@ static inline u64 scale_delta(u64 delta, u32 mul_frac, int shift)
 	return product;
 }
 
-#if 0 /* defined (__i386__) */
-int read_current_timer(unsigned long *timer_val)
-{
-	rdtscl(*timer_val);
-	return 0;
-}
-#endif
-
 void init_cpu_khz(void)
 {
 	u64 __cpu_khz = 1000000ULL << 32;
@@ -256,6 +231,7 @@ static u64 get_nsec_offset(struct shadow_time_info *shadow)
 	return scale_delta(delta, shadow->tsc_to_nsec_mul, shadow->tsc_shift);
 }
 
+#ifdef CONFIG_X86_64
 static unsigned long get_usec_offset(struct shadow_time_info *shadow)
 {
 	u64 now, delta;
@@ -263,6 +239,7 @@ static unsigned long get_usec_offset(struct shadow_time_info *shadow)
 	delta = now - shadow->tsc_timestamp;
 	return scale_delta(delta, shadow->tsc_to_usec_mul, shadow->tsc_shift);
 }
+#endif
 
 static void __update_wallclock(time_t sec, long nsec)
 {
@@ -376,6 +353,8 @@ void rtc_cmos_write(unsigned char val, unsigned char addr)
 	lock_cmos_suffix(addr);
 }
 EXPORT_SYMBOL(rtc_cmos_write);
+
+#ifdef CONFIG_X86_64
 
 /*
  * This version of gettimeofday has microsecond resolution
@@ -515,6 +494,8 @@ int do_settimeofday(struct timespec *tv)
 
 EXPORT_SYMBOL(do_settimeofday);
 
+#endif
+
 static void sync_xen_wallclock(unsigned long dummy);
 static DEFINE_TIMER(sync_xen_wallclock_timer, sync_xen_wallclock, 0, 0);
 static void sync_xen_wallclock(unsigned long dummy)
@@ -566,11 +547,15 @@ static int set_rtc_mmss(unsigned long nowtime)
 	return retval;
 }
 
+#ifdef CONFIG_X86_64
 /* monotonic_clock(): returns # of nanoseconds passed since time_init()
  *		Note: This function is required to return accurate
  *		time even in the absence of multiple timer ticks.
  */
 unsigned long long monotonic_clock(void)
+#else
+unsigned long long sched_clock(void)
+#endif
 {
 	unsigned int cpu = get_cpu();
 	struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
@@ -590,9 +575,9 @@ unsigned long long monotonic_clock(void)
 
 	return time;
 }
+#ifdef CONFIG_X86_64
 EXPORT_SYMBOL(monotonic_clock);
 
-#ifdef __x86_64__
 unsigned long long sched_clock(void)
 {
 	return monotonic_clock();
@@ -762,6 +747,89 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+#ifndef CONFIG_X86_64
+
+void tsc_init(void)
+{
+	init_cpu_khz();
+	printk(KERN_INFO "Xen reported: %u.%03u MHz processor.\n",
+	       cpu_khz / 1000, cpu_khz % 1000);
+
+	use_tsc_delay();
+}
+
+#include <linux/clocksource.h>
+
+void mark_tsc_unstable(void)
+{
+#ifndef CONFIG_XEN /* XXX Should tell the hypervisor about this fact. */
+	tsc_unstable = 1;
+#endif
+}
+EXPORT_SYMBOL_GPL(mark_tsc_unstable);
+
+static cycle_t xen_clocksource_read(void)
+{
+#ifdef CONFIG_SMP
+	static cycle_t last_ret;
+#ifndef CONFIG_64BIT
+	cycle_t last = cmpxchg64(&last_ret, 0, 0);
+#else
+	cycle_t last = last_ret;
+#define cmpxchg64 cmpxchg
+#endif
+	cycle_t ret = sched_clock();
+
+	if (unlikely((s64)(ret - last) < 0)) {
+		if (last - ret > permitted_clock_jitter
+		    && printk_ratelimit()) {
+			unsigned int cpu = get_cpu();
+			struct shadow_time_info *shadow = &per_cpu(shadow_time, cpu);
+
+			printk(KERN_WARNING "clocksource/%u: "
+			       "Time went backwards: "
+			       "ret=%Lx delta=%Ld shadow=%Lx offset=%Lx\n",
+			       cpu, ret, ret - last, shadow->system_timestamp,
+			       get_nsec_offset(shadow));
+			put_cpu();
+		}
+		return last;
+	}
+
+	for (;;) {
+		cycle_t cur = cmpxchg64(&last_ret, last, ret);
+
+		if (cur == last || (s64)(ret - cur) < 0)
+			return ret;
+		last = cur;
+	}
+#else
+	return sched_clock();
+#endif
+}
+
+static struct clocksource clocksource_xen = {
+	.name			= "xen",
+	.rating			= 400,
+	.read			= xen_clocksource_read,
+	.mask			= CLOCKSOURCE_MASK(64),
+	.mult			= 1 << XEN_SHIFT,		/* time directly in nanoseconds */
+	.shift			= XEN_SHIFT,
+	.is_continuous		= 1,
+};
+
+static int __init init_xen_clocksource(void)
+{
+	clocksource_xen.mult = clocksource_khz2mult(cpu_khz,
+						clocksource_xen.shift);
+
+	return clocksource_register(&clocksource_xen);
+}
+
+module_init(init_xen_clocksource);
+
+#endif
+
 static void init_missing_ticks_accounting(unsigned int cpu)
 {
 	struct vcpu_register_runstate_memory_area area;
@@ -908,7 +976,7 @@ static void setup_cpu0_timer_irq(void)
 			VIRQ_TIMER,
 			0,
 			timer_interrupt,
-			SA_INTERRUPT,
+			IRQF_DISABLED|IRQF_TIMER,
 			"timer0",
 			NULL);
 	BUG_ON(per_cpu(timer_irq, 0) < 0);
@@ -950,11 +1018,11 @@ void __init time_init(void)
 
 	update_wallclock();
 
+#ifdef CONFIG_X86_64
 	init_cpu_khz();
 	printk(KERN_INFO "Xen reported: %u.%03u MHz processor.\n",
 	       cpu_khz / 1000, cpu_khz % 1000);
 
-#if defined(__x86_64__)
 	vxtime.mode = VXTIME_TSC;
 	vxtime.quot = (1000000L << 32) / vxtime_hz;
 	vxtime.tsc_quot = (1000L << 32) / cpu_khz;
@@ -1116,7 +1184,7 @@ int __cpuinit local_setup_timer(unsigned int cpu)
 	irq = bind_virq_to_irqhandler(VIRQ_TIMER,
 				      cpu,
 				      timer_interrupt,
-				      SA_INTERRUPT,
+				      IRQF_DISABLED|IRQF_TIMER,
 				      timer_name[cpu],
 				      NULL);
 	if (irq < 0)
