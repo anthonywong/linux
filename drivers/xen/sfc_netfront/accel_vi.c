@@ -463,7 +463,7 @@ netfront_accel_enqueue_skb_multi(netfront_accel_vnic *vnic, struct sk_buff *skb)
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		/* Set to zero to encourage falcon to work it out for us */
-		*(u16*)(skb->h.raw + skb->csum) = 0;
+		*(u16*)(skb->h.raw + skb->csum_offset) = 0;
 	}
 
 	if (multi_post_start_new_buffer(vnic, &state)) {
@@ -582,7 +582,7 @@ netfront_accel_enqueue_skb_single(netfront_accel_vnic *vnic, struct sk_buff *skb
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		/* Set to zero to encourage falcon to work it out for us */
-		*(u16*)(skb->h.raw + skb->csum) = 0;
+		*(u16*)(skb->h.raw + skb->csum_offset) = 0;
 	}
 	NETFRONT_ACCEL_PKTBUFF_FOR_EACH_FRAGMENT
 		(skb, idx, frag_data, frag_len, {

@@ -39,7 +39,7 @@
 #include <linux/kthread.h>
 
 
-static kmem_cache_t *scsiback_cachep;
+static struct kmem_cache *scsiback_cachep;
 
 struct vscsibk_info *vscsibk_info_alloc(domid_t domid)
 {
