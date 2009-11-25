@@ -285,9 +285,9 @@ static void __exit clean_loopback(int i)
 	char dev_name[IFNAMSIZ];
 
 	sprintf(dev_name, "vif0.%d", i);
-	dev1 = dev_get_by_name(dev_name);
+	dev1 = dev_get_by_name(&init_net, dev_name);
 	sprintf(dev_name, "veth%d", i);
-	dev2 = dev_get_by_name(dev_name);
+	dev2 = dev_get_by_name(&init_net, dev_name);
 	if (dev1 && dev2) {
 		unregister_netdev(dev2);
 		unregister_netdev(dev1);
