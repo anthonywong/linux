@@ -406,34 +406,15 @@ void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event)
 
 #ifdef CONFIG_XEN
 /*
- * This is basically log_sample(b, ESCAPE_CODE, cpu_mode, CPU_TRACE_BEGIN),
+ * This is basically log_sample(b, ESCAPE_CODE, 1, cpu_mode, CPU_TRACE_BEGIN),
  * as was previously accessible through oprofile_add_pc().
  */
 void oprofile_add_mode(int cpu_mode)
 {
 	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
-	struct task_struct *task;
 
-	if (nr_available_slots(cpu_buf) < 3) {
+	if (op_add_code(cpu_buf, 1, cpu_mode, current))
 		cpu_buf->sample_lost_overflow++;
-		return;
-	}
-
-	task = current;
-
-	/* notice a switch from user->kernel or vice versa */
-	if (cpu_buf->last_cpu_mode != cpu_mode) {
-		cpu_buf->last_cpu_mode = cpu_mode;
-		add_code(cpu_buf, cpu_mode);
-	}
-
-	/* notice a task switch */
-	if (cpu_buf->last_task != task) {
-		cpu_buf->last_task = task;
-		add_code(cpu_buf, (unsigned long)task);
-	}
-
-	add_code(cpu_buf, CPU_TRACE_BEGIN);
 }
 #endif
 
@@ -464,17 +445,18 @@ fail:
 #ifdef CONFIG_XEN
 int oprofile_add_domain_switch(int32_t domain_id)
 {
-	struct oprofile_cpu_buffer *cpu_buf = &__get_cpu_var(cpu_buffer);
+	struct op_entry entry;
+	struct op_sample *sample;
 
-	/* should have space for switching into and out of domain
-	   (2 slots each) plus one sample and one cpu mode switch */
-	if (((nr_available_slots(cpu_buf) < 6) &&
-	     (domain_id != COORDINATOR_DOMAIN)) ||
-	    (nr_available_slots(cpu_buf) < 2))
+	sample = op_cpu_buffer_write_reserve(&entry, 1);
+	if (!sample)
 		return 0;
 
-	add_code(cpu_buf, DOMAIN_SWITCH);
-	add_sample(cpu_buf, domain_id, 0);
+	sample->eip = ESCAPE_CODE;
+	sample->event = DOMAIN_SWITCH;
+
+	op_cpu_buffer_add_data(&entry, domain_id);
+	op_cpu_buffer_write_commit(&entry);
 
 	current_domain = domain_id;
 

@@ -170,7 +170,6 @@ EXPORT_SYMBOL_GPL(xenbus_watch_pathfmt);
 /**
  * xenbus_switch_state
  * @dev: xenbus device
- * @xbt: transaction handle
  * @state: new state
  *
  * Advertise in the store a change of the given driver to the given new_state.
@@ -304,7 +303,7 @@ EXPORT_SYMBOL_GPL(xenbus_dev_error);
  * @fmt: error message format
  *
  * Equivalent to xenbus_dev_error(dev, err, fmt, args), followed by
- * xenbus_switch_state(dev, NULL, XenbusStateClosing) to schedule an orderly
+ * xenbus_switch_state(dev, XenbusStateClosing) to schedule an orderly
  * closedown of this driver and its peer.
  */
 void xenbus_dev_fatal(struct xenbus_device *dev, int err, const char *fmt,
