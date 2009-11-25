@@ -120,12 +120,6 @@ ENTRY(hypercall_page)
 	CFI_ENDPROC
 
 /*
- * Real beginning of normal "text" segment
- */
-ENTRY(stext)
-ENTRY(_stext)
-
-/*
  * BSS section
  */
 .section ".bss.page_aligned","wa"

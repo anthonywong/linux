@@ -455,7 +455,9 @@ static inline void mce_get_rip(struct mce *m, struct pt_regs *regs)
  */
 asmlinkage void smp_mce_self_interrupt(struct pt_regs *regs)
 {
+#ifndef CONFIG_XEN
 	ack_APIC_irq();
+#endif
 	exit_idle();
 	irq_enter();
 	mce_notify_irq();
@@ -478,7 +480,7 @@ static void mce_report_event(struct pt_regs *regs)
 		return;
 	}
 
-#ifdef CONFIG_X86_LOCAL_APIC
+#if defined(CONFIG_X86_LOCAL_APIC) && !defined(CONFIG_XEN)
 	/*
 	 * Without APIC do not notify. The event will be picked
 	 * up eventually.
@@ -2079,7 +2081,7 @@ static __init int mce_init_device(void)
 #ifdef CONFIG_X86_XEN_MCE
 	if (is_initial_xendomain()) {
 		/* Register vIRQ handler for MCE LOG processing */
-		extern void bind_virq_for_mce(void);
+		extern int bind_virq_for_mce(void);
 
 		printk(KERN_DEBUG "MCE: bind virq for DOM0 logging\n");
 		bind_virq_for_mce();

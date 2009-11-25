@@ -137,8 +137,8 @@ static int loopback_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		return 0;
 	}
 
-	dst_release(skb->dst);
-	skb->dst = NULL;
+	dst_release(skb_dst(skb));
+	skb_dst_set(skb, NULL);
 
 	skb_orphan(skb);
 

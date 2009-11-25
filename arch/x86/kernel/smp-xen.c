@@ -135,11 +135,38 @@ void xen_send_call_func_ipi(const struct cpumask *mask)
  * this function calls the 'stop' function on all other CPUs in the system.
  */
 
+irqreturn_t smp_reboot_interrupt(int irq, void *dev_id)
+{
+	irq_enter();
+	stop_this_cpu(NULL);
+	irq_exit();
+
+	return IRQ_HANDLED;
+}
+
 void xen_smp_send_stop(void)
 {
 	unsigned long flags;
+	unsigned long wait;
 
-	smp_call_function(stop_this_cpu, NULL, 0);
+	/*
+	 * Use an own vector here because smp_call_function
+	 * does lots of things not suitable in a panic situation.
+	 * On most systems we could also use an NMI here,
+	 * but there are a few systems around where NMI
+	 * is problematic so stay with an non NMI for now
+	 * (this implies we cannot stop CPUs spinning with irq off
+	 * currently)
+	 */
+	if (num_online_cpus() > 1) {
+		xen_send_IPI_allbutself(REBOOT_VECTOR);
+
+		/* Don't wait longer than a second */
+		wait = USEC_PER_SEC;
+		while (num_online_cpus() > 1 && wait--)
+			udelay(1);
+	}
+
 	local_irq_save(flags);
 	disable_all_local_evtchn();
 	local_irq_restore(flags);
