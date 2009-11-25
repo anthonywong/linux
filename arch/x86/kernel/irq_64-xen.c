@@ -163,6 +163,34 @@ skip:
 }
 
 /*
+ * /proc/stat helpers
+ */
+u64 arch_irq_stat_cpu(unsigned int cpu)
+{
+	u64 sum = cpu_pda(cpu)->__nmi_count;
+
+	sum += cpu_pda(cpu)->apic_timer_irqs;
+#ifdef CONFIG_SMP
+	sum += cpu_pda(cpu)->irq_resched_count;
+	sum += cpu_pda(cpu)->irq_call_count;
+#ifndef CONFIG_XEN
+	sum += cpu_pda(cpu)->irq_tlb_count;
+#endif
+#endif
+#ifdef CONFIG_X86_MCE
+	sum += cpu_pda(cpu)->irq_thermal_count;
+	sum += cpu_pda(cpu)->irq_threshold_count;
+#endif
+	sum += cpu_pda(cpu)->irq_spurious_count;
+	return sum;
+}
+
+u64 arch_irq_stat(void)
+{
+	return atomic_read(&irq_err_count);
+}
+
+/*
  * do_IRQ handles all normal device IRQ's (the special
  * SMP cross-CPU interrupts have their own specific
  * handlers).

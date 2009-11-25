@@ -136,9 +136,11 @@ ifeq ($(CONFIG_X86_64),y)
 	obj-$(CONFIG_PCI_MMCONFIG)	+= mmconf-fam10h_64.o
 	obj-y				+= vsmp_64.o
 
-	obj-$(CONFIG_XEN)		+= nmi_64.o
+	obj-$(CONFIG_XEN)		+= nmi.o
 	time_64-$(CONFIG_XEN)		+= time_32.o
 endif
 
-disabled-obj-$(CONFIG_XEN) := crash.o early-quirks.o hpet.o i8253.o i8259_$(BITS).o \
-	pci-swiotlb_64.o reboot.o smpboot.o tlb_$(BITS).o tsc_$(BITS).o tsc_sync.o vsmp_64.o
+disabled-obj-$(CONFIG_XEN) := %_uv.o crash.o early-quirks.o hpet.o i8253.o \
+	i8259.o irqinit_$(BITS).o pci-swiotlb_64.o reboot.o smpboot.o \
+	tlb_$(BITS).o tsc.o tsc_sync.o vsmp_64.o
+disabled-obj-$(CONFIG_XEN_UNPRIVILEGED_GUEST) += probe_roms_32.o

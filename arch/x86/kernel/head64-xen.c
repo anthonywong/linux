@@ -32,7 +32,26 @@
 #include <asm/e820.h>
 #include <asm/bios_ebda.h>
 
-unsigned long start_pfn;
+/* boot cpu pda */
+static struct x8664_pda _boot_cpu_pda __read_mostly;
+
+#ifdef CONFIG_SMP
+/*
+ * We install an empty cpu_pda pointer table to indicate to early users
+ * (numa_set_node) that the cpu_pda pointer table for cpus other than
+ * the boot cpu is not yet setup.
+ */
+static struct x8664_pda *__cpu_pda[NR_CPUS] __initdata;
+#else
+static struct x8664_pda *__cpu_pda[NR_CPUS] __read_mostly;
+#endif
+
+void __init x86_64_init_pda(void)
+{
+	_cpu_pda = __cpu_pda;
+	cpu_pda(0) = &_boot_cpu_pda;
+	pda_init(0);
+}
 
 #ifndef CONFIG_XEN
 static void __init zap_identity_mappings(void)
@@ -77,83 +96,10 @@ EXPORT_SYMBOL(machine_to_phys_mapping);
 unsigned int machine_to_phys_order;
 EXPORT_SYMBOL(machine_to_phys_order);
 
-#define BIOS_LOWMEM_KILOBYTES 0x413
-
-/*
- * The BIOS places the EBDA/XBDA at the top of conventional
- * memory, and usually decreases the reported amount of
- * conventional memory (int 0x12) too. This also contains a
- * workaround for Dell systems that neglect to reserve EBDA.
- * The same workaround also avoids a problem with the AMD768MPX
- * chipset: reserve a page before VGA to prevent PCI prefetch
- * into it (errata #56). Usually the page is reserved anyways,
- * unless you have no PS/2 mouse plugged in.
- */
-static void __init reserve_ebda_region(void)
-{
-#ifndef CONFIG_XEN
-	unsigned int lowmem, ebda_addr;
-
-	/* To determine the position of the EBDA and the */
-	/* end of conventional memory, we need to look at */
-	/* the BIOS data area. In a paravirtual environment */
-	/* that area is absent. We'll just have to assume */
-	/* that the paravirt case can handle memory setup */
-	/* correctly, without our help. */
-	if (paravirt_enabled())
-		return;
-
-	/* end of low (conventional) memory */
-	lowmem = *(unsigned short *)__va(BIOS_LOWMEM_KILOBYTES);
-	lowmem <<= 10;
-
-	/* start of EBDA area */
-	ebda_addr = get_bios_ebda();
-
-	/* Fixup: bios puts an EBDA in the top 64K segment */
-	/* of conventional memory, but does not adjust lowmem. */
-	if ((lowmem - ebda_addr) <= 0x10000)
-		lowmem = ebda_addr;
-
-	/* Fixup: bios does not report an EBDA at all. */
-	/* Some old Dells seem to need 4k anyhow (bugzilla 2990) */
-	if ((ebda_addr == 0) && (lowmem >= 0x9f000))
-		lowmem = 0x9f000;
-
-	/* Paranoia: should never happen, but... */
-	if ((lowmem == 0) || (lowmem >= 0x100000))
-		lowmem = 0x9f000;
-
-	/* reserve all memory between lowmem and the 1MB mark */
-	reserve_early(lowmem, 0x100000, "BIOS reserved");
-#endif
-}
-
-static void __init reserve_setup_data(void)
-{
-#ifndef CONFIG_XEN
-	struct setup_data *data;
-	unsigned long pa_data;
-	char buf[32];
-
-	if (boot_params.hdr.version < 0x0209)
-		return;
-	pa_data = boot_params.hdr.setup_data;
-	while (pa_data) {
-		data = early_ioremap(pa_data, sizeof(*data));
-		sprintf(buf, "setup data %x", data->type);
-		reserve_early(pa_data, pa_data+sizeof(*data)+data->len, buf);
-		pa_data = data->next;
-		early_iounmap(data, sizeof(*data));
-	}
-#endif
-}
-
 void __init x86_64_start_kernel(char * real_mode_data)
 {
 	struct xen_machphys_mapping mapping;
 	unsigned long machine_to_phys_nr_ents;
-	int i;
 
 	/*
 	 * Build-time sanity checks on the kernel image and module
@@ -167,6 +113,7 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	BUILD_BUG_ON(!(MODULES_VADDR > __START_KERNEL));
 	BUILD_BUG_ON(!(((MODULES_END - 1) & PGDIR_MASK) ==
 				(__START_KERNEL & PGDIR_MASK)));
+	BUILD_BUG_ON(__fix_to_virt(__end_of_fixed_addresses) <= MODULES_END);
 
 	xen_setup_features();
 
@@ -174,8 +121,6 @@ void __init x86_64_start_kernel(char * real_mode_data)
 	if (!xen_feature(XENFEAT_auto_translated_physmap))
 		phys_to_machine_mapping =
 			(unsigned long *)xen_start_info->mfn_list;
-	start_pfn = (__pa(xen_start_info->pt_base) >> PAGE_SHIFT) +
-		xen_start_info->nr_pt_frames;
 
 	machine_to_phys_mapping = (unsigned long *)MACH2PHYS_VIRT_START;
 	machine_to_phys_nr_ents = MACH2PHYS_NR_ENTRIES;
@@ -208,19 +153,23 @@ void __init x86_64_start_kernel(char * real_mode_data)
 
 	early_printk("Kernel alive\n");
 
- 	for (i = 0; i < NR_CPUS; i++)
- 		cpu_pda(i) = &boot_cpu_pda[i];
+	x86_64_init_pda();
 
-	pda_init(0);
+	early_printk("Kernel really alive\n");
+
+	x86_64_start_reservations(real_mode_data);
+}
+
+void __init x86_64_start_reservations(char *real_mode_data)
+{
 	copy_bootdata(__va(real_mode_data));
 
 	reserve_early(__pa_symbol(&_text), __pa_symbol(&_end), "TEXT DATA BSS");
 
 	reserve_early(round_up(__pa_symbol(&_end), PAGE_SIZE),
-		      start_pfn << PAGE_SHIFT, "Xen provided");
-
-	reserve_ebda_region();
-	reserve_setup_data();
+		      __pa(xen_start_info->pt_base)
+		      + (xen_start_info->nr_pt_frames << PAGE_SHIFT),
+		      "Xen provided");
 
 	/*
 	 * At this point everything still needed from the boot loader

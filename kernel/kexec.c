@@ -47,7 +47,7 @@ note_buf_t* crash_notes;
 static unsigned char vmcoreinfo_data[VMCOREINFO_BYTES];
 u32
 #if defined(CONFIG_XEN) && defined(CONFIG_X86)
-__attribute__((__section__(".bss.page_aligned"), __aligned__(PAGE_SIZE)))
+__page_aligned_bss
 #endif
 vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
 size_t vmcoreinfo_size;
