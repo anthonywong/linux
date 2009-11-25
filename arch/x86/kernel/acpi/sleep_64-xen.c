@@ -123,6 +123,3 @@ static int __init acpi_sleep_setup(char *str)
 __setup("acpi_sleep=", acpi_sleep_setup);
 #endif				/* CONFIG_ACPI_PV_SLEEP */
 
-void acpi_pci_link_exit(void)
-{
-}

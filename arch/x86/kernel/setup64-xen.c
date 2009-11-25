@@ -15,7 +15,6 @@
 #include <linux/bootmem.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
-#include <asm/bootsetup.h>
 #include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -27,11 +26,12 @@
 #include <asm/percpu.h>
 #include <asm/proto.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 #ifdef CONFIG_XEN
 #include <asm/hypervisor.h>
 #endif
 
-char x86_boot_params[BOOT_PARAM_SIZE] __initdata;
+struct boot_params __initdata boot_params;
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
@@ -159,8 +159,8 @@ static void switch_pt(void)
 
 static void __cpuinit cpu_gdt_init(const struct desc_ptr *gdt_descr)
 {
-	asm volatile("lgdt %0" :: "m" (*gdt_descr));
-	asm volatile("lidt %0" :: "m" (idt_descr));
+	load_gdt(gdt_descr);
+	load_idt(idt_descr);
 }
 #endif
 
@@ -251,6 +251,14 @@ void __cpuinit check_efer(void)
 }
 
 unsigned long kernel_eflags;
+
+#ifndef CONFIG_X86_NO_TSS
+/*
+ * Copies of the original ist values from the tss are only accessed during
+ * debugging, no special alignment required.
+ */
+DEFINE_PER_CPU(struct orig_ist, orig_ist);
+#endif
 
 /*
  * cpu_init() initializes state that is per-CPU. Some data is already
