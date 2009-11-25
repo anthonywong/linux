@@ -33,10 +33,9 @@
 
 #include "accel_tso.h"
 
-#define PTR_DIFF(p1, p2)  ((u8*)(p1) - (u8*)(p2))
-#define ETH_HDR_LEN(skb)  ((skb)->nh.raw - (skb)->data)
-#define SKB_TCP_OFF(skb)  PTR_DIFF ((skb)->h.th, (skb)->data)
-#define SKB_IP_OFF(skb)   PTR_DIFF ((skb)->nh.iph, (skb)->data)
+#define ETH_HDR_LEN(skb)  skb_network_offset(skb)
+#define SKB_TCP_OFF(skb)  skb_transport_offset(skb)
+#define SKB_IP_OFF(skb)   skb_network_offset(skb)
 
 /*
  * Set a maximum number of buffers in each output packet to make life
@@ -114,9 +113,8 @@ struct netfront_accel_tso_state {
 static inline void tso_check_safe(struct sk_buff *skb) {
 	EPRINTK_ON(skb->protocol != htons (ETH_P_IP));
 	EPRINTK_ON(((struct ethhdr*) skb->data)->h_proto != htons (ETH_P_IP));
-	EPRINTK_ON(skb->nh.iph->protocol != IPPROTO_TCP);
-	EPRINTK_ON((SKB_TCP_OFF(skb)
-		    + (skb->h.th->doff << 2u)) > skb_headlen(skb));
+	EPRINTK_ON(ip_hdr(skb)->protocol != IPPROTO_TCP);
+	EPRINTK_ON((SKB_TCP_OFF(skb) + tcp_hdrlen(skb)) > skb_headlen(skb));
 }
 
 
@@ -129,17 +127,17 @@ static inline void tso_start(struct netfront_accel_tso_state *st,
 	 * All ethernet/IP/TCP headers combined size is TCP header size
 	 * plus offset of TCP header relative to start of packet.
  	 */
-	st->p.header_length = (skb->h.th->doff << 2u) + SKB_TCP_OFF(skb);
+	st->p.header_length = tcp_hdrlen(skb) + SKB_TCP_OFF(skb);
 	st->p.full_packet_size = (st->p.header_length
 				  + skb_shinfo(skb)->gso_size);
 	st->p.gso_size = skb_shinfo(skb)->gso_size;
 
-	st->p.ip_id = htons(skb->nh.iph->id);
-	st->seqnum = ntohl(skb->h.th->seq);
+	st->p.ip_id = htons(ip_hdr(skb)->id);
+	st->seqnum = ntohl(tcp_hdr(skb)->seq);
 
-	EPRINTK_ON(skb->h.th->urg);
-	EPRINTK_ON(skb->h.th->syn);
-	EPRINTK_ON(skb->h.th->rst);
+	EPRINTK_ON(tcp_hdr(skb)->urg);
+	EPRINTK_ON(tcp_hdr(skb)->syn);
+	EPRINTK_ON(tcp_hdr(skb)->rst);
 
 	st->remaining_len = skb->len - st->p.header_length;
 
@@ -258,8 +256,8 @@ int tso_start_new_packet(netfront_accel_vnic *vnic,
 		/* This packet will be the last in the TSO burst. */
 		ip_length = (st->p.header_length - ETH_HDR_LEN(skb)
 			     + st->remaining_len);
-		tsoh_th->fin = skb->h.th->fin;
-		tsoh_th->psh = skb->h.th->psh;
+		tsoh_th->fin = tcp_hdr(skb)->fin;
+		tsoh_th->psh = tcp_hdr(skb)->psh;
 	}
 
 	tsoh_iph->tot_len = htons(ip_length);

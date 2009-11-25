@@ -38,7 +38,7 @@
 
 #ifdef CONFIG_EPOLL
 #include <linux/poll.h>
-#include <linux/eventpoll.h>
+#include <linux/anon_inodes.h>
 #endif
 
 #if DEBUG > 1
@@ -1287,7 +1287,7 @@ static const struct file_operations aioq_fops = {
 
 /* make_aio_fd:
  *  Create a file descriptor that can be used to poll the event queue.
- *  Based and piggybacked on the excellent epoll code.
+ *  Based on the excellent epoll code.
  */
 
 static int make_aio_fd(struct kioctx *ioctx)
@@ -1296,7 +1296,8 @@ static int make_aio_fd(struct kioctx *ioctx)
 	struct inode *inode;
 	struct file *file;
 
-	error = ep_getfd(&fd, &inode, &file, NULL, &aioq_fops);
+	error = anon_inode_getfd(&fd, &inode, &file, "[aioq]",
+				 &aioq_fops, ioctx);
 	if (error)
 		return error;
 

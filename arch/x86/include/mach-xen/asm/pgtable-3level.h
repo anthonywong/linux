@@ -52,32 +52,40 @@ static inline int pte_exec_kernel(pte_t pte)
  * value and then use set_pte to update it.  -ben
  */
 
-static inline void set_pte(pte_t *ptep, pte_t pte)
+static inline void xen_set_pte(pte_t *ptep, pte_t pte)
 {
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
 	ptep->pte_low = pte.pte_low;
 }
-#define set_pte_atomic(pteptr,pteval) \
-		set_64bit((unsigned long long *)(pteptr),__pte_val(pteval))
 
-#define set_pte_at(_mm,addr,ptep,pteval) do {				\
-	if (((_mm) != current->mm && (_mm) != &init_mm) ||		\
-	    HYPERVISOR_update_va_mapping((addr), (pteval), 0))		\
-		set_pte((ptep), (pteval));				\
-} while (0)
+static inline void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
+				  pte_t *ptep , pte_t pte)
+{
+	if ((mm != current->mm && mm != &init_mm) ||
+	    HYPERVISOR_update_va_mapping(addr, pte, 0))
+		xen_set_pte(ptep, pte);
+}
 
-#define set_pmd(pmdptr,pmdval)				\
-		xen_l2_entry_update((pmdptr), (pmdval))
-#define set_pud(pudptr,pudval) \
-		xen_l3_entry_update((pudptr), (pudval))
+static inline void xen_set_pte_atomic(pte_t *ptep, pte_t pte)
+{
+	set_64bit((unsigned long long *)(ptep),__pte_val(pte));
+}
+static inline void xen_set_pmd(pmd_t *pmdp, pmd_t pmd)
+{
+	xen_l2_entry_update(pmdp, pmd);
+}
+static inline void xen_set_pud(pud_t *pudp, pud_t pud)
+{
+	xen_l3_entry_update(pudp, pud);
+}
 
 /*
  * For PTEs and PDEs, we must clear the P-bit first when clearing a page table
  * entry, so clear the bottom half first and enforce ordering with a compiler
  * barrier.
  */
-static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static inline void xen_pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	if ((mm != current->mm && mm != &init_mm)
 	    || HYPERVISOR_update_va_mapping(addr, __pte(0), 0)) {
@@ -87,7 +95,18 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 	}
 }
 
-#define pmd_clear(xp)	do { set_pmd(xp, __pmd(0)); } while (0)
+static inline void xen_pmd_clear(pmd_t *pmd)
+{
+	xen_l2_entry_update(pmd, __pmd(0));
+}
+
+#define set_pte(ptep, pte)			xen_set_pte(ptep, pte)
+#define set_pte_at(mm, addr, ptep, pte)		xen_set_pte_at(mm, addr, ptep, pte)
+#define set_pte_atomic(ptep, pte)		xen_set_pte_atomic(ptep, pte)
+#define set_pmd(pmdp, pmd)			xen_set_pmd(pmdp, pmd)
+#define set_pud(pudp, pud)			xen_set_pud(pudp, pud)
+#define pte_clear(mm, addr, ptep)		xen_pte_clear(mm, addr, ptep)
+#define pmd_clear(pmd)				xen_pmd_clear(pmd)
 
 /*
  * Pentium-II erratum A13: in PAE mode we explicitly have to flush
@@ -108,7 +127,8 @@ static inline void pud_clear (pud_t * pud) { }
 #define pmd_offset(pud, address) ((pmd_t *) pud_page(*(pud)) + \
 			pmd_index(address))
 
-static inline pte_t raw_ptep_get_and_clear(pte_t *ptep, pte_t res)
+#ifdef CONFIG_SMP
+static inline pte_t xen_ptep_get_and_clear(pte_t *ptep, pte_t res)
 {
 	uint64_t val = __pte_val(res);
 	if (__cmpxchg64(ptep, val, 0) != val) {
@@ -119,6 +139,9 @@ static inline pte_t raw_ptep_get_and_clear(pte_t *ptep, pte_t res)
 	}
 	return res;
 }
+#else
+#define xen_ptep_get_and_clear(xp, pte) xen_local_ptep_get_and_clear(xp, pte)
+#endif
 
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define ptep_clear_flush(vma, addr, ptep)			\
@@ -165,13 +188,13 @@ extern unsigned long long __supported_pte_mask;
 static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
 	return __pte((((unsigned long long)page_nr << PAGE_SHIFT) |
-			pgprot_val(pgprot)) & __supported_pte_mask);
+		      pgprot_val(pgprot)) & __supported_pte_mask);
 }
 
 static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 {
 	return __pmd((((unsigned long long)page_nr << PAGE_SHIFT) |
-			pgprot_val(pgprot)) & __supported_pte_mask);
+		      pgprot_val(pgprot)) & __supported_pte_mask);
 }
 
 /*
@@ -190,7 +213,5 @@ static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 #define __swp_entry_to_pte(x)		((pte_t){ 0, (x).val })
 
 #define __pmd_free_tlb(tlb, x)		do { } while (0)
-
-void vmalloc_sync_all(void);
 
 #endif /* _I386_PGTABLE_3LEVEL_H */
