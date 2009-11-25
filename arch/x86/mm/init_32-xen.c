@@ -313,8 +313,7 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 static void __meminit free_new_highpage(struct page *page, int pfn)
 {
 	init_page_count(page);
-	if (pfn < xen_start_info->nr_pages)
-		__free_page(page);
+	__free_page(page);
 	totalhigh_pages++;
 }
 
@@ -357,8 +356,16 @@ extern void set_highmem_pages_init(int);
 static void __init set_highmem_pages_init(int bad_ppro)
 {
 	int pfn;
-	for (pfn = highstart_pfn; pfn < highend_pfn; pfn++)
+	for (pfn = highstart_pfn; pfn < highend_pfn
+				  && pfn < xen_start_info->nr_pages; pfn++)
 		add_one_highpage_init(pfn_to_page(pfn), pfn, bad_ppro);
+
+	/* XEN: init high-mem pages outside initial allocation. */
+	for (; pfn < highend_pfn; pfn++) {
+		ClearPageReserved(pfn_to_page(pfn));
+		init_page_count(pfn_to_page(pfn));
+	}
+
 	totalram_pages += totalhigh_pages;
 }
 #endif /* CONFIG_FLATMEM */
@@ -462,16 +469,22 @@ EXPORT_SYMBOL(__supported_pte_mask);
  * on      Enable
  * off     Disable
  */
-void __init noexec_setup(const char *str)
+static int __init noexec_setup(char *str)
 {
-	if (!strncmp(str, "on",2) && cpu_has_nx) {
-		__supported_pte_mask |= _PAGE_NX;
-		disable_nx = 0;
-	} else if (!strncmp(str,"off",3)) {
+	if (!str || !strcmp(str, "on")) {
+		if (cpu_has_nx) {
+			__supported_pte_mask |= _PAGE_NX;
+			disable_nx = 0;
+		}
+	} else if (!strcmp(str,"off")) {
 		disable_nx = 1;
 		__supported_pte_mask &= ~_PAGE_NX;
-	}
+	} else
+		return -EINVAL;
+
+	return 0;
 }
+early_param("noexec", noexec_setup);
 
 int nx_enabled = 0;
 #ifdef CONFIG_X86_PAE
@@ -514,6 +527,7 @@ int __init set_kernel_exec(unsigned long vaddr, int enable)
 		pte->pte_high &= ~(1 << (_PAGE_BIT_NX - 32));
 	else
 		pte->pte_high |= 1 << (_PAGE_BIT_NX - 32);
+	pte_update_defer(&init_mm, vaddr, pte);
 	__flush_tlb_all();
 out:
 	return ret;
@@ -596,18 +610,6 @@ static void __init test_wp_bit(void)
 	}
 }
 
-static void __init set_max_mapnr_init(void)
-{
-#ifdef CONFIG_HIGHMEM
-	num_physpages = highend_pfn;
-#else
-	num_physpages = max_low_pfn;
-#endif
-#ifdef CONFIG_FLATMEM
-	max_mapnr = num_physpages;
-#endif
-}
-
 static struct kcore_list kcore_mem, kcore_vmalloc; 
 
 void __init mem_init(void)
@@ -623,8 +625,7 @@ void __init mem_init(void)
 #endif
 
 #ifdef CONFIG_FLATMEM
-	if (!mem_map)
-		BUG();
+	BUG_ON(!mem_map);
 #endif
 	
 	bad_ppro = ppro_with_ram_bug();
@@ -639,24 +640,12 @@ void __init mem_init(void)
 	}
 #endif
  
-	set_max_mapnr_init();
-
-#ifdef CONFIG_HIGHMEM
-	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
-#else
-	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
-#endif
-	printk("vmalloc area: %lx-%lx, maxmem %lx\n",
-	       VMALLOC_START,VMALLOC_END,MAXMEM);
-	BUG_ON(VMALLOC_START > VMALLOC_END);
-	
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem();
-	/* XEN: init and count low-mem pages outside initial allocation. */
+	/* XEN: init low-mem pages outside initial allocation. */
 	for (pfn = xen_start_info->nr_pages; pfn < max_low_pfn; pfn++) {
 		ClearPageReserved(pfn_to_page(pfn));
 		init_page_count(pfn_to_page(pfn));
-		totalram_pages++;
 	}
 
 	reservedpages = 0;
@@ -686,6 +675,48 @@ void __init mem_init(void)
 		initsize >> 10,
 		(unsigned long) (totalhigh_pages << (PAGE_SHIFT-10))
 	       );
+
+#if 1 /* double-sanity-check paranoia */
+	printk("virtual kernel memory layout:\n"
+	       "    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+#ifdef CONFIG_HIGHMEM
+	       "    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+#endif
+	       "    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+	       "    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+	       "      .init : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+	       "      .data : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+	       "      .text : 0x%08lx - 0x%08lx   (%4ld kB)\n",
+	       FIXADDR_START, FIXADDR_TOP,
+	       (FIXADDR_TOP - FIXADDR_START) >> 10,
+
+#ifdef CONFIG_HIGHMEM
+	       PKMAP_BASE, PKMAP_BASE+LAST_PKMAP*PAGE_SIZE,
+	       (LAST_PKMAP*PAGE_SIZE) >> 10,
+#endif
+
+	       VMALLOC_START, VMALLOC_END,
+	       (VMALLOC_END - VMALLOC_START) >> 20,
+
+	       (unsigned long)__va(0), (unsigned long)high_memory,
+	       ((unsigned long)high_memory - (unsigned long)__va(0)) >> 20,
+
+	       (unsigned long)&__init_begin, (unsigned long)&__init_end,
+	       ((unsigned long)&__init_end - (unsigned long)&__init_begin) >> 10,
+
+	       (unsigned long)&_etext, (unsigned long)&_edata,
+	       ((unsigned long)&_edata - (unsigned long)&_etext) >> 10,
+
+	       (unsigned long)&_text, (unsigned long)&_etext,
+	       ((unsigned long)&_etext - (unsigned long)&_text) >> 10);
+
+#ifdef CONFIG_HIGHMEM
+	BUG_ON(PKMAP_BASE+LAST_PKMAP*PAGE_SIZE > FIXADDR_START);
+	BUG_ON(VMALLOC_END                     > PKMAP_BASE);
+#endif
+	BUG_ON(VMALLOC_START                   > VMALLOC_END);
+	BUG_ON((unsigned long)high_memory      > VMALLOC_START);
+#endif /* double-sanity-check paranoia */
 
 #ifdef CONFIG_X86_PAE
 	if (!cpu_has_pae)
@@ -717,7 +748,7 @@ void __init mem_init(void)
 int arch_add_memory(int nid, u64 start, u64 size)
 {
 	struct pglist_data *pgdata = &contig_page_data;
-	struct zone *zone = pgdata->node_zones + MAX_NR_ZONES-1;
+	struct zone *zone = pgdata->node_zones + ZONE_HIGHMEM;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
 
