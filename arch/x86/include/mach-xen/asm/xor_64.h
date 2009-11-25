@@ -1,5 +1,5 @@
-#ifndef ASM_X86__XOR_64_H
-#define ASM_X86__XOR_64_H
+#ifndef _ASM_X86_XOR_64_H
+#define _ASM_X86_XOR_64_H
 
 /*
  * x86-64 changes / gcc fixes from Andi Kleen.
@@ -334,4 +334,4 @@ do {						\
    deals with a load to a line that is being prefetched.  */
 #define XOR_SELECT_TEMPLATE(FASTEST) (&xor_block_sse)
 
-#endif /* ASM_X86__XOR_64_H */
+#endif /* _ASM_X86_XOR_64_H */

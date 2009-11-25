@@ -1,5 +1,5 @@
-#ifndef _I386_PGTABLE_3LEVEL_H
-#define _I386_PGTABLE_3LEVEL_H
+#ifndef _ASM_X86_PGTABLE_3LEVEL_H
+#define _ASM_X86_PGTABLE_3LEVEL_H
 
 /*
  * Intel Physical Address Extension (PAE) Mode - three-level page
@@ -102,13 +102,13 @@ static inline void pud_clear(pud_t *pudp)
 		xen_tlb_flush();
 }
 
-#define pud_page(pud) ((struct page *) __va(pud_val(pud) & PTE_PFN_MASK))
+#define pud_page(pud) pfn_to_page(pud_val(pud) >> PAGE_SHIFT)
 
 #define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_PFN_MASK))
 
 
 /* Find an entry in the second-level page table.. */
-#define pmd_offset(pud, address) ((pmd_t *)pud_page(*(pud)) +	\
+#define pmd_offset(pud, address) ((pmd_t *)pud_page_vaddr(*(pud)) +	\
 				  pmd_index(address))
 
 #ifdef CONFIG_SMP
@@ -133,8 +133,6 @@ static inline int pte_same(pte_t a, pte_t b)
 	return a.pte_low == b.pte_low && a.pte_high == b.pte_high;
 }
 
-#define pte_page(x)	pfn_to_page(pte_pfn(x))
-
 static inline int pte_none(pte_t pte)
 {
 	return !(pte.pte_low | pte.pte_high);
@@ -142,12 +140,6 @@ static inline int pte_none(pte_t pte)
 
 #define __pte_mfn(_pte) (((_pte).pte_low >> PAGE_SHIFT) | \
 			 ((_pte).pte_high << (32-PAGE_SHIFT)))
-#define pte_mfn(_pte) ((_pte).pte_low & _PAGE_PRESENT ? \
-	__pte_mfn(_pte) : pfn_to_mfn(__pte_mfn(_pte)))
-#define pte_pfn(_pte) ((_pte).pte_low & _PAGE_IO ? max_mapnr :	\
-		       (_pte).pte_low & _PAGE_PRESENT ?		\
-		       mfn_to_local_pfn(__pte_mfn(_pte)) :	\
-		       __pte_mfn(_pte))
 
 /*
  * Bits 0, 6 and 7 are taken in the low part of the pte,
@@ -165,4 +157,4 @@ static inline int pte_none(pte_t pte)
 #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
 #define __swp_entry_to_pte(x)		((pte_t){ { .pte_high = (x).val } })
 
-#endif /* _I386_PGTABLE_3LEVEL_H */
+#endif /* _ASM_X86_PGTABLE_3LEVEL_H */

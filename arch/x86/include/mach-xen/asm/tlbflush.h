@@ -63,6 +63,10 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 		__flush_tlb();
 }
 
+static inline void reset_lazy_tlbstate(void)
+{
+}
+
 #else  /* SMP */
 
 #include <asm/smp.h>
@@ -92,6 +96,12 @@ struct tlb_state {
 	char __cacheline_padding[L1_CACHE_BYTES-8];
 };
 DECLARE_PER_CPU(struct tlb_state, cpu_tlbstate);
+
+void reset_lazy_tlbstate(void);
+#else
+static inline void reset_lazy_tlbstate(void)
+{
+}
 #endif
 
 #endif	/* SMP */
