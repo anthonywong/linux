@@ -32,7 +32,7 @@ static int __init apic_set_verbosity(char *arg)
 	else if (strcmp("verbose", arg) == 0)
 		apic_verbosity = APIC_VERBOSE;
 	else {
-		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
+		pr_warning("APIC Verbosity level %s not recognised"
 			" use apic=verbose or apic=debug\n", arg);
 		return -EINVAL;
 	}

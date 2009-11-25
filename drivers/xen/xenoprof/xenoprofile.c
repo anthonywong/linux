@@ -50,7 +50,7 @@ static int xenoprof_enabled = 0;
 static int xenoprof_is_primary = 0;
 static int active_defined;
 
-extern unsigned long backtrace_depth;
+extern unsigned long oprofile_backtrace_depth;
 
 /* Number of buffers in shared area (one per VCPU) */
 static int nbuf;
@@ -310,11 +310,11 @@ static int xenoprof_setup(void)
 			active_defined = 1;
 		}
 
-		if (backtrace_depth > 0) {
+		if (oprofile_backtrace_depth > 0) {
 			ret = HYPERVISOR_xenoprof_op(XENOPROF_set_backtrace, 
-						     &backtrace_depth);
+						     &oprofile_backtrace_depth);
 			if (ret)
-				backtrace_depth = 0;
+				oprofile_backtrace_depth = 0;
 		}
 
 		ret = HYPERVISOR_xenoprof_op(XENOPROF_reserve_counters, NULL);
