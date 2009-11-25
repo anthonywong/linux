@@ -55,7 +55,7 @@ enum fixed_addresses {
 #ifdef CONFIG_X86_LOCAL_APIC
 	FIX_APIC_BASE,	/* local (CPU) APIC) -- required for SMP or not */
 #endif
-#ifdef CONFIG_X86_IO_APIC
+#if defined(CONFIG_X86_IO_APIC) && !defined(CONFIG_XEN)
 	FIX_IO_APIC_BASE_0,
 	FIX_IO_APIC_BASE_END = FIX_IO_APIC_BASE_0 + MAX_IO_APICS-1,
 #endif
@@ -95,10 +95,9 @@ enum fixed_addresses {
 	__end_of_fixed_addresses
 };
 
-extern void set_fixaddr_top(unsigned long top);
-
 extern void __set_fixmap(enum fixed_addresses idx,
 					maddr_t phys, pgprot_t flags);
+extern void reserve_top_address(unsigned long reserve);
 
 #define set_fixmap(idx, phys) \
 		__set_fixmap(idx, phys, PAGE_KERNEL)

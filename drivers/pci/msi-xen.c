@@ -6,6 +6,7 @@
  * Copyright (C) Tom Long Nguyen (tom.l.nguyen@intel.com)
  */
 
+#include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -14,6 +15,7 @@
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
+#include <linux/msi.h>
 
 #include <xen/evtchn.h>
 
@@ -25,14 +27,6 @@
 #include "msi.h"
 
 static int pci_msi_enable = 1;
-
-static struct msi_ops *msi_ops;
-
-int msi_register(struct msi_ops *ops)
-{
-	msi_ops = ops;
-	return 0;
-}
 
 static LIST_HEAD(msi_dev_head);
 DEFINE_SPINLOCK(msi_dev_lock);
@@ -481,9 +475,9 @@ void pci_restore_msix_state(struct pci_dev *dev)
  * @dev: pointer to the pci_dev data structure of MSI device function
  *
  * Setup the MSI capability structure of device function with a single
- * MSI vector, regardless of device function is capable of handling
+ * MSI irq, regardless of device function is capable of handling
  * multiple messages. A return of zero indicates the successful setup
- * of an entry zero with the new MSI vector or non-zero for otherwise.
+ * of an entry zero with the new MSI irq or non-zero for otherwise.
  **/
 static int msi_capability_init(struct pci_dev *dev)
 {
@@ -497,11 +491,11 @@ static int msi_capability_init(struct pci_dev *dev)
 	if (pirq < 0)
 		return -EBUSY;
 
-	dev->irq = pirq;
 	/* Set MSI enabled bits	 */
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSI);
 	dev->msi_enabled = 1;
 
+	dev->irq = pirq;
 	return 0;
 }
 
@@ -512,8 +506,8 @@ static int msi_capability_init(struct pci_dev *dev)
  * @nvec: number of @entries
  *
  * Setup the MSI-X capability structure of device function with a
- * single MSI-X vector. A return of zero indicates the successful setup of
- * requested MSI-X entries with allocated vectors or non-zero for otherwise.
+ * single MSI-X irq. A return of zero indicates the successful setup of
+ * requested MSI-X entries with allocated irqs or non-zero for otherwise.
  **/
 static int msix_capability_init(struct pci_dev *dev,
 				struct msix_entry *entries, int nvec)
@@ -562,12 +556,18 @@ static int msix_capability_init(struct pci_dev *dev,
 	}
 
 	if (i != nvec) {
+		int avail = i - 1;
 		for (j = --i; j >= 0; j--) {
 			msi_unmap_pirq(dev, entries[j].vector);
 			detach_pirq_entry(entries[j].entry, msi_dev_entry);
 			entries[j].vector = 0;
 		}
-		return -EBUSY;
+		/* If we had some success report the number of irqs
+		 * we succeeded in setting up.
+		 */
+		if (avail <= 0)
+			avail = -EBUSY;
+		return avail;
 	}
 
 	enable_msi_mode(dev, pos, PCI_CAP_ID_MSIX);
@@ -577,11 +577,40 @@ static int msix_capability_init(struct pci_dev *dev,
 }
 
 /**
+ * pci_msi_supported - check whether MSI may be enabled on device
+ * @dev: pointer to the pci_dev data structure of MSI device function
+ *
+ * Look at global flags, the device itself, and its parent busses
+ * to return 0 if MSI are supported for the device.
+ **/
+static
+int pci_msi_supported(struct pci_dev * dev)
+{
+	struct pci_bus *bus;
+
+	/* MSI must be globally enabled and supported by the device */
+	if (!pci_msi_enable || !dev || dev->no_msi)
+		return -EINVAL;
+
+	/* Any bridge which does NOT route MSI transactions from it's
+	 * secondary bus to it's primary bus must set NO_MSI flag on
+	 * the secondary pci_bus.
+	 * We expect only arch-specific PCI host bus controller driver
+	 * or quirks for specific PCI bridges to be setting NO_MSI.
+	 */
+	for (bus = dev->bus; bus; bus = bus->parent)
+		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
+			return -EINVAL;
+
+	return 0;
+}
+
+/**
  * pci_enable_msi - configure device's MSI capability structure
  * @dev: pointer to the pci_dev data structure of MSI device function
  *
  * Setup the MSI capability structure of device function with
- * a single MSI vector upon its software driver call to request for
+ * a single MSI irq upon its software driver call to request for
  * MSI mode enabled on its hardware device function. A return of zero
  * indicates the successful setup of an entry zero with the new MSI
  * vector or non-zero for otherwise.
@@ -589,19 +618,11 @@ static int msix_capability_init(struct pci_dev *dev,
 extern int pci_frontend_enable_msi(struct pci_dev *dev);
 int pci_enable_msi(struct pci_dev* dev)
 {
-	struct pci_bus *bus;
-	int pos, temp, status = -EINVAL;
+	int pos, temp, status;
 	struct msi_dev_list *msi_dev_entry = get_msi_dev_pirq_list(dev);
 
-	if (!pci_msi_enable || !dev)
- 		return status;
-
-	if (dev->no_msi)
-		return status;
-
-	for (bus = dev->bus; bus; bus = bus->parent)
-		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			return -EINVAL;
+	if (pci_msi_supported(dev) < 0)
+ 		return -EINVAL;
 
 	status = msi_init();
 	if (status < 0)
@@ -630,10 +651,10 @@ int pci_enable_msi(struct pci_dev* dev)
 	if (!pos)
 		return -EINVAL;
 
-	/* Check whether driver already requested for MSI-X vectors */
+	/* Check whether driver already requested for MSI-X irqs */
 	if (dev->msix_enabled) {
 		printk(KERN_INFO "PCI: %s: Can't enable MSI.  "
-			   "Device already has MSI-X vectors assigned\n",
+		       "Device already has MSI-X irq assigned\n",
 			   pci_name(dev));
 		dev->irq = temp;
 		return -EINVAL;
@@ -686,36 +707,28 @@ void pci_disable_msi(struct pci_dev* dev)
  * pci_enable_msix - configure device's MSI-X capability structure
  * @dev: pointer to the pci_dev data structure of MSI-X device function
  * @entries: pointer to an array of MSI-X entries
- * @nvec: number of MSI-X vectors requested for allocation by device driver
+ * @nvec: number of MSI-X irqs requested for allocation by device driver
  *
  * Setup the MSI-X capability structure of device function with the number
- * of requested vectors upon its software driver call to request for
+ * of requested irqs upon its software driver call to request for
  * MSI-X mode enabled on its hardware device function. A return of zero
  * indicates the successful configuration of MSI-X capability structure
- * with new allocated MSI-X vectors. A return of < 0 indicates a failure.
+ * with new allocated MSI-X irqs. A return of < 0 indicates a failure.
  * Or a return of > 0 indicates that driver request is exceeding the number
- * of vectors available. Driver should use the returned value to re-send
+ * of irqs available. Driver should use the returned value to re-send
  * its request.
  **/
 extern int pci_frontend_enable_msix(struct pci_dev *dev,
 		struct msix_entry *entries, int nvec);
 int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 {
-	struct pci_bus *bus;
 	int status, pos, nr_entries;
 	int i, j, temp;
 	u16 control;
 	struct msi_dev_list *msi_dev_entry = get_msi_dev_pirq_list(dev);
 
-	if (!pci_msi_enable || !dev || !entries)
+	if (!entries || pci_msi_supported(dev) < 0)
  		return -EINVAL;
-
-	if (dev->no_msi)
-		return -EINVAL;
-
-	for (bus = dev->bus; bus; bus = bus->parent)
-		if (bus->bus_flags & PCI_BUS_FLAGS_NO_MSI)
-			return -EINVAL;
 
 #ifdef CONFIG_XEN_PCIDEV_FRONTEND
 	if (!is_initial_xendomain()) {
@@ -779,7 +792,7 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 	/* Check whether driver already requested for MSI vector */
 	if (dev->msi_enabled) {
 		printk(KERN_INFO "PCI: %s: Can't enable MSI-X.  "
-		       "Device already has an MSI vector assigned\n",
+		       "Device already has an MSI irq assigned\n",
 		       pci_name(dev));
 		dev->irq = temp;
 		return -EINVAL;
@@ -841,11 +854,11 @@ void pci_disable_msix(struct pci_dev* dev)
 }
 
 /**
- * msi_remove_pci_irq_vectors - reclaim MSI(X) vectors to unused state
+ * msi_remove_pci_irq_vectors - reclaim MSI(X) irqs to unused state
  * @dev: pointer to the pci_dev data structure of MSI(X) device function
  *
  * Being called during hotplug remove, from which the device function
- * is hot-removed. All previous assigned MSI/MSI-X vectors, if
+ * is hot-removed. All previous assigned MSI/MSI-X irqs, if
  * allocated for this device function, are reclaimed to unused state,
  * which may be used later on.
  **/
