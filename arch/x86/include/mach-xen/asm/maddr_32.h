@@ -155,6 +155,7 @@ static inline paddr_t pte_machine_to_phys(maddr_t machine)
 
 #ifdef CONFIG_X86_PAE
 #define __pte_ma(x)	((pte_t) { (x), (maddr_t)(x) >> 32 } )
+extern unsigned long long __supported_pte_mask;
 static inline pte_t pfn_pte_ma(unsigned long page_nr, pgprot_t pgprot)
 {
 	pte_t pte;

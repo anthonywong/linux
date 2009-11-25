@@ -304,7 +304,7 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
 {
 	if (full) {
 		pte_t pte = *ptep;
-		if (mm->context.pinned)
+		if (PagePinned(virt_to_page(mm->pgd)))
 			xen_l1_entry_update(ptep, __pte(0));
 		else
 			*ptep = __pte(0);
@@ -333,34 +333,21 @@ static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long 
  * Undefined behaviour if not..
  */
 #define __LARGE_PTE (_PAGE_PSE|_PAGE_PRESENT)
-static inline int pte_user(pte_t pte)		{ return __pte_val(pte) & _PAGE_USER; }
-static inline int pte_read(pte_t pte)		{ return __pte_val(pte) & _PAGE_USER; }
-static inline int pte_exec(pte_t pte)		{ return !(__pte_val(pte) & _PAGE_NX); }
 static inline int pte_dirty(pte_t pte)		{ return __pte_val(pte) & _PAGE_DIRTY; }
 static inline int pte_young(pte_t pte)		{ return __pte_val(pte) & _PAGE_ACCESSED; }
 static inline int pte_write(pte_t pte)		{ return __pte_val(pte) & _PAGE_RW; }
 static inline int pte_file(pte_t pte)		{ return __pte_val(pte) & _PAGE_FILE; }
 static inline int pte_huge(pte_t pte)		{ return __pte_val(pte) & _PAGE_PSE; }
 
-static inline pte_t pte_rdprotect(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_USER; return pte; }
-static inline pte_t pte_exprotect(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_USER; return pte; }
 static inline pte_t pte_mkclean(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkold(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
 static inline pte_t pte_wrprotect(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_RW; return pte; }
-static inline pte_t pte_mkread(pte_t pte)	{ __pte_val(pte) |= _PAGE_USER; return pte; }
 static inline pte_t pte_mkexec(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_NX; return pte; }
 static inline pte_t pte_mkdirty(pte_t pte)	{ __pte_val(pte) |= _PAGE_DIRTY; return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ __pte_val(pte) |= _PAGE_ACCESSED; return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ __pte_val(pte) |= _PAGE_RW; return pte; }
 static inline pte_t pte_mkhuge(pte_t pte)	{ __pte_val(pte) |= _PAGE_PSE; return pte; }
 static inline pte_t pte_clrhuge(pte_t pte)	{ __pte_val(pte) &= ~_PAGE_PSE; return pte; }
-
-static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
-{
-	if (!pte_dirty(*ptep))
-		return 0;
-	return test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte);
-}
 
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
@@ -500,26 +487,13 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	__changed;							\
 })
 
-#define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
-#define ptep_clear_flush_dirty(vma, address, ptep)			\
-({									\
-	pte_t __pte = *(ptep);						\
-	int __dirty = pte_dirty(__pte);					\
-	__pte = pte_mkclean(__pte);					\
-	if ((vma)->vm_mm->context.pinned)				\
-		(void)ptep_set_access_flags(vma, address, ptep, __pte, __dirty); \
-	else if (__dirty)						\
-		set_pte(ptep, __pte);					\
-	__dirty;							\
-})
-
 #define __HAVE_ARCH_PTEP_CLEAR_YOUNG_FLUSH
 #define ptep_clear_flush_young(vma, address, ptep)			\
 ({									\
 	pte_t __pte = *(ptep);						\
 	int __young = pte_young(__pte);					\
 	__pte = pte_mkold(__pte);					\
-	if ((vma)->vm_mm->context.pinned)				\
+	if (PagePinned(virt_to_page((vma)->vm_mm->pgd)))		\
 		(void)ptep_set_access_flags(vma, address, ptep, __pte, __young); \
 	else if (__young)						\
 		set_pte(ptep, __pte);					\
@@ -570,6 +544,8 @@ int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
 #define arch_change_pte_range(mm, pmd, addr, end, newprot, dirty_accountable) \
 	xen_change_pte_range(mm, pmd, addr, end, newprot, dirty_accountable)
 
+pte_t *lookup_address(unsigned long addr);
+
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		direct_remap_pfn_range(vma,vaddr,pfn,size,prot,DOMID_IO)
 
@@ -587,7 +563,6 @@ int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
    (((o) & (1UL << (__VIRTUAL_MASK_SHIFT-1))) ? ((o) | (~__VIRTUAL_MASK)) : (o))
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-#define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
 #define __HAVE_ARCH_PTEP_CLEAR_FLUSH

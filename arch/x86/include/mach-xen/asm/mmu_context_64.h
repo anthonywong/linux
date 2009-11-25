@@ -76,7 +76,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 	if (likely(prev != next)) {
 		BUG_ON(!xen_feature(XENFEAT_writable_page_tables) &&
-		       !next->context.pinned);
+		       !PagePinned(virt_to_page(next->pgd)));
 
 		/* stop flush ipis for the previous mm */
 		cpu_clear(cpu, prev->cpu_vm_mask);
@@ -131,7 +131,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 
 static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {
-	if (!next->context.pinned)
+	if (!PagePinned(virt_to_page(next->pgd)))
 		mm_pin(next);
 	switch_mm(prev, next, NULL);
 }

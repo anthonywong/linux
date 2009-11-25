@@ -5,7 +5,7 @@
 #include <linux/mm.h>		/* for struct page */
 #include <asm/io.h>		/* for phys_to_virt and page_to_pseudophys */
 
-#define paravirt_alloc_pt(pfn) do { } while (0)
+#define paravirt_alloc_pt(mm, pfn) do { } while (0)
 #define paravirt_alloc_pd(pfn) do { } while (0)
 #define paravirt_alloc_pd(pfn) do { } while (0)
 #define paravirt_alloc_pd_clone(pfn, clonepfn, start, count) do { } while (0)
@@ -14,15 +14,15 @@
 
 #define pmd_populate_kernel(mm, pmd, pte)			\
 do {								\
-	paravirt_alloc_pt(__pa(pte) >> PAGE_SHIFT);		\
+	paravirt_alloc_pt(mm, __pa(pte) >> PAGE_SHIFT);		\
 	set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)));		\
 } while (0)
 
 #define pmd_populate(mm, pmd, pte) 					\
 do {									\
 	unsigned long pfn = page_to_pfn(pte);				\
-	paravirt_alloc_pt(pfn);						\
-	if (test_bit(PG_pinned, &virt_to_page((mm)->pgd)->flags)) {	\
+	paravirt_alloc_pt(mm, pfn);					\
+	if (PagePinned(virt_to_page((mm)->pgd))) {			\
 		if (!PageHighMem(pte))					\
 			BUG_ON(HYPERVISOR_update_va_mapping(		\
 			  (unsigned long)__va(pfn << PAGE_SHIFT),	\

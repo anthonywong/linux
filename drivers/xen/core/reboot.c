@@ -4,6 +4,7 @@
 #include <linux/unistd.h>
 #include <linux/module.h>
 #include <linux/reboot.h>
+#include <linux/sched.h>
 #include <linux/sysrq.h>
 #include <asm/hypervisor.h>
 #include <xen/xenbus.h>
