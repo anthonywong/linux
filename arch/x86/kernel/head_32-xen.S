@@ -86,7 +86,10 @@ ENTRY(_stext)
 /*
  * BSS section
  */
-.section ".bss.page_aligned","w"
+.section ".bss.page_aligned","wa"
+	.align PAGE_SIZE_asm
+ENTRY(swapper_pg_pmd)
+	.fill 1024,4,0
 ENTRY(empty_zero_page)
 	.fill 4096,1,0
 
@@ -136,25 +139,25 @@ ENTRY(empty_zero_page)
 #endif /* CONFIG_XEN_COMPAT <= 0x030002 */
 
 
-	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz, "linux")	
-	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz, "2.6")
-	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz, "xen-3.0")
-	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      .long,  __PAGE_OFFSET)
+	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")
+	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_VERSION,  .asciz "2.6")
+	ELFNOTE(Xen, XEN_ELFNOTE_XEN_VERSION,    .asciz "xen-3.0")
+	ELFNOTE(Xen, XEN_ELFNOTE_VIRT_BASE,      .long __PAGE_OFFSET)
 #if CONFIG_XEN_COMPAT <= 0x030002
-	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .long,  __PAGE_OFFSET)
+	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .long __PAGE_OFFSET)
 #else
-	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .long,  0)
+	ELFNOTE(Xen, XEN_ELFNOTE_PADDR_OFFSET,   .long 0)
 #endif
-	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .long,  startup_32)
-	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .long,  hypercall_page)
-	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   .long,  HYPERVISOR_VIRT_START)
-	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz, "writable_page_tables|writable_descriptor_tables|auto_translated_physmap|pae_pgdir_above_4gb|supervisor_mode_kernel")
+	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .long startup_32)
+	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .long hypercall_page)
+	ELFNOTE(Xen, XEN_ELFNOTE_HV_START_LOW,   .long HYPERVISOR_VIRT_START)
+	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz "writable_page_tables|writable_descriptor_tables|auto_translated_physmap|pae_pgdir_above_4gb|supervisor_mode_kernel")
 #ifdef CONFIG_X86_PAE
-	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz, "yes")
-	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .quad,  _PAGE_PRESENT,_PAGE_PRESENT)
+	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "yes")
+	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .quad _PAGE_PRESENT, _PAGE_PRESENT)
 #else
-	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz, "no")
-	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .long,  _PAGE_PRESENT,_PAGE_PRESENT)
+	ELFNOTE(Xen, XEN_ELFNOTE_PAE_MODE,       .asciz "no")
+	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .long _PAGE_PRESENT, _PAGE_PRESENT)
 #endif
-	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz, "generic")
-	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long,  1)
+	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
+	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long 1)

@@ -236,7 +236,7 @@ static void backend_changed(struct xenbus_watch *watch,
 {
 	DPRINTK("");
 
-	dev_changed(vec[XS_WATCH_PATH], &xenbus_backend);
+	xenbus_dev_changed(vec[XS_WATCH_PATH], &xenbus_backend);
 }
 
 static struct xenbus_watch be_watch = {
