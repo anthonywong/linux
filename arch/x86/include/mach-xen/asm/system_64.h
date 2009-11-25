@@ -79,12 +79,16 @@ static inline unsigned long read_cr0(void)
 	unsigned long cr0;
 	asm volatile("movq %%cr0,%0" : "=r" (cr0));
 	return cr0;
-} 
+}
 
 static inline void write_cr0(unsigned long val) 
 { 
 	asm volatile("movq %0,%%cr0" :: "r" (val));
-} 
+}
+
+#define read_cr2() current_vcpu_info()->arch.cr2
+
+#define write_cr2(val) ((void)(current_vcpu_info()->arch.cr2 = (val)))
 
 #define read_cr3() ({ \
 	unsigned long __dummy; \
@@ -103,26 +107,27 @@ static inline unsigned long read_cr4(void)
 	unsigned long cr4;
 	asm("movq %%cr4,%0" : "=r" (cr4));
 	return cr4;
-} 
+}
 
 static inline void write_cr4(unsigned long val)
 { 
 	asm volatile("movq %0,%%cr4" :: "r" (val) : "memory");
-} 
+}
+
+static inline unsigned long read_cr8(void)
+{
+	return 0;
+}
+
+static inline void write_cr8(unsigned long val)
+{
+	BUG_ON(val);
+}
 
 #define stts() (HYPERVISOR_fpu_taskswitch(1))
 
 #define wbinvd() \
-	__asm__ __volatile__ ("wbinvd": : :"memory");
-
-/*
- * On SMP systems, when the scheduler does migration-cost autodetection,
- * it needs a way to flush as much of the CPU's caches as possible.
- */
-static inline void sched_cacheflush(void)
-{
-	wbinvd();
-}
+	__asm__ __volatile__ ("wbinvd": : :"memory")
 
 #endif	/* __KERNEL__ */
 

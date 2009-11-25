@@ -50,7 +50,7 @@ void ack_bad_irq(unsigned int irq)
 	 * holds up an irq slot - in excessive cases (when multiple
 	 * unexpected vectors occur) that might lock up the APIC
 	 * completely.
-  	 * But don't ack when the APIC is disabled. -AK
+	 * But don't ack when the APIC is disabled. -AK
 	 */
 	if (!disable_apic)
 		ack_APIC_irq();
@@ -132,20 +132,6 @@ asmlinkage void smp_spurious_interrupt(void)
 	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
 		ack_APIC_irq();
 
-#if 0
-	static unsigned long last_warning; 
-	static unsigned long skipped; 
-
-	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
-	if (time_before(last_warning+30*HZ,jiffies)) { 
-		printk(KERN_INFO "spurious APIC interrupt on CPU#%d, %ld skipped.\n",
-		       smp_processor_id(), skipped);
-		last_warning = jiffies; 
-		skipped = 0;
-	} else { 
-		skipped++; 
-	} 
-#endif 
 	irq_exit();
 }
 
@@ -177,7 +163,7 @@ asmlinkage void smp_error_interrupt(void)
 	   7: Illegal register address
 	*/
 	printk (KERN_DEBUG "APIC error on CPU%d: %02x(%02x)\n",
-	        smp_processor_id(), v , v1);
+		smp_processor_id(), v , v1);
 	irq_exit();
 }
 

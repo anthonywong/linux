@@ -312,13 +312,9 @@ static int increase_reservation(unsigned long nr_pages)
 
 #ifndef MODULE
 	setup_per_zone_pages_min();
-# if defined(CONFIG_MEMORY_HOTPLUG) || defined(CONFIG_ACPI_HOTPLUG_MEMORY) \
-     || defined(CONFIG_ACPI_HOTPLUG_MEMORY_MODULE)
-	 /* build_all_zonelists() is __meminit */
 	if (need_zonelists_rebuild)
 		build_all_zonelists();
 	else
-# endif
 		vm_total_pages = nr_free_pagecache_pages();
 #endif
 

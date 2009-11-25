@@ -171,7 +171,7 @@ void mm_pin(struct mm_struct *mm)
 	mm_walk(mm, PAGE_KERNEL_RO);
 	xen_pgd_pin(__pa(mm->pgd)); /* kernel */
 	xen_pgd_pin(__pa(__user_pgd(mm->pgd))); /* user */
-	mm->context.pinned = 1;
+	SetPagePinned(virt_to_page(mm->pgd));
 	spin_lock(&mm_unpinned_lock);
 	list_del(&mm->context.unpinned);
 	spin_unlock(&mm_unpinned_lock);
@@ -189,7 +189,7 @@ void mm_unpin(struct mm_struct *mm)
 	xen_pgd_unpin(__pa(mm->pgd));
 	xen_pgd_unpin(__pa(__user_pgd(mm->pgd)));
 	mm_walk(mm, PAGE_KERNEL);
-	mm->context.pinned = 0;
+	ClearPagePinned(virt_to_page(mm->pgd));
 	spin_lock(&mm_unpinned_lock);
 	list_add(&mm->context.unpinned, &mm_unpinned);
 	spin_unlock(&mm_unpinned_lock);
@@ -217,7 +217,7 @@ void mm_pin_all(void)
 
 void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
-	if (!mm->context.pinned)
+	if (!PagePinned(virt_to_page(mm->pgd)))
 		mm_pin(mm);
 }
 
@@ -243,8 +243,9 @@ void arch_exit_mmap(struct mm_struct *mm)
 
 	task_unlock(tsk);
 
-	if ( mm->context.pinned && (atomic_read(&mm->mm_count) == 1) &&
-	     !mm->context.has_foreign_mappings )
+	if (PagePinned(virt_to_page(mm->pgd))
+	    && (atomic_read(&mm->mm_count) == 1)
+	    && !mm->context.has_foreign_mappings)
 		mm_unpin(mm);
 }
 
@@ -343,14 +344,13 @@ static void flush_kernel_map(void *arg)
 	struct page *pg;
 
 	/* When clflush is available always use it because it is
-	   much cheaper than WBINVD. Disable clflush for now because
-	   the high level code is not ready yet */
+	   much cheaper than WBINVD. */
+	/* clflush is still broken. Disable for now. */
 	if (1 || !cpu_has_clflush)
 		asm volatile("wbinvd" ::: "memory");
 	else list_for_each_entry(pg, l, lru) {
 		void *adr = page_address(pg);
-		if (cpu_has_clflush)
-			cache_flush_page(adr);
+		cache_flush_page(adr);
 	}
 	__flush_tlb_all();
 }
@@ -364,7 +364,8 @@ static LIST_HEAD(deferred_pages); /* protected by init_mm.mmap_sem */
 
 static inline void save_page(struct page *fpage)
 {
-	list_add(&fpage->lru, &deferred_pages);
+	if (!test_and_set_bit(PG_arch_1, &fpage->flags))
+		list_add(&fpage->lru, &deferred_pages);
 }
 
 /* 
@@ -398,9 +399,12 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 	pte_t *kpte; 
 	struct page *kpte_page;
 	pgprot_t ref_prot2;
+
 	kpte = lookup_address(address);
 	if (!kpte) return 0;
 	kpte_page = virt_to_page(((unsigned long)kpte) & PAGE_MASK);
+	BUG_ON(PageLRU(kpte_page));
+	BUG_ON(PageCompound(kpte_page));
 	if (pgprot_val(prot) != pgprot_val(ref_prot)) { 
 		if (!pte_huge(*kpte)) {
 			set_pte(kpte, pfn_pte(pfn, prot));
@@ -439,10 +443,9 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 		return 0;
 #endif
 
-	if (page_private(kpte_page) == 0) {
-		save_page(kpte_page);
+	save_page(kpte_page);
+	if (page_private(kpte_page) == 0)
 		revert_page(address, ref_prot);
-	}
 	return 0;
 } 
 
@@ -514,6 +517,10 @@ void global_flush_tlb(void)
 	flush_map(&l);
 
 	list_for_each_entry_safe(pg, next, &l, lru) {
+		list_del(&pg->lru);
+		clear_bit(PG_arch_1, &pg->flags);
+		if (page_private(pg) != 0)
+			continue;
 		ClearPagePrivate(pg);
 		__free_page(pg);
 	} 
