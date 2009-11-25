@@ -10,8 +10,8 @@
  * Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
  */
 
-#ifndef _ASM_FIXMAP_32_H
-#define _ASM_FIXMAP_32_H
+#ifndef _ASM_X86_FIXMAP_32_H
+#define _ASM_X86_FIXMAP_32_H
 
 /* used by vmalloc.c, vsyscall.lds.S.
  *
@@ -27,10 +27,8 @@ extern unsigned long __FIXADDR_TOP;
 #include <asm/acpi.h>
 #include <asm/apicdef.h>
 #include <asm/page.h>
-#ifdef CONFIG_HIGHMEM
 #include <linux/threads.h>
 #include <asm/kmap_types.h>
-#endif
 
 /*
  * Here we define all the compile-time 'special' virtual
@@ -81,10 +79,8 @@ enum fixed_addresses {
 #ifdef CONFIG_X86_CYCLONE_TIMER
 	FIX_CYCLONE_TIMER, /*cyclone timer register*/
 #endif
-#ifdef CONFIG_HIGHMEM
 	FIX_KMAP_BEGIN,	/* reserved pte's for temporary kernel mappings */
 	FIX_KMAP_END = FIX_KMAP_BEGIN+(KM_TYPE_NR*NR_CPUS)-1,
-#endif
 #ifdef CONFIG_PCI_MMCONFIG
 	FIX_PCIE_MCFG,
 #endif
@@ -100,10 +96,10 @@ enum fixed_addresses {
 	 * can have a single pgd entry and a single pte table:
 	 */
 #define NR_FIX_BTMAPS		64
-#define FIX_BTMAPS_NESTING	4
+#define FIX_BTMAPS_SLOTS	4
 	FIX_BTMAP_END = __end_of_permanent_fixed_addresses + 256 -
 			(__end_of_permanent_fixed_addresses & 255),
-	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_NESTING - 1,
+	FIX_BTMAP_BEGIN = FIX_BTMAP_END + NR_FIX_BTMAPS*FIX_BTMAPS_SLOTS - 1,
 	FIX_WP_TEST,
 #ifdef CONFIG_ACPI
 	FIX_ACPI_BEGIN,
@@ -126,4 +122,4 @@ extern void reserve_top_address(unsigned long reserve);
 #define FIXADDR_BOOT_START	(FIXADDR_TOP - __FIXADDR_BOOT_SIZE)
 
 #endif /* !__ASSEMBLY__ */
-#endif
+#endif /* _ASM_X86_FIXMAP_32_H */
