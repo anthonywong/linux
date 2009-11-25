@@ -363,9 +363,8 @@ void iounmap(volatile void __iomem *addr)
 
 	/* Reset the direct mapping. Can block */
 	if ((p->flags >> 20) && is_local_lowmem(p->phys_addr)) {
-		/* p->size includes the guard page, but cpa doesn't like that */
 		change_page_attr(virt_to_page(bus_to_virt(p->phys_addr)),
-				 (p->size - PAGE_SIZE) >> PAGE_SHIFT,
+				 get_vm_area_size(p) >> PAGE_SHIFT,
 				 PAGE_KERNEL);
 		global_flush_tlb();
 	} 
