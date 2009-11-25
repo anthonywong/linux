@@ -89,6 +89,8 @@ int bind_virq_to_irqhandler(
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
+#if defined(CONFIG_SMP) && !defined(MODULE)
+#ifndef CONFIG_X86
 int bind_ipi_to_irqhandler(
 	unsigned int ipi,
 	unsigned int cpu,
@@ -96,6 +98,13 @@ int bind_ipi_to_irqhandler(
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
+#else
+int bind_ipi_to_irqaction(
+	unsigned int ipi,
+	unsigned int cpu,
+	struct irqaction *action);
+#endif
+#endif
 
 /*
  * Common unbind function for all event sources. Takes IRQ to unbind from.
@@ -103,6 +112,11 @@ int bind_ipi_to_irqhandler(
  * made with bind_caller_port_to_irqhandler()).
  */
 void unbind_from_irqhandler(unsigned int irq, void *dev_id);
+
+#if defined(CONFIG_SMP) && !defined(MODULE) && defined(CONFIG_X86)
+/* Specialized unbind function for per-CPU IRQs. */
+void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu);
+#endif
 
 #ifndef CONFIG_XEN
 void irq_resume(void);
@@ -180,6 +194,10 @@ void xen_poll_irq(int irq);
  */
 void notify_remote_via_irq(int irq);
 int irq_to_evtchn_port(int irq);
+
+#if defined(CONFIG_SMP) && !defined(MODULE) && defined(CONFIG_X86)
+void notify_remote_via_ipi(unsigned int ipi, unsigned int cpu);
+#endif
 
 #endif /* __ASM_EVTCHN_H__ */
 
