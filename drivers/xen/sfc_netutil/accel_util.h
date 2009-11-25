@@ -63,9 +63,6 @@
 			DPRINTK("%s at %s:%d\n", #exp, __FILE__, __LINE__); \
 	} while(0)
 
-#define MAC_FMT "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x"
-#define MAC_ARG(_mac) (_mac)[0], (_mac)[1], (_mac)[2], (_mac)[3], (_mac)[4], (_mac)[5]
-
 #include <xen/xenbus.h>
 
 /*! Map a set of pages from another domain

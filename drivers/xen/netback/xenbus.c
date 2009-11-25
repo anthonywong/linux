@@ -149,12 +149,10 @@ fail:
  * and vif variables to the environment, for the benefit of the vif-* hotplug
  * scripts.
  */
-static int netback_uevent(struct xenbus_device *xdev, char **envp,
-			  int num_envp, char *buffer, int buffer_size)
+static int netback_uevent(struct xenbus_device *xdev, struct kobj_uevent_env *env)
 {
 	struct backend_info *be = xdev->dev.driver_data;
 	netif_t *netif = be->netif;
-	int i = 0, length = 0;
 	char *val;
 
 	DPRINTK("netback_uevent");
@@ -166,15 +164,11 @@ static int netback_uevent(struct xenbus_device *xdev, char **envp,
 		return err;
 	}
 	else {
-		add_uevent_var(envp, num_envp, &i, buffer, buffer_size,
-			       &length, "script=%s", val);
+		add_uevent_var(env, "script=%s", val);
 		kfree(val);
 	}
 
-	add_uevent_var(envp, num_envp, &i, buffer, buffer_size, &length,
-		       "vif=%s", netif->dev->name);
-
-	envp[i] = NULL;
+	add_uevent_var(env, "vif=%s", netif->dev->name);
 
 	return 0;
 }
