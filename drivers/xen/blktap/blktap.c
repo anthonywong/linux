@@ -1363,6 +1363,9 @@ static int do_block_io_op(blkif_t *blkif)
 			dispatch_rw_block_io(blkif, &req, pending_req);
 			break;
 
+		case BLKIF_OP_WRITE_BARRIER:
+			/* TODO Some counter? */
+			/* Fall through */
 		case BLKIF_OP_WRITE:
 			blkif->st_wr_req++;
 			dispatch_rw_block_io(blkif, &req, pending_req);
@@ -1394,7 +1397,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 				 pending_req_t *pending_req)
 {
 	extern void ll_rw_block(int rw, int nr, struct buffer_head * bhs[]);
-	int op, operation = (req->operation == BLKIF_OP_WRITE) ? WRITE : READ;
+	int op, operation;
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST*2];
 	unsigned int nseg;
 	int ret, i, nr_sects = 0;
@@ -1405,6 +1408,21 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 	uint16_t mmap_idx = pending_req->mem_idx;
 	struct mm_struct *mm;
 	struct vm_area_struct *vma = NULL;
+
+	switch (req->operation) {
+	case BLKIF_OP_READ:
+		operation = READ;
+		break;
+	case BLKIF_OP_WRITE:
+		operation = WRITE;
+		break;
+	case BLKIF_OP_WRITE_BARRIER:
+		operation = WRITE_BARRIER;
+		break;
+	default:
+		operation = 0; /* make gcc happy */
+		BUG();
+	}
 
 	if (blkif->dev_num < 0 || blkif->dev_num > MAX_TAP_DEV)
 		goto fail_response;
@@ -1445,7 +1463,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 
 	pending_req->blkif     = blkif;
 	pending_req->id        = req->id;
-	pending_req->operation = operation;
+	pending_req->operation = req->operation;
 	pending_req->status    = BLKIF_RSP_OKAY;
 	pending_req->nr_pages  = nseg;
 	op = 0;
@@ -1462,7 +1480,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 		kvaddr = idx_to_kaddr(mmap_idx, pending_idx, i);
 
 		flags = GNTMAP_host_map;
-		if (operation == WRITE)
+		if (operation != READ)
 			flags |= GNTMAP_readonly;
 		gnttab_set_map_op(&map[op], kvaddr, flags,
 				  req->seg[i].gref, blkif->domid);
@@ -1479,7 +1497,7 @@ static void dispatch_rw_block_io(blkif_t *blkif,
 
 			flags = GNTMAP_host_map | GNTMAP_application_map
 				| GNTMAP_contains_pte;
-			if (operation == WRITE)
+			if (operation != READ)
 				flags |= GNTMAP_readonly;
 			gnttab_set_map_op(&map[op], ptep, flags,
 					  req->seg[i].gref, blkif->domid);
