@@ -198,7 +198,7 @@ void pte_free(struct page *pte)
 				va, pfn_pte(pfn, PAGE_KERNEL), 0))
 				BUG();
 	} else
-		clear_bit(PG_pinned, &pte->flags);
+		ClearPagePinned(pte);
 
 	ClearPageForeign(pte);
 	init_page_count(pte);
@@ -248,7 +248,7 @@ static inline void pgd_list_del(pgd_t *pgd)
 
 #if (PTRS_PER_PMD == 1)
 /* Non-PAE pgd constructor */
-void pgd_ctor(void *pgd)
+static void pgd_ctor(void *pgd)
 {
 	unsigned long flags;
 
@@ -271,7 +271,7 @@ void pgd_ctor(void *pgd)
 }
 #else  /* PTRS_PER_PMD > 1 */
 /* PAE pgd constructor */
-void pgd_ctor(void *pgd)
+static void pgd_ctor(void *pgd)
 {
 	/* PAE, kernel PMD may be shared */
 
@@ -285,7 +285,7 @@ void pgd_ctor(void *pgd)
 }
 #endif	/* PTRS_PER_PMD */
 
-void pgd_dtor(void *pgd)
+static void pgd_dtor(void *pgd)
 {
 	unsigned long flags; /* can be called from interrupt context */
 
@@ -637,9 +637,9 @@ static inline unsigned int pgd_walk_set_prot(struct page *page, pgprot_t flags,
 
 	if (PageHighMem(page)) {
 		if (pgprot_val(flags) & _PAGE_RW)
-			clear_bit(PG_pinned, &page->flags);
+			ClearPagePinned(page);
 		else
-			set_bit(PG_pinned, &page->flags);
+			SetPagePinned(page);
 	} else {
 		MULTI_update_va_mapping(per_cpu(pb_mcl, cpu) + seq,
 				(unsigned long)__va(pfn << PAGE_SHIFT),
@@ -709,19 +709,19 @@ static void __pgd_pin(pgd_t *pgd)
 	pgd_walk(pgd, PAGE_KERNEL_RO);
 	kmap_flush_unused();
 	xen_pgd_pin(__pa(pgd));
-	set_bit(PG_pinned, &virt_to_page(pgd)->flags);
+	SetPagePinned(virt_to_page(pgd));
 }
 
 static void __pgd_unpin(pgd_t *pgd)
 {
 	xen_pgd_unpin(__pa(pgd));
 	pgd_walk(pgd, PAGE_KERNEL);
-	clear_bit(PG_pinned, &virt_to_page(pgd)->flags);
+	ClearPagePinned(virt_to_page(pgd));
 }
 
 static void pgd_test_and_unpin(pgd_t *pgd)
 {
-	if (test_bit(PG_pinned, &virt_to_page(pgd)->flags))
+	if (PagePinned(virt_to_page(pgd)))
 		__pgd_unpin(pgd);
 }
 
@@ -759,7 +759,7 @@ void mm_pin_all(void)
 	 */
 	spin_lock_irqsave(&pgd_lock, flags);
 	for (page = pgd_list; page; page = (struct page *)page->index) {
-		if (!test_bit(PG_pinned, &page->flags))
+		if (!PagePinned(page))
 			__pgd_pin((pgd_t *)page_address(page));
 	}
 	spin_unlock_irqrestore(&pgd_lock, flags);
@@ -767,7 +767,7 @@ void mm_pin_all(void)
 
 void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 {
-	if (!test_bit(PG_pinned, &virt_to_page(mm->pgd)->flags))
+	if (!PagePinned(virt_to_page(mm->pgd)))
 		mm_pin(mm);
 }
 
@@ -793,7 +793,7 @@ void arch_exit_mmap(struct mm_struct *mm)
 
 	task_unlock(tsk);
 
-	if (test_bit(PG_pinned, &virt_to_page(mm->pgd)->flags) &&
+	if (PagePinned(virt_to_page(mm->pgd)) &&
 	    (atomic_read(&mm->mm_count) == 1) &&
 	    !mm->context.has_foreign_mappings)
 		mm_unpin(mm);

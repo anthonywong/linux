@@ -147,7 +147,7 @@ static void scsifront_cdb_cmd_done(struct vscsifrnt_info *info,
 	add_id_to_freelist(info, id);
 
 	sc->result = ring_res->rslt;
-	sc->resid  = ring_res->residual_len;
+	scsi_set_resid(sc, ring_res->residual_len);
 
 	if (ring_res->sense_len > VSCSIIF_SENSE_BUFFERSIZE)
 		sense_len = VSCSIIF_SENSE_BUFFERSIZE;

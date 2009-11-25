@@ -62,7 +62,9 @@ struct xen_bus_type
 	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
 	int (*probe)(const char *type, const char *dir);
 	struct bus_type bus;
+#if defined(CONFIG_XEN) || defined(MODULE)
 	struct device dev;
+#endif
 };
 
 extern int xenbus_match(struct device *_dev, struct device_driver *_drv);
@@ -77,6 +79,6 @@ extern int xenbus_probe_node(struct xen_bus_type *bus,
 			     const char *nodename);
 extern int xenbus_probe_devices(struct xen_bus_type *bus);
 
-extern void dev_changed(const char *node, struct xen_bus_type *bus);
+extern void xenbus_dev_changed(const char *node, struct xen_bus_type *bus);
 
 #endif
