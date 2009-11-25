@@ -322,7 +322,7 @@ void __init xen_init_pgd_pin(void)
 		if (PTRS_PER_PUD > 1) /* not folded */
 			SetPagePinned(virt_to_page(pud));
 		for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
-			if (!pud_present(*pud))
+			if (!pud_present(*pud) || pud_large(*pud))
 				continue;
 			pmd = pmd_offset(pud, 0);
 			if (PTRS_PER_PMD > 1) /* not folded */
@@ -333,7 +333,7 @@ void __init xen_init_pgd_pin(void)
 				    && m >= pmd_index(HYPERVISOR_VIRT_START))
 					continue;
 #endif
-				if (!pmd_present(*pmd))
+				if (!pmd_present(*pmd) || pmd_large(*pmd))
 					continue;
 				SetPagePinned(pmd_page(*pmd));
 			}
