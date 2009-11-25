@@ -100,18 +100,25 @@ static inline void xen_set_pud(pud_t *pudp, pud_t pud)
 	: (void)(*__pudp = xen_make_pud(0));	\
 })
 
-#define __user_pgd(pgd) ((pgd) + PTRS_PER_PGD)
+static inline pgd_t *__user_pgd(pgd_t *pgd)
+{
+	if (unlikely(((unsigned long)pgd & PAGE_MASK)
+		     == (unsigned long)init_level4_pgt))
+		return NULL;
+	return (pgd_t *)(virt_to_page(pgd)->index
+			 + ((unsigned long)pgd & ~PAGE_MASK));
+}
 
 static inline void xen_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
-	xen_l4_entry_update(pgdp, 0, pgd);
+	xen_l4_entry_update(pgdp, pgd);
 }
 
 #define xen_pgd_clear(pgd)			\
 ({						\
 	pgd_t *__pgdp = (pgd);			\
 	PagePinned(virt_to_page(__pgdp))	\
-	? xen_l4_entry_update(__pgdp, 1, xen_make_pgd(0)) \
+	? xen_l4_entry_update(__pgdp, xen_make_pgd(0)) \
 	: (void)(*__user_pgd(__pgdp) = *__pgdp = xen_make_pgd(0)); \
 })
 
