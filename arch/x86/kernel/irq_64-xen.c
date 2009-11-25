@@ -20,11 +20,6 @@
 #include <asm/idle.h>
 
 atomic_t irq_err_count;
-#ifdef CONFIG_X86_IO_APIC
-#ifdef APIC_MISMATCH_DEBUG
-atomic_t irq_mis_count;
-#endif
-#endif
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 /*
@@ -79,7 +74,8 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %14s", irq_desc[i].chip->typename);
+		seq_printf(p, " %8s", irq_desc[i].chip->name);
+		seq_printf(p, "-%-8s", irq_desc[i].name);
 
 		seq_printf(p, "  %s", action->name);
 		for (action=action->next; action; action = action->next)
@@ -99,11 +95,6 @@ skip:
 		seq_putc(p, '\n');
 #endif
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
-#ifdef CONFIG_X86_IO_APIC
-#ifdef APIC_MISMATCH_DEBUG
-		seq_printf(p, "MIS: %10u\n", atomic_read(&irq_mis_count));
-#endif
-#endif
 	}
 	return 0;
 }
@@ -114,24 +105,28 @@ skip:
  * handlers).
  */
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
-{	
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
 	/* high bit used in ret_from_ code  */
 	unsigned irq = ~regs->orig_rax;
 
-	if (unlikely(irq >= NR_IRQS)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-					__FUNCTION__, irq);
-		BUG();
-	}
-
 	/*exit_idle();*/
 	/*irq_enter();*/
+
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	stack_overflow_check(regs);
 #endif
-	__do_IRQ(irq, regs);
+
+	if (likely(irq < NR_IRQS))
+		generic_handle_irq(irq);
+	else
+		printk(KERN_EMERG "%s: %d.%d No irq handler for irq\n",
+			__func__, smp_processor_id(), irq);
+
 	/*irq_exit();*/
 
+	set_irq_regs(old_regs);
 	return 1;
 }
 
@@ -192,6 +187,6 @@ EXPORT_SYMBOL(do_softirq);
  */
 void ack_bad_irq(unsigned int irq)
 {
-        printk("unexpected IRQ trap at vector %02x\n", irq);
+        printk("unexpected IRQ trap at irq %02x\n", irq);
 }
 #endif
