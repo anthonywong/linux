@@ -256,7 +256,7 @@ static void *xs_talkv(struct xenbus_transaction t,
 	}
 
 	for (i = 0; i < num_vecs; i++) {
-		err = xb_write(iovec[i].iov_base, iovec[i].iov_len);;
+		err = xb_write(iovec[i].iov_base, iovec[i].iov_len);
 		if (err) {
 			mutex_unlock(&xs_state.request_mutex);
 			return ERR_PTR(err);
@@ -665,7 +665,9 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 	char token[sizeof(watch) * 2 + 1];
 	int err;
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 	BUG_ON(watch->flags & XBWF_new_thread);
+#endif
 
 	sprintf(token, "%lX", (long)watch);
 
@@ -684,6 +686,11 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 
 	up_read(&xs_state.watch_mutex);
 
+	/* Make sure there are no callbacks running currently (unless
+	   its us) */
+	if (current->pid != xenwatch_pid)
+		mutex_lock(&xenwatch_mutex);
+
 	/* Cancel pending watch events. */
 	spin_lock(&watch_events_lock);
 	list_for_each_entry_safe(msg, tmp, &watch_events, list) {
@@ -695,11 +702,8 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 	}
 	spin_unlock(&watch_events_lock);
 
-	/* Flush any currently-executing callback, unless we are it. :-) */
-	if (current->pid != xenwatch_pid) {
-		mutex_lock(&xenwatch_mutex);
+	if (current->pid != xenwatch_pid)
 		mutex_unlock(&xenwatch_mutex);
-	}
 }
 EXPORT_SYMBOL_GPL(unregister_xenbus_watch);
 
@@ -737,6 +741,7 @@ void xs_suspend_cancel(void)
 	mutex_unlock(&xs_state.transaction_mutex);
 }
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 static int xenwatch_handle_callback(void *data)
 {
 	struct xs_stored_msg *msg = data;
@@ -754,6 +759,7 @@ static int xenwatch_handle_callback(void *data)
 
 	return 0;
 }
+#endif
 
 static int xenwatch_thread(void *unused)
 {
@@ -783,6 +789,7 @@ static int xenwatch_thread(void *unused)
 
 		msg = list_entry(ent, struct xs_stored_msg, list);
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 		/*
 		 * Unlock the mutex before running an XBWF_new_thread
 		 * handler. kthread_run can block which can deadlock
@@ -799,6 +806,15 @@ static int xenwatch_thread(void *unused)
 			xenwatch_handle_callback(msg);
 			mutex_unlock(&xenwatch_mutex);
 		}
+#else
+		msg->u.watch.handle->callback(
+			msg->u.watch.handle,
+			(const char **)msg->u.watch.vec,
+			msg->u.watch.vec_size);
+		mutex_unlock(&xenwatch_mutex);
+		kfree(msg->u.watch.vec);
+		kfree(msg);
+#endif
 	}
 
 	return 0;
