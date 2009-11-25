@@ -211,6 +211,7 @@ struct vm_operations_struct {
 	int (*access)(struct vm_area_struct *vma, unsigned long addr,
 		      void *buf, int len, int write);
 
+#ifdef CONFIG_XEN
 	/* Area-specific function for clearing the PTE at @ptep. Returns the
 	 * original value of @ptep. */
 	pte_t (*zap_pte)(struct vm_area_struct *vma,
@@ -218,6 +219,7 @@ struct vm_operations_struct {
 
 	/* called before close() to indicate no more pages should be mapped */
 	void (*unmap)(struct vm_area_struct *area);
+#endif
 
 #ifdef CONFIG_NUMA
 	/*
