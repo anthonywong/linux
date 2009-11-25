@@ -36,6 +36,7 @@
 		 __FUNCTION__, __LINE__, ##args)
 
 #include <linux/kernel.h>
+#include <linux/version.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
@@ -108,6 +109,10 @@ static int backend_bus_id(char bus_id[BUS_ID_SIZE], const char *nodename)
 	return 0;
 }
 
+static struct device_attribute xenbus_backend_attrs[] = {
+	__ATTR_NULL
+};
+
 static struct xen_bus_type xenbus_backend = {
 	.root = "backend",
 	.levels = 3, 		/* backend/type/<frontend>/<id> */
@@ -115,12 +120,13 @@ static struct xen_bus_type xenbus_backend = {
 	.probe = xenbus_probe_backend,
 	.error = -ENODEV,
 	.bus = {
-		.name     = "xen-backend",
-		.match    = xenbus_match,
-		.probe    = xenbus_dev_probe,
-		.remove   = xenbus_dev_remove,
-//		.shutdown = xenbus_dev_shutdown,
-		.uevent   = xenbus_uevent_backend,
+		.name      = "xen-backend",
+		.match     = xenbus_match,
+		.probe     = xenbus_dev_probe,
+		.remove    = xenbus_dev_remove,
+//		.shutdown  = xenbus_dev_shutdown,
+		.uevent    = xenbus_uevent_backend,
+		.dev_attrs = xenbus_backend_attrs,
 	},
 	.dev = {
 		.bus_id = "xen-backend",
