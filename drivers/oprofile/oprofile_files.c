@@ -172,6 +172,7 @@ static const struct file_operations dump_fops = {
 };
 
 #ifdef CONFIG_XEN
+#include <linux/slab.h>
 
 #define TMPBUFSIZE 512
 

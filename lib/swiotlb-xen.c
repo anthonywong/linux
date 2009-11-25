@@ -175,7 +175,7 @@ static void *swiotlb_bus_to_virt(dma_addr_t address)
 	return phys_to_virt(swiotlb_bus_to_phys(address));
 }
 
-int __weak swiotlb_arch_range_needs_mapping(void *ptr, size_t size)
+int __weak swiotlb_arch_range_needs_mapping(phys_addr_t paddr, size_t size)
 {
 	return 0;
 }
@@ -515,13 +515,13 @@ swiotlb_full(struct device *dev, size_t size, int dir, int do_panic)
  * Once the device is given the dma address, the device owns this memory until
  * either swiotlb_unmap_single or swiotlb_dma_sync_single is performed.
  */
-static dma_addr_t
-_swiotlb_map_single(struct device *hwdev, phys_addr_t paddr, size_t size,
-			 int dir, struct dma_attrs *attrs)
+dma_addr_t swiotlb_map_page(struct device *dev, struct page *page,
+			    unsigned long offset, size_t size,
+			    enum dma_data_direction dir,
+			    struct dma_attrs *attrs)
 {
-	struct page *page = pfn_to_page(paddr >> PAGE_SHIFT);
-	dma_addr_t dev_addr = gnttab_dma_map_page(page) +
-			      offset_in_page(paddr);
+	phys_addr_t phys = page_to_pseudophys(page) + offset;
+	dma_addr_t dev_addr = gnttab_dma_map_page(page) + offset;
 	void *map;
 
 	BUG_ON(dir == DMA_NONE);
@@ -531,44 +531,24 @@ _swiotlb_map_single(struct device *hwdev, phys_addr_t paddr, size_t size,
 	 * we can safely return the device addr and not worry about bounce
 	 * buffering it.
 	 */
-	if (!address_needs_mapping(hwdev, dev_addr, size) &&
-	    !range_needs_mapping(paddr, size))
+	if (!address_needs_mapping(dev, dev_addr, size) &&
+	    !range_needs_mapping(phys, size))
 		return dev_addr;
 
 	/*
 	 * Oh well, have to allocate and map a bounce buffer.
 	 */
 	gnttab_dma_unmap_page(dev_addr);
-	map = map_single(hwdev, paddr, size, dir);
+	map = map_single(dev, phys, size, dir);
 	if (!map) {
-		swiotlb_full(hwdev, size, dir, 1);
+		swiotlb_full(dev, size, dir, 1);
 		map = io_tlb_overflow_buffer;
 	}
 
-	dev_addr = swiotlb_virt_to_bus(hwdev, map);
+	dev_addr = swiotlb_virt_to_bus(dev, map);
 	return dev_addr;
 }
-
-dma_addr_t
-swiotlb_map_single_attrs(struct device *hwdev, void *ptr, size_t size,
-			 int dir, struct dma_attrs *attrs)
-{
-	return _swiotlb_map_single(hwdev, virt_to_phys(ptr), size, dir, attrs);
-}
-EXPORT_SYMBOL(swiotlb_map_single_attrs);
-
-dma_addr_t
-swiotlb_map_single(struct device *hwdev, void *ptr, size_t size, int dir)
-{
-	return _swiotlb_map_single(hwdev, virt_to_phys(ptr), size, dir, NULL);
-}
-EXPORT_SYMBOL(swiotlb_map_single);
-
-dma_addr_t
-swiotlb_map_single_phys(struct device *hwdev, phys_addr_t paddr, size_t size, int dir)
-{
-	return _swiotlb_map_single(hwdev, paddr, size, dir, NULL);
-}
+EXPORT_SYMBOL_GPL(swiotlb_map_page);
 
 /*
  * Unmap a single streaming mode DMA translation.  The dma_addr and size must
@@ -578,9 +558,9 @@ swiotlb_map_single_phys(struct device *hwdev, phys_addr_t paddr, size_t size, in
  * After this call, reads by the cpu to the buffer are guaranteed to see
  * whatever the device wrote there.
  */
-void
-swiotlb_unmap_single_attrs(struct device *hwdev, dma_addr_t dev_addr,
-			   size_t size, int dir, struct dma_attrs *attrs)
+void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
+			size_t size, enum dma_data_direction dir,
+			struct dma_attrs *attrs)
 {
 	char *dma_addr = swiotlb_bus_to_virt(dev_addr);
 
@@ -590,15 +570,7 @@ swiotlb_unmap_single_attrs(struct device *hwdev, dma_addr_t dev_addr,
 	else
 		gnttab_dma_unmap_page(dev_addr);
 }
-EXPORT_SYMBOL(swiotlb_unmap_single_attrs);
-
-void
-swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
-		     int dir)
-{
-	return swiotlb_unmap_single_attrs(hwdev, dev_addr, size, dir, NULL);
-}
-EXPORT_SYMBOL(swiotlb_unmap_single);
+EXPORT_SYMBOL_GPL(swiotlb_unmap_page);
 
 /*
  * Make physical memory consistent for a single streaming mode DMA translation
@@ -612,7 +584,7 @@ EXPORT_SYMBOL(swiotlb_unmap_single);
  */
 void
 swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-			    size_t size, int dir)
+			    size_t size, enum dma_data_direction dir)
 {
 	char *dma_addr = swiotlb_bus_to_virt(dev_addr);
 
@@ -624,7 +596,7 @@ EXPORT_SYMBOL(swiotlb_sync_single_for_cpu);
 
 void
 swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
-			       size_t size, int dir)
+			       size_t size, enum dma_data_direction dir)
 {
 	char *dma_addr = swiotlb_bus_to_virt(dev_addr);
 
@@ -636,7 +608,8 @@ EXPORT_SYMBOL(swiotlb_sync_single_for_device);
 
 void
 swiotlb_sync_single_range_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-				  unsigned long offset, size_t size, int dir)
+				  unsigned long offset, size_t size,
+				  enum dma_data_direction dir)
 {
 	char *dma_addr = swiotlb_bus_to_virt(dev_addr);
 
@@ -648,7 +621,8 @@ EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_cpu);
 
 void
 swiotlb_sync_single_range_for_device(struct device *hwdev, dma_addr_t dev_addr,
-				     unsigned long offset, size_t size, int dir)
+				     unsigned long offset, size_t size,
+				     enum dma_data_direction dir)
 {
 	char *dma_addr = swiotlb_bus_to_virt(dev_addr);
 
@@ -676,7 +650,7 @@ EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_device);
  */
 int
 swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
-		     int dir, struct dma_attrs *attrs)
+		     enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -728,7 +702,7 @@ EXPORT_SYMBOL(swiotlb_map_sg);
  */
 void
 swiotlb_unmap_sg_attrs(struct device *hwdev, struct scatterlist *sgl,
-		       int nelems, int dir, struct dma_attrs *attrs)
+		       int nelems, enum dma_data_direction dir, struct dma_attrs *attrs)
 {
 	struct scatterlist *sg;
 	int i;
@@ -762,7 +736,7 @@ EXPORT_SYMBOL(swiotlb_unmap_sg);
  */
 void
 swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sgl,
-			int nelems, int dir)
+			int nelems, enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
 	int i;
@@ -779,7 +753,7 @@ EXPORT_SYMBOL(swiotlb_sync_sg_for_cpu);
 
 void
 swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sgl,
-			   int nelems, int dir)
+			   int nelems, enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
 	int i;

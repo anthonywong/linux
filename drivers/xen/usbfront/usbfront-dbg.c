@@ -64,7 +64,7 @@ static ssize_t show_statistics(struct device *dev,
 			"%s\n"
 			"xenhcd, hcd state %d\n",
 			hcd->self.controller->bus->name,
-			hcd->self.controller->bus_id,
+			dev_name(hcd->self.controller),
 			hcd->product_desc,
 			hcd->state);
 	size -= temp;

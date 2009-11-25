@@ -2,7 +2,7 @@
  *	Intel SMP support routines.
  *
  *	(c) 1995 Alan Cox, Building #3 <alan@lxorguk.ukuu.org.uk>
- *	(c) 1998-99, 2000 Ingo Molnar <mingo@redhat.com>
+ *	(c) 1998-99, 2000, 2009 Ingo Molnar <mingo@redhat.com>
  *      (c) 2002,2003 Andi Kleen, SuSE Labs.
  *
  *	i386 and x86_64 integration by Glauber Costa <gcosta@redhat.com>
@@ -26,7 +26,7 @@
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
-#include <mach_ipi.h>
+#include <asm/ipi.h>
 #include <xen/evtchn.h>
 /*
  *	Some notes on x86 processor bugs affecting SMP operation:
@@ -118,17 +118,17 @@ void xen_smp_send_reschedule(int cpu)
 		WARN_ON(1);
 		return;
 	}
-	send_IPI_mask(cpumask_of(cpu), RESCHEDULE_VECTOR);
+	xen_send_IPI_mask(cpumask_of(cpu), RESCHEDULE_VECTOR);
 }
 
 void xen_send_call_func_single_ipi(int cpu)
 {
-	send_IPI_mask(cpumask_of(cpu), CALL_FUNC_SINGLE_VECTOR);
+	xen_send_IPI_mask(cpumask_of(cpu), CALL_FUNC_SINGLE_VECTOR);
 }
 
 void xen_send_call_func_ipi(const struct cpumask *mask)
 {
-	send_IPI_mask_allbutself(mask, CALL_FUNCTION_VECTOR);
+	xen_send_IPI_mask_allbutself(mask, CALL_FUNCTION_VECTOR);
 }
 
 /*

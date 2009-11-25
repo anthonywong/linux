@@ -122,10 +122,6 @@ void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 #endif	/* PAGETABLE_LEVELS > 3 */
 #endif	/* PAGETABLE_LEVELS > 2 */
 
-#ifndef CONFIG_X86_64
-#define TASK_SIZE64 TASK_SIZE
-#endif
-
 static void _pin_lock(struct mm_struct *mm, int lock) {
 	if (lock)
 		spin_lock(&mm->page_table_lock);
@@ -149,7 +145,7 @@ static void _pin_lock(struct mm_struct *mm, int lock) {
 		pgd_t *pgd = mm->pgd;
 		unsigned g;
 
-		for (g = 0; g <= ((TASK_SIZE64-1) / PGDIR_SIZE); g++, pgd++) {
+		for (g = 0; g <= ((TASK_SIZE_MAX-1) / PGDIR_SIZE); g++, pgd++) {
 			pud_t *pud;
 			unsigned u;
 
@@ -230,10 +226,10 @@ static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
 	 * Cannot iterate up to USER_PTRS_PER_PGD on x86-64 as these pagetables
 	 * may not be the 'current' task's pagetables (e.g., current may be
 	 * 32-bit, but the pagetables may be for a 64-bit task).
-	 * Subtracting 1 from TASK_SIZE64 means the loop limit is correct
-	 * regardless of whether TASK_SIZE64 is a multiple of PGDIR_SIZE.
+	 * Subtracting 1 from TASK_SIZE_MAX means the loop limit is correct
+	 * regardless of whether TASK_SIZE_MAX is a multiple of PGDIR_SIZE.
 	 */
-	for (g = 0, seq = 0; g <= ((TASK_SIZE64-1) / PGDIR_SIZE); g++, pgd++) {
+	for (g = 0, seq = 0; g <= ((TASK_SIZE_MAX-1) / PGDIR_SIZE); g++, pgd++) {
 		if (pgd_none(*pgd))
 			continue;
 		pud = pud_offset(pgd, 0);
@@ -736,9 +732,26 @@ int ptep_clear_flush_young(struct vm_area_struct *vma,
 	return young;
 }
 
+/**
+ * reserve_top_address - reserves a hole in the top of kernel address space
+ * @reserve - size of hole to reserve
+ *
+ * Can be used to relocate the fixmap area and poke a hole in the top
+ * of kernel address space to make room for a hypervisor.
+ */
+void __init reserve_top_address(unsigned long reserve)
+{
+#ifdef CONFIG_X86_32
+	BUG_ON(fixmaps_set > 0);
+	printk(KERN_INFO "Reserving virtual address space above 0x%08x\n",
+	       (int)-reserve);
+	__FIXADDR_TOP = -reserve - PAGE_SIZE;
+#endif
+}
+
 int fixmaps_set;
 
-void xen_set_fixmap(enum fixed_addresses idx, maddr_t phys, pgprot_t flags)
+void xen_set_fixmap(enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
 {
 	unsigned long address = __fix_to_virt(idx);
 	pte_t pte;
@@ -757,6 +770,8 @@ void xen_set_fixmap(enum fixed_addresses idx, maddr_t phys, pgprot_t flags)
 		set_pte_vaddr_pud(level3_user_pgt, address, pte);
 		break;
 	case FIX_EARLYCON_MEM_BASE:
+	case FIX_SHARED_INFO:
+	case FIX_ISAMAP_END ... FIX_ISAMAP_BEGIN:
 		xen_l1_entry_update(level1_fixmap_pgt + pte_index(address),
 				    pfn_pte_ma(phys >> PAGE_SHIFT, flags));
 		fixmaps_set++;

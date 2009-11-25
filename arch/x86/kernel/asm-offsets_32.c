@@ -115,6 +115,11 @@ void foo(void)
 
 	OFFSET(crypto_tfm_ctx_offset, crypto_tfm, __crt_ctx);
 
+#ifdef CONFIG_XEN
+	BLANK();
+	OFFSET(XEN_START_mfn_list, start_info, mfn_list);
+#endif
+
 #ifdef CONFIG_PARAVIRT
 	BLANK();
 	OFFSET(PARAVIRT_enabled, pv_info, paravirt_enabled);

@@ -18,7 +18,6 @@
 #include <linux/cpu.h>
 #include <linux/percpu.h>
 #include <asm/desc.h>
-#include <asm/arch_hooks.h>
 #include <asm/pgalloc.h>
 #include <xen/evtchn.h>
 #include <xen/interface/vcpu.h>
@@ -54,8 +53,8 @@ static char call1func_name[NR_CPUS][15];
 #define set_cpu_to_apicid(cpu, apicid)
 #endif
 
-DEFINE_PER_CPU(cpumask_t, cpu_sibling_map);
-DEFINE_PER_CPU(cpumask_t, cpu_core_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_sibling_map);
+DEFINE_PER_CPU(cpumask_var_t, cpu_core_map);
 
 void __init prefill_possible_map(void)
 {
@@ -80,8 +79,8 @@ set_cpu_sibling_map(unsigned int cpu)
 	cpu_data(cpu).phys_proc_id = cpu;
 	cpu_data(cpu).cpu_core_id  = 0;
 
-	per_cpu(cpu_sibling_map, cpu) = cpumask_of_cpu(cpu);
-	per_cpu(cpu_core_map, cpu) = cpumask_of_cpu(cpu);
+	cpumask_copy(cpu_sibling_mask(cpu), cpumask_of(cpu));
+	cpumask_copy(cpu_core_mask(cpu), cpumask_of(cpu));
 
 	cpu_data(cpu).booted_cores = 1;
 }
@@ -92,8 +91,8 @@ remove_siblinginfo(unsigned int cpu)
 	cpu_data(cpu).phys_proc_id = BAD_APICID;
 	cpu_data(cpu).cpu_core_id  = BAD_APICID;
 
-	cpus_clear(per_cpu(cpu_sibling_map, cpu));
-	cpus_clear(per_cpu(cpu_core_map, cpu));
+	cpumask_clear(cpu_sibling_mask(cpu));
+	cpumask_clear(cpu_core_mask(cpu));
 
 	cpu_data(cpu).booted_cores = 0;
 }
@@ -216,7 +215,7 @@ static void __cpuinit cpu_initialize_context(unsigned int cpu)
 	smp_trap_init(ctxt.trap_ctxt);
 
 	ctxt.ldt_ents = 0;
-	ctxt.gdt_frames[0] = virt_to_mfn(get_cpu_gdt_table(cpu));
+	ctxt.gdt_frames[0] = arbitrary_virt_to_mfn(get_cpu_gdt_table(cpu));
 	ctxt.gdt_ents = GDT_SIZE / 8;
 
 	ctxt.user_regs.cs = __KERNEL_CS;
@@ -234,12 +233,13 @@ static void __cpuinit cpu_initialize_context(unsigned int cpu)
 	ctxt.ctrlreg[3] = xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
 
 	ctxt.user_regs.fs = __KERNEL_PERCPU;
+	ctxt.user_regs.gs = __KERNEL_STACK_CANARY;
 #else /* __x86_64__ */
 	ctxt.syscall_callback_eip  = (unsigned long)system_call;
 
 	ctxt.ctrlreg[3] = xen_pfn_to_cr3(virt_to_mfn(init_level4_pgt));
 
-	ctxt.gs_base_kernel = (unsigned long)(cpu_pda(cpu));
+	ctxt.gs_base_kernel = per_cpu_offset(cpu);
 #endif
 
 	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, cpu, &ctxt))
@@ -267,8 +267,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	current_thread_info()->cpu = 0;
 
 	for_each_possible_cpu (cpu) {
-		cpus_clear(per_cpu(cpu_sibling_map, cpu));
-		cpus_clear(per_cpu(cpu_core_map, cpu));
+		alloc_cpumask_var(&per_cpu(cpu_sibling_map, cpu), GFP_KERNEL);
+		alloc_cpumask_var(&per_cpu(cpu_core_map, cpu), GFP_KERNEL);
+		cpumask_clear(cpu_sibling_mask(cpu));
+		cpumask_clear(cpu_core_mask(cpu));
 	}
 
 	set_cpu_sibling_map(0);
@@ -295,9 +297,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		if (IS_ERR(idle))
 			panic("failed fork for CPU %d", cpu);
 
-#ifdef __i386__
-		init_gdt(cpu);
-#endif
 		gdt_addr = get_cpu_gdt_table(cpu);
 		make_page_readonly(gdt_addr, XENFEAT_writable_descriptor_tables);
 
@@ -311,12 +310,12 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		set_cpu_to_apicid(cpu, apicid);
 
 #ifdef __x86_64__
-		cpu_pda(cpu)->pcurrent = idle;
-		cpu_pda(cpu)->cpunumber = cpu;
 		clear_tsk_thread_flag(idle, TIF_FORK);
-#else
-	 	per_cpu(current_task, cpu) = idle;
+		per_cpu(kernel_stack, cpu) =
+			(unsigned long)task_stack_page(idle) -
+			KERNEL_STACK_OFFSET + THREAD_SIZE;
 #endif
+	 	per_cpu(current_task, cpu) = idle;
 
 		irq_ctx_init(cpu);
 
@@ -340,10 +339,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 void __init smp_prepare_boot_cpu(void)
 {
-#ifdef __i386__
-	init_gdt(smp_processor_id());
-#endif
-	switch_to_new_gdt();
+	switch_to_new_gdt(smp_processor_id());
 	prefill_possible_map();
 }
 
