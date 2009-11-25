@@ -56,14 +56,6 @@ ENTRY(name)
 
 NEXT_PAGE(init_level4_pgt)
 	.fill	512,8,0
-        /*
-         * We update two pgd entries to make kernel and user pgd consistent
-         * at pgd_populate(). It can be used for kernel modules. So we place 
-         * this page here for those cases to avoid memory corruption.
-         * We also use this page to establish the initial mapping for the
-         * vsyscall area.
-         */
-	.fill	512,8,0
 
 NEXT_PAGE(level3_kernel_pgt)
 	.fill	512,8,0
