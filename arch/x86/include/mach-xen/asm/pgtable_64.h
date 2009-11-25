@@ -79,33 +79,41 @@ static inline void xen_set_pmd(pmd_t *pmdp, pmd_t pmd)
 	xen_l2_entry_update(pmdp, pmd);
 }
 
-static inline void xen_pmd_clear(pmd_t *pmd)
-{
-	xen_set_pmd(pmd, xen_make_pmd(0));
-}
+#define xen_pmd_clear(pmd)			\
+({						\
+	pmd_t *__pmdp = (pmd);			\
+	PagePinned(virt_to_page(__pmdp))	\
+	? set_pmd(__pmdp, xen_make_pmd(0))	\
+	: (void)(*__pmdp = xen_make_pmd(0));	\
+})
 
 static inline void xen_set_pud(pud_t *pudp, pud_t pud)
 {
 	xen_l3_entry_update(pudp, pud);
 }
 
-static inline void xen_pud_clear(pud_t *pud)
-{
-	xen_set_pud(pud, xen_make_pud(0));
-}
+#define xen_pud_clear(pud)			\
+({						\
+	pud_t *__pudp = (pud);			\
+	PagePinned(virt_to_page(__pudp))	\
+	? set_pud(__pudp, xen_make_pud(0))	\
+	: (void)(*__pudp = xen_make_pud(0));	\
+})
 
 #define __user_pgd(pgd) ((pgd) + PTRS_PER_PGD)
 
 static inline void xen_set_pgd(pgd_t *pgdp, pgd_t pgd)
 {
-	xen_l4_entry_update(pgdp, pgd);
+	xen_l4_entry_update(pgdp, 0, pgd);
 }
 
-static inline void xen_pgd_clear(pgd_t *pgd)
-{
-	xen_set_pgd(pgd, xen_make_pgd(0));
-	xen_set_pgd(__user_pgd(pgd), xen_make_pgd(0));
-}
+#define xen_pgd_clear(pgd)			\
+({						\
+	pgd_t *__pgdp = (pgd);			\
+	PagePinned(virt_to_page(__pgdp))	\
+	? xen_l4_entry_update(__pgdp, 1, xen_make_pgd(0)) \
+	: (void)(*__user_pgd(__pgdp) = *__pgdp = xen_make_pgd(0)); \
+})
 
 #define __pte_mfn(_pte) (((_pte).pte & PTE_PFN_MASK) >> PAGE_SHIFT)
 
