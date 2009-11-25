@@ -82,6 +82,9 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 {
 	unsigned cpu = smp_processor_id();
 	struct mmuext_op _op[2 + (sizeof(long) > 4)], *op = _op;
+#ifdef CONFIG_X86_64
+	pgd_t *upgd;
+#endif
 
 	if (likely(prev != next)) {
 		BUG_ON(!xen_feature(XENFEAT_writable_page_tables) &&
@@ -100,10 +103,11 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 		op->arg1.mfn = virt_to_mfn(next->pgd);
 		op++;
 
-		/* xen_new_user_pt(__pa(__user_pgd(next->pgd))) */
+		/* xen_new_user_pt(next->pgd) */
 #ifdef CONFIG_X86_64
 		op->cmd = MMUEXT_NEW_USER_BASEPTR;
-		op->arg1.mfn = virt_to_mfn(__user_pgd(next->pgd));
+		upgd = __user_pgd(next->pgd);
+		op->arg1.mfn = likely(upgd) ? virt_to_mfn(upgd) : 0;
 		op++;
 #endif
 
@@ -131,7 +135,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 			 * to make sure to use no freed page tables.
 			 */
 			load_cr3(next->pgd);
-			xen_new_user_pt(__pa(__user_pgd(next->pgd)));
+			xen_new_user_pt(next->pgd);
 			load_LDT_nolock(&next->context);
 		}
 	}
