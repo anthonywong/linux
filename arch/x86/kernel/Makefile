@@ -140,5 +140,5 @@ ifeq ($(CONFIG_X86_64),y)
 	pci-dma_64-$(CONFIG_XEN)	+= pci-dma_32.o
 endif
 
-disabled-obj-$(CONFIG_XEN) := i8259_$(BITS).o reboot.o smpboot_$(BITS).o
+disabled-obj-$(CONFIG_XEN) := i8253.o i8259_$(BITS).o reboot.o smpboot_$(BITS).o tsc_$(BITS).o
 %/head_$(BITS).o %/head_$(BITS).s: $(if $(CONFIG_XEN),EXTRA_AFLAGS,dummy) :=
