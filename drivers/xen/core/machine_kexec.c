@@ -5,6 +5,7 @@
 
 #include <linux/kexec.h>
 #include <xen/interface/kexec.h>
+#include <linux/reboot.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
 
@@ -90,6 +91,9 @@ void __init xen_machine_kexec_setup_resources(void)
 	xen_hypervisor_res.start = range.start;
 	xen_hypervisor_res.end = range.start + range.size - 1;
 	xen_hypervisor_res.flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+#ifdef CONFIG_X86_64
+	insert_resource(&iomem_resource, &xen_hypervisor_res);
+#endif
 
 	/* fill in crashk_res if range is reserved by hypervisor */
 
@@ -102,6 +106,9 @@ void __init xen_machine_kexec_setup_resources(void)
 	if (range.size) {
 		crashk_res.start = range.start;
 		crashk_res.end = range.start + range.size - 1;
+#ifdef CONFIG_X86_64
+		insert_resource(&iomem_resource, &crashk_res);
+#endif
 	}
 
 	/* get physical address of vmcoreinfo */
@@ -134,6 +141,14 @@ void __init xen_machine_kexec_setup_resources(void)
 					  xen_max_nr_phys_cpus))
 		goto err;
 
+#ifdef CONFIG_X86_64
+	for (k = 0; k < xen_max_nr_phys_cpus; k++) {
+		res = xen_phys_cpus + k;
+		if (!res->parent) /* outside of xen_hypervisor_res range */
+			insert_resource(&iomem_resource, res);
+	}
+#endif
+
 #ifdef CONFIG_X86
 	if (xen_create_contiguous_region((unsigned long)&vmcoreinfo_note,
 					 get_order(sizeof(vmcoreinfo_note)),
@@ -153,6 +168,7 @@ void __init xen_machine_kexec_setup_resources(void)
 	return;
 }
 
+#ifndef CONFIG_X86_64
 void __init xen_machine_kexec_register_resources(struct resource *res)
 {
 	int k;
@@ -166,6 +182,7 @@ void __init xen_machine_kexec_register_resources(struct resource *res)
 	} 
 	machine_kexec_register_resources(res);
 }
+#endif
 
 static void setup_load_arg(xen_kexec_image_t *xki, struct kimage *image)
 {
@@ -236,6 +253,11 @@ void machine_shutdown(void)
 	/* do nothing */
 }
 
+void machine_crash_shutdown(struct pt_regs *regs)
+{
+	/* The kernel is broken so disable interrupts */
+	local_irq_disable();
+}
 
 /*
  * Local variables:

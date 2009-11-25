@@ -28,22 +28,44 @@ struct task_struct *__switch_to(struct task_struct *prev,
  * Saving eflags is important. It switches not only IOPL between tasks,
  * it also protects other tasks from NT leaking through sysenter etc.
  */
-#define switch_to(prev, next, last) do {				\
-	unsigned long esi, edi;						\
-	asm volatile("pushfl\n\t"		/* Save flags */	\
-		     "pushl %%ebp\n\t"					\
-		     "movl %%esp,%0\n\t"	/* save ESP */		\
-		     "movl %5,%%esp\n\t"	/* restore ESP */	\
-		     "movl $1f,%1\n\t"		/* save EIP */		\
-		     "pushl %6\n\t"		/* restore EIP */	\
-		     "jmp __switch_to\n"				\
+#define switch_to(prev, next, last)					\
+do {									\
+	/*								\
+	 * Context-switching clobbers all registers, so we clobber	\
+	 * them explicitly, via unused output variables.		\
+	 * (EAX and EBP is not listed because EBP is saved/restored	\
+	 * explicitly for wchan access and EAX is the return value of	\
+	 * __switch_to())						\
+	 */								\
+	unsigned long ebx, ecx, edx, esi, edi;				\
+									\
+	asm volatile("pushfl\n\t"		/* save    flags */	\
+		     "pushl %%ebp\n\t"		/* save    EBP   */	\
+		     "movl %%esp,%[prev_sp]\n\t"	/* save    ESP   */ \
+		     "movl %[next_sp],%%esp\n\t"	/* restore ESP   */ \
+		     "movl $1f,%[prev_ip]\n\t"	/* save    EIP   */	\
+		     "pushl %[next_ip]\n\t"	/* restore EIP   */	\
+		     "jmp __switch_to\n"	/* regparm call  */	\
 		     "1:\t"						\
-		     "popl %%ebp\n\t"					\
-		     "popfl"						\
-		     :"=m" (prev->thread.sp), "=m" (prev->thread.ip),	\
-		      "=a" (last), "=S" (esi), "=D" (edi)		\
-		     :"m" (next->thread.sp), "m" (next->thread.ip),	\
-		      "2" (prev), "d" (next));				\
+		     "popl %%ebp\n\t"		/* restore EBP   */	\
+		     "popfl\n"			/* restore flags */	\
+									\
+		     /* output parameters */				\
+		     : [prev_sp] "=m" (prev->thread.sp),		\
+		       [prev_ip] "=m" (prev->thread.ip),		\
+		       "=a" (last),					\
+									\
+		       /* clobbered output registers: */		\
+		       "=b" (ebx), "=c" (ecx), "=d" (edx),		\
+		       "=S" (esi), "=D" (edi)				\
+		       							\
+		       /* input parameters: */				\
+		     : [next_sp]  "m" (next->thread.sp),		\
+		       [next_ip]  "m" (next->thread.ip),		\
+		       							\
+		       /* regparm parameters for __switch_to(): */	\
+		       [prev]     "a" (prev),				\
+		       [next]     "d" (next));				\
 } while (0)
 
 /*
@@ -123,30 +145,29 @@ extern void load_gs_index(unsigned);
  */
 #define loadsegment(seg, value)			\
 	asm volatile("\n"			\
-		"1:\t"				\
-		"movl %k0,%%" #seg "\n"		\
-		"2:\n"				\
-		".section .fixup,\"ax\"\n"	\
-		"3:\t"				\
-		"movl %k1, %%" #seg "\n\t"	\
-		"jmp 2b\n"			\
-		".previous\n"			\
-		_ASM_EXTABLE(1b,3b)		\
-		: :"r" (value), "r" (0))
+		     "1:\t"			\
+		     "movl %k0,%%" #seg "\n"	\
+		     "2:\n"			\
+		     ".section .fixup,\"ax\"\n"	\
+		     "3:\t"			\
+		     "movl %k1, %%" #seg "\n\t"	\
+		     "jmp 2b\n"			\
+		     ".previous\n"		\
+		     _ASM_EXTABLE(1b,3b)	\
+		     : :"r" (value), "r" (0))
 
 
 /*
  * Save a segment register away
  */
-#define savesegment(seg, value) \
+#define savesegment(seg, value)				\
 	asm volatile("mov %%" #seg ",%0":"=rm" (value))
 
 static inline unsigned long get_limit(unsigned long segment)
 {
 	unsigned long __limit;
-	__asm__("lsll %1,%0"
-		:"=r" (__limit):"r" (segment));
-	return __limit+1;
+	asm("lsll %1,%0" : "=r" (__limit) : "r" (segment));
+	return __limit + 1;
 }
 
 static inline void xen_clts(void)
@@ -171,13 +192,13 @@ static unsigned long __force_order;
 static inline unsigned long xen_read_cr0(void)
 {
 	unsigned long val;
-	asm volatile("mov %%cr0,%0\n\t" :"=r" (val), "=m" (__force_order));
+	asm volatile("mov %%cr0,%0\n\t" : "=r" (val), "=m" (__force_order));
 	return val;
 }
 
 static inline void xen_write_cr0(unsigned long val)
 {
-	asm volatile("mov %0,%%cr0": :"r" (val), "m" (__force_order));
+	asm volatile("mov %0,%%cr0": : "r" (val), "m" (__force_order));
 }
 
 #define xen_read_cr2() (current_vcpu_info()->arch.cr2)
@@ -186,7 +207,7 @@ static inline void xen_write_cr0(unsigned long val)
 static inline unsigned long xen_read_cr3(void)
 {
 	unsigned long val;
-	asm volatile("mov %%cr3,%0\n\t" :"=r" (val), "=m" (__force_order));
+	asm volatile("mov %%cr3,%0\n\t" : "=r" (val), "=m" (__force_order));
 #ifdef CONFIG_X86_32
 	return mfn_to_pfn(xen_cr3_to_pfn(val)) << PAGE_SHIFT;
 #else
@@ -201,13 +222,13 @@ static inline void xen_write_cr3(unsigned long val)
 #else
 	val = phys_to_machine(val);
 #endif
-	asm volatile("mov %0,%%cr3": :"r" (val), "m" (__force_order));
+	asm volatile("mov %0,%%cr3": : "r" (val), "m" (__force_order));
 }
 
 static inline unsigned long xen_read_cr4(void)
 {
 	unsigned long val;
-	asm volatile("mov %%cr4,%0\n\t" :"=r" (val), "=m" (__force_order));
+	asm volatile("mov %%cr4,%0\n\t" : "=r" (val), "=m" (__force_order));
 	return val;
 }
 
@@ -215,7 +236,7 @@ static inline unsigned long xen_read_cr4(void)
 
 static inline void xen_write_cr4(unsigned long val)
 {
-	asm volatile("mov %0,%%cr4": :"r" (val), "m" (__force_order));
+	asm volatile("mov %0,%%cr4": : "r" (val), "m" (__force_order));
 }
 
 #ifdef CONFIG_X86_64
@@ -234,6 +255,7 @@ static inline void xen_wbinvd(void)
 {
 	asm volatile("wbinvd": : :"memory");
 }
+
 #define read_cr0()	(xen_read_cr0())
 #define write_cr0(x)	(xen_write_cr0(x))
 #define read_cr2()	(xen_read_cr2())
@@ -260,7 +282,7 @@ static inline void clflush(volatile void *__p)
 	asm volatile("clflush %0" : "+m" (*(volatile char __force *)__p));
 }
 
-#define nop() __asm__ __volatile__ ("nop")
+#define nop() asm volatile ("nop")
 
 void disable_hlt(void);
 void enable_hlt(void);
@@ -280,16 +302,7 @@ void default_idle(void);
  */
 #ifdef CONFIG_X86_32
 /*
- * For now, "wmb()" doesn't actually do anything, as all
- * Intel CPU's follow what Intel calls a *Processor Order*,
- * in which all writes are seen in the program order even
- * outside the CPU.
- *
- * I expect future Intel CPU's to have a weaker ordering,
- * but I'd also expect them to finally get their act together
- * and add some real memory barriers if so.
- *
- * Some non intel clones support out of order store. wmb() ceases to be a
+ * Some non-Intel clones support out of order store. wmb() ceases to be a
  * nop for these.
  */
 #define mb() alternative("lock; addl $0,0(%%esp)", "mfence", X86_FEATURE_XMM2)
@@ -368,7 +381,7 @@ void default_idle(void);
 # define smp_wmb()	barrier()
 #endif
 #define smp_read_barrier_depends()	read_barrier_depends()
-#define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
+#define set_mb(var, value) do { (void)xchg(&var, value); } while (0)
 #else
 #define smp_mb()	barrier()
 #define smp_rmb()	barrier()

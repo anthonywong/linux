@@ -2,8 +2,6 @@
 # This Kconfig describe xen options
 #
 
-mainmenu "Xen Configuration"
-
 config XEN
 	bool
 
