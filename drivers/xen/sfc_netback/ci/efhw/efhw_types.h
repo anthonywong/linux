@@ -86,6 +86,37 @@ struct efhw_keventq {
 	struct efhw_ev_handler *ev_handlers;
 };
 
+/*--------------------------------------------------------------------
+ *
+ * filters
+ *
+ *--------------------------------------------------------------------*/
+
+struct efhw_filter_spec {
+	uint dmaq_id;
+	uint32_t saddr_le32;
+	uint32_t daddr_le32;
+	uint16_t sport_le16;
+	uint16_t dport_le16;
+	unsigned tcp     : 1;
+	unsigned full    : 1;
+	unsigned rss     : 1;  /* not supported on A1 */
+	unsigned scatter : 1;  /* not supported on A1 */
+};
+
+struct efhw_filter_depth {
+	unsigned needed;
+	unsigned max;
+};
+
+struct efhw_filter_search_limits {
+	unsigned tcp_full;
+	unsigned tcp_wild;
+	unsigned udp_full;
+	unsigned udp_wild;
+};
+
+
 /**********************************************************************
  * Portable HW interface. ***************************************
  **********************************************************************/
@@ -131,7 +162,7 @@ struct efhw_func_ops {
 	/*! Set interrupt moderation strategy for the given IRQ unit
 	 ** val is in usec
 	 */
-	void (*set_interrupt_moderation)(struct efhw_nic *nic,
+	void (*set_interrupt_moderation)(struct efhw_nic *nic, int evq,
 					 uint val);
 
   /*-------------- Event support  ------------ */
@@ -144,7 +175,8 @@ struct efhw_func_ops {
 	void (*event_queue_enable) (struct efhw_nic *nic,
 				    uint evq,	/* evnt queue index */
 				    uint evq_size,	/* units of #entries */
-				    dma_addr_t q_base_addr, uint buf_base_id);
+				    dma_addr_t q_base_addr, uint buf_base_id,
+				    int interrupting);
 
 	/*! Disable the given event queue (and any associated timer) */
 	void (*event_queue_disable) (struct efhw_nic *nic, uint evq,
@@ -157,7 +189,7 @@ struct efhw_func_ops {
 	/*! Push a SW event on a given eventQ */
 	void (*sw_event) (struct efhw_nic *nic, int data, int evq);
 
-  /*-------------- Filter support  ------------ */
+  /*-------------- IP Filter API  ------------ */
 
 	/*! Setup a given filter - The software can request a filter_i,
 	 * but some EtherFabric implementations will override with
@@ -167,13 +199,6 @@ struct efhw_func_ops {
 			     int *filter_i, int dmaq,
 			     unsigned saddr_be32, unsigned sport_be16,
 			     unsigned daddr_be32, unsigned dport_be16);
-
-	/*! Attach a given filter to a DMAQ */
-	void (*ipfilter_attach) (struct efhw_nic *nic, int filter_idx,
-				 int dmaq_idx);
-
-	/*! Detach a filter from its DMAQ */
-	void (*ipfilter_detach) (struct efhw_nic *nic, int filter_idx);
 
 	/*! Clear down a given filter */
 	void (*ipfilter_clear) (struct efhw_nic *nic, int filter_idx);
@@ -223,6 +248,14 @@ struct efhw_func_ops {
 	/*! Commit a buffer table update  */
 	void (*buffer_table_commit) (struct efhw_nic *nic);
 
+  /*-------------- New filter API ------------ */
+
+	/*! Set a given filter */
+	int (*filter_set) (struct efhw_nic *nic, struct efhw_filter_spec *spec,
+			   int *filter_idx_out);
+
+	/*! Clear a given filter */
+	void (*filter_clear) (struct efhw_nic *nic, int filter_idx);
 };
 
 
@@ -250,9 +283,7 @@ struct efhw_nic {
 	/*! zero base index in efrm_nic_tablep->nic array */
 	int index;
 	int ifindex;		/*!< OS level nic index */
-#ifdef HAS_NET_NAMESPACE
 	struct net *nd_net;
-#endif
 
 	struct efhw_device_type devtype;
 
@@ -268,7 +299,6 @@ struct efhw_nic {
 # define NIC_FLAG_TRY_MSI               0x02
 # define NIC_FLAG_MSI                   0x04
 # define NIC_FLAG_OS_IRQ_EN             0x08
-# define NIC_FLAG_10G                   0x10
 
 	unsigned mtu;		/*!< MAC MTU (includes MAC hdr) */
 
@@ -286,9 +316,6 @@ struct efhw_nic {
 
 	/*! EtherFabric Functional Units -- functions */
 	const struct efhw_func_ops *efhw_func;
-
-	/* Value read from FPGA version register.  Zero for asic. */
-	unsigned fpga_version;
 
 	/*! This lock protects a number of misc NIC resources.  It should
 	 * only be used for things that can be at the bottom of the lock
@@ -326,8 +353,26 @@ struct efhw_nic {
 	unsigned rxq_sizes;
 	unsigned txq_sizes;
 
-	/* Size of filter table (including odd and even banks). */
-	unsigned filter_tbl_size;
+	/* Size of filter table. */
+	unsigned ip_filter_tbl_size;
+
+	/* Number of filters currently used */
+	unsigned ip_filter_tbl_used;
+
+	/* Dynamically allocated filter state. */
+	uint8_t *filter_in_use;
+	struct efhw_filter_spec *filter_spec_cache;
+
+	/* Currently required and maximum filter table search depths. */
+	struct efhw_filter_depth tcp_full_srch;
+	struct efhw_filter_depth tcp_wild_srch;
+	struct efhw_filter_depth udp_full_srch;
+	struct efhw_filter_depth udp_wild_srch;
+
+	/* Number of event queues, DMA queues and timers. */
+	unsigned num_evqs;
+	unsigned num_dmaqs;
+	unsigned num_timers;
 };
 
 
