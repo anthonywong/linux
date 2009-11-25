@@ -158,6 +158,7 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 
 static void __cpuinit acpi_register_lapic(int id, u8 enabled)
 {
+#ifndef CONFIG_XEN
 	unsigned int ver = 0;
 
 	if (!enabled) {
@@ -169,6 +170,7 @@ static void __cpuinit acpi_register_lapic(int id, u8 enabled)
 		ver = apic_version[boot_cpu_physical_apicid];
 
 	generic_processor_info(id, ver);
+#endif
 }
 
 static int __init
@@ -754,6 +756,7 @@ static int __init acpi_parse_fadt(struct acpi_table_header *table)
  * returns 0 on success, < 0 on error
  */
 
+#ifndef CONFIG_XEN
 static void __init acpi_register_lapic_address(unsigned long address)
 {
 	mp_lapic_addr = address;
@@ -765,6 +768,9 @@ static void __init acpi_register_lapic_address(unsigned long address)
 			 GET_APIC_VERSION(apic_read(APIC_LVR));
 	}
 }
+#else
+#define acpi_register_lapic_address(address)
+#endif
 
 static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
 {

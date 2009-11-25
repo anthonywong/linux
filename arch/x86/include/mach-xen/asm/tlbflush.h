@@ -86,8 +86,7 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 #define TLBSTATE_LAZY	2
 
 #ifdef CONFIG_X86_32
-struct tlb_state
-{
+struct tlb_state {
 	struct mm_struct *active_mm;
 	int state;
 	char __cacheline_padding[L1_CACHE_BYTES-8];
