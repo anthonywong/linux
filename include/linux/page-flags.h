@@ -108,6 +108,11 @@ enum pageflags {
 #ifdef CONFIG_MEMORY_FAILURE
 	PG_hwpoison,		/* hardware poisoned page. Don't touch */
 #endif
+#ifdef CONFIG_XEN
+	PG_foreign,		/* Page is owned by foreign allocator. */
+	PG_netback,		/* Page is owned by netback */
+	PG_blkback,		/* Page is owned by blkback */
+#endif
 	__NR_PAGEFLAGS,
 
 	/* Filesystems */
@@ -329,6 +334,27 @@ static inline void SetPageUptodate(struct page *page)
 
 CLEARPAGEFLAG(Uptodate, uptodate)
 
+#define PageForeign(page)	test_bit(PG_foreign, &(page)->flags)
+#define SetPageForeign(_page, dtor) do {		\
+	set_bit(PG_foreign, &(_page)->flags);		\
+	BUG_ON((dtor) == (void (*)(struct page *, unsigned int))0); \
+	(_page)->index = (long)(dtor);			\
+} while (0)
+#define ClearPageForeign(page) do {			\
+	clear_bit(PG_foreign, &(page)->flags);		\
+	(page)->index = 0;				\
+} while (0)
+#define PageForeignDestructor(_page, order)		\
+	((void (*)(struct page *, unsigned int))(_page)->index)(_page, order)
+
+#define PageNetback(page)       test_bit(PG_netback, &(page)->flags)
+#define SetPageNetback(page)    set_bit(PG_netback, &(page)->flags)
+#define ClearPageNetback(page)  clear_bit(PG_netback, &(page)->flags)
+
+#define PageBlkback(page)       test_bit(PG_blkback, &(page)->flags)
+#define SetPageBlkback(page)    set_bit(PG_blkback, &(page)->flags)
+#define ClearPageBlkback(page)  clear_bit(PG_blkback, &(page)->flags)
+
 extern void cancel_dirty_page(struct page *page, unsigned int account_size);
 
 int test_clear_page_writeback(struct page *page);
@@ -399,6 +425,14 @@ static inline void __ClearPageTail(struct page *page)
 #define __PG_MLOCKED		0
 #endif
 
+#if !defined(CONFIG_XEN)
+# define __PG_XEN		0
+#elif defined(CONFIG_X86)
+# define __PG_XEN		((1 << PG_pinned) | (1 << PG_foreign))
+#else
+# define __PG_XEN		(1 << PG_foreign)
+#endif
+
 /*
  * Flags checked when a page is freed.  Pages being freed should not have
  * these flags set.  It they are, there is a problem.
@@ -408,7 +442,7 @@ static inline void __ClearPageTail(struct page *page)
 	 1 << PG_private | 1 << PG_private_2 | \
 	 1 << PG_buddy	 | 1 << PG_writeback | 1 << PG_reserved | \
 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
-	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON)
+	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | __PG_XEN)
 
 /*
  * Flags checked when a page is prepped for return by the page allocator.

@@ -8,6 +8,10 @@
  * @author Barry Kasindorf
  * @author Robert Richter <robert.richter@amd.com>
  *
+ * Modified by Aravind Menon for Xen
+ * These modifications are:
+ * Copyright (C) 2005 Hewlett-Packard Co.
+ *
  * This is the core of the buffer management. Each
  * CPU buffer is processed and entered into the
  * global event buffer. Such processing is necessary
@@ -42,6 +46,8 @@ static cpumask_var_t marked_cpus;
 static DEFINE_SPINLOCK(task_mortuary);
 static void process_task_mortuary(void);
 
+static int cpu_current_domain[NR_CPUS];
+
 /* Take ownership of the task struct and place it on the
  * list for processing. Only after two full buffer syncs
  * does the task eventually get freed, because by then
@@ -59,7 +65,6 @@ task_free_notify(struct notifier_block *self, unsigned long val, void *data)
 	spin_unlock_irqrestore(&task_mortuary, flags);
 	return NOTIFY_OK;
 }
-
 
 /* The task is on its way out. A sync of the buffer means we can catch
  * any remaining samples for this task.
@@ -153,6 +158,11 @@ static void end_sync(void)
 int sync_start(void)
 {
 	int err;
+	int i;
+
+	for (i = 0; i < NR_CPUS; i++) {
+		cpu_current_domain[i] = COORDINATOR_DOMAIN;
+	}
 
 	if (!zalloc_cpumask_var(&marked_cpus, GFP_KERNEL))
 		return -ENOMEM;
@@ -284,13 +294,29 @@ static void add_cpu_switch(int i)
 	last_cookie = INVALID_COOKIE;
 }
 
-static void add_kernel_ctx_switch(unsigned int in_kernel)
+static void add_cpu_mode_switch(unsigned int cpu_mode)
 {
 	add_event_entry(ESCAPE_CODE);
-	if (in_kernel)
+	switch (cpu_mode) {
+	case CPU_MODE_USER:
+		add_event_entry(USER_ENTER_SWITCH_CODE);
+		break;
+	case CPU_MODE_KERNEL:
 		add_event_entry(KERNEL_ENTER_SWITCH_CODE);
-	else
-		add_event_entry(KERNEL_EXIT_SWITCH_CODE);
+		break;
+	case CPU_MODE_XEN:
+		add_event_entry(XEN_ENTER_SWITCH_CODE);
+	  	break;
+	default:
+		break;
+	}
+}
+
+static void add_domain_switch(unsigned long domain_id)
+{
+	add_event_entry(ESCAPE_CODE);
+	add_event_entry(DOMAIN_SWITCH_CODE);
+	add_event_entry(domain_id);
 }
 
 static void
@@ -371,12 +397,12 @@ static inline void add_sample_entry(unsigned long offset, unsigned long event)
  * for later lookup from userspace. Return 0 on failure.
  */
 static int
-add_sample(struct mm_struct *mm, struct op_sample *s, int in_kernel)
+add_sample(struct mm_struct *mm, struct op_sample *s, int cpu_mode)
 {
 	unsigned long cookie;
 	off_t offset;
 
-	if (in_kernel) {
+	if (cpu_mode >= CPU_MODE_KERNEL) {
 		add_sample_entry(s->eip, s->event);
 		return 1;
 	}
@@ -501,9 +527,10 @@ void sync_buffer(int cpu)
 	unsigned long val;
 	struct task_struct *new;
 	unsigned long cookie = 0;
-	int in_kernel = 1;
+	int cpu_mode = CPU_MODE_KERNEL;
 	sync_buffer_state state = sb_buffer_start;
 	unsigned int i;
+	int domain_switch = 0;
 	unsigned long available;
 	unsigned long flags;
 	struct op_entry entry;
@@ -513,6 +540,11 @@ void sync_buffer(int cpu)
 
 	add_cpu_switch(cpu);
 
+	/* We need to assign the first samples in this CPU buffer to the
+	   same domain that we were processing at the last sync_buffer */
+	if (cpu_current_domain[cpu] != COORDINATOR_DOMAIN)
+		add_domain_switch(cpu_current_domain[cpu]);
+
 	op_cpu_buffer_reset(cpu);
 	available = op_cpu_buffer_entries(cpu);
 
@@ -520,6 +552,13 @@ void sync_buffer(int cpu)
 		sample = op_cpu_buffer_read_entry(&entry, cpu);
 		if (!sample)
 			break;
+
+		if (domain_switch) {
+			cpu_current_domain[cpu] = sample->eip;
+			add_domain_switch(sample->eip);
+			domain_switch = 0;
+			continue;
+		}
 
 		if (is_code(sample->eip)) {
 			flags = sample->event;
@@ -529,10 +568,10 @@ void sync_buffer(int cpu)
 			}
 			if (flags & KERNEL_CTX_SWITCH) {
 				/* kernel/userspace switch */
-				in_kernel = flags & IS_KERNEL;
+				cpu_mode = flags & CPU_MODE_MASK;
 				if (state == sb_buffer_start)
 					state = sb_sample_start;
-				add_kernel_ctx_switch(flags & IS_KERNEL);
+				add_cpu_mode_switch(cpu_mode);
 			}
 			if (flags & USER_CTX_SWITCH
 			    && op_cpu_buffer_get_data(&entry, &val)) {
@@ -545,8 +584,15 @@ void sync_buffer(int cpu)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);
 			}
+			if (flags & DOMAIN_SWITCH)
+				domain_switch = 1;
 			if (op_cpu_buffer_get_size(&entry))
 				add_data(&entry, mm);
+			continue;
+		}
+
+		if (cpu_current_domain[cpu] != COORDINATOR_DOMAIN) {
+			add_sample_entry(sample->eip, sample->event);
 			continue;
 		}
 
@@ -554,7 +600,7 @@ void sync_buffer(int cpu)
 			/* ignore sample */
 			continue;
 
-		if (add_sample(mm, sample, in_kernel))
+		if (add_sample(mm, sample, cpu_mode))
 			continue;
 
 		/* ignore backtraces if failed to add a sample */
@@ -564,6 +610,10 @@ void sync_buffer(int cpu)
 		}
 	}
 	release_mm(mm);
+
+	/* We reset domain to COORDINATOR at each CPU switch */
+	if (cpu_current_domain[cpu] != COORDINATOR_DOMAIN)
+		add_domain_switch(COORDINATOR_DOMAIN);
 
 	mark_done(cpu);
 
