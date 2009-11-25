@@ -445,11 +445,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	struct vcpu_runstate_info runstate;
 
 	/* Keep nmi watchdog up to date */
-#ifdef __i386__
-	x86_add_percpu(irq_stat.irq0_irqs, 1);
-#else
-	add_pda(irq0_irqs, 1);
-#endif
+	inc_irq_stat(irq0_irqs);
 
 	/*
 	 * Here we are in the timer irq handler. We just have irqs locally
@@ -509,7 +505,6 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 
 	/*
 	 * Account stolen ticks.
-	 * HACK: Passing NULL to account_steal_time()
 	 * ensures that the ticks are accounted as stolen.
 	 */
 	stolen = runstate.time[RUNSTATE_runnable]
@@ -522,12 +517,11 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		do_div(stolen, NS_PER_TICK);
 		per_cpu(processed_stolen_time, cpu) += stolen * NS_PER_TICK;
 		per_cpu(processed_system_time, cpu) += stolen * NS_PER_TICK;
-		account_steal_time(NULL, (cputime_t)stolen);
+		account_steal_time((cputime_t)stolen);
 	}
 
 	/*
 	 * Account blocked ticks.
-	 * HACK: Passing idle_task to account_steal_time()
 	 * ensures that the ticks are accounted as idle/wait.
 	 */
 	blocked = runstate.time[RUNSTATE_blocked]
@@ -539,7 +533,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		do_div(blocked, NS_PER_TICK);
 		per_cpu(processed_blocked_time, cpu) += blocked * NS_PER_TICK;
 		per_cpu(processed_system_time, cpu)  += blocked * NS_PER_TICK;
-		account_steal_time(idle_task(cpu), (cputime_t)blocked);
+		account_idle_time((cputime_t)blocked);
 	}
 
 	/* Account user/system ticks. */
@@ -547,10 +541,14 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 		do_div(delta_cpu, NS_PER_TICK);
 		per_cpu(processed_system_time, cpu) += delta_cpu * NS_PER_TICK;
 		if (user_mode_vm(get_irq_regs()))
-			account_user_time(current, (cputime_t)delta_cpu);
-		else
+			account_user_time(current, (cputime_t)delta_cpu,
+					  (cputime_t)delta_cpu);
+		else if (current != idle_task(cpu))
 			account_system_time(current, HARDIRQ_OFFSET,
+					    (cputime_t)delta_cpu,
 					    (cputime_t)delta_cpu);
+		else
+			account_idle_time((cputime_t)delta_cpu);
 	}
 
 	/* Offlined for more than a few seconds? Avoid lockup warnings. */
@@ -770,7 +768,7 @@ static void stop_hz_timer(void)
 	unsigned long j;
 	int rc;
 
-	cpu_set(cpu, nohz_cpu_mask);
+	cpumask_set_cpu(cpu, nohz_cpu_mask);
 
 	/* See matching smp_mb in rcu_start_batch in rcupdate.c.  These mbs  */
 	/* ensure that if __rcu_pending (nested in rcu_needs_cpu) fetches a  */
@@ -786,7 +784,7 @@ static void stop_hz_timer(void)
 	    local_softirq_pending() ||
 	    (j = get_next_timer_interrupt(jiffies),
 	     time_before_eq(j, jiffies))) {
-		cpu_clear(cpu, nohz_cpu_mask);
+		cpumask_clear_cpu(cpu, nohz_cpu_mask);
 		j = jiffies + 1;
 	}
 
@@ -804,7 +802,7 @@ static void stop_hz_timer(void)
 
 static void start_hz_timer(void)
 {
-	cpu_clear(smp_processor_id(), nohz_cpu_mask);
+	cpumask_clear_cpu(smp_processor_id(), nohz_cpu_mask);
 }
 
 void xen_safe_halt(void)

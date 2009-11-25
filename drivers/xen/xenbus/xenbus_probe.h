@@ -45,6 +45,10 @@
 #define is_initial_xendomain() xen_initial_domain()
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26)
+#define dev_name(dev) ((dev)->bus_id)
+#endif
+
 #if defined(CONFIG_XEN_BACKEND) || defined(CONFIG_XEN_BACKEND_MODULE)
 extern void xenbus_backend_suspend(int (*fn)(struct device *, void *));
 extern void xenbus_backend_resume(int (*fn)(struct device *, void *));
