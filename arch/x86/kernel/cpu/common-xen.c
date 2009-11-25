@@ -1029,8 +1029,7 @@ DEFINE_PER_CPU_FIRST(union irq_stack_union,
 void xen_switch_pt(void)
 {
 #ifdef CONFIG_XEN
-	xen_pt_switch(__pa_symbol(init_level4_pgt));
-	xen_new_user_pt(__pa_symbol(__user_pgd(init_level4_pgt)));
+	xen_pt_switch(init_level4_pgt);
 #endif
 }
 
