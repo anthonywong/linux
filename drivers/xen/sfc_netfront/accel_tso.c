@@ -363,7 +363,7 @@ int netfront_accel_enqueue_skb_tso(netfront_accel_vnic *vnic,
 
 	tso_check_safe(skb);
 
-	if (skb->ip_summed != CHECKSUM_HW)
+	if (skb->ip_summed != CHECKSUM_PARTIAL)
 		EPRINTK("Trying to TSO send a packet without HW checksum\n");
 
 	tso_start(&state, skb);
