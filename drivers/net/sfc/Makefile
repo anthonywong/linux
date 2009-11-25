@@ -5,3 +5,5 @@ sfc-y			+= efx.o nic.o falcon.o siena.o tx.o rx.o \
 sfc-$(CONFIG_SFC_MTD)	+= mtd.o
 
 obj-$(CONFIG_SFC)	+= sfc.o
+
+obj-$(CONFIG_SFC_RESOURCE) += sfc_resource/
