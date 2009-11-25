@@ -34,25 +34,55 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/err.h>
+#include <linux/ptrace.h>
+#include <linux/workqueue.h>
+#include <xen/evtchn.h>
 #include <xen/xenbus.h>
-#include <asm/xen/hypervisor.h>
-#include <xen/events.h>
-#include <xen/page.h>
+
+#include <asm/hypervisor.h>
+
 #include "xenbus_comms.h"
+
+#ifdef HAVE_XEN_PLATFORM_COMPAT_H
+#include <xen/platform-compat.h>
+#endif
 
 static int xenbus_irq;
 
-static DECLARE_WORK(probe_work, xenbus_probe);
+extern void xenbus_probe(void *);
+static DECLARE_WORK(probe_work, xenbus_probe, NULL);
 
 static DECLARE_WAIT_QUEUE_HEAD(xb_waitq);
 
-static irqreturn_t wake_waiting(int irq, void *unused)
+static irqreturn_t wake_waiting(int irq, void *unused, struct pt_regs *regs)
 {
-	if (unlikely(xenstored_ready == 0)) {
-		xenstored_ready = 1;
-		schedule_work(&probe_work);
+	int old, new;
+
+	old = atomic_read(&xenbus_xsd_state);
+	switch (old) {
+		case XENBUS_XSD_UNCOMMITTED:
+			BUG();
+			return IRQ_HANDLED;
+
+		case XENBUS_XSD_FOREIGN_INIT:
+			new = XENBUS_XSD_FOREIGN_READY;
+			break;
+
+		case XENBUS_XSD_LOCAL_INIT:
+			new = XENBUS_XSD_LOCAL_READY;
+			break;
+
+		case XENBUS_XSD_FOREIGN_READY:
+		case XENBUS_XSD_LOCAL_READY:
+		default:
+			goto wake;
 	}
 
+	old = atomic_cmpxchg(&xenbus_xsd_state, old, new);
+	if (old != new)
+		schedule_work(&probe_work);
+
+wake:
 	wake_up(&xb_waitq);
 	return IRQ_HANDLED;
 }
@@ -82,13 +112,6 @@ static const void *get_input_chunk(XENSTORE_RING_IDX cons,
 	return buf + MASK_XENSTORE_IDX(cons);
 }
 
-/**
- * xb_write - low level write
- * @data: buffer to send
- * @len: length of buffer
- *
- * Returns 0 on success, error otherwise.
- */
 int xb_write(const void *data, unsigned len)
 {
 	struct xenstore_domain_interface *intf = xen_store_interface;
@@ -197,12 +220,11 @@ int xb_read(void *data, unsigned len)
 	return 0;
 }
 
-/**
- * xb_init_comms - Set up interrupt handler off store event channel.
- */
+/* Set up interrupt handler off store event channel. */
 int xb_init_comms(void)
 {
 	struct xenstore_domain_interface *intf = xen_store_interface;
+	int err;
 
 	if (intf->req_prod != intf->req_cons)
 		printk(KERN_ERR "XENBUS request ring is not quiescent "
@@ -215,20 +237,18 @@ int xb_init_comms(void)
 		intf->rsp_cons = intf->rsp_prod;
 	}
 
-	if (xenbus_irq) {
-		/* Already have an irq; assume we're resuming */
-		rebind_evtchn_irq(xen_store_evtchn, xenbus_irq);
-	} else {
-		int err;
-		err = bind_evtchn_to_irqhandler(xen_store_evtchn, wake_waiting,
-						0, "xenbus", &xb_waitq);
-		if (err <= 0) {
-			printk(KERN_ERR "XENBUS request irq failed %i\n", err);
-			return err;
-		}
+	if (xenbus_irq)
+		unbind_from_irqhandler(xenbus_irq, &xb_waitq);
 
-		xenbus_irq = err;
+	err = bind_caller_port_to_irqhandler(
+		xen_store_evtchn, wake_waiting,
+		0, "xenbus", &xb_waitq);
+	if (err <= 0) {
+		printk(KERN_ERR "XENBUS request irq failed %i\n", err);
+		return err;
 	}
+
+	xenbus_irq = err;
 
 	return 0;
 }
