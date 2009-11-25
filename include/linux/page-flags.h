@@ -110,7 +110,7 @@ enum pageflags {
 #endif
 #ifdef CONFIG_XEN
 	PG_foreign,		/* Page is owned by foreign allocator. */
-	PG_netback,		/* Page is owned by netback */
+	/* PG_netback,		   Page is owned by netback */
 	PG_blkback,		/* Page is owned by blkback */
 #endif
 	__NR_PAGEFLAGS,
@@ -347,9 +347,11 @@ CLEARPAGEFLAG(Uptodate, uptodate)
 #define PageForeignDestructor(_page, order)		\
 	((void (*)(struct page *, unsigned int))(_page)->index)(_page, order)
 
+#if 0
 #define PageNetback(page)       test_bit(PG_netback, &(page)->flags)
 #define SetPageNetback(page)    set_bit(PG_netback, &(page)->flags)
 #define ClearPageNetback(page)  clear_bit(PG_netback, &(page)->flags)
+#endif
 
 #define PageBlkback(page)       test_bit(PG_blkback, &(page)->flags)
 #define SetPageBlkback(page)    set_bit(PG_blkback, &(page)->flags)
