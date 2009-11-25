@@ -45,6 +45,7 @@
 
 #define BALLOON_SHOW(name, format, args...)			\
 	static ssize_t show_##name(struct sys_device *dev,	\
+				   struct sysdev_attribute *attr, \
 				   char *buf)			\
 	{							\
 		return sprintf(buf, format, ##args);		\
@@ -56,14 +57,15 @@ BALLOON_SHOW(low_kb, "%lu\n", PAGES2KB(bs.balloon_low));
 BALLOON_SHOW(high_kb, "%lu\n", PAGES2KB(bs.balloon_high));
 BALLOON_SHOW(driver_kb, "%lu\n", PAGES2KB(bs.driver_pages));
 
-static ssize_t show_target_kb(struct sys_device *dev, char *buf)
+static ssize_t show_target_kb(struct sys_device *dev,
+			      struct sysdev_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%lu\n", PAGES2KB(bs.target_pages));
 }
 
 static ssize_t store_target_kb(struct sys_device *dev,
-			       const char *buf,
-			       size_t count)
+			       struct sysdev_attribute *attr,
+			       const char *buf, size_t count)
 {
 	char memstring[64], *endchar;
 	unsigned long long target_bytes;
