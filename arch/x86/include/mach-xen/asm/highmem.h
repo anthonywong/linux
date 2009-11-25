@@ -15,8 +15,8 @@
  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
  */
 
-#ifndef _ASM_HIGHMEM_H
-#define _ASM_HIGHMEM_H
+#ifndef _ASM_X86_HIGHMEM_H
+#define _ASM_X86_HIGHMEM_H
 
 #ifdef __KERNEL__
 
@@ -24,13 +24,10 @@
 #include <linux/threads.h>
 #include <asm/kmap_types.h>
 #include <asm/tlbflush.h>
+#include <asm/fixmap.h>
 
 /* declarations for highmem.c */
 extern unsigned long highstart_pfn, highend_pfn;
-
-extern pte_t *kmap_pte;
-extern pgprot_t kmap_prot;
-extern pte_t *pkmap_page_table;
 
 /*
  * Right now we initialize only a single pte table. It can be extended
@@ -96,4 +93,4 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
 
 #endif /* __KERNEL__ */
 
-#endif /* _ASM_HIGHMEM_H */
+#endif /* _ASM_X86_HIGHMEM_H */
