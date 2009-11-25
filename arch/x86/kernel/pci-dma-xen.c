@@ -1,4 +1,5 @@
 #include <linux/dma-mapping.h>
+#include <linux/dma-debug.h>
 #include <linux/dmar.h>
 #include <linux/bootmem.h>
 #include <linux/pci.h>
@@ -12,7 +13,7 @@
 
 static int forbid_dac __read_mostly;
 
-struct dma_mapping_ops *dma_ops;
+struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 static int iommu_sac_force __read_mostly;
@@ -39,10 +40,13 @@ EXPORT_SYMBOL(bad_dma_address);
    to older i386. */
 struct device x86_dma_fallback_dev = {
 	.init_name = "fallback device",
-	.coherent_dma_mask = DMA_32BIT_MASK,
+	.coherent_dma_mask = DMA_BIT_MASK(32),
 	.dma_mask = &x86_dma_fallback_dev.coherent_dma_mask,
 };
 EXPORT_SYMBOL(x86_dma_fallback_dev);
+
+/* Number of entries preallocated for DMA-API debugging */
+#define PREALLOC_DMA_DEBUG_ENTRIES       32768
 
 int dma_set_mask(struct device *dev, u64 mask)
 {
@@ -103,20 +107,20 @@ static void __init dma32_free_bootmem(void)
 }
 #endif
 
-static struct dma_mapping_ops swiotlb_dma_ops = {
+static struct dma_map_ops swiotlb_dma_ops = {
 	.alloc_coherent = dma_generic_alloc_coherent,
 	.free_coherent = dma_generic_free_coherent,
 	.mapping_error = swiotlb_dma_mapping_error,
-	.map_single = swiotlb_map_single_phys,
-	.unmap_single = swiotlb_unmap_single,
+	.map_page = swiotlb_map_page,
+	.unmap_page = swiotlb_unmap_page,
 	.sync_single_for_cpu = swiotlb_sync_single_for_cpu,
 	.sync_single_for_device = swiotlb_sync_single_for_device,
 	.sync_single_range_for_cpu = swiotlb_sync_single_range_for_cpu,
 	.sync_single_range_for_device = swiotlb_sync_single_range_for_device,
 	.sync_sg_for_cpu = swiotlb_sync_sg_for_cpu,
 	.sync_sg_for_device = swiotlb_sync_sg_for_device,
-	.map_sg = swiotlb_map_sg,
-	.unmap_sg = swiotlb_unmap_sg,
+	.map_sg = swiotlb_map_sg_attrs,
+	.unmap_sg = swiotlb_unmap_sg_attrs,
 	.dma_supported = swiotlb_dma_supported
 };
 
@@ -175,7 +179,7 @@ again:
 	if (!is_buffer_dma_capable(dma_mask, addr, size)) {
 		__free_pages(page, order);
 
-		if (dma_mask < DMA_32BIT_MASK && !(flag & GFP_DMA)) {
+		if (dma_mask < DMA_BIT_MASK(32) && !(flag & GFP_DMA)) {
 			flag = (flag & ~GFP_DMA32) | GFP_DMA;
 			goto again;
 		}
@@ -305,7 +309,7 @@ int range_straddles_page_boundary(paddr_t p, size_t size)
 
 int dma_supported(struct device *dev, u64 mask)
 {
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
+	struct dma_map_ops *ops = get_dma_ops(dev);
 
 #ifdef CONFIG_PCI
 	if (mask > 0xffffffff && forbid_dac > 0) {
@@ -320,7 +324,7 @@ int dma_supported(struct device *dev, u64 mask)
 	/* Copied from i386. Doesn't make much sense, because it will
 	   only work for pci_alloc_coherent.
 	   The caller just has to use GFP_DMA in this case. */
-	if (mask < DMA_24BIT_MASK)
+	if (mask < DMA_BIT_MASK(24))
 		return 0;
 
 	/* Tell the device to use SAC when IOMMU force is on.  This
@@ -335,7 +339,7 @@ int dma_supported(struct device *dev, u64 mask)
 	   SAC for these.  Assume all masks <= 40 bits are of this
 	   type. Normally this doesn't make any difference, but gives
 	   more gentle handling of IOMMU overflow. */
-	if (iommu_sac_force && (mask >= DMA_40BIT_MASK)) {
+	if (iommu_sac_force && (mask >= DMA_BIT_MASK(40))) {
 		dev_info(dev, "Force SAC with mask %Lx\n", mask);
 		return 0;
 	}
@@ -346,6 +350,12 @@ EXPORT_SYMBOL(dma_supported);
 
 static int __init pci_iommu_init(void)
 {
+	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+
+#ifdef CONFIG_PCI
+	dma_debug_add_bus(&pci_bus_type);
+#endif
+
 	calgary_iommu_init();
 
 	intel_iommu_init();
@@ -371,8 +381,7 @@ fs_initcall(pci_iommu_init);
 static __devinit void via_no_dac(struct pci_dev *dev)
 {
 	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI && forbid_dac == 0) {
-		printk(KERN_INFO
-			"PCI: VIA PCI bridge detected. Disabling DAC.\n");
+		dev_info(&dev->dev, "disabling DAC on VIA PCI bridge\n");
 		forbid_dac = 1;
 	}
 }
