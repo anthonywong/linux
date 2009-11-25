@@ -163,9 +163,9 @@ blktap_map_uaddr_fn(pte_t *ptep, struct page *pmd_page,
 }
 
 static int
-blktap_map_uaddr(struct mm_struct *mm, unsigned long address, pte_t pte)
+blktap_map_uaddr(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 {
-	return apply_to_page_range(mm, address,
+	return apply_to_page_range(vma ? vma->vm_mm : NULL, address,
 				   PAGE_SIZE, blktap_map_uaddr_fn, &pte);
 }
 
@@ -173,18 +173,29 @@ static int
 blktap_umap_uaddr_fn(pte_t *ptep, struct page *pmd_page,
 		     unsigned long addr, void *data)
 {
-	struct mm_struct *mm = (struct mm_struct *)data;
+	struct vm_area_struct *vma = data;
 
 	BTDBG("ptep %p\n", ptep);
-	pte_clear(mm, addr, ptep);
+	xen_ptep_get_and_clear_full(vma, addr, ptep, 1);
 	return 0;
 }
 
 static int
-blktap_umap_uaddr(struct mm_struct *mm, unsigned long address)
+blktap_umap_uaddr(struct vm_area_struct *vma, unsigned long address)
 {
+	struct mm_struct *mm = NULL;
+
+	if (!vma) {
+#ifdef CONFIG_X86
+		if (HYPERVISOR_update_va_mapping(address, __pte(0),
+						 UVMF_INVLPG|UVMF_ALL))
+			BUG();
+		return 1;
+#endif
+	} else
+		mm = vma->vm_mm;
 	return apply_to_page_range(mm, address,
-				   PAGE_SIZE, blktap_umap_uaddr_fn, mm);
+				   PAGE_SIZE, blktap_umap_uaddr_fn, vma);
 }
 
 static inline void
@@ -198,17 +209,10 @@ flush_tlb_kernel_page(unsigned long kvaddr)
 }
 
 static void
-blktap_device_end_dequeued_request(struct blktap_device *dev,
-				   struct request *req, int uptodate)
+blktap_device_end_dequeued_request(struct request *req, int ret)
 {
-	int ret;
-
-	ret = end_that_request_first(req, uptodate, req->hard_nr_sectors);
-	BUG_ON(ret);
-
-	spin_lock_irq(&dev->lock);
-	end_that_request_last(req, uptodate);
-	spin_unlock_irq(&dev->lock);
+	if (blk_end_request(req, ret, blk_rq_bytes(req)))
+		BUG();
 }
 
 /*
@@ -337,8 +341,8 @@ blktap_unmap(struct blktap *tap, struct blktap_request *request)
 		if (!xen_feature(XENFEAT_auto_translated_physmap) &&
 		    request->handles[i].kernel == INVALID_GRANT_HANDLE) {
 			kvaddr = request_to_kaddr(request, i);
-			blktap_umap_uaddr(&init_mm, kvaddr);
-			flush_tlb_kernel_page(kvaddr);
+			if (blktap_umap_uaddr(NULL, kvaddr) == 0)
+				flush_tlb_kernel_page(kvaddr);
 			set_phys_to_machine(__pa(kvaddr) >> PAGE_SHIFT,
 					    INVALID_P2M_ENTRY);
 		}
@@ -378,7 +382,7 @@ blktap_device_fail_pending_requests(struct blktap *tap)
 
 		blktap_unmap(tap, request);
 		req = (struct request *)(unsigned long)request->id;
-		blktap_device_end_dequeued_request(dev, req, 0);
+		blktap_device_end_dequeued_request(req, -ENODEV);
 		blktap_request_free(tap, request);
 	}
 
@@ -401,16 +405,11 @@ blktap_device_finish_request(struct blktap *tap,
 			     blkif_response_t *res,
 			     struct blktap_request *request)
 {
-	int uptodate;
 	struct request *req;
-	struct blktap_device *dev;
-
-	dev = &tap->device;
 
 	blktap_unmap(tap, request);
 
 	req = (struct request *)(unsigned long)request->id;
-	uptodate = (res->status == BLKIF_RSP_OKAY);
 
 	BTDBG("req %p res status %d operation %d/%d id %lld\n", req,
 	      res->status, res->operation, request->operation,
@@ -422,7 +421,8 @@ blktap_device_finish_request(struct blktap *tap,
 		if (unlikely(res->status != BLKIF_RSP_OKAY))
 			BTERR("Bad return from device data "
 				"request: %x\n", res->status);
-		blktap_device_end_dequeued_request(dev, req, uptodate);
+		blktap_device_end_dequeued_request(req,
+			res->status == BLKIF_RSP_OKAY ? 0 : -EIO);
 		break;
 	default:
 		BUG();
@@ -570,9 +570,9 @@ blktap_map(struct blktap *tap,
 
 	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
 		pte = mk_pte(page, ring->vma->vm_page_prot);
-		blktap_map_uaddr(ring->vma->vm_mm, uvaddr, pte_mkwrite(pte));
+		blktap_map_uaddr(ring->vma, uvaddr, pte_mkwrite(pte));
 		flush_tlb_page(ring->vma, uvaddr);
-		blktap_map_uaddr(&init_mm, kvaddr, mk_pte(page, PAGE_KERNEL));
+		blktap_map_uaddr(NULL, kvaddr, mk_pte(page, PAGE_KERNEL));
 		flush_tlb_kernel_page(kvaddr);
 
 		set_phys_to_machine(__pa(kvaddr) >> PAGE_SHIFT, pte_mfn(pte));
@@ -894,7 +894,7 @@ blktap_device_run_queue(struct blktap *tap)
 		if (!err)
 			queued++;
 		else {
-			blktap_device_end_dequeued_request(dev, req, 0);
+			blktap_device_end_dequeued_request(req, err);
 			blktap_request_free(tap, request);
 		}
 

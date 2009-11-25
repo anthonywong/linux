@@ -873,15 +873,11 @@ int xen_limit_pages_to_max_mfn(
 }
 EXPORT_SYMBOL_GPL(xen_limit_pages_to_max_mfn);
 
-#ifdef __i386__
-int write_ldt_entry(void *ldt, int entry, __u32 entry_a, __u32 entry_b)
+int write_ldt_entry(struct desc_struct *ldt, int entry, const void *desc)
 {
-	__u32 *lp = (__u32 *)((char *)ldt + entry * 8);
-	maddr_t mach_lp = arbitrary_virt_to_machine(lp);
-	return HYPERVISOR_update_descriptor(
-		mach_lp, (u64)entry_a | ((u64)entry_b<<32));
+	maddr_t mach_lp = arbitrary_virt_to_machine(ldt + entry);
+	return HYPERVISOR_update_descriptor(mach_lp, *(const u64*)desc);
 }
-#endif
 
 #define MAX_BATCHED_FULL_PTES 32
 
