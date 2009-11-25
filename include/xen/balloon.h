@@ -47,6 +47,10 @@ void balloon_update_driver_allowance(long delta);
 struct page **alloc_empty_pages_and_pagevec(int nr_pages);
 void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages);
 
+/* Free an empty page range (not allocated through
+   alloc_empty_pages_and_pagevec), adding to the balloon. */
+void free_empty_pages(struct page **pagevec, int nr_pages);
+
 void balloon_release_driver_page(struct page *page);
 
 /*
