@@ -377,6 +377,8 @@ static void connect(struct blkfront_info *info)
 	add_disk(info->gd);
 
 	info->is_ready = 1;
+
+	register_vcd(info);
 }
 
 /**
@@ -406,6 +408,8 @@ static void blkfront_closing(struct xenbus_device *dev)
 	flush_scheduled_work();
 
 	xlvbd_sysfs_delif(info);
+
+	unregister_vcd(info);
 
 	xlvbd_del(info);
 
