@@ -45,7 +45,11 @@ note_buf_t* crash_notes;
 
 /* vmcoreinfo stuff */
 static unsigned char vmcoreinfo_data[VMCOREINFO_BYTES];
-u32 vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
+u32
+#if defined(CONFIG_XEN) && defined(CONFIG_X86)
+__attribute__((__section__(".bss.page_aligned"), __aligned__(PAGE_SIZE)))
+#endif
+vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
 size_t vmcoreinfo_size;
 size_t vmcoreinfo_max_size = sizeof(vmcoreinfo_data);
 
@@ -1196,6 +1200,7 @@ static int __init crash_notes_memory_init(void)
 module_init(crash_notes_memory_init)
 
 
+#ifndef CONFIG_XEN
 /*
  * parsing the "crashkernel" commandline
  *
@@ -1358,7 +1363,7 @@ int __init parse_crashkernel(char 		 *cmdline,
 
 	return 0;
 }
-
+#endif
 
 
 void crash_save_vmcoreinfo(void)
@@ -1415,7 +1420,18 @@ static int __init crash_save_vmcoreinfo_init(void)
 
 	VMCOREINFO_SYMBOL(init_uts_ns);
 	VMCOREINFO_SYMBOL(node_online_map);
+#ifndef CONFIG_X86_XEN
 	VMCOREINFO_SYMBOL(swapper_pg_dir);
+#else
+/*
+ * Since for x86-32 Xen swapper_pg_dir is a pointer rather than an array,
+ * make the value stored consistent with native (i.e. the base address of
+ * the page directory).
+ */
+# define swapper_pg_dir *swapper_pg_dir
+	VMCOREINFO_SYMBOL(swapper_pg_dir);
+# undef swapper_pg_dir
+#endif
 	VMCOREINFO_SYMBOL(_stext);
 	VMCOREINFO_SYMBOL(vmlist);
 

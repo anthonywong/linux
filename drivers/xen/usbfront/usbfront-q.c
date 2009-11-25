@@ -236,7 +236,8 @@ __acquires(info->lock)
 		COUNT(info->stats.complete);
 	}
 	spin_unlock(&info->lock);
-	usb_hcd_giveback_urb(info_to_hcd(info), urb);
+	usb_hcd_giveback_urb(info_to_hcd(info), urb,
+			     urbp->status <= 0 ? urbp->status : urb->status);
 	spin_lock(&info->lock);
 }
 
