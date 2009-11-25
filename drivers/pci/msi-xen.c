@@ -92,12 +92,10 @@ arch_teardown_msi_irqs(struct pci_dev *dev)
 }
 #endif
 
-static void msi_set_enable(struct pci_dev *dev, int enable)
+static void __msi_set_enable(struct pci_dev *dev, int pos, int enable)
 {
-	int pos;
 	u16 control;
 
-	pos = pci_find_capability(dev, PCI_CAP_ID_MSI);
 	if (pos) {
 		pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
 		control &= ~PCI_MSI_FLAGS_ENABLE;
@@ -105,6 +103,11 @@ static void msi_set_enable(struct pci_dev *dev, int enable)
 			control |= PCI_MSI_FLAGS_ENABLE;
 		pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
 	}
+}
+
+static void msi_set_enable(struct pci_dev *dev, int enable)
+{
+	__msi_set_enable(dev, pci_find_capability(dev, PCI_CAP_ID_MSI), enable);
 }
 
 static void msix_set_enable(struct pci_dev *dev, int enable)
@@ -219,8 +222,7 @@ static int msi_get_dev_owner(struct pci_dev *dev)
 
 	BUG_ON(!is_initial_xendomain());
 	if (get_owner && (owner = get_owner(dev)) >= 0) {
-		printk(KERN_INFO "get owner for dev %x get %x \n",
-		       dev->devfn, owner);
+		dev_info(&dev->dev, "get owner: %x \n", owner);
 		return owner;
 	}
 
@@ -240,7 +242,7 @@ static int msi_unmap_pirq(struct pci_dev *dev, int pirq)
 		? pirq : evtchn_get_xen_pirq(pirq);
 
 	if ((rc = HYPERVISOR_physdev_op(PHYSDEVOP_unmap_pirq, &unmap)))
-		printk(KERN_WARNING "unmap irq %x failed\n", pirq);
+		dev_warn(&dev->dev, "unmap irq %x failed\n", pirq);
 
 	if (rc < 0)
 		return rc;
@@ -288,7 +290,7 @@ static int msi_map_vector(struct pci_dev *dev, int entry_nr, u64 table_base)
 	map_irq.table_base = table_base;
 
 	if ((rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq)))
-		printk(KERN_WARNING "map irq failed\n");
+		dev_warn(&dev->dev, "map irq failed\n");
 
 	if (rc < 0)
 		return rc;
@@ -399,10 +401,9 @@ static int msix_capability_init(struct pci_dev *dev,
 		mapped = 0;
 		list_for_each_entry(pirq_entry, &msi_dev_entry->pirq_list_head, list) {
 			if (pirq_entry->entry_nr == entries[i].entry) {
-				printk(KERN_WARNING "msix entry %d for dev %02x:%02x:%01x are \
-				       not freed before acquire again.\n", entries[i].entry,
-					   dev->bus->number, PCI_SLOT(dev->devfn),
-					   PCI_FUNC(dev->devfn));
+				dev_warn(&dev->dev,
+					 "msix entry %d was not freed\n",
+					 entries[i].entry);
 				(entries + i)->vector = pirq_entry->pirq;
 				mapped = 1;
 				break;
@@ -527,9 +528,8 @@ int pci_enable_msi(struct pci_dev* dev)
 
 	/* Check whether driver already requested for MSI-X irqs */
 	if (dev->msix_enabled) {
-		printk(KERN_INFO "PCI: %s: Can't enable MSI.  "
-		       "Device already has MSI-X enabled\n",
-		       pci_name(dev));
+		dev_info(&dev->dev, "can't enable MSI "
+			 "(MSI-X already enabled)\n");
 		return -EINVAL;
 	}
 
@@ -613,7 +613,8 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 		temp = dev->irq;
 		ret = pci_frontend_enable_msix(dev, entries, nvec);
 		if (ret) {
-			printk("get %x from pci_frontend_enable_msix\n", ret);
+			dev_warn(&dev->dev,
+				 "got %x from frontend_enable_msix\n", ret);
 			return ret;
 		}
 		msi_dev_entry->default_irq = temp;
@@ -663,9 +664,8 @@ int pci_enable_msix(struct pci_dev* dev, struct msix_entry *entries, int nvec)
 	temp = dev->irq;
 	/* Check whether driver already requested for MSI vector */
 	if (dev->msi_enabled) {
-		printk(KERN_INFO "PCI: %s: Can't enable MSI-X.  "
-		       "Device already has an MSI irq assigned\n",
-		       pci_name(dev));
+		dev_info(&dev->dev, "can't enable MSI-X "
+		       "(MSI IRQ already assigned)\n");
 		return -EINVAL;
 	}
 

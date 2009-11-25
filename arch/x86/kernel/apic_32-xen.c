@@ -59,7 +59,10 @@ static cpumask_t timer_bcast_ipi;
 /*
  * Debug level, exported for io_apic.c
  */
-int apic_verbosity;
+unsigned int apic_verbosity;
+
+/* Have we found an MP table */
+int smp_found_config;
 
 #ifndef CONFIG_XEN
 static int modern_apic(void)

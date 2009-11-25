@@ -27,6 +27,7 @@
 
 extern irqreturn_t smp_reschedule_interrupt(int, void *);
 extern irqreturn_t smp_call_function_interrupt(int, void *);
+extern irqreturn_t smp_call_function_single_interrupt(int, void *);
 
 extern int local_setup_timer(unsigned int cpu);
 extern void local_teardown_timer(unsigned int cpu);
@@ -50,8 +51,10 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 static DEFINE_PER_CPU(int, resched_irq);
 static DEFINE_PER_CPU(int, callfunc_irq);
+static DEFINE_PER_CPU(int, call1func_irq);
 static char resched_name[NR_CPUS][15];
 static char callfunc_name[NR_CPUS][15];
+static char call1func_name[NR_CPUS][15];
 
 #ifdef CONFIG_X86_LOCAL_APIC
 #define set_cpu_to_apicid(cpu, apicid) (per_cpu(x86_cpu_to_apicid, cpu) = (apicid))
@@ -72,13 +75,11 @@ void __init prefill_possible_map(void)
 
 	for (i = 0; i < NR_CPUS; i++) {
 		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
-		if (rc >= 0)
+		if (rc >= 0) {
 			cpu_set(i, cpu_possible_map);
+			nr_cpu_ids = i + 1;
+		}
 	}
-}
-
-void __init smp_alloc_memory(void)
-{
 }
 
 static inline void
@@ -109,7 +110,8 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 {
 	int rc;
 
-	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) = -1;
+	per_cpu(resched_irq, cpu) = per_cpu(callfunc_irq, cpu) =
+		per_cpu(call1func_irq, cpu) = -1;
 
 	sprintf(resched_name[cpu], "resched%u", cpu);
 	rc = bind_ipi_to_irqhandler(RESCHEDULE_VECTOR,
@@ -133,6 +135,17 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 		goto fail;
 	per_cpu(callfunc_irq, cpu) = rc;
 
+	sprintf(call1func_name[cpu], "call1func%u", cpu);
+	rc = bind_ipi_to_irqhandler(CALL_FUNC_SINGLE_VECTOR,
+				    cpu,
+				    smp_call_function_single_interrupt,
+				    IRQF_DISABLED|IRQF_NOBALANCING,
+				    call1func_name[cpu],
+				    NULL);
+	if (rc < 0)
+		goto fail;
+	per_cpu(call1func_irq, cpu) = rc;
+
 	rc = xen_spinlock_init(cpu);
 	if (rc < 0)
 		goto fail;
@@ -147,6 +160,8 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 		unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
 	if (per_cpu(callfunc_irq, cpu) >= 0)
 		unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	if (per_cpu(call1func_irq, cpu) >= 0)
+		unbind_from_irqhandler(per_cpu(call1func_irq, cpu), NULL);
 	xen_spinlock_cleanup(cpu);
 	return rc;
 }
@@ -159,6 +174,7 @@ static void __cpuexit xen_smp_intr_exit(unsigned int cpu)
 
 	unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
 	unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(call1func_irq, cpu), NULL);
 	xen_spinlock_cleanup(cpu);
 }
 #endif
@@ -166,11 +182,7 @@ static void __cpuexit xen_smp_intr_exit(unsigned int cpu)
 void __cpuinit cpu_bringup(void)
 {
 	cpu_init();
-#ifdef __i386__
 	identify_secondary_cpu(&current_cpu_data);
-#else
-	identify_cpu(&current_cpu_data);
-#endif
 	touch_softlockup_watchdog();
 	preempt_disable();
 	local_irq_enable();
@@ -250,9 +262,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	struct task_struct *idle;
 	int apicid;
 	struct vcpu_get_physid cpu_id;
-#ifdef __x86_64__
-	struct desc_ptr *gdt_descr;
-#endif
 	void *gdt_addr;
 
 	apicid = 0;
@@ -265,7 +274,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	current_thread_info()->cpu = 0;
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++) {
+	for_each_possible_cpu (cpu) {
 		cpus_clear(per_cpu(cpu_sibling_map, cpu));
 		cpus_clear(per_cpu(cpu_core_map, cpu));
 	}
@@ -292,21 +301,10 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		if (IS_ERR(idle))
 			panic("failed fork for CPU %d", cpu);
 
-#ifdef __x86_64__
-		gdt_descr = &cpu_gdt_descr[cpu];
-		gdt_descr->address = get_zeroed_page(GFP_KERNEL);
-		if (unlikely(!gdt_descr->address)) {
-			printk(KERN_CRIT "CPU%d failed to allocate GDT\n",
-			       cpu);
-			continue;
-		}
-		gdt_descr->size = GDT_SIZE;
-		memcpy((void *)gdt_descr->address, cpu_gdt_table, GDT_SIZE);
-		gdt_addr = (void *)gdt_descr->address;
-#else
+#ifdef __i386__
 		init_gdt(cpu);
-		gdt_addr = get_cpu_gdt_table(cpu);
 #endif
+		gdt_addr = get_cpu_gdt_table(cpu);
 		make_page_readonly(gdt_addr, XENFEAT_writable_descriptor_tables);
 
 		apicid = cpu;
@@ -352,8 +350,8 @@ void __init smp_prepare_boot_cpu(void)
 {
 #ifdef __i386__
 	init_gdt(smp_processor_id());
-	switch_to_new_gdt();
 #endif
+	switch_to_new_gdt();
 	prefill_possible_map();
 }
 

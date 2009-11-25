@@ -347,7 +347,7 @@ static int _vtpm_send_queued(struct tpm_chip *chip)
 {
 	int rc;
 	int error = 0;
-	long flags;
+	unsigned long flags;
 	unsigned char buffer[1];
 	struct vtpm_state *vtpms;
 	vtpms = (struct vtpm_state *)chip_get_private(chip);
