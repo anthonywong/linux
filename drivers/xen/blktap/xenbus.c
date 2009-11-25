@@ -123,7 +123,7 @@ static int blktap_name(blkif_t *blkif, char *buf)
 				   char *buf)				\
 	{								\
 		struct xenbus_device *dev = to_xenbus_device(_dev);	\
-		struct backend_info *be = dev->dev.driver_data;		\
+		struct backend_info *be = dev_get_drvdata(&dev->dev);	\
 									\
 		return sprintf(buf, format, ##args);			\
 	}								\
@@ -152,7 +152,7 @@ static struct attribute_group tapstat_group = {
 int xentap_sysfs_addif(struct xenbus_device *dev)
 {
 	int err;
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	err = sysfs_create_group(&dev->dev.kobj, &tapstat_group);
 	if (!err)
 		be->group_added = 1;
@@ -161,14 +161,14 @@ int xentap_sysfs_addif(struct xenbus_device *dev)
 
 void xentap_sysfs_delif(struct xenbus_device *dev)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	sysfs_remove_group(&dev->dev.kobj, &tapstat_group);
 	be->group_added = 0;
 }
 
 static int blktap_remove(struct xenbus_device *dev)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
 	if (be->group_added)
 		xentap_sysfs_delif(be->dev);
@@ -186,7 +186,7 @@ static int blktap_remove(struct xenbus_device *dev)
 		be->blkif = NULL;
 	}
 	kfree(be);
-	dev->dev.driver_data = NULL;
+	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
 }
 
@@ -252,7 +252,7 @@ static int blktap_probe(struct xenbus_device *dev,
 	}
 
 	be->dev = dev;
-	dev->dev.driver_data = be;
+	dev_set_drvdata(&dev->dev, be);
 	be->xenbus_id = get_id(dev->nodename);
 
 	be->blkif = tap_alloc_blkif(dev->otherend_id);
@@ -332,7 +332,7 @@ static void tap_backend_changed(struct xenbus_watch *watch,
 static void tap_frontend_changed(struct xenbus_device *dev,
 			     enum xenbus_state frontend_state)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	int err;
 
 	DPRINTK("\n");

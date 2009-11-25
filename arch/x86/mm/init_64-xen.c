@@ -56,20 +56,10 @@
 
 #include <xen/features.h>
 
-/*
- * end_pfn only includes RAM, while max_pfn_mapped includes all e820 entries.
- * The direct mapping extends to max_pfn_mapped, so that we can directly access
- * apertures, ACPI and other tables without having to play with fixmaps.
- */
-unsigned long max_low_pfn_mapped;
-unsigned long max_pfn_mapped;
-
 #if CONFIG_XEN_COMPAT <= 0x030002
 unsigned int __kernel_page_user;
 EXPORT_SYMBOL(__kernel_page_user);
 #endif
-
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 extern pmd_t level2_fixmap_pgt[PTRS_PER_PMD];
 extern pte_t level1_fixmap_pgt[PTRS_PER_PTE];
@@ -151,39 +141,6 @@ early_param("gbpages", parse_direct_gbpages_on);
 pteval_t __supported_pte_mask __read_mostly = ~0UL;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
-static int disable_nx __cpuinitdata;
-
-/*
- * noexec=on|off
- * Control non-executable mappings for 64-bit processes.
- *
- * on	Enable (default)
- * off	Disable
- */
-static int __init nonx_setup(char *str)
-{
-	if (!str)
-		return -EINVAL;
-	if (!strncmp(str, "on", 2)) {
-		__supported_pte_mask |= _PAGE_NX;
-		disable_nx = 0;
-	} else if (!strncmp(str, "off", 3)) {
-		disable_nx = 1;
-		__supported_pte_mask &= ~_PAGE_NX;
-	}
-	return 0;
-}
-early_param("noexec", nonx_setup);
-
-void __cpuinit check_efer(void)
-{
-	unsigned long efer;
-
-	rdmsrl(MSR_EFER, efer);
-	if (!(efer & EFER_NX) || disable_nx)
-		__supported_pte_mask &= ~_PAGE_NX;
-}
-
 int force_personality32;
 
 /*
@@ -213,7 +170,7 @@ static __ref void *spp_getpage(void)
 	void *ptr;
 
 	if (after_bootmem)
-		ptr = (void *) get_zeroed_page(GFP_ATOMIC);
+		ptr = (void *) get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 	else if (e820_table_end < e820_table_top) {
 		ptr = __va(e820_table_end << PAGE_SHIFT);
 		e820_table_end++;
@@ -399,7 +356,7 @@ static __ref void *alloc_low_page(unsigned long *phys)
 	void *adr;
 
 	if (after_bootmem) {
-		adr = (void *)get_zeroed_page(GFP_ATOMIC);
+		adr = (void *)get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 		*phys = __pa(adr);
 
 		return adr;
@@ -804,7 +761,7 @@ void __init xen_finish_init_mapping(void)
 		e820_table_top = e820_table_end;
 }
 
-unsigned long __init
+unsigned long __meminit
 kernel_physical_mapping_init(unsigned long start,
 			     unsigned long end,
 			     unsigned long page_size_mask)
@@ -873,6 +830,7 @@ void __init initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	early_res_to_bootmem(0, end_pfn<<PAGE_SHIFT);
 	reserve_bootmem(bootmap, bootmap_size, BOOTMEM_DEFAULT);
 }
+#endif
 
 void __init paging_init(void)
 {
@@ -883,13 +841,21 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_DMA32] = MAX_DMA32_PFN;
 	max_zone_pfns[ZONE_NORMAL] = max_pfn;
 
-	memory_present(0, 0, max_pfn);
+	sparse_memory_present_with_active_regions(MAX_NUMNODES);
 	sparse_init();
+
+	/*
+	 * clear the default setting with node 0
+	 * note: don't use nodes_clear here, that is really clearing when
+	 *	 numa support is not compiled in, and later node_set_state
+	 *	 will not set it back.
+	 */
+	node_clear_state(0, N_NORMAL_MEMORY);
+
 	free_area_init_nodes(max_zone_pfns);
 
 	SetPagePinned(virt_to_page(init_mm.pgd));
 }
-#endif
 
 /*
  * Memory hotplug specific functions
@@ -1084,7 +1050,7 @@ int __init reserve_bootmem_generic(unsigned long phys, unsigned long len,
 		return ret;
 
 #else
-	reserve_bootmem(phys, len, BOOTMEM_DEFAULT);
+	reserve_bootmem(phys, len, flags);
 #endif
 
 #ifndef CONFIG_XEN

@@ -404,7 +404,7 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 		    (c->x86_model == 8 && c->x86_mask >= 8))
 			set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 #endif
-#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_PCI)
+#if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_PCI) && !defined(CONFIG_XEN)
 	/* check CPU config space for extended APIC ID */
 	if (cpu_has_apic && c->x86 >= 0xf) {
 		unsigned int val;

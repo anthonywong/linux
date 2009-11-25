@@ -54,7 +54,7 @@ long int tpmback_get_instance(struct backend_info *bi)
 
 static int tpmback_remove(struct xenbus_device *dev)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 
 	if (!be) return 0;
 
@@ -70,7 +70,7 @@ static int tpmback_remove(struct xenbus_device *dev)
 		be->tpmif = NULL;
 	}
 	kfree(be);
-	dev->dev.driver_data = NULL;
+	dev_set_drvdata(&dev->dev, NULL);
 	return 0;
 }
 
@@ -89,7 +89,7 @@ static int tpmback_probe(struct xenbus_device *dev,
 
 	be->is_instance_set = 0;
 	be->dev = dev;
-	dev->dev.driver_data = be;
+	dev_set_drvdata(&dev->dev, be);
 
 	err = xenbus_watch_path2(dev, dev->nodename,
 				 "instance", &be->backend_watch,
@@ -139,7 +139,7 @@ static void backend_changed(struct xenbus_watch *watch,
 static void frontend_changed(struct xenbus_device *dev,
 			     enum xenbus_state frontend_state)
 {
-	struct backend_info *be = dev->dev.driver_data;
+	struct backend_info *be = dev_get_drvdata(&dev->dev);
 	int err;
 
 	switch (frontend_state) {

@@ -15,7 +15,6 @@
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <linux/elfnote.h>
-#include <asm/desc.h>
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/msr.h>
