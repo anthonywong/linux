@@ -79,18 +79,12 @@ gnttab_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	gnttab_dma_unmap_page(dma_addr);
 }
 
-static int nommu_mapping_error(dma_addr_t dma_addr)
-{
-	return (dma_addr == bad_dma_address);
-}
-
-static const struct dma_mapping_ops nommu_dma_ops = {
+static struct dma_mapping_ops nommu_dma_ops = {
 	.map_single = gnttab_map_single,
 	.unmap_single = gnttab_unmap_single,
 	.map_sg = gnttab_map_sg,
 	.unmap_sg = gnttab_unmap_sg,
 	.dma_supported = swiotlb_dma_supported,
-	.mapping_error = nommu_mapping_error
 };
 
 void __init no_iommu_init(void)

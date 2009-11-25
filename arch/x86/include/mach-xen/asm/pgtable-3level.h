@@ -14,11 +14,11 @@
 #define pmd_ERROR(e)							\
 	printk("%s:%d: bad pmd %p(%016Lx pfn %08Lx).\n",		\
 	       __FILE__, __LINE__, &(e), __pmd_val(e),			\
-	       (pmd_val(e) & PTE_MASK) >> PAGE_SHIFT)
+	       (pmd_val(e) & PTE_PFN_MASK) >> PAGE_SHIFT)
 #define pgd_ERROR(e)							\
 	printk("%s:%d: bad pgd %p(%016Lx pfn %08Lx).\n",		\
 	       __FILE__, __LINE__, &(e), __pgd_val(e),			\
-	       (pgd_val(e) & PTE_MASK) >> PAGE_SHIFT)
+	       (pgd_val(e) & PTE_PFN_MASK) >> PAGE_SHIFT)
 
 static inline int pud_none(pud_t pud)
 {
@@ -27,7 +27,7 @@ static inline int pud_none(pud_t pud)
 }
 static inline int pud_bad(pud_t pud)
 {
-	return (__pud_val(pud) & ~(PTE_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
+	return (__pud_val(pud) & ~(PTE_PFN_MASK | _KERNPG_TABLE | _PAGE_USER)) != 0;
 }
 
 static inline int pud_present(pud_t pud)
@@ -102,9 +102,9 @@ static inline void pud_clear(pud_t *pudp)
 		xen_tlb_flush();
 }
 
-#define pud_page(pud) ((struct page *) __va(pud_val(pud) & PTE_MASK))
+#define pud_page(pud) ((struct page *) __va(pud_val(pud) & PTE_PFN_MASK))
 
-#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_MASK))
+#define pud_page_vaddr(pud) ((unsigned long) __va(pud_val(pud) & PTE_PFN_MASK))
 
 
 /* Find an entry in the second-level page table.. */
