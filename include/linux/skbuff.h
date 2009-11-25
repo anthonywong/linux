@@ -278,6 +278,8 @@ typedef unsigned char *sk_buff_data_t;
  *	@local_df: allow local fragmentation
  *	@cloned: Head may be cloned (check refcnt to be sure)
  *	@nohdr: Payload reference only, must not modify header
+ *	@proto_data_valid: Protocol data validated since arriving at localhost
+ *	@proto_csum_blank: Protocol csum must be added before leaving localhost
  *	@pkt_type: Packet class
  *	@fclone: skbuff clone status
  *	@ip_summed: Driver fed us an IP checksum
@@ -379,9 +381,13 @@ struct sk_buff {
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
+#ifdef CONFIG_XEN
+	__u8			proto_data_valid:1,
+				proto_csum_blank:1;
+#endif
 	kmemcheck_bitfield_end(flags2);
 
-	/* 0/14 bit hole */
+	/* 0/12/14 bit hole */
 
 #ifdef CONFIG_NET_DMA
 	dma_cookie_t		dma_cookie;
