@@ -15,7 +15,9 @@
 #include <asm/system.h>
 #include <asm/msr.h>
 
+#ifndef CONFIG_XEN
 #define ARCH_APICTIMER_STOPS_ON_C3	1
+#endif
 
 /*
  * Debugging macros
