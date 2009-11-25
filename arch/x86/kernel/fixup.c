@@ -36,7 +36,7 @@
 
 #define DP(_f, _args...) printk(KERN_ALERT "  " _f "\n" , ## _args )
 
-fastcall void do_fixup_4gb_segment(struct pt_regs *regs, long error_code)
+void do_fixup_4gb_segment(struct pt_regs *regs, long error_code)
 {
 	static unsigned long printed = 0;
 	char info[100];

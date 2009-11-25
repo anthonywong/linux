@@ -54,16 +54,21 @@
 #include <asm/page.h>
 #include <asm/irqflags.h>
 #include <asm/errno.h>
-#include <xen/interface/arch-x86_64.h>
+#include <xen/interface/xen.h>
 #include <xen/interface/features.h>
 
-#include "xen_entry_64.S"
-	
 	.code64
 
 #ifndef CONFIG_PREEMPT
 #define retint_kernel retint_restore_args
 #endif	
+
+#ifdef CONFIG_PARAVIRT
+ENTRY(native_irq_enable_syscall_ret)
+	movq	%gs:pda_oldrsp,%rsp
+	swapgs
+	sysretq
+#endif /* CONFIG_PARAVIRT */
 
 
 .macro TRACE_IRQS_IRETQ offset=ARGOFFSET
@@ -277,7 +282,7 @@ ret_from_sys_call:
 sysret_check:		
 	LOCKDEP_SYS_EXIT
 	GET_THREAD_INFO(%rcx)
-        XEN_BLOCK_EVENTS(%rsi)        
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	movl threadinfo_flags(%rcx),%edx
 	andl %edi,%edx
@@ -287,7 +292,7 @@ sysret_check:
 	 * sysretq will re-enable interrupts:
 	 */
 	TRACE_IRQS_ON
-        XEN_UNBLOCK_EVENTS(%rsi)                
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	RESTORE_ARGS 0,8,0
         HYPERVISOR_IRET VGCF_IN_SYSCALL
 
@@ -298,7 +303,7 @@ sysret_careful:
 	bt $TIF_NEED_RESCHED,%edx
 	jnc sysret_signal
 	TRACE_IRQS_ON
-	XEN_UNBLOCK_EVENTS(%rsi)
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushq %rdi
 	CFI_ADJUST_CFA_OFFSET 8
 	call schedule
@@ -309,9 +314,8 @@ sysret_careful:
 	/* Handle a signal */ 
 sysret_signal:
 	TRACE_IRQS_ON
-/*	sti */
-        XEN_UNBLOCK_EVENTS(%rsi)        
-	testl $(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY),%edx
+	ENABLE_INTERRUPTS(CLBR_NONE)
+	testl $_TIF_DO_NOTIFY_MASK,%edx
 	jz    1f
 
 	/* Really a signal */
@@ -323,7 +327,7 @@ sysret_signal:
 1:	movl $_TIF_NEED_RESCHED,%edi
 	/* Use IRET because user could have changed frame. This
 	   works because ptregscall_common has called FIXUP_TOP_OF_STACK. */
-	XEN_BLOCK_EVENTS(%rsi)
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	jmp int_with_check
 	
@@ -355,7 +359,7 @@ tracesys:
  */
 	.globl int_ret_from_sys_call
 int_ret_from_sys_call:
-        XEN_BLOCK_EVENTS(%rsi)
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	testb $3,CS-ARGOFFSET(%rsp)
         jnz 1f
@@ -381,22 +385,20 @@ int_careful:
 	bt $TIF_NEED_RESCHED,%edx
 	jnc  int_very_careful
 	TRACE_IRQS_ON
-/*	sti */
-        XEN_UNBLOCK_EVENTS(%rsi)
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushq %rdi
 	CFI_ADJUST_CFA_OFFSET 8
 	call schedule
 	popq %rdi
 	CFI_ADJUST_CFA_OFFSET -8
-	XEN_BLOCK_EVENTS(%rsi)
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	jmp int_with_check
 
 	/* handle signals and tracing -- both require a full stack frame */
 int_very_careful:
 	TRACE_IRQS_ON
-/*	sti */
-        XEN_UNBLOCK_EVENTS(%rsi)
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	SAVE_REST
 	/* Check for syscall exit trace */	
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SINGLESTEP),%edx
@@ -411,7 +413,7 @@ int_very_careful:
 	jmp int_restore_rest
 	
 int_signal:
-	testl $(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY),%edx
+	testl $_TIF_DO_NOTIFY_MASK,%edx
 	jz 1f
 	movq %rsp,%rdi		# &ptregs -> arg1
 	xorl %esi,%esi		# oldset -> arg2
@@ -419,7 +421,7 @@ int_signal:
 1:	movl $_TIF_NEED_RESCHED,%edi	
 int_restore_rest:
 	RESTORE_REST
-	XEN_BLOCK_EVENTS(%rsi)
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	jmp int_with_check
 	CFI_ENDPROC
@@ -474,6 +476,7 @@ ENTRY(stub_execve)
 	CFI_REGISTER rip, r11
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
+	movq %rsp, %rcx
 	call sys_execve
 	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
@@ -526,11 +529,10 @@ retint_check:
 retint_restore_args:	/* return to kernel space */
 	movl EFLAGS-REST_SKIP(%rsp), %eax
 	shr $9, %eax			# EAX[0] == IRET_EFLAGS.IF
-	XEN_GET_VCPU_INFO(%rsi)
+	GET_VCPU_INFO
 	andb evtchn_upcall_mask(%rsi),%al
 	andb $1,%al			# EAX[0] == IRET_EFLAGS.IF & event_mask
 	jnz restore_all_enable_events	#        != 0 => enable event delivery
-	XEN_PUT_VCPU_INFO(%rsi)
 		
 	RESTORE_ARGS 0,8,0
 	HYPERVISOR_IRET 0
@@ -541,31 +543,29 @@ retint_careful:
 	bt    $TIF_NEED_RESCHED,%edx
 	jnc   retint_signal
 	TRACE_IRQS_ON
-	XEN_UNBLOCK_EVENTS(%rsi)
-/*	sti */        
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	pushq %rdi
 	CFI_ADJUST_CFA_OFFSET	8
 	call  schedule
 	popq %rdi		
 	CFI_ADJUST_CFA_OFFSET	-8
 	GET_THREAD_INFO(%rcx)
-	XEN_BLOCK_EVENTS(%rsi)		
-/*	cli */
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	jmp retint_check
 	
 retint_signal:
-	testl $(_TIF_SIGPENDING|_TIF_SINGLESTEP|_TIF_MCE_NOTIFY),%edx
+	testl $_TIF_DO_NOTIFY_MASK,%edx
 	jz    retint_restore_args
 	TRACE_IRQS_ON
-        XEN_UNBLOCK_EVENTS(%rsi)
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	SAVE_REST
 	movq $-1,ORIG_RAX(%rsp) 			
 	xorl %esi,%esi		# oldset
 	movq %rsp,%rdi		# &pt_regs
 	call do_notify_resume
 	RESTORE_REST
-        XEN_BLOCK_EVENTS(%rsi)		
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	movl $_TIF_NEED_RESCHED,%edi
 	GET_THREAD_INFO(%rcx)
@@ -702,7 +702,7 @@ END(spurious_interrupt)
 	rdmsr
 	testl %edx,%edx
 	js    1f
-	swapgs
+	SWAPGS
 	xorl  %ebx,%ebx
 1:
 #endif
@@ -719,8 +719,7 @@ END(spurious_interrupt)
 	.if \ist
 	addq	$EXCEPTION_STKSZ, per_cpu__init_tss + TSS_ist + (\ist - 1) * 8(%rbp)
 	.endif
-/*	cli */
-	XEN_BLOCK_EVENTS(%rsi)		
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	.if \irqtrace
 	TRACE_IRQS_OFF
 	.endif
@@ -749,10 +748,10 @@ paranoid_swapgs\trace:
 	.if \trace
 	TRACE_IRQS_IRETQ 0
 	.endif
-	swapgs
+	SWAPGS_UNSAFE_STACK
 paranoid_restore\trace:
 	RESTORE_ALL 8
-	iretq
+	jmp irq_return
 paranoid_userspace\trace:
 	GET_THREAD_INFO(%rcx)
 	movl threadinfo_flags(%rcx),%ebx
@@ -767,11 +766,11 @@ paranoid_userspace\trace:
 	.if \trace
 	TRACE_IRQS_ON
 	.endif
-	sti
+	ENABLE_INTERRUPTS(CLBR_NONE)
 	xorl %esi,%esi 			/* arg2: oldset */
 	movq %rsp,%rdi 			/* arg1: &pt_regs */
 	call do_notify_resume
-	cli
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	.if \trace
 	TRACE_IRQS_OFF
 	.endif
@@ -780,9 +779,9 @@ paranoid_schedule\trace:
 	.if \trace
 	TRACE_IRQS_ON
 	.endif
-	sti
+	ENABLE_INTERRUPTS(CLBR_ANY)
 	call schedule
-	cli
+	DISABLE_INTERRUPTS(CLBR_ANY)
 	.if \trace
 	TRACE_IRQS_OFF
 	.endif
@@ -846,8 +845,7 @@ error_call_handler:
 	call *%rax
 error_exit:
 	RESTORE_REST
-/*	cli */
-	XEN_BLOCK_EVENTS(%rsi)		
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	GET_THREAD_INFO(%rcx)	
 	testb $3,CS-ARGOFFSET(%rsp)
@@ -875,7 +873,7 @@ error_kernelspace:
 	   iret run with kernel gs again, so don't set the user space flag.
 	   B stepping K8s sometimes report an truncated RIP for IRET 
 	   exceptions returning to compat mode. Check for these here too. */
-	leaq iret_label(%rip),%rbp
+	leaq irq_return(%rip),%rbp
 	cmpq %rbp,RIP(%rsp) 
 	je   error_swapgs
 	movl %ebp,%ebp	/* zero extend */
@@ -930,19 +928,17 @@ END(do_hypervisor_callback)
 restore_all_enable_events:  
 	CFI_DEFAULT_STACK adj=1
 	TRACE_IRQS_ON
-	XEN_UNBLOCK_EVENTS(%rsi)        # %rsi is already set up...
+	__ENABLE_INTERRUPTS
 
 scrit:	/**** START OF CRITICAL REGION ****/
-	XEN_TEST_PENDING(%rsi)
+	__TEST_PENDING
 	CFI_REMEMBER_STATE
 	jnz  14f			# process more events if necessary...
-	XEN_PUT_VCPU_INFO(%rsi)
         RESTORE_ARGS 0,8,0
         HYPERVISOR_IRET 0
         
 	CFI_RESTORE_STATE
-14:	XEN_LOCKED_BLOCK_EVENTS(%rsi)
-	XEN_PUT_VCPU_INFO(%rsi)
+14:	__DISABLE_INTERRUPTS
 	SAVE_REST
         movq %rsp,%rdi                  # set the argument again
 	jmp  11b
@@ -1086,15 +1082,16 @@ ENDPROC(child_rip)
  *	rdi: name, rsi: argv, rdx: envp
  *
  * We want to fallback into:
- *	extern long sys_execve(char *name, char **argv,char **envp, struct pt_regs regs)
+ *	extern long sys_execve(char *name, char **argv,char **envp, struct pt_regs *regs)
  *
  * do_sys_execve asm fallback arguments:
- *	rdi: name, rsi: argv, rdx: envp, fake frame on the stack
+ *	rdi: name, rsi: argv, rdx: envp, rcx: fake frame on the stack
  */
 ENTRY(kernel_execve)
 	CFI_STARTPROC
 	FAKE_STACK_FRAME $0
 	SAVE_ALL	
+	movq %rsp,%rcx
 	call sys_execve
 	movq %rax, RAX(%rsp)	
 	RESTORE_REST
@@ -1144,7 +1141,7 @@ do_nmi_callback:
 	call do_nmi
 	orl  $NMI_MASK,EFLAGS(%rsp)
 	RESTORE_REST
-	XEN_BLOCK_EVENTS(%rsi)
+	DISABLE_INTERRUPTS(CLBR_NONE)
 	TRACE_IRQS_OFF
 	GET_THREAD_INFO(%rcx)
 	jmp  retint_restore_args

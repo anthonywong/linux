@@ -24,8 +24,10 @@
 #include <xen/interface/xen.h>
 #endif
 
+#ifdef CONFIG_LGUEST_GUEST
 #include <linux/lguest.h>
 #include "../../../drivers/lguest/lg.h"
+#endif
 
 /* workaround for a warning with -Wmissing-prototypes */
 void foo(void);

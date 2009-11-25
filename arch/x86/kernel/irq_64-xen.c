@@ -20,6 +20,28 @@
 
 atomic_t irq_err_count;
 
+/*
+ * 'what should we do if we get a hw irq event on an illegal vector'.
+ * each architecture has to answer this themselves.
+ */
+void ack_bad_irq(unsigned int irq)
+{
+	printk(KERN_WARNING "unexpected IRQ trap at irq %02x\n", irq);
+#ifdef CONFIG_X86_LOCAL_APIC
+	/*
+	 * Currently unexpected vectors happen only on SMP and APIC.
+	 * We _must_ ack these because every local APIC has only N
+	 * irq slots per priority level, and a 'hanging, unacked' IRQ
+	 * holds up an irq slot - in excessive cases (when multiple
+	 * unexpected vectors occur) that might lock up the APIC
+	 * completely.
+	 * But don't ack when the APIC is disabled. -AK
+	 */
+	if (!disable_apic)
+		ack_APIC_irq();
+#endif
+}
+
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 /*
  * Probabilistic stack overflow check:
@@ -33,11 +55,11 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 	u64 curbase = (u64)task_stack_page(current);
 	static unsigned long warned = -60*HZ;
 
-	if (regs->rsp >= curbase && regs->rsp <= curbase + THREAD_SIZE &&
-	    regs->rsp <  curbase + sizeof(struct thread_info) + 128 &&
+	if (regs->sp >= curbase && regs->sp <= curbase + THREAD_SIZE &&
+	    regs->sp <  curbase + sizeof(struct thread_info) + 128 &&
 	    time_after(jiffies, warned + 60*HZ)) {
-		printk("do_IRQ: %s near stack overflow (cur:%Lx,rsp:%lx)\n",
-		       current->comm, curbase, regs->rsp);
+		printk("do_IRQ: %s near stack overflow (cur:%Lx,sp:%lx)\n",
+		       current->comm, curbase, regs->sp);
 		show_stack(NULL,NULL);
 		warned = jiffies;
 	}
@@ -150,7 +172,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
 	/* high bit used in ret_from_ code  */
-	unsigned irq = ~regs->orig_rax;
+	unsigned irq = ~regs->orig_ax;
 
 	/*exit_idle();*/
 	/*irq_enter();*/
@@ -251,14 +273,3 @@ asmlinkage void do_softirq(void)
 	}
  	local_irq_restore(flags);
 }
-
-#ifndef CONFIG_X86_LOCAL_APIC
-/*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
- */
-void ack_bad_irq(unsigned int irq)
-{
-        printk("unexpected IRQ trap at irq %02x\n", irq);
-}
-#endif
