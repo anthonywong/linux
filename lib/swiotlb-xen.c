@@ -750,7 +750,7 @@ swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sgl,
 }
 
 int
-swiotlb_dma_mapping_error(dma_addr_t dma_addr)
+swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr)
 {
 	return (dma_addr == virt_to_bus(io_tlb_overflow_buffer));
 }

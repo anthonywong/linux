@@ -746,8 +746,9 @@ static struct irq_chip dynirq_chip = {
 };
 
 /* Bitmap indicating which PIRQs require Xen to be notified on unmask. */
-static int pirq_eoi_does_unmask;
+static bool pirq_eoi_does_unmask;
 static unsigned long *pirq_needs_eoi;
+static DECLARE_BITMAP(probing_pirq, NR_PIRQS);
 
 static void pirq_unmask_and_notify(unsigned int evtchn, unsigned int irq)
 {
@@ -794,25 +795,31 @@ static inline void pirq_query_unmask(int irq)
 		set_bit(irq - PIRQ_BASE, pirq_needs_eoi);
 }
 
-/*
- * On startup, if there is no action associated with the IRQ then we are
- * probing. In this case we should not share with others as it will confuse us.
- */
-#define probing_irq(_irq) (irq_desc[(_irq)].action == NULL)
+static int set_type_pirq(unsigned int irq, unsigned int type)
+{
+	if (type != IRQ_TYPE_PROBE)
+		return -EINVAL;
+	set_bit(irq - PIRQ_BASE, probing_pirq);
+	return 0;
+}
 
 static unsigned int startup_pirq(unsigned int irq)
 {
 	struct evtchn_bind_pirq bind_pirq;
 	int evtchn = evtchn_from_irq(irq);
 
-	if (VALID_EVTCHN(evtchn))
+	if (VALID_EVTCHN(evtchn)) {
+		clear_bit(irq - PIRQ_BASE, probing_pirq);
 		goto out;
+	}
 
 	bind_pirq.pirq = evtchn_get_xen_pirq(irq);
 	/* NB. We are happy to share unless we are probing. */
-	bind_pirq.flags = probing_irq(irq) ? 0 : BIND_PIRQ__WILL_SHARE;
+	bind_pirq.flags = test_and_clear_bit(irq - PIRQ_BASE, probing_pirq)
+			  || (irq_desc[irq].status & IRQ_AUTODETECT)
+			  ? 0 : BIND_PIRQ__WILL_SHARE;
 	if (HYPERVISOR_event_channel_op(EVTCHNOP_bind_pirq, &bind_pirq) != 0) {
-		if (!probing_irq(irq))
+		if (bind_pirq.flags)
 			printk(KERN_INFO "Failed to obtain physical IRQ %d\n",
 			       irq);
 		return 0;
@@ -891,6 +898,7 @@ static struct irq_chip pirq_chip = {
 	.mask_ack = ack_pirq,
 	.ack      = ack_pirq,
 	.end      = end_pirq,
+	.set_type = set_type_pirq,
 #ifdef CONFIG_SMP
 	.set_affinity = set_affinity_irq,
 #endif
@@ -1003,6 +1011,7 @@ void xen_poll_irq(int irq)
 		BUG();
 }
 
+#ifdef CONFIG_PM_SLEEP
 static void restore_cpu_virqs(unsigned int cpu)
 {
 	struct evtchn_bind_virq bind_virq;
@@ -1095,6 +1104,7 @@ void irq_resume(void)
 	}
 
 }
+#endif
 
 #if defined(CONFIG_X86_IO_APIC)
 #define identity_mapped_irq(irq) (!IO_APIC_IRQ((irq) - PIRQ_BASE))
@@ -1177,7 +1187,7 @@ void __init xen_init_IRQ(void)
 		* BITS_TO_LONGS(ALIGN(NR_PIRQS, PAGE_SIZE * 8)));
  	eoi_gmfn.gmfn = virt_to_machine(pirq_needs_eoi) >> PAGE_SHIFT;
 	if (HYPERVISOR_physdev_op(PHYSDEVOP_pirq_eoi_gmfn, &eoi_gmfn) == 0)
-		pirq_eoi_does_unmask = 1;
+		pirq_eoi_does_unmask = true;
 
 	/* No event channels are 'live' right now. */
 	for (i = 0; i < NR_EVENT_CHANNELS; i++)
