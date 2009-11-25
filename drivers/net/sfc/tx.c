@@ -387,9 +387,9 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	/* See if driverlink wants to veto the packet. */
 	veto = EFX_DL_CALLBACK(efx, tx_packet, skb);
 	if (unlikely(veto)) {
-		EFX_TRACE(efx, "TX queue %d packet vetoed by "
-			  "driverlink %s driver\n", tx_queue->queue,
-			  efx->dl_cb_dev.tx_packet->driver->name);
+		EFX_DL_LOG(efx, "TX queue %d packet vetoed by "
+			   "driverlink %s driver\n", tx_queue->queue,
+			   efx->dl_cb_dev.tx_packet->driver->name);
 		/* Free the skb; nothing else will do it */
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;

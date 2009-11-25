@@ -29,7 +29,6 @@
 
 #include "enum.h"
 #include "bitfield.h"
-#include "driverlink_api.h"
 #include "driverlink.h"
 
 /**************************************************************************
@@ -854,11 +853,13 @@ struct efx_nic {
 	void *loopback_selftest;
 
 	const char *silicon_rev;
+#ifdef CONFIG_SFC_DRIVERLINK
 	struct efx_dl_device_info *dl_info;
 	struct list_head dl_node;
 	struct list_head dl_device_list;
 	struct efx_dl_callbacks dl_cb;
 	struct efx_dl_cb_devices dl_cb_dev;
+#endif
 };
 
 static inline int efx_dev_registered(struct efx_nic *efx)

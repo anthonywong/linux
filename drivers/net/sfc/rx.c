@@ -456,8 +456,8 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 	 * an obvious interface to this, so veto packets before LRO */
 	veto = EFX_DL_CALLBACK(efx, rx_packet, rx_buf->data, rx_buf->len);
 	if (unlikely(veto)) {
-		EFX_TRACE(efx, "LRO RX vetoed by driverlink %s driver\n",
-			  efx->dl_cb_dev.rx_packet->driver->name);
+		EFX_DL_LOG(efx, "LRO RX vetoed by driverlink %s driver\n",
+			   efx->dl_cb_dev.rx_packet->driver->name);
 		/* Free the buffer now */
 		efx_free_rx_buffer(efx, rx_buf);
 		return;
@@ -579,8 +579,8 @@ void __efx_rx_packet(struct efx_channel *channel,
 	/* Allow callback to veto the packet */
 	veto = EFX_DL_CALLBACK(efx, rx_packet, rx_buf->data, rx_buf->len);
 	if (unlikely(veto)) {
-		EFX_LOG(efx, "RX vetoed by driverlink %s driver\n",
-			efx->dl_cb_dev.rx_packet->driver->name);
+		EFX_DL_LOG(efx, "RX vetoed by driverlink %s driver\n",
+			   efx->dl_cb_dev.rx_packet->driver->name);
 		/* Free the buffer now */
 		efx_free_rx_buffer(efx, rx_buf);
 		goto done;

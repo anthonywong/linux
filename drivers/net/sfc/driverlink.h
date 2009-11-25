@@ -15,6 +15,10 @@
 struct efx_dl_device;
 struct efx_nic;
 
+#ifdef CONFIG_SFC_DRIVERLINK
+
+#include "driverlink_api.h"
+
 /* Efx callback devices
  *
  * A list of the devices that own each callback. The partner to
@@ -39,5 +43,24 @@ extern void efx_dl_unregister_nic(struct efx_nic *efx);
 /* Suspend and resume client drivers over a hardware reset */
 extern void efx_dl_reset_suspend(struct efx_nic *efx);
 extern void efx_dl_reset_resume(struct efx_nic *efx, int ok);
+
+#define EFX_DL_LOG EFX_LOG
+
+#else /* CONFIG_SFC_DRIVERLINK */
+
+enum efx_veto { EFX_ALLOW_PACKET = 0 };
+
+static inline int efx_nop_callback(struct efx_nic *efx) { return 0; }
+#define EFX_DL_CALLBACK(port, name, ...) efx_nop_callback(port)
+
+static inline int efx_dl_register_nic(struct efx_nic *efx) { return 0; }
+static inline void efx_dl_unregister_nic(struct efx_nic *efx) {}
+
+static inline void efx_dl_reset_suspend(struct efx_nic *efx) {}
+static inline void efx_dl_reset_resume(struct efx_nic *efx, int ok) {}
+
+#define EFX_DL_LOG(efx, fmt, args...) ((void)(efx))
+
+#endif /* CONFIG_SFC_DRIVERLINK */
 
 #endif /* EFX_DRIVERLINK_H */
