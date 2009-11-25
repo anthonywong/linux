@@ -394,7 +394,6 @@ static inline int pmd_large(pmd_t pte) {
 
 /*
  * Level 4 access.
- * Never use these in the common code.
  */
 #define pgd_page(pgd) ((unsigned long) __va(pgd_val(pgd) & PTE_MASK))
 #define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
