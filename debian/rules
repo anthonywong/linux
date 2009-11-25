@@ -10,7 +10,7 @@
 JLOAD=$(shell expr `getconf _NPROCESSORS_ONLN` \* 1)
 
 ifeq ($(DEBIAN),)
-DEBIAN=debian.master
+DEBIAN=debian.ec2
 endif
 
 DENV=debian/debian.env
