@@ -19,6 +19,9 @@
 #include <xen/interface/vcpu.h>
 
 #if defined(__i386__) || defined(__x86_64__)
+#include <asm/pci_x86.h>
+/* TBD: Dom0 should propagate the determined value to Xen. */
+bool port_cf9_safe = false;
 
 /*
  * Power off function, if any
@@ -84,7 +87,7 @@ static void post_suspend(int suspend_cancelled)
 			pfn_to_mfn(xen_start_info->console.domU.mfn);
 	} else {
 #ifdef CONFIG_SMP
-		cpu_initialized_map = cpu_online_map;
+		cpumask_copy(vcpu_initialized_mask, cpu_online_mask);
 #endif
 	}
 
