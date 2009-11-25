@@ -150,7 +150,7 @@ blktap_sysfs_pause_device(struct class_device *dev,
 	err = blktap_device_pause(tap);
 	if (!err) {
 		class_device_remove_file(dev, &class_device_attr_pause);
-		class_device_create_file(dev, &class_device_attr_resume);
+		err = class_device_create_file(dev, &class_device_attr_resume);
 	}
 
 out:
@@ -182,7 +182,7 @@ blktap_sysfs_resume_device(struct class_device *dev,
 	err = blktap_device_resume(tap);
 	if (!err) {
 		class_device_remove_file(dev, &class_device_attr_resume);
-		class_device_create_file(dev, &class_device_attr_pause);
+		err = class_device_create_file(dev, &class_device_attr_pause);
 	}
 
 out:
@@ -310,10 +310,13 @@ blktap_sysfs_create(struct blktap *tap)
 	atomic_set(&ring->sysfs_refcnt, 0);
 	set_bit(BLKTAP_SYSFS, &tap->dev_inuse);
 
-	class_device_create_file(dev, &class_device_attr_name);
-	class_device_create_file(dev, &class_device_attr_remove);
-	class_device_create_file(dev, &class_device_attr_pause);
-	class_device_create_file(dev, &class_device_attr_debug);
+	if (class_device_create_file(dev, &class_device_attr_name) ||
+	    class_device_create_file(dev, &class_device_attr_remove) ||
+	    class_device_create_file(dev, &class_device_attr_pause) ||
+	    class_device_create_file(dev, &class_device_attr_debug))
+		printk(KERN_WARNING
+		       "One or more attibute files not created for blktap%d\n",
+		       tap->minor);
 
 	return 0;
 }
@@ -417,8 +420,10 @@ blktap_sysfs_init(void)
 	if (IS_ERR(cls))
 		return PTR_ERR(cls);
 
-	class_create_file(cls, &class_attr_verbosity);
-	class_create_file(cls, &class_attr_devices);
+	if (class_create_file(cls, &class_attr_verbosity) ||
+	    class_create_file(cls, &class_attr_devices))
+		printk(KERN_WARNING "blktap2: One or more "
+		       "class attribute files could not be created.\n");
 
 	class = cls;
 	return 0;
