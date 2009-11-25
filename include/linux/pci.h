@@ -724,6 +724,9 @@ int pci_reset_function(struct pci_dev *dev);
 void pci_update_resource(struct pci_dev *dev, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
 int pci_select_bars(struct pci_dev *dev, unsigned long flags);
+#ifdef CONFIG_XEN
+void pci_restore_bars(struct pci_dev *);
+#endif
 
 /* ROM control related routines */
 int pci_enable_rom(struct pci_dev *pdev);

@@ -104,7 +104,7 @@ static struct attribute_group balloon_info_group = {
 };
 
 static struct sysdev_class balloon_sysdev_class = {
-	set_kset_name(BALLOON_CLASS_NAME),
+	.name = BALLOON_CLASS_NAME,
 };
 
 static struct sys_device balloon_sysdev;
