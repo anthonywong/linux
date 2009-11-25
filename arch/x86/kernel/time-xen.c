@@ -89,15 +89,12 @@ int pit_latch_buggy;              /* extern */
 unsigned long vxtime_hz = PIT_TICK_RATE;
 struct vxtime_data __vxtime __section_vxtime;   /* for vsyscalls */
 volatile unsigned long __jiffies __section_jiffies = INITIAL_JIFFIES;
-unsigned long __wall_jiffies __section_wall_jiffies = INITIAL_JIFFIES;
 struct timespec __xtime __section_xtime;
 struct timezone __sys_tz __section_sys_tz;
 #endif
 
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
-
-extern unsigned long wall_jiffies;
 
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL(rtc_lock);
@@ -247,11 +244,10 @@ static void __update_wallclock(time_t sec, long nsec)
 	time_t wtm_sec, xtime_sec;
 	u64 tmp, wc_nsec;
 
-	/* Adjust wall-clock time base based on wall_jiffies ticks. */
+	/* Adjust wall-clock time base. */
 	wc_nsec = processed_system_time;
 	wc_nsec += sec * (u64)NSEC_PER_SEC;
 	wc_nsec += nsec;
-	wc_nsec -= (jiffies - wall_jiffies) * (u64)NS_PER_TICK;
 
 	/* Split wallclock base into seconds and nanoseconds. */
 	tmp = wc_nsec;
@@ -374,16 +370,10 @@ void do_gettimeofday(struct timeval *tv)
 	shadow = &per_cpu(shadow_time, cpu);
 
 	do {
-		unsigned long lost;
-
 		local_time_version = shadow->version;
 		seq = read_seqbegin(&xtime_lock);
 
 		usec = get_usec_offset(shadow);
-		lost = jiffies - wall_jiffies;
-
-		if (unlikely(lost))
-			usec += lost * (USEC_PER_SEC / HZ);
 
 		sec = xtime.tv_sec;
 		usec += (xtime.tv_nsec / NSEC_PER_USEC);
@@ -510,7 +500,7 @@ static void sync_xen_wallclock(unsigned long dummy)
 	write_seqlock_irq(&xtime_lock);
 
 	sec  = xtime.tv_sec;
-	nsec = xtime.tv_nsec + ((jiffies - wall_jiffies) * (u64)NS_PER_TICK);
+	nsec = xtime.tv_nsec;
 	__normalize_time(&sec, &nsec);
 
 	op.cmd = XENPF_settime;
@@ -584,42 +574,49 @@ unsigned long long sched_clock(void)
 }
 #endif
 
-#if defined(CONFIG_SMP) && defined(CONFIG_FRAME_POINTER)
 unsigned long profile_pc(struct pt_regs *regs)
 {
 	unsigned long pc = instruction_pointer(regs);
 
-#ifdef __x86_64__
-	/* Assume the lock function has either no stack frame or only a single word.
-	   This checks if the address on the stack looks like a kernel text address.
-	   There is a small window for false hits, but in that case the tick
-	   is just accounted to the spinlock function.
-	   Better would be to write these functions in assembler again
-	   and check exactly. */
+#if defined(CONFIG_SMP) || defined(__x86_64__)
 	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
-		char *v = *(char **)regs->rsp;
-		if ((v >= _stext && v <= _etext) ||
-			(v >= _sinittext && v <= _einittext) ||
-			(v >= (char *)MODULES_VADDR  && v <= (char *)MODULES_END))
-			return (unsigned long)v;
-		return ((unsigned long *)regs->rsp)[1];
+# ifdef CONFIG_FRAME_POINTER
+#  ifdef __i386__
+		return ((unsigned long *)regs->ebp)[1];
+#  else
+		return ((unsigned long *)regs->rbp)[1];
+#  endif
+# else
+#  ifdef __i386__
+		unsigned long *sp;
+		if ((regs->xcs & 2) == 0)
+			sp = (unsigned long *)&regs->esp;
+		else
+			sp = (unsigned long *)regs->esp;
+#  else
+		unsigned long *sp = (unsigned long *)regs->rsp;
+#  endif
+		/* Return address is either directly at stack pointer
+		   or above a saved eflags. Eflags has bits 22-31 zero,
+		   kernel addresses don't. */
+ 		if (sp[0] >> 22)
+			return sp[0];
+		if (sp[1] >> 22)
+			return sp[1];
+# endif
 	}
-#else
-	if (!user_mode_vm(regs) && in_lock_functions(pc))
-		return *(unsigned long *)(regs->ebp + 4);
 #endif
 
 	return pc;
 }
 EXPORT_SYMBOL(profile_pc);
-#endif
 
 /*
  * This is the same as the above, except we _also_ save the current
  * Time Stamp Counter value at the time of the timer interrupt, so that
  * we later on can estimate the time of day more exactly.
  */
-irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t timer_interrupt(int irq, void *dev_id)
 {
 	s64 delta, delta_cpu, stolen, blocked;
 	u64 sched_time;
@@ -677,10 +674,15 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	}
 
 	/* System-wide jiffy work. */
-	while (delta >= NS_PER_TICK) {
-		delta -= NS_PER_TICK;
-		processed_system_time += NS_PER_TICK;
-		do_timer(regs);
+	if (delta >= NS_PER_TICK) {
+		do_div(delta, NS_PER_TICK);
+		processed_system_time += delta * NS_PER_TICK;
+		while (delta > HZ) {
+			clobber_induction_variable(delta);
+			do_timer(HZ);
+			delta -= HZ;
+		}
+		do_timer(delta);
 	}
 
 	if (shadow_tv_version != HYPERVISOR_shared_info->wc_version) {
@@ -725,7 +727,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	if (delta_cpu > 0) {
 		do_div(delta_cpu, NS_PER_TICK);
 		per_cpu(processed_system_time, cpu) += delta_cpu * NS_PER_TICK;
-		if (user_mode_vm(regs))
+		if (user_mode_vm(get_irq_regs()))
 			account_user_time(current, (cputime_t)delta_cpu);
 		else
 			account_system_time(current, HARDIRQ_OFFSET,
@@ -739,10 +741,10 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	/* Local timer processing (see update_process_times()). */
 	run_local_timers();
 	if (rcu_pending(cpu))
-		rcu_check_callbacks(cpu, user_mode_vm(regs));
+		rcu_check_callbacks(cpu, user_mode_vm(get_irq_regs()));
 	scheduler_tick();
 	run_posix_cpu_timers(current);
-	profile_tick(CPU_PROFILING, regs);
+	profile_tick(CPU_PROFILING);
 
 	return IRQ_HANDLED;
 }
@@ -952,10 +954,11 @@ extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
 static void __init hpet_time_init(void)
 {
-	xtime.tv_sec = get_cmos_time();
-	xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	set_normalized_timespec(&wall_to_monotonic,
-		-xtime.tv_sec, -xtime.tv_nsec);
+	struct timespec ts;
+	ts.tv_sec = get_cmos_time();
+	ts.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
+
+	do_settimeofday(&ts);
 
 	if ((hpet_enable() >= 0) && hpet_use_timer) {
 		printk("Using HPET for base-timer\n");

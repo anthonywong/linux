@@ -124,7 +124,7 @@ void pciback_do_op(void *data)
 	test_and_schedule_op(pdev);
 }
 
-irqreturn_t pciback_handle_event(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t pciback_handle_event(int irq, void *dev_id)
 {
 	struct pciback_device *pdev = dev_id;
 

@@ -381,9 +381,8 @@ int smp_call_function_single (int cpu, void (*func) (void *info), void *info,
 	/* prevent preemption and reschedule on another processor */
 	int me = get_cpu();
 	if (cpu == me) {
-		WARN_ON(1);
 		put_cpu();
-		return -EBUSY;
+		return 0;
 	}
 	spin_lock_bh(&call_lock);
 	__smp_call_function_single(cpu, func, info, nonatomic, wait);
@@ -501,7 +500,7 @@ void smp_send_stop(void)
 #ifndef CONFIG_XEN
 asmlinkage void smp_reschedule_interrupt(void)
 #else
-asmlinkage irqreturn_t smp_reschedule_interrupt(void)
+asmlinkage irqreturn_t smp_reschedule_interrupt(int irq, void *ctx)
 #endif
 {
 #ifndef CONFIG_XEN
@@ -514,7 +513,7 @@ asmlinkage irqreturn_t smp_reschedule_interrupt(void)
 #ifndef CONFIG_XEN
 asmlinkage void smp_call_function_interrupt(void)
 #else
-asmlinkage irqreturn_t smp_call_function_interrupt(void)
+asmlinkage irqreturn_t smp_call_function_interrupt(int irq, void *ctx)
 #endif
 {
 	void (*func) (void *info) = call_data->func;
@@ -543,33 +542,5 @@ asmlinkage irqreturn_t smp_call_function_interrupt(void)
 	}
 #ifdef CONFIG_XEN
 	return IRQ_HANDLED;
-#endif
-}
-
-int safe_smp_processor_id(void)
-{
-#ifdef CONFIG_XEN
-	return smp_processor_id();
-#else
-	unsigned apicid, i;
-
-	if (disable_apic)
-		return 0;
-
-	apicid = hard_smp_processor_id();
-	if (apicid < NR_CPUS && x86_cpu_to_apicid[apicid] == apicid)
-		return apicid;
-
-	for (i = 0; i < NR_CPUS; ++i) {
-		if (x86_cpu_to_apicid[i] == apicid)
-			return i;
-	}
-
-	/* No entries in x86_cpu_to_apicid?  Either no MPS|ACPI,
-	 * or called too early.  Either way, we must be CPU 0. */
-      	if (x86_cpu_to_apicid[0] == BAD_APICID)
-		return 0;
-
-	return 0; /* Should not happen */
 #endif
 }
