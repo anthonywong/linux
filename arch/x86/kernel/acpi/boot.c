@@ -114,6 +114,11 @@ char *__init __acpi_map_table(unsigned long phys, unsigned long size)
 	if (!phys || !size)
 		return NULL;
 
+#ifdef CONFIG_XEN
+	if (phys + size <= (NR_FIX_ISAMAPS << PAGE_SHIFT))
+		return isa_bus_to_virt(phys);
+#endif
+
 	return early_ioremap(phys, size);
 }
 void __init __acpi_unmap_table(char *map, unsigned long size)
