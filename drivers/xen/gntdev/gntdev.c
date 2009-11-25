@@ -752,9 +752,6 @@ static pte_t gntdev_clear_pte(struct vm_area_struct *vma, unsigned long addr,
 		BUG();
 	}
 
-	/* Copy the existing value of the PTE for returning. */
-	copy = *ptep;
-
 	/* Calculate the grant relating to this PTE. */
 	slot_index = vma->vm_pgoff + ((addr - vma->vm_start) >> PAGE_SHIFT);
 
@@ -769,6 +766,10 @@ static pte_t gntdev_clear_pte(struct vm_area_struct *vma, unsigned long addr,
 		    GNTDEV_INVALID_HANDLE && 
 		    !xen_feature(XENFEAT_auto_translated_physmap)) {
 			/* NOT USING SHADOW PAGE TABLES. */
+
+			/* Copy the existing value of the PTE for returning. */
+			copy = *ptep;
+
 			gnttab_set_unmap_op(&op, ptep_to_machine(ptep), 
 					    GNTMAP_contains_pte,
 					    private_data->grants[slot_index]
@@ -781,7 +782,7 @@ static pte_t gntdev_clear_pte(struct vm_area_struct *vma, unsigned long addr,
 				       op.status);
 		} else {
 			/* USING SHADOW PAGE TABLES. */
-			pte_clear_full(vma->vm_mm, addr, ptep, is_fullmm);
+			copy = ptep_get_and_clear_full(vma->vm_mm, addr, ptep, is_fullmm);
 		}
 
 		/* Finally, we unmap the grant from kernel space. */
@@ -809,7 +810,7 @@ static pte_t gntdev_clear_pte(struct vm_area_struct *vma, unsigned long addr,
 				    >> PAGE_SHIFT, INVALID_P2M_ENTRY);
 
 	} else {
-		pte_clear_full(vma->vm_mm, addr, ptep, is_fullmm);
+		copy = ptep_get_and_clear_full(vma->vm_mm, addr, ptep, is_fullmm);
 	}
 
 	return copy;

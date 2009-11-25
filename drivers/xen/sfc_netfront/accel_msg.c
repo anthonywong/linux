@@ -488,8 +488,7 @@ void netfront_accel_msg_from_bend(void *context)
 }
 
 
-irqreturn_t netfront_accel_msg_channel_irq_from_bend(int irq, void *context, 
-						 struct pt_regs *unused)
+irqreturn_t netfront_accel_msg_channel_irq_from_bend(int irq, void *context)
 {
 	netfront_accel_vnic *vnic = (netfront_accel_vnic *)context;
 	VPRINTK("irq %d from device %s\n", irq, vnic->dev->nodename);
@@ -500,8 +499,7 @@ irqreturn_t netfront_accel_msg_channel_irq_from_bend(int irq, void *context,
 }
 
 /* Process an interrupt received from the NIC via backend */
-irqreturn_t netfront_accel_net_channel_irq_from_bend(int irq, void *context, 
-						     struct pt_regs *unused)
+irqreturn_t netfront_accel_net_channel_irq_from_bend(int irq, void *context)
 {
 	netfront_accel_vnic *vnic = (netfront_accel_vnic *)context;
 	struct net_device *net_dev = vnic->net_dev;

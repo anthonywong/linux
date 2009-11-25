@@ -68,8 +68,7 @@ static void unlink_bend(struct netback_accel *bend)
 
 
 /* Demultiplex a message IRQ from the frontend driver.  */
-static irqreturn_t msgirq_from_frontend(int irq, void *context, 
-				     struct pt_regs *unused)
+static irqreturn_t msgirq_from_frontend(int irq, void *context)
 {
 	struct xenbus_device *dev = context;
 	struct netback_accel *bend = NETBACK_ACCEL_FROM_XENBUS_DEVICE(dev);
@@ -84,8 +83,7 @@ static irqreturn_t msgirq_from_frontend(int irq, void *context,
  * functionally, but we need it to pass to the bind function, and may
  * get called spuriously
  */
-static irqreturn_t netirq_from_frontend(int irq, void *context, 
-					struct pt_regs *unused)
+static irqreturn_t netirq_from_frontend(int irq, void *context)
 {
 	VPRINTK("netirq %d from device %s\n", irq,
 		((struct xenbus_device *)context)->nodename);

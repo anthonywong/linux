@@ -68,7 +68,9 @@ void show_mem(void)
 	printk(KERN_INFO "%lu pages writeback\n",
 					global_page_state(NR_WRITEBACK));
 	printk(KERN_INFO "%lu pages mapped\n", global_page_state(NR_FILE_MAPPED));
-	printk(KERN_INFO "%lu pages slab\n", global_page_state(NR_SLAB));
+	printk(KERN_INFO "%lu pages slab\n",
+		global_page_state(NR_SLAB_RECLAIMABLE) +
+		global_page_state(NR_SLAB_UNRECLAIMABLE));
 	printk(KERN_INFO "%lu pages pagetables\n",
 					global_page_state(NR_PAGETABLE));
 }
@@ -108,17 +110,10 @@ void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 	__flush_tlb_one(vaddr);
 }
 
-static int nr_fixmaps = 0;
+static int fixmaps;
 unsigned long hypervisor_virt_start = HYPERVISOR_VIRT_START;
-unsigned long __FIXADDR_TOP = (HYPERVISOR_VIRT_START - 2 * PAGE_SIZE);
+unsigned long __FIXADDR_TOP = (HYPERVISOR_VIRT_START - PAGE_SIZE);
 EXPORT_SYMBOL(__FIXADDR_TOP);
-
-void __init set_fixaddr_top(unsigned long top)
-{
-	BUG_ON(nr_fixmaps > 0);
-	hypervisor_virt_start = top;
-	__FIXADDR_TOP = hypervisor_virt_start - 2 * PAGE_SIZE;
-}
 
 void __set_fixmap (enum fixed_addresses idx, maddr_t phys, pgprot_t flags)
 {
@@ -141,7 +136,21 @@ void __set_fixmap (enum fixed_addresses idx, maddr_t phys, pgprot_t flags)
 	if (HYPERVISOR_update_va_mapping(address, pte,
 					 UVMF_INVLPG|UVMF_ALL))
 		BUG();
-	nr_fixmaps++;
+	fixmaps++;
+}
+
+/**
+ * reserve_top_address - reserves a hole in the top of kernel address space
+ * @reserve - size of hole to reserve
+ *
+ * Can be used to relocate the fixmap area and poke a hole in the top
+ * of kernel address space to make room for a hypervisor.
+ */
+void __init reserve_top_address(unsigned long reserve)
+{
+	BUG_ON(fixmaps > 0);
+	__FIXADDR_TOP = -reserve - PAGE_SIZE;
+	__VMALLOC_RESERVE += reserve;
 }
 
 pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)

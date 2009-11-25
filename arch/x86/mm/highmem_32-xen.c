@@ -38,11 +38,9 @@ static void *__kmap_atomic(struct page *page, enum km_type type, pgprot_t prot)
 
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
-#ifdef CONFIG_DEBUG_HIGHMEM
 	if (!pte_none(*(kmap_pte-idx)))
 		BUG();
-#endif
-	set_pte_at_sync(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot));
+	set_pte_at(&init_mm, vaddr, kmap_pte-idx, mk_pte(page, prot));
 
 	return (void*) vaddr;
 }
@@ -62,36 +60,26 @@ void *kmap_atomic_pte(struct page *page, enum km_type type)
 
 void kunmap_atomic(void *kvaddr, enum km_type type)
 {
-#if defined(CONFIG_DEBUG_HIGHMEM) || defined(CONFIG_XEN)
 	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
 	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
 
-	if (vaddr < FIXADDR_START) { // FIXME
+#ifdef CONFIG_DEBUG_HIGHMEM
+	if (vaddr >= PAGE_OFFSET && vaddr < (unsigned long)high_memory) {
 		dec_preempt_count();
 		preempt_check_resched();
 		return;
 	}
-#endif
 
-#if defined(CONFIG_DEBUG_HIGHMEM)
 	if (vaddr != __fix_to_virt(FIX_KMAP_BEGIN+idx))
 		BUG();
-
-	/*
-	 * force other mappings to Oops if they'll try to access
-	 * this pte without first remap it
-	 */
-	pte_clear(&init_mm, vaddr, kmap_pte-idx);
-	__flush_tlb_one(vaddr);
-#elif defined(CONFIG_XEN)
-	/*
-	 * We must ensure there are no dangling pagetable references when
-	 * returning memory to Xen (decrease_reservation).
-	 * XXX TODO: We could make this faster by only zapping when
-	 * kmap_flush_unused is called but that is trickier and more invasive.
-	 */
-	pte_clear(&init_mm, vaddr, kmap_pte-idx);
 #endif
+	/*
+	 * Force other mappings to Oops if they'll try to access this pte
+	 * without first remap it.  Keeping stale mappings around is a bad idea
+	 * also, in case the page changes cacheability attributes or becomes
+	 * a protected page in a hypervisor.
+	 */
+	kpte_clear_flush(kmap_pte-idx, vaddr);
 
 	dec_preempt_count();
 	preempt_check_resched();
@@ -110,7 +98,6 @@ void *kmap_atomic_pfn(unsigned long pfn, enum km_type type)
 	idx = type + KM_TYPE_NR*smp_processor_id();
 	vaddr = __fix_to_virt(FIX_KMAP_BEGIN + idx);
 	set_pte(kmap_pte-idx, pfn_pte(pfn, kmap_prot));
-	__flush_tlb_one(vaddr);
 
 	return (void*) vaddr;
 }
