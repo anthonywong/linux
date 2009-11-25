@@ -34,34 +34,17 @@
 #include <asm/hpet.h>
 #include <asm/idle.h>
 
+int disable_apic;
+
+/*
+ * Debug level, exported for io_apic.c
+ */
 int apic_verbosity;
 
 /*
- * 'what should we do if we get a hw irq event on an illegal vector'.
- * each architecture has to answer this themselves.
+ * The guts of the apic timer interrupt
  */
-void ack_bad_irq(unsigned int irq)
-{
-	printk("unexpected IRQ trap at irq %02x\n", irq);
-	/*
-	 * Currently unexpected vectors happen only on SMP and APIC.
-	 * We _must_ ack these because every local APIC has only N
-	 * irq slots per priority level, and a 'hanging, unacked' IRQ
-	 * holds up an irq slot - in excessive cases (when multiple
-	 * unexpected vectors occur) that might lock up the APIC
-	 * completely.
-	 * But don't ack when the APIC is disabled. -AK
-	 */
-	if (!disable_apic)
-		ack_APIC_irq();
-}
-
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
-void smp_local_timer_interrupt(void)
+static void local_apic_timer_interrupt(void)
 {
 #ifndef CONFIG_XEN
 	int cpu = smp_processor_id();
@@ -121,10 +104,33 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	 */
 	exit_idle();
 	irq_enter();
-	smp_local_timer_interrupt();
+	local_apic_timer_interrupt();
 	irq_exit();
 	set_irq_regs(old_regs);
 }
+
+int setup_profiling_timer(unsigned int multiplier)
+{
+	return -EINVAL;
+}
+
+/*
+ * This initializes the IO-APIC and APIC hardware if this is
+ * a UP kernel.
+ */
+int __init APIC_init_uniprocessor(void)
+{
+#ifdef CONFIG_X86_IO_APIC
+	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
+		setup_IO_APIC();
+#endif
+
+	return 1;
+}
+
+/*
+ * Local APIC interrupts
+ */
 
 /*
  * This interrupt should _never_ happen with our APIC/SMP architecture
@@ -150,7 +156,6 @@ asmlinkage void smp_spurious_interrupt(void)
 /*
  * This interrupt should never happen with our APIC/SMP architecture
  */
-
 asmlinkage void smp_error_interrupt(void)
 {
 	unsigned int v, v1;
@@ -177,20 +182,4 @@ asmlinkage void smp_error_interrupt(void)
 	printk (KERN_DEBUG "APIC error on CPU%d: %02x(%02x)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
-}
-
-int disable_apic;
-
-/*
- * This initializes the IO-APIC and APIC hardware if this is
- * a UP kernel.
- */
-int __init APIC_init_uniprocessor (void)
-{
-#ifdef CONFIG_X86_IO_APIC
-	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
-		setup_IO_APIC();
-#endif
-
-	return 1;
 }

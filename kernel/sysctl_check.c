@@ -896,7 +896,7 @@ static const struct trans_ctl_table trans_bus_table[] = {
 };
 
 #ifdef CONFIG_XEN
-static struct trans_ctl_table trans_xen_table[] = {
+static const struct trans_ctl_table trans_xen_table[] = {
 	{ CTL_XEN_INDEPENDENT_WALLCLOCK,	"independent_wallclock" },
 	{ CTL_XEN_PERMITTED_CLOCK_JITTER,	"permitted_clock_jitter" },
 	{}

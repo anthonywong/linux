@@ -51,8 +51,6 @@ static inline void __prepare_arch_switch(void)
 		: : "r" (0) );
 }
 
-void leave_mm(unsigned long cpu);
-
 static inline void switch_mm(struct mm_struct *prev,
 			     struct mm_struct *next,
 			     struct task_struct *tsk)
