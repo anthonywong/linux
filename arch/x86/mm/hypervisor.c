@@ -360,31 +360,91 @@ void xen_l1_entry_update(pte_t *ptr, pte_t val)
 }
 EXPORT_SYMBOL_GPL(xen_l1_entry_update);
 
+static void do_lN_entry_update(mmu_update_t *mmu, unsigned int mmu_count,
+                               struct page *page)
+{
+	if (likely(page)) {
+		multicall_entry_t mcl[2];
+		unsigned long pfn = page_to_pfn(page);
+
+		MULTI_update_va_mapping(mcl,
+					(unsigned long)__va(pfn << PAGE_SHIFT),
+					pfn_pte(pfn, PAGE_KERNEL_RO), 0);
+		SetPagePinned(page);
+		MULTI_mmu_update(mcl + 1, mmu, mmu_count, NULL, DOMID_SELF);
+		if (unlikely(HYPERVISOR_multicall_check(mcl, 2, NULL)))
+			BUG();
+	} else if (unlikely(HYPERVISOR_mmu_update(mmu, mmu_count,
+						  NULL, DOMID_SELF) < 0))
+		BUG();
+}
+
 void xen_l2_entry_update(pmd_t *ptr, pmd_t val)
 {
 	mmu_update_t u;
+	struct page *page = NULL;
+
+	if (likely(pmd_present(val)) && likely(!pmd_large(val))
+	    && likely(mem_map)
+	    && likely(PagePinned(virt_to_page(ptr)))) {
+		page = pmd_page(val);
+		if (unlikely(PagePinned(page)))
+			page = NULL;
+		else if (PageHighMem(page)) {
+#ifdef CONFIG_HIGHPTE
+			BUG();
+#endif
+			kmap_flush_unused();
+			page = NULL;
+		}
+	}
 	u.ptr = virt_to_machine(ptr);
 	u.val = __pmd_val(val);
-	BUG_ON(HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0);
+	do_lN_entry_update(&u, 1, page);
 }
 
 #if defined(CONFIG_X86_PAE) || defined(CONFIG_X86_64)
 void xen_l3_entry_update(pud_t *ptr, pud_t val)
 {
 	mmu_update_t u;
+	struct page *page = NULL;
+
+	if (likely(pud_present(val))
+#ifdef CONFIG_X86_64
+	    && likely(!pud_large(val))
+#endif
+	    && likely(mem_map)
+	    && likely(PagePinned(virt_to_page(ptr)))) {
+		page = pud_page(val);
+		if (unlikely(PagePinned(page)))
+			page = NULL;
+	}
 	u.ptr = virt_to_machine(ptr);
 	u.val = __pud_val(val);
-	BUG_ON(HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0);
+	do_lN_entry_update(&u, 1, page);
 }
 #endif
 
 #ifdef CONFIG_X86_64
-void xen_l4_entry_update(pgd_t *ptr, pgd_t val)
+void xen_l4_entry_update(pgd_t *ptr, int user, pgd_t val)
 {
-	mmu_update_t u;
-	u.ptr = virt_to_machine(ptr);
-	u.val = __pgd_val(val);
-	BUG_ON(HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF) < 0);
+	mmu_update_t u[2];
+	struct page *page = NULL;
+
+	if (likely(pgd_present(val)) && likely(mem_map)
+	    && likely(PagePinned(virt_to_page(ptr)))) {
+		page = pgd_page(val);
+		if (unlikely(PagePinned(page)))
+			page = NULL;
+	}
+	u[0].ptr = virt_to_machine(ptr);
+	u[0].val = __pgd_val(val);
+	if (user) {
+		u[1].ptr = virt_to_machine(__user_pgd(ptr));
+		u[1].val = __pgd_val(val);
+		do_lN_entry_update(u, 2, page);
+	} else
+		do_lN_entry_update(u, 1, page);
 }
 #endif /* CONFIG_X86_64 */
 
