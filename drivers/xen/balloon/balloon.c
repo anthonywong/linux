@@ -227,7 +227,7 @@ static unsigned long current_target(void)
 	return target;
 }
 
-static unsigned long minimum_target(void)
+unsigned long balloon_minimum_target(void)
 {
 #ifndef CONFIG_XEN
 #define max_pfn num_physpages
@@ -449,7 +449,7 @@ static void balloon_process(struct work_struct *unused)
 void balloon_set_new_target(unsigned long target)
 {
 	/* No need for lock. Not read-modify-write updates. */
-	bs.target_pages = max(target, minimum_target());
+	bs.target_pages = max(target, balloon_minimum_target());
 	schedule_work(&balloon_worker);
 }
 
@@ -524,10 +524,13 @@ static int balloon_read(char *page, char **start, off_t off,
 		page,
 		"Current allocation: %8lu kB\n"
 		"Requested target:   %8lu kB\n"
+		"Minimum target:     %8lu kB\n"
+		"Maximum target:     %8lu kB\n"
 		"Low-mem balloon:    %8lu kB\n"
 		"High-mem balloon:   %8lu kB\n"
 		"Driver pages:       %8lu kB\n",
 		PAGES2KB(bs.current_pages), PAGES2KB(bs.target_pages), 
+		PAGES2KB(balloon_minimum_target()), PAGES2KB(num_physpages),
 		PAGES2KB(bs.balloon_low), PAGES2KB(bs.balloon_high),
 		PAGES2KB(bs.driver_pages));
 
