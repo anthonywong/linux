@@ -89,6 +89,17 @@ int bind_virq_to_irqhandler(
 	unsigned long irqflags,
 	const char *devname,
 	void *dev_id);
+#if defined(CONFIG_SMP) && defined(CONFIG_XEN) && defined(CONFIG_X86)
+int bind_virq_to_irqaction(
+	unsigned int virq,
+	unsigned int cpu,
+	struct irqaction *action);
+#else
+#define bind_virq_to_irqaction(virq, cpu, action) \
+	bind_virq_to_irqhandler(virq, cpu, (action)->handler, \
+			 	(action)->flags | IRQF_NOBALANCING, \
+				(action)->name, action)
+#endif
 #if defined(CONFIG_SMP) && !defined(MODULE)
 #ifndef CONFIG_X86
 int bind_ipi_to_irqhandler(
@@ -113,9 +124,13 @@ int bind_ipi_to_irqaction(
  */
 void unbind_from_irqhandler(unsigned int irq, void *dev_id);
 
-#if defined(CONFIG_SMP) && !defined(MODULE) && defined(CONFIG_X86)
+#if defined(CONFIG_SMP) && defined(CONFIG_XEN) && defined(CONFIG_X86)
 /* Specialized unbind function for per-CPU IRQs. */
-void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu);
+void unbind_from_per_cpu_irq(unsigned int irq, unsigned int cpu,
+			     struct irqaction *);
+#else
+#define unbind_from_per_cpu_irq(irq, cpu, action) \
+	unbind_from_irqhandler(irq, action)
 #endif
 
 #ifndef CONFIG_XEN
