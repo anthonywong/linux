@@ -134,7 +134,7 @@ static void __init __e820_add_region(struct e820map *e820x, u64 start, u64 size,
 {
 	int x = e820x->nr_map;
 
-	if (x == ARRAY_SIZE(e820x->map)) {
+	if (x >= ARRAY_SIZE(e820x->map)) {
 		printk(KERN_ERR "Ooops! Too many entries in the memory map!\n");
 		return;
 	}
@@ -1455,7 +1455,7 @@ void __init e820_reserve_resources(void)
 	struct resource *res;
 	u64 end;
 
-	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
+	res = alloc_bootmem(sizeof(struct resource) * e820.nr_map);
 	e820_res = res;
 	for (i = 0; i < e820.nr_map; i++) {
 		end = e820.map[i].addr + e820.map[i].size - 1;
@@ -1502,8 +1502,8 @@ static unsigned long ram_alignment(resource_size_t pos)
 	if (mb < 16)
 		return 1024*1024;
 
-	/* To 32MB for anything above that */
-	return 32*1024*1024;
+	/* To 64MB for anything above that */
+	return 64*1024*1024;
 }
 
 #define MAX_RESOURCE_SIZE ((resource_size_t)-1)
@@ -1543,58 +1543,7 @@ void __init e820_reserve_resources_late(void)
 
 #undef e820
 
-#ifndef CONFIG_XEN
 char *__init default_machine_specific_memory_setup(void)
-{
-	char *who = "BIOS-e820";
-	u32 new_nr;
-	/*
-	 * Try to copy the BIOS-supplied E820-map.
-	 *
-	 * Otherwise fake a memory map; one section from 0k->640k,
-	 * the next section from 1mb->appropriate_mem_k
-	 */
-	new_nr = boot_params.e820_entries;
-	sanitize_e820_map(boot_params.e820_map,
-			ARRAY_SIZE(boot_params.e820_map),
-			&new_nr);
-	boot_params.e820_entries = new_nr;
-	if (append_e820_map(boot_params.e820_map, boot_params.e820_entries)
-	  < 0) {
-		u64 mem_size;
-
-		/* compare results from other methods and take the greater */
-		if (boot_params.alt_mem_k
-		    < boot_params.screen_info.ext_mem_k) {
-			mem_size = boot_params.screen_info.ext_mem_k;
-			who = "BIOS-88";
-		} else {
-			mem_size = boot_params.alt_mem_k;
-			who = "BIOS-e801";
-		}
-
-		e820.nr_map = 0;
-		e820_add_region(0, LOWMEMSIZE(), E820_RAM);
-		e820_add_region(HIGH_MEMORY, mem_size << 10, E820_RAM);
-	}
-
-	/* In case someone cares... */
-	return who;
-}
-
-char *__init __attribute__((weak)) machine_specific_memory_setup(void)
-{
-	if (x86_quirks->arch_memory_setup) {
-		char *who = x86_quirks->arch_memory_setup();
-
-		if (who)
-			return who;
-	}
-	return default_machine_specific_memory_setup();
-}
-#endif
-
-static char * __init _memory_setup(void)
 {
 	int rc, nr_map;
 	struct xen_memory_map memmap;
@@ -1643,7 +1592,7 @@ void __init setup_memory_map(void)
 {
 	char *who;
 
-	who = _memory_setup();
+	who = x86_init.resources.memory_setup();
 #ifdef CONFIG_XEN
 	if (is_initial_xendomain()) {
 		printk(KERN_INFO "Xen-provided machine memory map:\n");
