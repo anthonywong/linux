@@ -113,7 +113,7 @@ bend_dl_tx_packet(struct efx_dl_device *efx_dl_dev,
 	BUG_ON(port == NULL);
 
 	NETBACK_ACCEL_STATS_OP(global_stats.dl_tx_packets++);
-	if (skb->mac.raw != NULL)
+	if (skb_mac_header_was_set(skb))
 		netback_accel_tx_packet(skb, port->fwd_priv);
 	else {
 		DPRINTK("Ignoring packet with missing mac address\n");
