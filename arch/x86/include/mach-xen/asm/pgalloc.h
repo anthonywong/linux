@@ -70,20 +70,16 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 				struct page *pte)
 {
 	unsigned long pfn = page_to_pfn(pte);
+	pmd_t ent = __pmd(((pmdval_t)pfn << PAGE_SHIFT) | _PAGE_TABLE);
 
 	paravirt_alloc_pte(mm, pfn);
-	if (PagePinned(virt_to_page(mm->pgd))) {
-		if (!PageHighMem(pte))
-			BUG_ON(HYPERVISOR_update_va_mapping(
-			  (unsigned long)__va(pfn << PAGE_SHIFT),
-			  pfn_pte(pfn, PAGE_KERNEL_RO), 0));
-#ifndef CONFIG_X86_64
-		else if (!TestSetPagePinned(pte))
-			kmap_flush_unused();
+	if (PagePinned(virt_to_page(pmd))) {
+#ifndef CONFIG_HIGHPTE
+		BUG_ON(PageHighMem(pte));
 #endif
-		set_pmd(pmd, __pmd(((pmdval_t)pfn << PAGE_SHIFT) | _PAGE_TABLE));
+		set_pmd(pmd, ent);
 	} else
-		*pmd = __pmd(((pmdval_t)pfn << PAGE_SHIFT) | _PAGE_TABLE);
+		*pmd = ent;
 }
 
 #define pmd_pgtable(pmd) pmd_page(pmd)
@@ -111,39 +107,28 @@ extern void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd);
 #else	/* !CONFIG_X86_PAE */
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
+	pud_t ent = __pud(_PAGE_TABLE | __pa(pmd));
+
 	paravirt_alloc_pmd(mm, __pa(pmd) >> PAGE_SHIFT);
-	if (unlikely(PagePinned(virt_to_page((mm)->pgd)))) {
-		BUG_ON(HYPERVISOR_update_va_mapping(
-			       (unsigned long)pmd,
-			       pfn_pte(virt_to_phys(pmd)>>PAGE_SHIFT,
-				       PAGE_KERNEL_RO), 0));
-		set_pud(pud, __pud(_PAGE_TABLE | __pa(pmd)));
-	} else
-		*pud =  __pud(_PAGE_TABLE | __pa(pmd));
+	if (PagePinned(virt_to_page(pud)))
+		set_pud(pud, ent);
+	else
+		*pud = ent;
 }
 #endif	/* CONFIG_X86_PAE */
 
 #if PAGETABLE_LEVELS > 3
 #define __user_pgd(pgd) ((pgd) + PTRS_PER_PGD)
 
-/*
- * We need to use the batch mode here, but pgd_pupulate() won't be
- * be called frequently.
- */
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {
+	pgd_t ent = __pgd(_PAGE_TABLE | __pa(pud));
+
 	paravirt_alloc_pud(mm, __pa(pud) >> PAGE_SHIFT);
-	if (unlikely(PagePinned(virt_to_page((mm)->pgd)))) {
-		BUG_ON(HYPERVISOR_update_va_mapping(
-			       (unsigned long)pud,
-			       pfn_pte(virt_to_phys(pud)>>PAGE_SHIFT,
-				       PAGE_KERNEL_RO), 0));
-		set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(pud)));
-		set_pgd(__user_pgd(pgd), __pgd(_PAGE_TABLE | __pa(pud)));
-	} else {
-		*(pgd) =  __pgd(_PAGE_TABLE | __pa(pud));
-		*__user_pgd(pgd) = *(pgd);
-	}
+	if (unlikely(PagePinned(virt_to_page(pgd))))
+		xen_l4_entry_update(pgd, 1, ent);
+	else
+		*__user_pgd(pgd) = *pgd = ent;
 }
 
 static inline pud_t *pud_alloc_one(struct mm_struct *mm, unsigned long addr)
