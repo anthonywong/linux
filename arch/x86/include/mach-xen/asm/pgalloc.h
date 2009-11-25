@@ -118,15 +118,13 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 #endif	/* CONFIG_X86_PAE */
 
 #if PAGETABLE_LEVELS > 3
-#define __user_pgd(pgd) ((pgd) + PTRS_PER_PGD)
-
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {
 	pgd_t ent = __pgd(_PAGE_TABLE | __pa(pud));
 
 	paravirt_alloc_pud(mm, __pa(pud) >> PAGE_SHIFT);
 	if (unlikely(PagePinned(virt_to_page(pgd))))
-		xen_l4_entry_update(pgd, 1, ent);
+		xen_l4_entry_update(pgd, ent);
 	else
 		*__user_pgd(pgd) = *pgd = ent;
 }
