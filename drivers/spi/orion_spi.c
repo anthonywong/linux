@@ -399,7 +399,7 @@ msg_done:
 	spin_unlock_irq(&orion_spi->lock);
 }
 
-static int __init orion_spi_reset(struct orion_spi *orion_spi)
+static int orion_spi_reset(struct orion_spi *orion_spi)
 {
 	/* Verify that the CS is deasserted */
 	orion_spi_set_cs(orion_spi, 0);
