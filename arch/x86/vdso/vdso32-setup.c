@@ -26,6 +26,10 @@
 #include <asm/vdso.h>
 #include <asm/proto.h>
 
+#ifdef CONFIG_XEN
+#include <xen/interface/callback.h>
+#endif
+
 enum {
 	VDSO_DISABLED = 0,
 	VDSO_ENABLED = 1,
@@ -225,6 +229,7 @@ static inline void map_compat_vdso(int map)
 
 void enable_sep_cpu(void)
 {
+#ifndef CONFIG_XEN
 	int cpu = get_cpu();
 	struct tss_struct *tss = &per_cpu(init_tss, cpu);
 
@@ -239,6 +244,35 @@ void enable_sep_cpu(void)
 	wrmsr(MSR_IA32_SYSENTER_ESP, tss->x86_tss.sp1, 0);
 	wrmsr(MSR_IA32_SYSENTER_EIP, (unsigned long) ia32_sysenter_target, 0);
 	put_cpu();	
+#else
+	extern asmlinkage void ia32pv_sysenter_target(void);
+	static struct callback_register sysenter = {
+		.type = CALLBACKTYPE_sysenter,
+		.address = { __KERNEL_CS, (unsigned long)ia32pv_sysenter_target },
+	};
+
+	if (!boot_cpu_has(X86_FEATURE_SEP))
+		return;
+
+	get_cpu();
+
+	if (xen_feature(XENFEAT_supervisor_mode_kernel))
+		sysenter.address.eip = (unsigned long)ia32_sysenter_target;
+
+	switch (HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter)) {
+	case 0:
+		break;
+#if CONFIG_XEN_COMPAT < 0x030200
+	case -ENOSYS:
+		sysenter.type = CALLBACKTYPE_sysenter_deprecated;
+		if (HYPERVISOR_callback_op(CALLBACKOP_register, &sysenter) == 0)
+			break;
+#endif
+	default:
+		clear_bit(X86_FEATURE_SEP, boot_cpu_data.x86_capability);
+		break;
+	}
+#endif
 }
 
 static struct vm_area_struct gate_vma;
