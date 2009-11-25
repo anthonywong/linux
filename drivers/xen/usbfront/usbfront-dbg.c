@@ -90,7 +90,9 @@ static CLASS_DEVICE_ATTR(statistics, S_IRUGO, show_statistics, NULL);
 static inline void create_debug_file(struct usbfront_info *info)
 {
 	struct class_device *cldev = info_to_hcd(info)->self.class_dev;
-	class_device_create_file(cldev, &class_device_attr_statistics);
+	if (class_device_create_file(cldev, &class_device_attr_statistics))
+		printk(KERN_WARNING "statistics file not created for %s\n",
+		       info_to_hcd(info)->self.bus_name);
 }
 
 static inline void remove_debug_file(struct usbfront_info *info)
