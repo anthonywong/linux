@@ -1233,6 +1233,7 @@ static void io_destroy(struct kioctx *ioctx)
 #ifdef CONFIG_EPOLL
 	/* forget the poll file, but it's up to the user to close it */
 	if (ioctx->file) {
+		fput(ioctx->file);
 		ioctx->file->private_data = 0;
 		ioctx->file = 0;
 	}
@@ -1257,6 +1258,7 @@ static int aio_queue_fd_close(struct inode *inode, struct file *file)
 		spin_lock_irq(&ioctx->ctx_lock);
 		ioctx->file = 0;
 		spin_unlock_irq(&ioctx->ctx_lock);
+		fput(file);
 	}
 	return 0;
 }
@@ -1292,16 +1294,17 @@ static const struct file_operations aioq_fops = {
 
 static int make_aio_fd(struct kioctx *ioctx)
 {
-	int error, fd;
-	struct inode *inode;
+	int fd;
 	struct file *file;
 
-	error = anon_inode_getfd(&fd, &inode, &file, "[aioq]",
-				 &aioq_fops, ioctx);
-	if (error)
-		return error;
+	fd = anon_inode_getfd("[aioq]", &aioq_fops, ioctx);
+	if (fd < 0)
+		return fd;
 
 	/* associate the file with the IO context */
+	file = fget(fd);
+	if (!file)
+		return -EBADF;
 	file->private_data = ioctx;
 	ioctx->file = file;
 	init_waitqueue_head(&ioctx->poll_wait);

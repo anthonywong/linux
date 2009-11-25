@@ -1,13 +1,17 @@
-obj-$(CONFIG_PARAVIRT_XEN)	+= grant-table.o
+obj-$(CONFIG_PARAVIRT_XEN)	+= grant-table.o features.o events.o
+xen-xencomm-$(CONFIG_PARAVIRT_XEN) := xencomm.o
+xen-balloon-$(CONFIG_PARAVIRT_XEN) := balloon.o
 
+xen-balloon-$(CONFIG_XEN)	:= balloon/
 obj-$(CONFIG_XEN)		+= core/
 obj-$(CONFIG_XEN)		+= console/
 obj-$(CONFIG_XEN)		+= evtchn/
 obj-y				+= xenbus/
 obj-$(CONFIG_XEN)		+= char/
 
-obj-$(CONFIG_XEN)		+= util.o
-obj-$(CONFIG_XEN_BALLOON)		+= balloon/
+obj-$(CONFIG_XEN)		+= features.o util.o
+obj-$(CONFIG_XEN_XENCOMM)	+= $(xen-xencomm-y)
+obj-$(CONFIG_XEN_BALLOON)	+= $(xen-balloon-y)
 obj-$(CONFIG_XEN_BLKDEV_BACKEND)	+= blkback/
 obj-$(CONFIG_XEN_BLKDEV_TAP)		+= blktap/
 obj-$(CONFIG_XEN_BLKDEV_TAP2)           += blktap2/

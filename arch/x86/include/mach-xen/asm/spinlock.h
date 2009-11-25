@@ -88,7 +88,7 @@ extern void xen_spin_kick(raw_spinlock_t *, unsigned int token);
 	    : "memory", "cc")
 
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp, new;
 
@@ -107,7 +107,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	unsigned int token;
 	unsigned char kick;
@@ -155,7 +155,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 		    : "memory", "cc"); \
 	} while (0)
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp;
 	int new;
@@ -177,7 +177,7 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 {
 	unsigned int token, tmp;
 	bool kick;
@@ -197,19 +197,19 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
 
 static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
 {
-	int tmp = *(volatile signed int *)(&(lock)->slock);
+	int tmp = ACCESS_ONCE(lock->slock);
 
 	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & ((1 << TICKET_SHIFT) - 1));
 }
 
 static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
 {
-	int tmp = *(volatile signed int *)(&(lock)->slock);
+	int tmp = ACCESS_ONCE(lock->slock);
 
 	return (((tmp >> TICKET_SHIFT) - tmp) & ((1 << TICKET_SHIFT) - 1)) > 1;
 }
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
 {
 	unsigned int token, count;
 	bool free;
@@ -224,8 +224,8 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	} while (unlikely(!count) && !xen_spin_wait(lock, token));
 }
 
-static inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
-					 unsigned long flags)
+static __always_inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
+						  unsigned long flags)
 {
 	unsigned int token, count;
 	bool free;

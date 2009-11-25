@@ -31,9 +31,12 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef __ASM_BALLOON_H__
-#define __ASM_BALLOON_H__
+#ifndef __XEN_BALLOON_H__
+#define __XEN_BALLOON_H__
 
+#include <linux/spinlock.h>
+
+#if !defined(CONFIG_PARAVIRT_XEN) || defined(HAVE_XEN_PLATFORM_COMPAT_H)
 /*
  * Inform the balloon driver that it should allow some slop for device-driver
  * memory activities.
@@ -53,5 +56,6 @@ void balloon_release_driver_page(struct page *page);
 extern spinlock_t balloon_lock;
 #define balloon_lock(__flags)   spin_lock_irqsave(&balloon_lock, __flags)
 #define balloon_unlock(__flags) spin_unlock_irqrestore(&balloon_lock, __flags)
+#endif
 
-#endif /* __ASM_BALLOON_H__ */
+#endif /* __XEN_BALLOON_H__ */
