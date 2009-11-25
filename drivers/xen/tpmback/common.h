@@ -61,7 +61,7 @@ void tpmif_deschedule_work(tpmif_t * tpmif);
 void tpmif_xenbus_init(void);
 void tpmif_xenbus_exit(void);
 int tpmif_map(tpmif_t *tpmif, unsigned long shared_page, unsigned int evtchn);
-irqreturn_t tpmif_be_int(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t tpmif_be_int(int irq, void *dev_id);
 
 long int tpmback_get_instance(struct backend_info *bi);
 

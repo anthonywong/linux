@@ -110,8 +110,7 @@ dma_map_sg(struct device *hwdev, struct scatterlist *sg, int nents,
 {
 	int i, rc;
 
-	if (direction == DMA_NONE)
-		BUG();
+	BUG_ON(!valid_dma_direction(direction));
 	WARN_ON(nents == 0 || sg[0].length == 0);
 
 	if (swiotlb) {
@@ -142,7 +141,7 @@ dma_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nents,
 {
 	int i;
 
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 	if (swiotlb)
 		swiotlb_unmap_sg(hwdev, sg, nents, direction);
 	else {
@@ -159,8 +158,7 @@ dma_map_page(struct device *dev, struct page *page, unsigned long offset,
 {
 	dma_addr_t dma_addr;
 
-	BUG_ON(direction == DMA_NONE);
-
+	BUG_ON(!valid_dma_direction(direction));
 	if (swiotlb) {
 		dma_addr = swiotlb_map_page(
 			dev, page, offset, size, direction);
@@ -177,7 +175,7 @@ void
 dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 	       enum dma_data_direction direction)
 {
-	BUG_ON(direction == DMA_NONE);
+	BUG_ON(!valid_dma_direction(direction));
 	if (swiotlb)
 		swiotlb_unmap_page(dev, dma_address, size, direction);
 	else
@@ -356,8 +354,7 @@ dma_map_single(struct device *dev, void *ptr, size_t size,
 {
 	dma_addr_t dma;
 
-	if (direction == DMA_NONE)
-		BUG();
+	BUG_ON(!valid_dma_direction(direction));
 	WARN_ON(size == 0);
 
 	if (swiotlb) {
@@ -378,8 +375,7 @@ void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 enum dma_data_direction direction)
 {
-	if (direction == DMA_NONE)
-		BUG();
+	BUG_ON(!valid_dma_direction(direction));
 	if (swiotlb)
 		swiotlb_unmap_single(dev, dma_addr, size, direction);
 	else

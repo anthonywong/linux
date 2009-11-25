@@ -113,7 +113,7 @@ void tap_blkif_interface_init(void);
 
 void tap_blkif_xenbus_init(void);
 
-irqreturn_t tap_blkif_be_int(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t tap_blkif_be_int(int irq, void *dev_id);
 int tap_blkif_schedule(void *arg);
 
 int dom_to_devid(domid_t domid, int xenbus_id, blkif_t *blkif);

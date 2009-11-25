@@ -203,7 +203,7 @@ void netif_deschedule_work(netif_t *netif);
 
 int netif_be_start_xmit(struct sk_buff *skb, struct net_device *dev);
 struct net_device_stats *netif_be_get_stats(struct net_device *dev);
-irqreturn_t netif_be_int(int irq, void *dev_id, struct pt_regs *regs);
+irqreturn_t netif_be_int(int irq, void *dev_id);
 
 static inline int netbk_can_queue(struct net_device *dev)
 {

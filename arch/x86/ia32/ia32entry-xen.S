@@ -83,6 +83,7 @@
  */ 	
 ENTRY(ia32_sysenter_target)
 	CFI_STARTPROC32	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-RIP+16
 	/*CFI_REL_OFFSET	ss,SS-RIP+16*/
 	CFI_REL_OFFSET	rsp,RSP-RIP+16
@@ -164,6 +165,7 @@ ENDPROC(ia32_sysenter_target)
  */ 	
 ENTRY(ia32_cstar_target)
 	CFI_STARTPROC32	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-RIP+16
 	/*CFI_REL_OFFSET	ss,SS-RIP+16*/
 	CFI_REL_OFFSET	rsp,RSP-RIP+16
@@ -243,6 +245,7 @@ ia32_badarg:
 
 ENTRY(ia32_syscall)
 	CFI_STARTPROC	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-RIP+16
 	/*CFI_REL_OFFSET	ss,SS-RIP+16*/
 	CFI_REL_OFFSET	rsp,RSP-RIP+16
@@ -320,6 +323,7 @@ ENTRY(ia32_ptregs_common)
 	popq %r11
 	CFI_ENDPROC
 	CFI_STARTPROC32	simple
+	CFI_SIGNAL_FRAME
 	CFI_DEF_CFA	rsp,SS+8-ARGOFFSET
 	CFI_REL_OFFSET	rax,RAX-ARGOFFSET
 	CFI_REL_OFFSET	rcx,RCX-ARGOFFSET
@@ -653,8 +657,8 @@ ia32_sys_call_table:
 	.quad sys_readlinkat		/* 305 */
 	.quad sys_fchmodat
 	.quad sys_faccessat
-	.quad quiet_ni_syscall		/* pselect6 for now */
-	.quad quiet_ni_syscall		/* ppoll for now */
+	.quad compat_sys_pselect6
+	.quad compat_sys_ppoll
 	.quad sys_unshare		/* 310 */
 	.quad compat_sys_set_robust_list
 	.quad compat_sys_get_robust_list
@@ -663,4 +667,5 @@ ia32_sys_call_table:
 	.quad sys_tee
 	.quad compat_sys_vmsplice
 	.quad compat_sys_move_pages
+	.quad sys_getcpu
 ia32_syscall_end:		
