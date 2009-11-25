@@ -29,6 +29,10 @@ void __init xen_machine_kexec_setup_resources(void)
 	int k = 0;
 	int rc;
 
+	if (strstr(boot_command_line, "crashkernel="))
+		printk(KERN_WARNING "Ignoring crashkernel command line, "
+		       "parameter will be supplied by xen\n");
+
 	if (!is_initial_xendomain())
 		return;
 
@@ -130,6 +134,13 @@ void __init xen_machine_kexec_setup_resources(void)
 					  xen_max_nr_phys_cpus))
 		goto err;
 
+#ifdef CONFIG_X86
+	if (xen_create_contiguous_region((unsigned long)&vmcoreinfo_note,
+					 get_order(sizeof(vmcoreinfo_note)),
+					 BITS_PER_LONG))
+		goto err;
+#endif
+
 	return;
 
  err:
@@ -212,6 +223,13 @@ NORET_TYPE void machine_kexec(struct kimage *image)
 	VOID(HYPERVISOR_kexec_op(KEXEC_CMD_kexec, &xke));
 	panic("KEXEC_CMD_kexec hypercall should not return\n");
 }
+
+#ifdef CONFIG_X86
+unsigned long paddr_vmcoreinfo_note(void)
+{
+	return virt_to_machine(&vmcoreinfo_note);
+}
+#endif
 
 void machine_shutdown(void)
 {

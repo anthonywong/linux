@@ -9,7 +9,7 @@
  * the x86-64 page table tree.
  */
 #include <asm/processor.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/threads.h>
 #include <linux/sched.h>
 #include <asm/pda.h>
@@ -139,6 +139,7 @@ static inline void pgd_clear (pgd_t * pgd)
 #define MAXMEM		 _AC(0x6fffffffff, UL)
 #define VMALLOC_START    _AC(0xffffc20000000000, UL)
 #define VMALLOC_END      _AC(0xffffe1ffffffffff, UL)
+#define VMEMMAP_START	 _AC(0xffffe20000000000, UL)
 #define MODULES_VADDR    _AC(0xffffffff88000000, UL)
 #define MODULES_END      _AC(0xffffffffff000000, UL)
 #define MODULES_LEN   (MODULES_END - MODULES_VADDR)
