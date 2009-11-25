@@ -49,8 +49,8 @@
 
 static int xenbus_irq;
 
-extern void xenbus_probe(void *);
-static DECLARE_WORK(probe_work, xenbus_probe, NULL);
+extern void xenbus_probe(struct work_struct *);
+static DECLARE_WORK(probe_work, xenbus_probe);
 
 static DECLARE_WAIT_QUEUE_HEAD(xb_waitq);
 
