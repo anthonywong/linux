@@ -181,10 +181,11 @@ int netback_accel_fwd_add(const __u8 *mac, void *context, void *fwd_priv)
 	unsigned long flags;
 	cuckoo_hash_mac_key key = cuckoo_mac_to_key(mac);
 	struct port_fwd *fwd_set = (struct port_fwd *)fwd_priv;
+	DECLARE_MAC_BUF(buf);
 
 	BUG_ON(fwd_priv == NULL);
 
-	DPRINTK("Adding mac " MAC_FMT "\n", MAC_ARG(mac));
+	DPRINTK("Adding mac %s\n", print_mac(buf, mac));
        
 	spin_lock_irqsave(&fwd_set->fwd_lock, flags);
 	
@@ -199,8 +200,8 @@ int netback_accel_fwd_add(const __u8 *mac, void *context, void *fwd_priv)
 	if (cuckoo_hash_lookup(&fwd_set->fwd_hash_table,
 			       (cuckoo_hash_key *)(&key), &rc) != 0) {
 		spin_unlock_irqrestore(&fwd_set->fwd_lock, flags);
-		EPRINTK("MAC address " MAC_FMT " already accelerated.\n",
-			MAC_ARG(mac));
+		EPRINTK("MAC address %s already accelerated.\n",
+			print_mac(buf, mac));
 		return -EEXIST;
 	}
 
@@ -235,8 +236,9 @@ void netback_accel_fwd_remove(const __u8 *mac, void *fwd_priv)
 	unsigned long flags;
 	cuckoo_hash_mac_key key = cuckoo_mac_to_key(mac);
 	struct port_fwd *fwd_set = (struct port_fwd *)fwd_priv;
+	DECLARE_MAC_BUF(buf);
 
-	DPRINTK("Removing mac " MAC_FMT "\n", MAC_ARG(mac));
+	DPRINTK("Removing mac %s\n", print_mac(buf, mac));
 
 	BUG_ON(fwd_priv == NULL);
 
@@ -394,14 +396,16 @@ void netback_accel_tx_packet(struct sk_buff *skb, void *fwd_priv)
 
 	if (is_broadcast_ether_addr(skb_mac_header(skb))
 	    && packet_is_arp_reply(skb)) {
+		DECLARE_MAC_BUF(buf);
+
 		/*
 		 * update our fast path forwarding to reflect this
 		 * gratuitous ARP
 		 */ 
 		mac = skb_mac_header(skb)+ETH_ALEN;
 
-		DPRINTK("%s: found gratuitous ARP for " MAC_FMT "\n",
-			__FUNCTION__, MAC_ARG(mac));
+		DPRINTK("%s: found gratuitous ARP for %s\n",
+			__FUNCTION__, print_mac(buf, mac));
 
 		spin_lock_irqsave(&fwd_set->fwd_lock, flags);
 		/*

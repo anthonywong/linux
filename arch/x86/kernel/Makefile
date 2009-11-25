@@ -143,4 +143,4 @@ endif
 disabled-obj-$(CONFIG_XEN) := early-quirks.o hpet.o i8253.o i8259_$(BITS).o reboot.o \
 	smpboot_$(BITS).o tsc_$(BITS).o tsc_sync.o
 disabled-obj-$(CONFIG_XEN_UNPRIVILEGED_GUEST) += mpparse_64.o
-%/head_64.o %/head_64.s: $(if $(CONFIG_XEN),EXTRA_AFLAGS,dummy) :=
+%/head_64.o %/head_64.s: asflags-$(CONFIG_XEN) :=

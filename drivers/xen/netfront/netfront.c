@@ -626,6 +626,7 @@ static int network_open(struct net_device *dev)
 	struct netfront_info *np = netdev_priv(dev);
 
 	memset(&np->stats, 0, sizeof(np->stats));
+	napi_enable(&np->napi);
 
 	spin_lock_bh(&np->rx_lock);
 	if (netfront_carrier_ok(np)) {
@@ -634,7 +635,7 @@ static int network_open(struct net_device *dev)
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx)){
 			netfront_accelerator_call_stop_napi_irq(np, dev);
 
-			netif_rx_schedule(dev);
+			netif_rx_schedule(dev, &np->napi);
 		}
 	}
 	spin_unlock_bh(&np->rx_lock);
@@ -706,7 +707,7 @@ static void rx_refill_timeout(unsigned long data)
 
 	netfront_accelerator_call_stop_napi_irq(np, dev);
 
-	netif_rx_schedule(dev);
+	netif_rx_schedule(dev, &np->napi);
 }
 
 static void network_alloc_rx_buffers(struct net_device *dev)
@@ -1063,7 +1064,7 @@ static irqreturn_t netif_int(int irq, void *dev_id)
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx)) {
 			netfront_accelerator_call_stop_napi_irq(np, dev);
 
-			netif_rx_schedule(dev);
+			netif_rx_schedule(dev, &np->napi);
 			dev->last_rx = jiffies;
 		}
 	}
@@ -1316,16 +1317,17 @@ static int xennet_set_skb_gso(struct sk_buff *skb,
 #endif
 }
 
-static int netif_poll(struct net_device *dev, int *pbudget)
+static int netif_poll(struct napi_struct *napi, int budget)
 {
-	struct netfront_info *np = netdev_priv(dev);
+	struct netfront_info *np = container_of(napi, struct netfront_info, napi);
+	struct net_device *dev = np->netdev;
 	struct sk_buff *skb;
 	struct netfront_rx_info rinfo;
 	struct netif_rx_response *rx = &rinfo.rx;
 	struct netif_extra_info *extras = rinfo.extras;
 	RING_IDX i, rp;
 	struct multicall_entry *mcl;
-	int work_done, budget, more_to_do = 1, accel_more_to_do = 1;
+	int work_done, more_to_do = 1, accel_more_to_do = 1;
 	struct sk_buff_head rxq;
 	struct sk_buff_head errq;
 	struct sk_buff_head tmpq;
@@ -1345,8 +1347,6 @@ static int netif_poll(struct net_device *dev, int *pbudget)
 	skb_queue_head_init(&errq);
 	skb_queue_head_init(&tmpq);
 
-	if ((budget = *pbudget) > dev->quota)
-		budget = dev->quota;
 	rp = np->rx.sring->rsp_prod;
 	rmb(); /* Ensure we see queued responses up to 'rp'. */
 
@@ -1508,9 +1508,6 @@ err:
 			accel_more_to_do = 0;
 	}
 
-	*pbudget   -= work_done;
-	dev->quota -= work_done;
-
 	if (work_done < budget) {
 		local_irq_save(flags);
 
@@ -1527,14 +1524,14 @@ err:
 		}
 
 		if (!more_to_do && !accel_more_to_do)
-			__netif_rx_complete(dev);
+			__netif_rx_complete(dev, napi);
 
 		local_irq_restore(flags);
 	}
 
 	spin_unlock(&np->rx_lock);
 	
-	return more_to_do | accel_more_to_do;
+	return work_done;
 }
 
 static void netif_release_tx_bufs(struct netfront_info *np)
@@ -1681,6 +1678,7 @@ static int network_close(struct net_device *dev)
 {
 	struct netfront_info *np = netdev_priv(dev);
 	netif_stop_queue(np->netdev);
+	napi_disable(&np->napi);
 	return 0;
 }
 
@@ -2088,16 +2086,14 @@ static struct net_device * __devinit create_netdev(struct xenbus_device *dev)
 	netdev->hard_start_xmit = network_start_xmit;
 	netdev->stop            = network_close;
 	netdev->get_stats       = network_get_stats;
-	netdev->poll            = netif_poll;
+	netif_napi_add(netdev, &np->napi, netif_poll, 64);
 	netdev->set_multicast_list = network_set_multicast_list;
 	netdev->uninit          = netif_uninit;
 	netdev->set_mac_address	= xennet_set_mac_address;
 	netdev->change_mtu	= xennet_change_mtu;
-	netdev->weight          = 64;
 	netdev->features        = NETIF_F_IP_CSUM;
 
 	SET_ETHTOOL_OPS(netdev, &network_ethtool_ops);
-	SET_MODULE_OWNER(netdev);
 	SET_NETDEV_DEV(netdev, &dev->dev);
 
 	np->netdev = netdev;
