@@ -1814,12 +1814,17 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 inline int skb_checksum_setup(struct sk_buff *skb)
 {
 	if (skb->proto_csum_blank) {
+		struct iphdr *iph;
+		unsigned char *th;
+
 		if (skb->protocol != htons(ETH_P_IP))
 			goto out;
-		skb->h.raw = (unsigned char *)skb->nh.iph + 4*skb->nh.iph->ihl;
-		if (skb->h.raw >= skb->tail)
+		iph = ip_hdr(skb);
+		th = skb_network_header(skb) + 4 * iph->ihl;
+		if (th >= skb_tail_pointer(skb))
 			goto out;
-		switch (skb->nh.iph->protocol) {
+		skb->csum_start = th - skb->head;
+		switch (iph->protocol) {
 		case IPPROTO_TCP:
 			skb->csum_offset = offsetof(struct tcphdr, check);
 			break;
@@ -1830,10 +1835,10 @@ inline int skb_checksum_setup(struct sk_buff *skb)
 			if (net_ratelimit())
 				printk(KERN_ERR "Attempting to checksum a non-"
 				       "TCP/UDP packet, dropping a protocol"
-				       " %d packet", skb->nh.iph->protocol);
+				       " %d packet", iph->protocol);
 			goto out;
 		}
-		if ((skb->h.raw + skb->csum_offset + 2) > skb->tail)
+		if ((th + skb->csum_offset + 2) > skb_tail_pointer(skb))
 			goto out;
 		skb->ip_summed = CHECKSUM_PARTIAL;
 		skb->proto_csum_blank = 0;

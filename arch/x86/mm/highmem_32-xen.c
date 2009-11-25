@@ -26,7 +26,7 @@ void kunmap(struct page *page)
  * However when holding an atomic kmap is is not legal to sleep, so atomic
  * kmaps are appropriate for short, tight code paths only.
  */
-static void *__kmap_atomic(struct page *page, enum km_type type, pgprot_t prot)
+void *kmap_atomic_prot(struct page *page, enum km_type type, pgprot_t prot)
 {
 	enum fixed_addresses idx;
 	unsigned long vaddr;
@@ -49,15 +49,7 @@ static void *__kmap_atomic(struct page *page, enum km_type type, pgprot_t prot)
 
 void *kmap_atomic(struct page *page, enum km_type type)
 {
-	return __kmap_atomic(page, type, kmap_prot);
-}
-
-/* Same as kmap_atomic but with PAGE_KERNEL_RO page protection. */
-void *kmap_atomic_pte(struct page *page, enum km_type type)
-{
-	return __kmap_atomic(page, type,
-	                     test_bit(PG_pinned, &page->flags)
-	                     ? PAGE_KERNEL_RO : kmap_prot);
+	return kmap_atomic_prot(page, type, kmap_prot);
 }
 
 void kunmap_atomic(void *kvaddr, enum km_type type)
@@ -80,6 +72,7 @@ void kunmap_atomic(void *kvaddr, enum km_type type)
 #endif
 	}
 
+	/*arch_flush_lazy_mmu_mode();*/
 	pagefault_enable();
 }
 
@@ -162,7 +155,6 @@ void copy_highpage(struct page *to, struct page *from)
 EXPORT_SYMBOL(kmap);
 EXPORT_SYMBOL(kunmap);
 EXPORT_SYMBOL(kmap_atomic);
-EXPORT_SYMBOL(kmap_atomic_pte);
 EXPORT_SYMBOL(kunmap_atomic);
 EXPORT_SYMBOL(kmap_atomic_to_page);
 EXPORT_SYMBOL(clear_highpage);

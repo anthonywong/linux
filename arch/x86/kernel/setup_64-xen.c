@@ -120,6 +120,8 @@ int bootloader_type;
 
 unsigned long saved_video_mode;
 
+int force_mwait __cpuinitdata;
+
 /* 
  * Early DMI memory
  */
@@ -254,10 +256,10 @@ static void discover_ebda(void)
 	 * there is a real-mode segmented pointer pointing to the 
 	 * 4K EBDA area at 0x40E
 	 */
-	ebda_addr = *(unsigned short *)EBDA_ADDR_POINTER;
+	ebda_addr = *(unsigned short *)__va(EBDA_ADDR_POINTER);
 	ebda_addr <<= 4;
 
-	ebda_size = *(unsigned short *)(unsigned long)ebda_addr;
+	ebda_size = *(unsigned short *)__va(ebda_addr);
 
 	/* Round EBDA up to pages */
 	if (ebda_size == 0)
@@ -411,15 +413,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_SMP
-	/*
-	 * But first pinch a few for the stack/trampoline stuff
-	 * FIXME: Don't need the extra page at 4K, but need to fix
-	 * trampoline before removing it. (see the GDT stuff)
-	 */
-	reserve_bootmem_generic(PAGE_SIZE, PAGE_SIZE);
-
 	/* Reserve SMP trampoline */
-	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, PAGE_SIZE);
+	reserve_bootmem_generic(SMP_TRAMPOLINE_BASE, 2*PAGE_SIZE);
 #endif
 #endif
 
@@ -570,8 +565,6 @@ void __init setup_arch(char **cmdline_p)
 #if defined(CONFIG_PCI) && !defined(CONFIG_XEN)
 	early_quirks();
 #endif
-
-	zap_low_mappings(0);
 
 	/*
 	 * set this early, so we dont allocate cpu0
@@ -865,6 +858,10 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 
 	/* RDTSC can be speculated around */
 	clear_bit(X86_FEATURE_SYNC_RDTSC, &c->x86_capability);
+
+	/* Family 10 doesn't support C states in MWAIT so don't use it */
+	if (c->x86 == 0x10 && !force_mwait)
+		clear_bit(X86_FEATURE_MWAIT, &c->x86_capability);
 }
 
 static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -1149,9 +1146,7 @@ void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_MCE
 	mcheck_init(c);
 #endif
-	if (c == &boot_cpu_data)
-		mtrr_bp_init();
-	else
+	if (c != &boot_cpu_data)
 		mtrr_ap_init();
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
@@ -1242,9 +1237,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		"stc",
 		"100mhzsteps",
 		"hwpstate",
-		NULL,	/* tsc invariant mapped to constant_tsc */
-		NULL,
-		/* nothing */	/* constant_tsc - moved to flags */
+		"",	/* tsc invariant mapped to constant_tsc */
+		/* nothing */
 	};
 
 

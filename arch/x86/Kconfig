@@ -1608,7 +1608,7 @@ config PHYSICAL_START
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
-	depends on !X86_XEN
+	depends on !XEN
 	default y
 	---help---
 	  This builds a kernel image that retains relocation information
@@ -1668,7 +1668,6 @@ config COMPAT_VDSO
 	def_bool y
 	prompt "Compat VDSO support"
 	depends on X86_32 || IA32_EMULATION
-	depends on !X86_XEN
 	---help---
 	  Map the 32-bit VDSO to the predictable old-style address too.
 	---help---
@@ -1891,6 +1890,7 @@ config PCI
 	bool "PCI support"
 	default y
 	select ARCH_SUPPORTS_MSI if (X86_LOCAL_APIC && X86_IO_APIC)
+	select ARCH_SUPPORTS_MSI if (XEN_UNPRIVILEGED_GUEST && XEN_PCIDEV_FRONTEND)
 	---help---
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
