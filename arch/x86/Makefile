@@ -109,6 +109,10 @@ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 # prevent gcc from generating any FP code by mistake
 KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 
+# Xen subarch support
+mflags-$(CONFIG_X86_XEN)	:= -Iinclude/asm-x86/mach-xen
+mcore-$(CONFIG_X86_XEN)		:= arch/x86/mach-xen/
+
 KBUILD_CFLAGS += $(mflags-y)
 KBUILD_AFLAGS += $(mflags-y)
 
@@ -146,8 +150,25 @@ boot := arch/x86/boot
 
 BOOT_TARGETS = bzlilo bzdisk fdimage fdimage144 fdimage288 isoimage
 
-PHONY += bzImage $(BOOT_TARGETS)
+PHONY += bzImage vmlinuz $(BOOT_TARGETS)
 
+ifdef CONFIG_XEN
+CPPFLAGS := -D__XEN_INTERFACE_VERSION__=$(CONFIG_XEN_INTERFACE_VERSION) \
+	-Iinclude$(if $(KBUILD_SRC),2)/asm/mach-xen $(CPPFLAGS)
+
+ifdef CONFIG_X86_64
+LDFLAGS_vmlinux := -e startup_64
+endif
+
+# Default kernel to build
+all: vmlinuz
+
+# KBUILD_IMAGE specifies the target image being built
+KBUILD_IMAGE := $(boot)/vmlinuz
+
+vmlinuz: vmlinux
+	$(Q)$(MAKE) $(build)=$(boot) $(KBUILD_IMAGE)
+else
 # Default kernel to build
 all: bzImage
 
@@ -161,6 +182,7 @@ bzImage: vmlinux
 
 $(BOOT_TARGETS): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
+endif
 
 PHONY += install
 install:

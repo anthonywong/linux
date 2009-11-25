@@ -1128,8 +1128,15 @@ void mce_log_therm_throt_event(__u64 status)
  * Periodic polling timer for "silent" machine check errors.  If the
  * poller finds an MCE, poll 2x faster.  When the poller finds no more
  * errors, poll 2x slower (up to check_interval seconds).
+ *
+ * We will disable polling in DOM0 since all CMCI/Polling
+ * mechanism will be done in XEN for Intel CPUs
  */
+#if defined (CONFIG_X86_XEN_MCE)
+static int check_interval = 0; /* disable polling */
+#else
 static int check_interval = 5 * 60; /* 5 minutes */
+#endif
 
 static DEFINE_PER_CPU(int, mce_next_interval); /* in jiffies */
 static DEFINE_PER_CPU(struct timer_list, mce_timer);
@@ -1294,6 +1301,7 @@ static int __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
 
 	/* This should be disabled by the BIOS, but isn't always */
 	if (c->x86_vendor == X86_VENDOR_AMD) {
+#ifndef CONFIG_XEN
 		if (c->x86 == 15 && banks > 4) {
 			/*
 			 * disable GART TBL walk error reporting, which
@@ -1302,6 +1310,7 @@ static int __cpuinit mce_cpu_quirks(struct cpuinfo_x86 *c)
 			 */
 			clear_bit(10, (unsigned long *)&mce_banks[4].ctl);
 		}
+#endif
 		if (c->x86 <= 17 && mce_bootlog < 0) {
 			/*
 			 * Lots of broken BIOS around that don't clear them
@@ -1369,6 +1378,7 @@ static void __cpuinit mce_ancient_init(struct cpuinfo_x86 *c)
 
 static void mce_cpu_features(struct cpuinfo_x86 *c)
 {
+#ifndef CONFIG_X86_64_XEN
 	switch (c->x86_vendor) {
 	case X86_VENDOR_INTEL:
 		mce_intel_feature_init(c);
@@ -1379,6 +1389,7 @@ static void mce_cpu_features(struct cpuinfo_x86 *c)
 	default:
 		break;
 	}
+#endif
 }
 
 static void mce_init_timer(void)
@@ -2064,6 +2075,16 @@ static __init int mce_init_device(void)
 
 	register_hotcpu_notifier(&mce_cpu_notifier);
 	misc_register(&mce_log_device);
+
+#ifdef CONFIG_X86_XEN_MCE
+	if (is_initial_xendomain()) {
+		/* Register vIRQ handler for MCE LOG processing */
+		extern void bind_virq_for_mce(void);
+
+		printk(KERN_DEBUG "MCE: bind virq for DOM0 logging\n");
+		bind_virq_for_mce();
+	}
+#endif
 
 	return err;
 }
