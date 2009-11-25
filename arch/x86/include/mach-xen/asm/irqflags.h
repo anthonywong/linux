@@ -139,11 +139,11 @@ sysexit_ecrit:	/**** END OF SYSEXIT CRITICAL REGION ****/		; \
 #endif /* __ASSEMBLY__ */
 
 #ifndef __ASSEMBLY__
-#define raw_local_save_flags(flags) \
-		do { (flags) = __raw_local_save_flags(); } while (0)
+#define raw_local_save_flags(flags)				\
+	do { (flags) = __raw_local_save_flags(); } while (0)
 
-#define raw_local_irq_save(flags) \
-		do { (flags) = __raw_local_irq_save(); } while (0)
+#define raw_local_irq_save(flags)				\
+	do { (flags) = __raw_local_irq_save(); } while (0)
 
 static inline int raw_irqs_disabled_flags(unsigned long flags)
 {
