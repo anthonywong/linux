@@ -254,6 +254,7 @@ check_userspace:
 	jb resume_kernel		# not returning to v8086 or userspace
 
 ENTRY(resume_userspace)
+	LOCKDEP_SYS_EXIT
  	DISABLE_INTERRUPTS(CLBR_ANY)	# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
@@ -341,6 +342,7 @@ sysenter_past_esp:
 	jae syscall_badsys
 	call *sys_call_table(,%eax,4)
 	movl %eax,PT_EAX(%esp)
+	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_OFF
 	movl TI_flags(%ebp), %ecx
@@ -406,6 +408,7 @@ syscall_call:
 	call *sys_call_table(,%eax,4)
 	movl %eax,PT_EAX(%esp)		# store the return value
 syscall_exit:
+	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_ANY)	# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
@@ -478,7 +481,7 @@ ldt_ss:
 	 * is still available to implement the setting of the high
 	 * 16-bits in the INTERRUPT_RETURN paravirt-op.
 	 */
-	cmpl $0, paravirt_ops+PARAVIRT_enabled
+	cmpl $0, pv_info+PARAVIRT_enabled
 	jne restore_nocheck
 #endif
 
@@ -540,6 +543,7 @@ work_pending:
 	jz work_notifysig
 work_resched:
 	call schedule
+	LOCKDEP_SYS_EXIT
 	DISABLE_INTERRUPTS(CLBR_ANY)	# make sure we don't miss an interrupt
 					# setting need_resched or sigpending
 					# between sampling and the iret
@@ -1268,6 +1272,6 @@ ENTRY(kernel_thread_helper)
 ENDPROC(kernel_thread_helper)
 
 .section .rodata,"a"
-#include "syscall_table.S"
+#include "syscall_table_32.S"
 
 syscall_table_size=(.-sys_call_table)

@@ -260,6 +260,8 @@ static int scsiback_gnttab_data_map(vscsiif_request_t *ring_req,
 	write = (data_dir == DMA_TO_DEVICE);
 
 	if (nr_segments) {
+		struct scatterlist *sg;
+
 		/* free of (sgl) in fast_flush_area()*/
 		pending_req->sgl = kmalloc(sizeof(struct scatterlist) * nr_segments,
 						GFP_KERNEL);
@@ -267,6 +269,8 @@ static int scsiback_gnttab_data_map(vscsiif_request_t *ring_req,
 			printk(KERN_ERR "scsiback: %s: kmalloc() error.\n", __FUNCTION__);
 			return -ENOMEM;
 		}
+
+		sg_init_table(pending_req->sgl, nr_segments);
 
 		for (i = 0; i < nr_segments; i++) {
 			flags = GNTMAP_host_map;
@@ -280,7 +284,7 @@ static int scsiback_gnttab_data_map(vscsiif_request_t *ring_req,
 		err = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nr_segments);
 		BUG_ON(err);
 
-		for (i = 0; i < nr_segments; i++) {
+		for_each_sg (pending_req->sgl, sg, nr_segments, i) {
 			if (unlikely(map[i].status != 0)) {
 				printk(KERN_ERR "scsiback: invalid buffer -- could not remap it\n");
 				map[i].handle = SCSIBACK_INVALID_HANDLE;
@@ -296,15 +300,15 @@ static int scsiback_gnttab_data_map(vscsiif_request_t *ring_req,
 				pending_req, i)) >> PAGE_SHIFT,
 				FOREIGN_FRAME(map[i].dev_bus_addr >> PAGE_SHIFT));
 
-			pending_req->sgl[i].page   = virt_to_page(vaddr(pending_req, i));
-			pending_req->sgl[i].offset = ring_req->seg[i].offset;
-			pending_req->sgl[i].length = ring_req->seg[i].length;
-			data_len += pending_req->sgl[i].length;
+			sg_set_page(sg, virt_to_page(vaddr(pending_req, i)),
+				    ring_req->seg[i].length,
+				    ring_req->seg[i].offset);
+			data_len += sg->length;
 
 			barrier();
-			if (pending_req->sgl[i].offset >= PAGE_SIZE ||
-			    pending_req->sgl[i].length > PAGE_SIZE ||
-			    pending_req->sgl[i].offset + pending_req->sgl[i].length > PAGE_SIZE)
+			if (sg->offset >= PAGE_SIZE ||
+			    sg->length > PAGE_SIZE ||
+			    sg->offset + sg->length > PAGE_SIZE)
 				err |= 1;
 
 		}
@@ -333,27 +337,14 @@ static int scsiback_merge_bio(struct request *rq, struct bio *bio)
 
 	blk_queue_bounce(q, &bio);
 
-	if (!rq->bio)
-		blk_rq_bio_prep(q, rq, bio);
-	else if (!ll_back_merge_fn(q, rq, bio))
-		return -EINVAL;
-	else {
-		rq->biotail->bi_next = bio;
-		rq->biotail          = bio;
-	}
-
-	return 0;
+	return blk_rq_append_bio(q, rq, bio);
 }
 
 
 /* quoted scsi_lib.c/scsi_bi_endio */
-static int scsiback_bi_endio(struct bio *bio, unsigned int bytes_done, int error)
+static void scsiback_bi_endio(struct bio *bio, int error)
 {
-	if (bio->bi_size)
-		return 1;
-
 	bio_put(bio);
-	return 0;
 }
 
 
@@ -364,16 +355,16 @@ static int request_map_sg(struct request *rq, pending_req_t *pending_req, unsign
 	struct request_queue *q = rq->q;
 	int nr_pages;
 	unsigned int nsegs = count;
-
 	unsigned int data_len = 0, len, bytes, off;
+	struct scatterlist *sg;
 	struct page *page;
 	struct bio *bio = NULL;
 	int i, err, nr_vecs = 0;
 
-	for (i = 0; i < nsegs; i++) {
-		page = pending_req->sgl[i].page;
-		off = (unsigned int)pending_req->sgl[i].offset;
-		len = (unsigned int)pending_req->sgl[i].length;
+	for_each_sg (pending_req->sgl, sg, nsegs, i) {
+		page = sg_page(sg);
+		off = sg->offset;
+		len = sg->length;
 		data_len += len;
 
 		nr_pages = (len + off + PAGE_SIZE - 1) >> PAGE_SHIFT;
@@ -401,7 +392,7 @@ static int request_map_sg(struct request *rq, pending_req_t *pending_req, unsign
 			if (bio->bi_vcnt >= nr_vecs) {
 				err = scsiback_merge_bio(rq, bio);
 				if (err) {
-					bio_endio(bio, bio->bi_size, 0);
+					bio_endio(bio, 0);
 					goto free_bios;
 				}
 				bio = NULL;
@@ -424,7 +415,7 @@ free_bios:
 		/*
 		 * call endio instead of bio_put incase it was bounced
 		 */
-		bio_endio(bio, bio->bi_size, 0);
+		bio_endio(bio, 0);
 	}
 
 	return err;

@@ -153,8 +153,8 @@ BOOT_TARGETS = bzlilo bzdisk fdimage fdimage144 fdimage288 isoimage
 PHONY += bzImage vmlinuz $(BOOT_TARGETS)
 
 ifdef CONFIG_XEN
-CPPFLAGS := -D__XEN_INTERFACE_VERSION__=$(CONFIG_XEN_INTERFACE_VERSION) \
-	-Iinclude$(if $(KBUILD_SRC),2)/asm/mach-xen $(CPPFLAGS)
+KBUILD_CPPFLAGS := -D__XEN_INTERFACE_VERSION__=$(CONFIG_XEN_INTERFACE_VERSION) \
+	-Iinclude$(if $(KBUILD_SRC),2)/asm/mach-xen $(KBUILD_CPPFLAGS)
 
 ifdef CONFIG_X86_64
 LDFLAGS_vmlinux := -e startup_64
@@ -168,6 +168,8 @@ KBUILD_IMAGE := $(boot)/vmlinuz
 
 vmlinuz: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(KBUILD_IMAGE)
+	$(Q)mkdir -p $(objtree)/arch/$(UTS_MACHINE)/boot
+	$(Q)ln -fsn ../../x86/boot/$@ $(objtree)/arch/$(UTS_MACHINE)/boot/$@
 else
 # Default kernel to build
 all: bzImage
