@@ -22,9 +22,6 @@
 
 #define __raw_local_save_flags() (current_vcpu_info()->evtchn_upcall_mask)
 
-#define raw_local_save_flags(flags) \
-		do { (flags) = __raw_local_save_flags(); } while (0)
-
 #define raw_local_irq_restore(x)					\
 do {									\
 	vcpu_info_t *_vcpu;						\
@@ -66,18 +63,6 @@ void raw_safe_halt(void);
  */
 void halt(void);
 
-static inline int raw_irqs_disabled_flags(unsigned long flags)
-{
-	return (flags != 0);
-}
-
-#define raw_irqs_disabled()						\
-({									\
-	unsigned long flags = __raw_local_save_flags();			\
-									\
-	raw_irqs_disabled_flags(flags);					\
-})
-
 /*
  * For spinlocks, etc:
  */
@@ -90,9 +75,64 @@ static inline int raw_irqs_disabled_flags(unsigned long flags)
 	flags;								\
 })
 
+#else
+/* Offsets into shared_info_t. */
+#define evtchn_upcall_pending		/* 0 */
+#define evtchn_upcall_mask		1
+
+#define sizeof_vcpu_shift		6
+
+#ifdef CONFIG_SMP
+#define GET_VCPU_INFO		movl TI_cpu(%ebp),%esi			; \
+				shl  $sizeof_vcpu_shift,%esi		; \
+				addl HYPERVISOR_shared_info,%esi
+#else
+#define GET_VCPU_INFO		movl HYPERVISOR_shared_info,%esi
+#endif
+
+#define __DISABLE_INTERRUPTS	movb $1,evtchn_upcall_mask(%esi)
+#define __ENABLE_INTERRUPTS	movb $0,evtchn_upcall_mask(%esi)
+#define __TEST_PENDING		testb $0xFF,evtchn_upcall_pending(%esi)
+#define DISABLE_INTERRUPTS(clb)	GET_VCPU_INFO				; \
+				__DISABLE_INTERRUPTS
+#define ENABLE_INTERRUPTS(clb)	GET_VCPU_INFO				; \
+				__ENABLE_INTERRUPTS
+#define ENABLE_INTERRUPTS_SYSEXIT __ENABLE_INTERRUPTS			; \
+sysexit_scrit:	/**** START OF SYSEXIT CRITICAL REGION ****/		; \
+	__TEST_PENDING							; \
+	jnz  14f	/* process more events if necessary... */	; \
+	movl PT_ESI(%esp), %esi						; \
+	sysexit								; \
+14:	__DISABLE_INTERRUPTS						; \
+	TRACE_IRQS_OFF							; \
+sysexit_ecrit:	/**** END OF SYSEXIT CRITICAL REGION ****/		; \
+	mov  $__KERNEL_PDA, %ecx					; \
+	push %esp							; \
+	mov  %ecx, %gs							; \
+	call evtchn_do_upcall						; \
+	add  $4,%esp							; \
+	jmp  ret_from_intr
+#define INTERRUPT_RETURN	iret
+#endif /* __ASSEMBLY__ */
+
+#ifndef __ASSEMBLY__
+#define raw_local_save_flags(flags) \
+		do { (flags) = __raw_local_save_flags(); } while (0)
+
 #define raw_local_irq_save(flags) \
 		do { (flags) = __raw_local_irq_save(); } while (0)
 
+static inline int raw_irqs_disabled_flags(unsigned long flags)
+{
+	return (flags != 0);
+}
+
+#define raw_irqs_disabled()						\
+({									\
+	unsigned long flags = __raw_local_save_flags();			\
+									\
+	raw_irqs_disabled_flags(flags);					\
+})
 #endif /* __ASSEMBLY__ */
 
 /*
