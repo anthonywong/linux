@@ -120,6 +120,8 @@ void oprofile_add_ext_sample(unsigned long pc, struct pt_regs * const regs,
  * backtrace. */
 void oprofile_add_pc(unsigned long pc, int is_kernel, unsigned long event);
 
+void oprofile_add_mode(int cpu_mode);
+
 /* add a backtrace entry, to be called from the ->backtrace callback */
 void oprofile_add_trace(unsigned long eip);
 

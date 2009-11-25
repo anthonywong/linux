@@ -29,7 +29,6 @@
 #include <xen/driver_util.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/xenoprof.h>
-#include "../../../drivers/oprofile/cpu_buffer.h"
 #include "../../../drivers/oprofile/event_buffer.h"
 
 #define MAX_XENOPROF_SAMPLES 16
@@ -142,8 +141,7 @@ static void xenoprof_add_pc(xenoprof_buf_t *buf, int is_passive)
 		if (xenoprof_is_escape(buf, tail) &&
 		    xenoprof_get_event(buf, tail) == XENOPROF_TRACE_BEGIN) {
 			tracing=1;
-			oprofile_add_pc(ESCAPE_CODE, buf->event_log[tail].mode, 
-					CPU_TRACE_BEGIN); 
+			oprofile_add_mode(buf->event_log[tail].mode);
 			if (!is_passive)
 				oprofile_samples++;
 			else

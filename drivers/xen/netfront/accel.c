@@ -325,7 +325,7 @@ accelerator_set_vif_state_hooks(struct netfront_accel_vif_state *vif_state)
 	DPRINTK("%p\n",vif_state);
 
 	/* Make sure there are no data path operations going on */
-	netif_poll_disable(vif_state->np->netdev);
+	napi_disable(&vif_state->np->napi);
 	netif_tx_lock_bh(vif_state->np->netdev);
 
 	accelerator = vif_state->np->accelerator;
@@ -334,7 +334,7 @@ accelerator_set_vif_state_hooks(struct netfront_accel_vif_state *vif_state)
 	spin_unlock_irqrestore(&accelerator->vif_states_lock, flags);
 
 	netif_tx_unlock_bh(vif_state->np->netdev);
-	netif_poll_enable(vif_state->np->netdev);
+	napi_enable(&vif_state->np->napi);
 }
 
 
@@ -508,7 +508,7 @@ accelerator_remove_single_hook(struct netfront_accelerator *accelerator,
 	unsigned long flags;
 
 	/* Make sure there are no data path operations going on */
-	netif_poll_disable(vif_state->np->netdev);
+	napi_disable(&vif_state->np->napi);
 	netif_tx_lock_bh(vif_state->np->netdev);
 
 	spin_lock_irqsave(&accelerator->vif_states_lock, flags);
@@ -524,7 +524,7 @@ accelerator_remove_single_hook(struct netfront_accelerator *accelerator,
 	spin_unlock_irqrestore(&accelerator->vif_states_lock, flags);
 
 	netif_tx_unlock_bh(vif_state->np->netdev);
-	netif_poll_enable(vif_state->np->netdev);		       
+	napi_enable(&vif_state->np->napi);
 }
 
 

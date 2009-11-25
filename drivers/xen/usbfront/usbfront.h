@@ -82,6 +82,7 @@ struct urb_priv {
 	struct urb *urb;
 	int req_id;	/* RING_REQUEST id for submitting */
 	int unlink_req_id; /* RING_REQUEST id for unlinking */
+	int status;
 	unsigned unlinked:1; /* dequeued marker */
 };
 

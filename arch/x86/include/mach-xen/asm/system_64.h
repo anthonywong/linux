@@ -11,8 +11,12 @@
 
 #ifdef __KERNEL__
 
-#define __STR(x) #x
-#define STR(x) __STR(x)
+/* entries in ARCH_DLINFO: */
+#ifdef CONFIG_IA32_EMULATION
+# define AT_VECTOR_SIZE_ARCH 2
+#else
+# define AT_VECTOR_SIZE_ARCH 1
+#endif
 
 #define __SAVE(reg,offset) "movq %%" #reg ",(14-" #offset ")*8(%%rsp)\n\t"
 #define __RESTORE(reg,offset) "movq (14-" #offset ")*8(%%rsp),%%" #reg "\n\t"
@@ -92,7 +96,7 @@ static inline void write_cr0(unsigned long val)
 
 #define read_cr3() ({ \
 	unsigned long __dummy; \
-	asm("movq %%cr3,%0" : "=r" (__dummy)); \
+	asm volatile("movq %%cr3,%0" : "=r" (__dummy)); \
 	machine_to_phys(__dummy); \
 })
 
@@ -105,7 +109,7 @@ static inline void write_cr3(unsigned long val)
 static inline unsigned long read_cr4(void)
 { 
 	unsigned long cr4;
-	asm("movq %%cr4,%0" : "=r" (cr4));
+	asm volatile("movq %%cr4,%0" : "=r" (cr4));
 	return cr4;
 }
 
@@ -131,12 +135,17 @@ static inline void write_cr8(unsigned long val)
 
 #endif	/* __KERNEL__ */
 
+static inline void clflush(volatile void *__p)
+{
+	asm volatile("clflush %0" : "+m" (*(char __force *)__p));
+}
+
 #define nop() __asm__ __volatile__ ("nop")
 
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
-#define smp_rmb()	rmb()
-#define smp_wmb()	wmb()
+#define smp_rmb()	barrier()
+#define smp_wmb()	barrier()
 #define smp_read_barrier_depends()	do {} while(0)
 #else
 #define smp_mb()	barrier()
@@ -153,12 +162,8 @@ static inline void write_cr8(unsigned long val)
  */
 #define mb() 	asm volatile("mfence":::"memory")
 #define rmb()	asm volatile("lfence":::"memory")
-
-#ifdef CONFIG_UNORDERED_IO
 #define wmb()	asm volatile("sfence" ::: "memory")
-#else
-#define wmb()	asm volatile("" ::: "memory")
-#endif
+
 #define read_barrier_depends()	do {} while(0)
 #define set_mb(var, value) do { (void) xchg(&var, value); } while (0)
 

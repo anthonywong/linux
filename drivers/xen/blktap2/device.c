@@ -662,8 +662,7 @@ blktap_device_process_request(struct blktap *tap,
 	request->nr_pages = 0;
 	blkif_req.nr_segments = blk_rq_map_sg(req->q, req, tap->sg);
 	BUG_ON(blkif_req.nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
-	for (i = 0; i < blkif_req.nr_segments; ++i) {
-			sg = tap->sg + i;
+	for_each_sg(tap->sg, sg, blkif_req.nr_segments, i) {
 			fsect = sg->offset >> 9;
 			lsect = fsect + (sg->length >> 9) - 1;
 			nr_sects += sg->length >> 9;
@@ -674,13 +673,13 @@ blktap_device_process_request(struct blktap *tap,
 				.first_sect = fsect,
 				.last_sect  = lsect };
 
-			if (PageBlkback(sg->page)) {
+			if (PageBlkback(sg_page(sg))) {
 				/* foreign page -- use xen */
 				if (blktap_prep_foreign(tap,
 							request,
 							&blkif_req,
 							i,
-							sg->page,
+							sg_page(sg),
 							&table))
 					goto out;
 			} else {
@@ -688,7 +687,7 @@ blktap_device_process_request(struct blktap *tap,
 				if (blktap_map(tap,
 					       request,
 					       i,
-					       sg->page))
+					       sg_page(sg)))
 					goto out;
 			}
 
