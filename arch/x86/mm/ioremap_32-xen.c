@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/fixmap.h>
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -118,7 +118,7 @@ int direct_remap_pfn_range(struct vm_area_struct *vma,
 	if (domid == DOMID_SELF)
 		return -EINVAL;
 
-	vma->vm_flags |= VM_IO | VM_RESERVED;
+	vma->vm_flags |= VM_IO | VM_RESERVED | VM_PFNMAP;
 
 	vma->vm_mm->context.has_foreign_mappings = 1;
 
@@ -203,6 +203,7 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 	void __iomem * addr;
 	struct vm_struct * area;
 	unsigned long offset, last_addr;
+	pgprot_t prot;
 	domid_t domid = DOMID_IO;
 
 	/* Don't allow wraparound or zero size */
@@ -234,6 +235,8 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 		domid = DOMID_SELF;
 	}
 
+	prot = __pgprot(_KERNPG_TABLE | flags);
+
 	/*
 	 * Mappings have to be page-aligned
 	 */
@@ -249,10 +252,9 @@ void __iomem * __ioremap(unsigned long phys_addr, unsigned long size, unsigned l
 		return NULL;
 	area->phys_addr = phys_addr;
 	addr = (void __iomem *) area->addr;
-	flags |= _KERNPG_TABLE;
 	if (__direct_remap_pfn_range(&init_mm, (unsigned long)addr,
 				     phys_addr>>PAGE_SHIFT,
-				     size, __pgprot(flags), domid)) {
+				     size, prot, domid)) {
 		vunmap((void __force *) addr);
 		return NULL;
 	}

@@ -100,7 +100,7 @@ static void scsifront_do_request(struct vscsifrnt_info *info)
 		notify_remote_via_irq(irq);
 }
 
-irqreturn_t scsifront_intr(int irq, void *dev_id, struct pt_regs *ptregs)
+irqreturn_t scsifront_intr(int irq, void *dev_id)
 {
 	scsifront_notify_work((struct vscsifrnt_info *)dev_id);
 	return IRQ_HANDLED;
