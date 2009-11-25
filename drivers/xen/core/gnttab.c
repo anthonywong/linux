@@ -449,6 +449,7 @@ static int map_pte_fn(pte_t *pte, struct page *pmd_page,
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int unmap_pte_fn(pte_t *pte, struct page *pmd_page,
 			unsigned long addr, void *data)
 {
@@ -456,6 +457,7 @@ static int unmap_pte_fn(pte_t *pte, struct page *pmd_page,
 	set_pte_at(&init_mm, addr, pte, __pte(0));
 	return 0;
 }
+#endif
 
 void *arch_gnttab_alloc_shared(unsigned long *frames)
 {
@@ -633,6 +635,75 @@ void __gnttab_dma_map_page(struct page *page)
 	} while (unlikely(read_seqretry(&gnttab_dma_lock, seq)));
 }
 
+#ifdef __HAVE_ARCH_PTE_SPECIAL
+
+static unsigned int GNTMAP_pte_special;
+
+bool gnttab_pre_map_adjust(unsigned int cmd, struct gnttab_map_grant_ref *map,
+			   unsigned int count)
+{
+	unsigned int i;
+
+	if (unlikely(cmd != GNTTABOP_map_grant_ref))
+		count = 0;
+
+	for (i = 0; i < count; ++i, ++map) {
+		if (!(map->flags & GNTMAP_host_map)
+		    || !(map->flags & GNTMAP_application_map))
+			continue;
+		if (GNTMAP_pte_special)
+			map->flags |= GNTMAP_pte_special;
+		else {
+			BUG_ON(xen_feature(XENFEAT_auto_translated_physmap));
+			return true;
+		}
+	}
+
+	return false;
+}
+EXPORT_SYMBOL(gnttab_pre_map_adjust);
+
+#if CONFIG_XEN_COMPAT < 0x030400
+int gnttab_post_map_adjust(const struct gnttab_map_grant_ref *map, unsigned int count)
+{
+	unsigned int i;
+	int rc = 0;
+
+	for (i = 0; i < count && rc == 0; ++i, ++map) {
+		pte_t pte;
+
+		if (!(map->flags & GNTMAP_host_map)
+		    || !(map->flags & GNTMAP_application_map))
+			continue;
+
+#ifdef CONFIG_X86
+		pte = __pte_ma((map->dev_bus_addr | _PAGE_PRESENT | _PAGE_USER
+				| _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_NX
+				| _PAGE_SPECIAL)
+			       & __supported_pte_mask);
+#else
+#error Architecture not yet supported.
+#endif
+		if (!(map->flags & GNTMAP_readonly))
+			pte = pte_mkwrite(pte);
+
+		if (map->flags & GNTMAP_contains_pte) {
+			mmu_update_t u;
+
+			u.ptr = map->host_addr;
+			u.val = __pte_val(pte);
+			rc = HYPERVISOR_mmu_update(&u, 1, NULL, DOMID_SELF);
+		} else
+			rc = HYPERVISOR_update_va_mapping(map->host_addr, pte, 0);
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(gnttab_post_map_adjust);
+#endif
+
+#endif /* __HAVE_ARCH_PTE_SPECIAL */
+
 int gnttab_resume(void)
 {
 	if (max_nr_grant_frames() < nr_grant_frames)
@@ -640,6 +711,7 @@ int gnttab_resume(void)
 	return gnttab_map(0, nr_grant_frames - 1);
 }
 
+#ifdef CONFIG_PM_SLEEP
 int gnttab_suspend(void)
 {
 #ifdef CONFIG_X86
@@ -649,6 +721,7 @@ int gnttab_suspend(void)
 #endif
 	return 0;
 }
+#endif
 
 #else /* !CONFIG_XEN */
 
@@ -758,6 +831,18 @@ int __devinit gnttab_init(void)
 	gnttab_entry(nr_init_grefs - 1) = GNTTAB_LIST_END;
 	gnttab_free_count = nr_init_grefs - NR_RESERVED_ENTRIES;
 	gnttab_free_head  = NR_RESERVED_ENTRIES;
+
+#if defined(CONFIG_XEN) && defined(__HAVE_ARCH_PTE_SPECIAL)
+	if (!xen_feature(XENFEAT_auto_translated_physmap)
+	    && xen_feature(XENFEAT_gnttab_map_avail_bits)) {
+#ifdef CONFIG_X86
+		GNTMAP_pte_special = (__pte_val(pte_mkspecial(__pte_ma(0)))
+				      >> _PAGE_BIT_UNUSED1) << _GNTMAP_guest_avail0;
+#else
+#error Architecture not yet supported.
+#endif
+	}
+#endif
 
 	return 0;
 
