@@ -129,7 +129,7 @@ void __pud_free_tlb(struct mmu_gather *tlb, pud_t *pud)
 static void _pin_lock(struct mm_struct *mm, int lock) {
 	if (lock)
 		spin_lock(&mm->page_table_lock);
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+#if USE_SPLIT_PTLOCKS
 	/* While mm->page_table_lock protects us against insertions and
 	 * removals of higher level page table pages, it doesn't protect
 	 * against updates of pte-s. Such updates, however, require the
@@ -408,10 +408,8 @@ static inline void pgd_list_del(pgd_t *pgd)
 #define UNSHARED_PTRS_PER_PGD				\
 	(SHARED_KERNEL_PMD ? KERNEL_PGD_BOUNDARY : PTRS_PER_PGD)
 
-static void pgd_ctor(void *p)
+static void pgd_ctor(pgd_t *pgd)
 {
-	pgd_t *pgd = p;
-
 	pgd_test_and_unpin(pgd);
 
 	/* If the pgd points to a shared pagetable level (either the
@@ -440,7 +438,7 @@ static void pgd_ctor(void *p)
 		pgd_list_add(pgd);
 }
 
-static void pgd_dtor(void *pgd)
+static void pgd_dtor(pgd_t *pgd)
 {
 	unsigned long flags; /* can be called from interrupt context */
 

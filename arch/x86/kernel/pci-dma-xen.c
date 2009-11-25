@@ -41,11 +41,12 @@ EXPORT_SYMBOL(bad_dma_address);
 /* Dummy device used for NULL arguments (normally ISA). Better would
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to older i386. */
-struct device fallback_dev = {
+struct device x86_dma_fallback_dev = {
 	.bus_id = "fallback device",
 	.coherent_dma_mask = DMA_32BIT_MASK,
-	.dma_mask = &fallback_dev.coherent_dma_mask,
+	.dma_mask = &x86_dma_fallback_dev.coherent_dma_mask,
 };
+EXPORT_SYMBOL(x86_dma_fallback_dev);
 
 int dma_set_mask(struct device *dev, u64 mask)
 {
@@ -82,7 +83,7 @@ void __init dma32_reserve_bootmem(void)
 	 * using 512M as goal
 	 */
 	align = 64ULL<<20;
-	size = round_up(dma32_bootmem_size, align);
+	size = roundup(dma32_bootmem_size, align);
 	dma32_bootmem_ptr = __alloc_bootmem_nopanic(size, align,
 				 512ULL<<20);
 	if (dma32_bootmem_ptr)
@@ -109,6 +110,8 @@ static void __init dma32_free_bootmem(void)
 #endif
 
 static struct dma_mapping_ops swiotlb_dma_ops = {
+	.alloc_coherent = dma_generic_alloc_coherent,
+	.free_coherent = dma_generic_free_coherent,
 	.mapping_error = swiotlb_dma_mapping_error,
 	.map_single = swiotlb_map_single_phys,
 	.unmap_single = swiotlb_unmap_single,
@@ -147,13 +150,77 @@ void __init pci_iommu_alloc(void)
 }
 
 #ifndef CONFIG_XEN
-unsigned long iommu_num_pages(unsigned long addr, unsigned long len)
+unsigned long iommu_nr_pages(unsigned long addr, unsigned long len)
 {
 	unsigned long size = roundup((addr & ~PAGE_MASK) + len, PAGE_SIZE);
 
 	return size >> PAGE_SHIFT;
 }
-EXPORT_SYMBOL(iommu_num_pages);
+EXPORT_SYMBOL(iommu_nr_pages);
+#endif
+
+void *dma_generic_alloc_coherent(struct device *dev, size_t size,
+				 dma_addr_t *dma_addr, gfp_t flag)
+{
+	unsigned long dma_mask;
+	struct page *page;
+#ifndef CONFIG_XEN
+	dma_addr_t addr;
+#else
+	void *memory;
+#endif
+	unsigned int order = get_order(size);
+
+	dma_mask = dma_alloc_coherent_mask(dev, flag);
+
+#ifndef CONFIG_XEN
+	flag |= __GFP_ZERO;
+again:
+#else
+	flag &= ~(__GFP_DMA | __GFP_DMA32);
+#endif
+	page = alloc_pages_node(dev_to_node(dev), flag, order);
+	if (!page)
+		return NULL;
+
+#ifndef CONFIG_XEN
+	addr = page_to_phys(page);
+	if (!is_buffer_dma_capable(dma_mask, addr, size)) {
+		__free_pages(page, order);
+
+		if (dma_mask < DMA_32BIT_MASK && !(flag & GFP_DMA)) {
+			flag = (flag & ~GFP_DMA32) | GFP_DMA;
+			goto again;
+		}
+
+		return NULL;
+	}
+
+	*dma_addr = addr;
+	return page_address(page);
+#else
+	memory = page_address(page);
+	if (xen_create_contiguous_region((unsigned long)memory, order,
+					 fls64(dma_mask))) {
+		__free_pages(page, order);
+		return NULL;
+	}
+
+	*dma_addr = virt_to_bus(memory);
+	return memset(memory, 0, size);
+#endif
+}
+
+#ifdef CONFIG_XEN
+void dma_generic_free_coherent(struct device *dev, size_t size, void *vaddr,
+			       dma_addr_t dma_addr)
+{
+	unsigned int order = get_order(size);
+	unsigned long va = (unsigned long)vaddr;
+
+	xen_destroy_contiguous_region(va, order);
+	free_pages(va, order);
+}
 #endif
 
 /*
@@ -290,164 +357,6 @@ int dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 EXPORT_SYMBOL(dma_supported);
-
-/* Allocate DMA memory on node near device */
-static struct page *
-dma_alloc_pages(struct device *dev, gfp_t gfp, unsigned order)
-{
-	int node;
-
-	node = dev_to_node(dev);
-
-	return alloc_pages_node(node, gfp, order);
-}
-
-/*
- * Allocate memory for a coherent mapping.
- */
-void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		   gfp_t gfp)
-{
-#ifndef CONFIG_XEN
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
-#endif
-	void *memory = NULL;
-	struct page *page;
-	unsigned long dma_mask = 0;
-	int noretry = 0;
-	unsigned int order = get_order(size);
-
-	/* ignore region specifiers */
-	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
-
-	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
-		return memory;
-
-	if (!dev) {
-		dev = &fallback_dev;
-		gfp |= GFP_DMA;
-	}
-	dma_mask = dev->coherent_dma_mask;
-	if (dma_mask == 0)
-		dma_mask = (gfp & GFP_DMA) ? DMA_24BIT_MASK : DMA_32BIT_MASK;
-
-	/* Device not DMA able */
-	if (dev->dma_mask == NULL)
-		return NULL;
-
-#ifdef CONFIG_XEN
-	gfp &= ~(__GFP_DMA | __GFP_DMA32);
-#else
-	/* Don't invoke OOM killer or retry in lower 16MB DMA zone */
-	if (gfp & __GFP_DMA)
-		noretry = 1;
-
-#ifdef CONFIG_X86_64
-	/* Why <=? Even when the mask is smaller than 4GB it is often
-	   larger than 16MB and in this case we have a chance of
-	   finding fitting memory in the next higher zone first. If
-	   not retry with true GFP_DMA. -AK */
-	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA)) {
-		gfp |= GFP_DMA32;
-#endif
-
- again:
-#endif
-	page = dma_alloc_pages(dev,
-		noretry ? gfp | __GFP_NORETRY : gfp, order);
-	if (page == NULL)
-		return NULL;
-
-#ifndef CONFIG_XEN
-	{
-		int high, mmu;
-		dma_addr_t bus = page_to_phys(page);
-		memory = page_address(page);
-		high = (bus + size) >= dma_mask;
-		mmu = high;
-		if (force_iommu && !(gfp & GFP_DMA))
-			mmu = 1;
-		else if (high) {
-			free_pages((unsigned long)memory, order);
-
-			/* Don't use the 16MB ZONE_DMA unless absolutely
-			   needed. It's better to use remapping first. */
-			if (dma_mask < DMA_32BIT_MASK && !(gfp & GFP_DMA)) {
-				gfp = (gfp & ~GFP_DMA32) | GFP_DMA;
-				goto again;
-			}
-
-			/* Let low level make its own zone decisions */
-			gfp &= ~(GFP_DMA32|GFP_DMA);
-
-			if (ops->alloc_coherent)
-				return ops->alloc_coherent(dev, size,
-							   dma_handle, gfp);
-			return NULL;
-		}
-
-		memset(memory, 0, size);
-		if (!mmu) {
-			*dma_handle = bus;
-			return memory;
-		}
-	}
-
-	if (ops->alloc_coherent) {
-		free_pages((unsigned long)memory, order);
-		gfp &= ~(GFP_DMA|GFP_DMA32);
-		return ops->alloc_coherent(dev, size, dma_handle, gfp);
-	}
-
-	if (ops->map_simple) {
-		*dma_handle = ops->map_simple(dev, virt_to_bus(memory),
-					      size,
-					      PCI_DMA_BIDIRECTIONAL);
-		if (*dma_handle != bad_dma_address)
-			return memory;
-	}
-#else
-	memory = page_address(page);
-	if (xen_create_contiguous_region((unsigned long)memory, order,
-					 fls64(dma_mask)) == 0) {
-		memset(memory, 0, size);
-		*dma_handle = virt_to_bus(memory);
-		return memory;
-	}
-#endif
-
-	if (panic_on_overflow)
-		panic("dma_alloc_coherent: IOMMU overflow by %lu bytes\n",
-		      (unsigned long)size);
-	free_pages((unsigned long)memory, order);
-	return NULL;
-}
-EXPORT_SYMBOL(dma_alloc_coherent);
-
-/*
- * Unmap coherent memory.
- * The caller must ensure that the device has finished accessing the mapping.
- */
-void dma_free_coherent(struct device *dev, size_t size,
-			 void *vaddr, dma_addr_t bus)
-{
-#ifndef CONFIG_XEN
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
-#endif
-
-	int order = get_order(size);
-	WARN_ON(irqs_disabled());	/* for portability */
-	if (dma_release_from_coherent(dev, order, vaddr))
-		return;
-#ifndef CONFIG_XEN
-	if (ops->unmap_single)
-		ops->unmap_single(dev, bus, size, 0);
-#endif
-	xen_destroy_contiguous_region((unsigned long)vaddr, order);
-	free_pages((unsigned long)vaddr, order);
-}
-EXPORT_SYMBOL(dma_free_coherent);
 
 static int __init pci_iommu_init(void)
 {
