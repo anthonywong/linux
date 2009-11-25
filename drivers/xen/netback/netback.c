@@ -71,7 +71,7 @@ static DECLARE_TASKLET(net_rx_tasklet, net_rx_action, 0);
 static struct timer_list net_timer;
 static struct timer_list netbk_tx_pending_timer;
 
-#define MAX_PENDING_REQS 256
+#define MAX_PENDING_REQS (1U << CONFIG_XEN_NETDEV_TX_SHIFT)
 
 static struct sk_buff_head rx_queue;
 
@@ -1241,6 +1241,7 @@ static void net_tx_action(unsigned long unused)
 		net_tx_action_dealloc();
 
 	mop = tx_map_ops;
+	BUILD_BUG_ON(MAX_SKB_FRAGS >= MAX_PENDING_REQS);
 	while (((NR_PENDING_REQS + MAX_SKB_FRAGS) < MAX_PENDING_REQS) &&
 		!list_empty(&net_schedule_list)) {
 		/* Get a netif from the list with work to do. */
