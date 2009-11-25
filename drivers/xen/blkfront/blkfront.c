@@ -244,7 +244,7 @@ static int setup_blkring(struct xenbus_device *dev,
 	info->ring_ref = err;
 
 	err = bind_listening_port_to_irqhandler(
-		dev->otherend_id, blkif_int, SA_SAMPLE_RANDOM, "blkif", info);
+		dev->otherend_id, blkif_int, IRQF_SAMPLE_RANDOM, "blkif", info);
 	if (err <= 0) {
 		xenbus_dev_fatal(dev, err,
 				 "bind_listening_port_to_irqhandler");
