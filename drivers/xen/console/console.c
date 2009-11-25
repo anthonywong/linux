@@ -46,7 +46,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/console.h>
-#include <linux/bootmem.h>
 #include <linux/sysrq.h>
 #include <linux/screen_info.h>
 #include <linux/vt.h>
@@ -236,7 +235,7 @@ static int __init xen_console_init(void)
 		goto out;
 	}
 
-	wbuf = alloc_bootmem(wbuf_size);
+	wbuf = kmalloc(wbuf_size, GFP_KERNEL);
 
 	register_console(&kcons_info);
 
@@ -632,8 +631,8 @@ static void xencons_close(struct tty_struct *tty, struct file *filp)
 	tty->closing = 1;
 	tty_wait_until_sent(tty, 0);
 	tty_driver_flush_buffer(tty);
-	if (tty->ldisc.ops->flush_buffer != NULL)
-		tty->ldisc.ops->flush_buffer(tty);
+	if (tty->ldisc->ops->flush_buffer)
+		tty->ldisc->ops->flush_buffer(tty);
 	tty->closing = 0;
 	spin_lock_irqsave(&xencons_lock, flags);
 	xencons_tty = NULL;
