@@ -841,7 +841,7 @@ static void __init init_gbpages(void)
 #endif
 }
 
-static unsigned long __init kernel_physical_mapping_init(unsigned long start,
+static unsigned long __meminit kernel_physical_mapping_init(unsigned long start,
 						unsigned long end,
 						unsigned long page_size_mask)
 {
@@ -966,6 +966,8 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	pos = start_pfn << PAGE_SHIFT;
 	end_pfn = ((pos + (PMD_SIZE - 1)) >> PMD_SHIFT)
 			<< (PMD_SHIFT - PAGE_SHIFT);
+	if (end_pfn > (end >> PAGE_SHIFT))
+		end_pfn = end >> PAGE_SHIFT;
 	if (start_pfn < end_pfn) {
 		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
 		pos = end_pfn << PAGE_SHIFT;
@@ -1146,7 +1148,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	if (last_mapped_pfn > max_pfn_mapped)
 		max_pfn_mapped = last_mapped_pfn;
 
-	ret = __add_pages(zone, start_pfn, nr_pages);
+	ret = __add_pages(nid, zone, start_pfn, nr_pages);
 	WARN_ON_ONCE(ret);
 
 	return ret;
@@ -1177,6 +1179,8 @@ int devmem_is_allowed(unsigned long pagenr)
 {
 	if (pagenr <= 256)
 		return 1;
+	if (iomem_is_exclusive(pagenr << PAGE_SHIFT))
+		return 0;
 	if (mfn_to_local_pfn(pagenr) >= max_pfn)
 		return 1;
 	return 0;
@@ -1191,8 +1195,6 @@ void __init mem_init(void)
 	long codesize, reservedpages, datasize, initsize;
 	unsigned long absent_pages;
 	unsigned long pfn;
-
-	start_periodic_check_for_corruption();
 
 	pci_iommu_alloc();
 
