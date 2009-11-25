@@ -22,12 +22,10 @@
 #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
 
 /* If _PAGE_BIT_PRESENT is clear, we use these: */
-
-/* set: nonlinear file mapping, saved PTE; unset:swap */
-#define _PAGE_BIT_FILE		_PAGE_BIT_DIRTY
-
-/* if the user mapped it with PROT_NONE; pte_present gives true */
+/* - if the user mapped it with PROT_NONE; pte_present gives true */
 #define _PAGE_BIT_PROTNONE	_PAGE_BIT_GLOBAL
+/* - set: nonlinear file mapping, saved PTE; unset:swap */
+#define _PAGE_BIT_FILE		_PAGE_BIT_DIRTY
 
 #define _PAGE_PRESENT	(_AT(pteval_t, 1) << _PAGE_BIT_PRESENT)
 #define _PAGE_RW	(_AT(pteval_t, 1) << _PAGE_BIT_RW)
@@ -176,7 +174,18 @@ extern unsigned int __kernel_page_user;
 #define PGD_IDENT_ATTR	 0x001		/* PRESENT (no other attributes) */
 #endif
 
+/*
+ * Macro to mark a page protection value as UC-
+ */
+#define pgprot_noncached(prot)					\
+	((boot_cpu_data.x86 > 3)				\
+	 ? (__pgprot(pgprot_val(prot) | _PAGE_CACHE_UC_MINUS))	\
+	 : (prot))
+
 #ifndef __ASSEMBLY__
+
+#define pgprot_writecombine	pgprot_writecombine
+extern pgprot_t pgprot_writecombine(pgprot_t prot);
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
@@ -309,41 +318,43 @@ static inline pte_t pte_mkspecial(pte_t pte)
 
 extern pteval_t __supported_pte_mask;
 
+/*
+ * Mask out unsupported bits in a present pgprot.  Non-present pgprots
+ * can use those bits for other purposes, so leave them be.
+ */
+static inline pgprotval_t massage_pgprot(pgprot_t pgprot)
+{
+	pgprotval_t protval = pgprot_val(pgprot);
+
+	if (protval & _PAGE_PRESENT)
+		protval &= __supported_pte_mask;
+
+	return protval;
+}
+
 static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
 {
-	pgprotval_t prot = pgprot_val(pgprot);
-
-	if (prot & _PAGE_PRESENT)
-		prot &= __supported_pte_mask;
-	return __pte(((phys_addr_t)page_nr << PAGE_SHIFT) | prot);
+	return __pte(((phys_addr_t)page_nr << PAGE_SHIFT) |
+		     massage_pgprot(pgprot));
 }
 
 static inline pte_t pfn_pte_ma(unsigned long page_nr, pgprot_t pgprot)
 {
-	pgprotval_t prot = pgprot_val(pgprot);
-
-	if (prot & _PAGE_PRESENT)
-		prot &= __supported_pte_mask;
-	return __pte_ma(((phys_addr_t)page_nr << PAGE_SHIFT) | prot);
+	return __pte_ma(((phys_addr_t)page_nr << PAGE_SHIFT) |
+			massage_pgprot(pgprot));
 }
 
 static inline pmd_t pfn_pmd(unsigned long page_nr, pgprot_t pgprot)
 {
-	pgprotval_t prot = pgprot_val(pgprot);
-
-	if (prot & _PAGE_PRESENT)
-		prot &= __supported_pte_mask;
-	return __pmd(((phys_addr_t)page_nr << PAGE_SHIFT) | prot);
+	return __pmd(((phys_addr_t)page_nr << PAGE_SHIFT) |
+		     massage_pgprot(pgprot));
 }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	pgprotval_t prot = pgprot_val(newprot);
 	pteval_t val = pte_val(pte) & _PAGE_CHG_MASK;
 
-	if (prot & _PAGE_PRESENT)
-		prot &= __supported_pte_mask;
-	val |= prot & ~_PAGE_CHG_MASK;
+	val |= massage_pgprot(newprot) & ~_PAGE_CHG_MASK;
 
 	return __pte(val);
 }
@@ -359,11 +370,33 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
 
 #define pte_pgprot(x) __pgprot(pte_flags(x) & PTE_FLAGS_MASK)
 
-#define canon_pgprot(p) __pgprot(pgprot_val(p) & _PAGE_PRESENT \
-				 ? pgprot_val(p) & __supported_pte_mask \
-				 : pgprot_val(p))
+#define canon_pgprot(p) __pgprot(massage_pgprot(p))
+
+static inline int is_new_memtype_allowed(unsigned long flags,
+						unsigned long new_flags)
+{
+	/*
+	 * Certain new memtypes are not allowed with certain
+	 * requested memtype:
+	 * - request is uncached, return cannot be write-back
+	 * - request is write-combine, return cannot be write-back
+	 */
+	if ((flags == _PAGE_CACHE_UC_MINUS &&
+	     new_flags == _PAGE_CACHE_WB) ||
+	    (flags == _PAGE_CACHE_WC &&
+	     new_flags == _PAGE_CACHE_WB)) {
+		return 0;
+	}
+
+	return 1;
+}
 
 #ifndef __ASSEMBLY__
+#ifndef CONFIG_XEN
+/* Indicate that x86 has its own track and untrack pfn vma functions */
+#define __HAVE_PFNMAP_TRACKING
+#endif
+
 #define __HAVE_PHYS_MEM_ACCESS_PROT
 struct file;
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
