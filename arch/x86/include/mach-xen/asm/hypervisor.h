@@ -102,8 +102,8 @@ void do_hypervisor_callback(struct pt_regs *regs);
  * be MACHINE addresses.
  */
 
-void xen_pt_switch(unsigned long ptr);
-void xen_new_user_pt(unsigned long ptr); /* x86_64 only */
+void xen_pt_switch(pgd_t *);
+void xen_new_user_pt(pgd_t *); /* x86_64 only */
 void xen_load_gs(unsigned int selector); /* x86_64 only */
 void xen_tlb_flush(void);
 void xen_invlpg(unsigned long ptr);
@@ -111,7 +111,7 @@ void xen_invlpg(unsigned long ptr);
 void xen_l1_entry_update(pte_t *ptr, pte_t val);
 void xen_l2_entry_update(pmd_t *ptr, pmd_t val);
 void xen_l3_entry_update(pud_t *ptr, pud_t val); /* x86_64/PAE */
-void xen_l4_entry_update(pgd_t *ptr, int user, pgd_t val); /* x86_64 only */
+void xen_l4_entry_update(pgd_t *ptr, pgd_t val); /* x86_64 only */
 void xen_pgd_pin(pgd_t *);
 void xen_pgd_unpin(pgd_t *);
 
