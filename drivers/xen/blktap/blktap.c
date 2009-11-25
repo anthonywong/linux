@@ -331,8 +331,8 @@ static pte_t blktap_clear_pte(struct vm_area_struct *vma,
 		uvstart = info->rings_vstart + (RING_PAGES << PAGE_SHIFT);
 	}
 	if (vma->vm_file == NULL || uvaddr < uvstart)
-		return ptep_get_and_clear_full(vma->vm_mm, uvaddr, 
-					       ptep, is_fullmm);
+		return xen_ptep_get_and_clear_full(vma, uvaddr, ptep,
+						   is_fullmm);
 
 	/* TODO Should these be changed to if statements? */
 	BUG_ON(!info);
@@ -375,8 +375,8 @@ static pte_t blktap_clear_pte(struct vm_area_struct *vma,
 		BUG_ON(!xen_feature(XENFEAT_auto_translated_physmap));
 
 		/* USING SHADOW PAGE TABLES. */
-		copy = ptep_get_and_clear_full(vma->vm_mm, uvaddr, ptep,
-					       is_fullmm);
+		copy = xen_ptep_get_and_clear_full(vma, uvaddr, ptep,
+						   is_fullmm);
 	}
 
 	if (count) {
