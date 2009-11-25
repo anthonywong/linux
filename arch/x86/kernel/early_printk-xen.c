@@ -174,6 +174,7 @@ static __init void early_serial_init(char *s)
  * mappings. Someone should fix this for domain 0. For now, use fake serial.
  */
 #define early_vga_console early_serial_console
+#define xenboot_console early_serial_console
 
 #endif
 
@@ -261,20 +262,22 @@ static int __init setup_early_printk(char *buf)
 	} else if (!strncmp(buf, "ttyS", 4)) {
 		early_serial_init(buf);
 		early_console = &early_serial_console;
-	} else if (!strncmp(buf, "vga", 3)
+	} else if (!strncmp(buf, "vga", 3)) {
 #ifndef CONFIG_XEN
 	           && SCREEN_INFO.orig_video_isVGA == 1) {
 		max_xpos = SCREEN_INFO.orig_video_cols;
 		max_ypos = SCREEN_INFO.orig_video_lines;
 		current_ypos = SCREEN_INFO.orig_y;
-#else
-	           || !strncmp(buf, "xen", 3)) {
 #endif
 		early_console = &early_vga_console;
  	} else if (!strncmp(buf, "simnow", 6)) {
  		simnow_init(buf + 6);
  		early_console = &simnow_console;
  		keep_early = 1;
+#ifdef CONFIG_XEN
+	} else if (!strncmp(buf, "xen", 3)) {
+		early_console = &xenboot_console;
+#endif
 	}
 
 	if (keep_early)
