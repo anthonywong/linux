@@ -46,7 +46,9 @@ static cpumask_var_t marked_cpus;
 static DEFINE_SPINLOCK(task_mortuary);
 static void process_task_mortuary(void);
 
+#ifdef CONFIG_XEN
 static int cpu_current_domain[NR_CPUS];
+#endif
 
 /* Take ownership of the task struct and place it on the
  * list for processing. Only after two full buffer syncs
@@ -158,11 +160,13 @@ static void end_sync(void)
 int sync_start(void)
 {
 	int err;
+#ifdef CONFIG_XEN
 	int i;
 
 	for (i = 0; i < NR_CPUS; i++) {
 		cpu_current_domain[i] = COORDINATOR_DOMAIN;
 	}
+#endif
 
 	if (!zalloc_cpumask_var(&marked_cpus, GFP_KERNEL))
 		return -ENOMEM;
@@ -312,12 +316,14 @@ static void add_cpu_mode_switch(unsigned int cpu_mode)
 	}
 }
 
+#ifdef CONFIG_XEN
 static void add_domain_switch(unsigned long domain_id)
 {
 	add_event_entry(ESCAPE_CODE);
 	add_event_entry(DOMAIN_SWITCH_CODE);
 	add_event_entry(domain_id);
 }
+#endif
 
 static void
 add_user_ctx_switch(struct task_struct const *task, unsigned long cookie)
@@ -540,10 +546,12 @@ void sync_buffer(int cpu)
 
 	add_cpu_switch(cpu);
 
+#ifdef CONFIG_XEN
 	/* We need to assign the first samples in this CPU buffer to the
 	   same domain that we were processing at the last sync_buffer */
 	if (cpu_current_domain[cpu] != COORDINATOR_DOMAIN)
 		add_domain_switch(cpu_current_domain[cpu]);
+#endif
 
 	op_cpu_buffer_reset(cpu);
 	available = op_cpu_buffer_entries(cpu);
@@ -553,12 +561,14 @@ void sync_buffer(int cpu)
 		if (!sample)
 			break;
 
+#ifdef CONFIG_XEN
 		if (domain_switch) {
 			cpu_current_domain[cpu] = sample->eip;
 			add_domain_switch(sample->eip);
 			domain_switch = 0;
 			continue;
 		}
+#endif
 
 		if (is_code(sample->eip)) {
 			flags = sample->event;
@@ -584,17 +594,21 @@ void sync_buffer(int cpu)
 					cookie = get_exec_dcookie(mm);
 				add_user_ctx_switch(new, cookie);
 			}
+#ifdef CONFIG_XEN
 			if (flags & DOMAIN_SWITCH)
 				domain_switch = 1;
+#endif
 			if (op_cpu_buffer_get_size(&entry))
 				add_data(&entry, mm);
 			continue;
 		}
 
+#ifdef CONFIG_XEN
 		if (cpu_current_domain[cpu] != COORDINATOR_DOMAIN) {
 			add_sample_entry(sample->eip, sample->event);
 			continue;
 		}
+#endif
 
 		if (state < sb_bt_start)
 			/* ignore sample */
@@ -611,9 +625,11 @@ void sync_buffer(int cpu)
 	}
 	release_mm(mm);
 
+#ifdef CONFIG_XEN
 	/* We reset domain to COORDINATOR at each CPU switch */
 	if (cpu_current_domain[cpu] != COORDINATOR_DOMAIN)
 		add_domain_switch(COORDINATOR_DOMAIN);
+#endif
 
 	mark_done(cpu);
 
