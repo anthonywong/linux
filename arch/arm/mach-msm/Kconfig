@@ -241,6 +241,12 @@ config PMEM_KERNEL_SIZE
 	  Configures the amount of PMEM for use by kernel components
 	  (in MB; minimum 2MB)
 
+config PHYS_OFFSET
+	hex
+	default "0x00200000" if !MSM_STACKED_MEMORY
+	default "0x20000000" if ARCH_QSD8X50
+	default "0x10000000"
+
 config MSM_AMSS_VERSION
 	int
 	default 6210 if MSM_AMSS_VERSION_6210
