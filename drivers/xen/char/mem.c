@@ -35,7 +35,7 @@ static inline int uncached_access(struct file *file)
 
 static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 {
-#ifdef CONFIG_NONPROMISC_DEVMEM
+#ifdef CONFIG_STRICT_DEVMEM
 	u64 from = ((u64)pfn) << PAGE_SHIFT;
 	u64 to = from + size;
 	u64 cursor = from;
@@ -172,7 +172,10 @@ static void mmap_mem_close(struct vm_area_struct *vma)
 
 static struct vm_operations_struct mmap_mem_ops = {
 	.open  = mmap_mem_open,
-	.close = mmap_mem_close
+	.close = mmap_mem_close,
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+	.access = generic_access_phys
+#endif
 };
 
 static int xen_mmap_mem(struct file * file, struct vm_area_struct * vma)

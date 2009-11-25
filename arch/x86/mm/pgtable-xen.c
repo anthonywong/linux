@@ -4,6 +4,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
+#include <asm/fixmap.h>
 #include <asm/hypervisor.h>
 #include <asm/mmu_context.h>
 
@@ -410,14 +411,8 @@ static inline void pgd_list_del(pgd_t *pgd)
 static void pgd_ctor(void *p)
 {
 	pgd_t *pgd = p;
-	unsigned long flags;
 
 	pgd_test_and_unpin(pgd);
-
-	/* Clear usermode parts of PGD */
-	memset(pgd, 0, KERNEL_PGD_BOUNDARY*sizeof(pgd_t));
-
-	spin_lock_irqsave(&pgd_lock, flags);
 
 	/* If the pgd points to a shared pagetable level (either the
 	   ptes in non-PAE, or shared PMD in PAE), then just copy the
@@ -440,13 +435,9 @@ static void pgd_ctor(void *p)
 		__pgd(__pa_symbol(level3_user_pgt) | _PAGE_TABLE);
 #endif
 
-#ifndef CONFIG_X86_PAE
 	/* list required to sync kernel mapping updates */
 	if (!SHARED_KERNEL_PMD)
 		pgd_list_add(pgd);
-#endif
-
-	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 static void pgd_dtor(void *pgd)
@@ -475,33 +466,6 @@ static void pgd_dtor(void *pgd)
 
 #ifdef CONFIG_X86_PAE
 /*
- * Mop up any pmd pages which may still be attached to the pgd.
- * Normally they will be freed by munmap/exit_mmap, but any pmd we
- * preallocate which never got a corresponding vma will need to be
- * freed manually.
- */
-static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
-{
-	int i;
-
-	for(i = 0; i < UNSHARED_PTRS_PER_PGD; i++) {
-		pgd_t pgd = pgdp[i];
-
-		if (__pgd_val(pgd) != 0) {
-			pmd_t *pmd = (pmd_t *)pgd_page_vaddr(pgd);
-
-			pgdp[i] = xen_make_pgd(0);
-
-			paravirt_release_pmd(pgd_val(pgd) >> PAGE_SHIFT);
-			pmd_free(mm, pmd);
-		}
-	}
-
-	if (!xen_feature(XENFEAT_pae_pgdir_above_4gb))
-		xen_destroy_contiguous_region((unsigned long)pgdp, 0);
-}
-
-/*
  * In PAE mode, we need to do a cr3 reload (=tlb flush) when
  * updating the top-level pagetable entries to guarantee the
  * processor notices the update.  Since this is expensive, and
@@ -512,61 +476,7 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
  * not shared between pagetables (!SHARED_KERNEL_PMDS), we allocate
  * and initialize the kernel pmds here.
  */
-static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
-{
-	pud_t *pud;
-	pmd_t *pmds[UNSHARED_PTRS_PER_PGD];
-	unsigned long addr, flags;
-	int i;
-
-	/*
-	 * We can race save/restore (if we sleep during a GFP_KERNEL memory
-	 * allocation). We therefore store virtual addresses of pmds as they
-	 * do not change across save/restore, and poke the machine addresses
-	 * into the pgdir under the pgd_lock.
-	 */
- 	for (addr = i = 0; i < UNSHARED_PTRS_PER_PGD; i++, addr += PUD_SIZE) {
-		pmds[i] = pmd_alloc_one(mm, addr);
-		if (!pmds[i])
-			goto out_oom;
-	}
-
-	spin_lock_irqsave(&pgd_lock, flags);
-
-	/* Protect against save/restore: move below 4GB under pgd_lock. */
-	if (!xen_feature(XENFEAT_pae_pgdir_above_4gb)
-	    && xen_create_contiguous_region((unsigned long)pgd, 0, 32)) {
-		spin_unlock_irqrestore(&pgd_lock, flags);
-out_oom:
-		while (i--)
-			pmd_free(mm, pmds[i]);
-		return 0;
-	}
-
-	/* Copy kernel pmd contents and write-protect the new pmds. */
-	pud = pud_offset(pgd, 0);
- 	for (addr = i = 0; i < UNSHARED_PTRS_PER_PGD;
-	     i++, pud++, addr += PUD_SIZE) {
-		if (i >= KERNEL_PGD_BOUNDARY) {
-			memcpy(pmds[i],
-			       (pmd_t *)pgd_page_vaddr(swapper_pg_dir[i]),
-			       sizeof(pmd_t) * PTRS_PER_PMD);
-			make_lowmem_page_readonly(
-				pmds[i], XENFEAT_writable_page_tables);
-		}
-
-		/* It is safe to poke machine addresses of pmds under the pgd_lock. */
-		pud_populate(mm, pud, pmds[i]);
-	}
-
-	/* List required to sync kernel mapping updates and
-	 * to pin/unpin on save/restore. */
-	pgd_list_add(pgd);
-
-	spin_unlock_irqrestore(&pgd_lock, flags);
-
-	return 1;
-}
+#define PREALLOCATED_PMDS	UNSHARED_PTRS_PER_PGD
 
 void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 {
@@ -596,16 +506,101 @@ void pud_populate(struct mm_struct *mm, pud_t *pudp, pmd_t *pmd)
 		xen_tlb_flush();
 }
 #else  /* !CONFIG_X86_PAE */
+
 /* No need to prepopulate any pagetable entries in non-PAE modes. */
-static int pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd)
+#define PREALLOCATED_PMDS	0
+
+#endif	/* CONFIG_X86_PAE */
+
+static void free_pmds(pmd_t *pmds[], struct mm_struct *mm, bool contig)
 {
-	return 1;
+	int i;
+
+#ifdef CONFIG_X86_PAE
+	if (contig)
+		xen_destroy_contiguous_region((unsigned long)mm->pgd, 0);
+#endif
+
+	for(i = 0; i < PREALLOCATED_PMDS; i++)
+		if (pmds[i])
+			pmd_free(mm, pmds[i]);
 }
 
-static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgd)
+static int preallocate_pmds(pmd_t *pmds[], struct mm_struct *mm)
 {
+	int i;
+	bool failed = false;
+
+	for(i = 0; i < PREALLOCATED_PMDS; i++) {
+		pmd_t *pmd = pmd_alloc_one(mm, i << PUD_SHIFT);
+		if (pmd == NULL)
+			failed = true;
+		pmds[i] = pmd;
+	}
+
+	if (failed) {
+		free_pmds(pmds, mm, false);
+		return -ENOMEM;
+	}
+
+	return 0;
 }
-#endif	/* CONFIG_X86_PAE */
+
+/*
+ * Mop up any pmd pages which may still be attached to the pgd.
+ * Normally they will be freed by munmap/exit_mmap, but any pmd we
+ * preallocate which never got a corresponding vma will need to be
+ * freed manually.
+ */
+static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgdp)
+{
+	int i;
+
+	for(i = 0; i < PREALLOCATED_PMDS; i++) {
+		pgd_t pgd = pgdp[i];
+
+		if (__pgd_val(pgd) != 0) {
+			pmd_t *pmd = (pmd_t *)pgd_page_vaddr(pgd);
+
+			pgdp[i] = xen_make_pgd(0);
+
+			paravirt_release_pmd(pgd_val(pgd) >> PAGE_SHIFT);
+			pmd_free(mm, pmd);
+		}
+	}
+
+#ifdef CONFIG_X86_PAE
+	if (!xen_feature(XENFEAT_pae_pgdir_above_4gb))
+		xen_destroy_contiguous_region((unsigned long)pgdp, 0);
+#endif
+}
+
+static void pgd_prepopulate_pmd(struct mm_struct *mm, pgd_t *pgd, pmd_t *pmds[])
+{
+	pud_t *pud;
+	unsigned long addr;
+	int i;
+
+	if (PREALLOCATED_PMDS == 0) /* Work around gcc-3.4.x bug */
+		return;
+
+	pud = pud_offset(pgd, 0);
+ 	for (addr = i = 0; i < PREALLOCATED_PMDS;
+	     i++, pud++, addr += PUD_SIZE) {
+		pmd_t *pmd = pmds[i];
+
+		if (i >= KERNEL_PGD_BOUNDARY) {
+			memcpy(pmd,
+			       (pmd_t *)pgd_page_vaddr(swapper_pg_dir[i]),
+			       sizeof(pmd_t) * PTRS_PER_PMD);
+			make_lowmem_page_readonly(
+				pmd, XENFEAT_writable_page_tables);
+		}
+
+		/* It is safe to poke machine addresses of pmds under the pgd_lock. */
+		pud_populate(mm, pud, pmd);
+	}
+}
 
 #ifdef CONFIG_X86_64
 /* We allocate two contiguous pages for kernel and user. */
@@ -616,19 +611,52 @@ static void pgd_mop_up_pmds(struct mm_struct *mm, pgd_t *pgd)
 
 pgd_t *pgd_alloc(struct mm_struct *mm)
 {
-	pgd_t *pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, PGD_ORDER);
+	pgd_t *pgd;
+	pmd_t *pmds[PREALLOCATED_PMDS];
+	unsigned long flags;
 
-	/* so that alloc_pd can use it */
+	pgd = (pgd_t *)__get_free_pages(GFP_KERNEL | __GFP_ZERO, PGD_ORDER);
+
+	if (pgd == NULL)
+		goto out;
+
 	mm->pgd = pgd;
-	if (pgd)
-		pgd_ctor(pgd);
 
-	if (pgd && !pgd_prepopulate_pmd(mm, pgd)) {
-		free_pages((unsigned long)pgd, PGD_ORDER);
-		pgd = NULL;
+	if (preallocate_pmds(pmds, mm) != 0)
+		goto out_free_pgd;
+
+	if (paravirt_pgd_alloc(mm) != 0)
+		goto out_free_pmds;
+
+	/*
+	 * Make sure that pre-populating the pmds is atomic with
+	 * respect to anything walking the pgd_list, so that they
+	 * never see a partially populated pgd.
+	 */
+	spin_lock_irqsave(&pgd_lock, flags);
+
+#ifdef CONFIG_X86_PAE
+	/* Protect against save/restore: move below 4GB under pgd_lock. */
+	if (!xen_feature(XENFEAT_pae_pgdir_above_4gb)
+	    && xen_create_contiguous_region((unsigned long)pgd, 0, 32)) {
+		spin_unlock_irqrestore(&pgd_lock, flags);
+		goto out_free_pmds;
 	}
+#endif
+
+	pgd_ctor(pgd);
+	pgd_prepopulate_pmd(mm, pgd, pmds);
+
+	spin_unlock_irqrestore(&pgd_lock, flags);
 
 	return pgd;
+
+out_free_pmds:
+	free_pmds(pmds, mm, !xen_feature(XENFEAT_pae_pgdir_above_4gb));
+out_free_pgd:
+	free_pages((unsigned long)pgd, PGD_ORDER);
+out:
+	return NULL;
 }
 
 void pgd_free(struct mm_struct *mm, pgd_t *pgd)
@@ -644,6 +672,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 	pgd_dtor(pgd);
 
 	pgd_mop_up_pmds(mm, pgd);
+	paravirt_pgd_free(mm, pgd);
 	free_pages((unsigned long)pgd, PGD_ORDER);
 }
 
@@ -686,7 +715,7 @@ int ptep_test_and_clear_young(struct vm_area_struct *vma,
 
 	if (pte_young(*ptep))
 		ret = test_and_clear_bit(_PAGE_BIT_ACCESSED,
-					 &ptep->pte);
+					 (unsigned long *) &ptep->pte);
 
 	if (ret)
 		pte_update(vma->vm_mm, addr, ptep);
@@ -707,4 +736,43 @@ int ptep_clear_flush_young(struct vm_area_struct *vma,
 		ptep->pte_low = pte.pte_low;
 
 	return young;
+}
+
+int fixmaps_set;
+
+void xen_set_fixmap(enum fixed_addresses idx, maddr_t phys, pgprot_t flags)
+{
+	unsigned long address = __fix_to_virt(idx);
+	pte_t pte;
+
+	if (idx >= __end_of_fixed_addresses) {
+		BUG();
+		return;
+	}
+
+	switch (idx) {
+#ifdef CONFIG_X86_64
+	extern pte_t level1_fixmap_pgt[PTRS_PER_PTE];
+
+	case VSYSCALL_LAST_PAGE ... VSYSCALL_FIRST_PAGE:
+		pte = pfn_pte(phys >> PAGE_SHIFT, flags);
+		set_pte_vaddr_pud(level3_user_pgt, address, pte);
+		break;
+	case FIX_EARLYCON_MEM_BASE:
+		xen_l1_entry_update(level1_fixmap_pgt + pte_index(address),
+				    pfn_pte_ma(phys >> PAGE_SHIFT, flags));
+		fixmaps_set++;
+		return;
+#else
+	case FIX_WP_TEST:
+	case FIX_VDSO:
+		pte = pfn_pte(phys >> PAGE_SHIFT, flags);
+		break;
+#endif
+	default:
+		pte = pfn_pte_ma(phys >> PAGE_SHIFT, flags);
+		break;
+	}
+	set_pte_vaddr(address, pte);
+	fixmaps_set++;
 }

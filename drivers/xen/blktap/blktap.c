@@ -54,6 +54,7 @@
 #include <linux/gfp.h>
 #include <linux/poll.h>
 #include <linux/delay.h>
+#include <linux/nsproxy.h>
 #include <asm/tlbflush.h>
 
 #define MAX_TAP_DEV 256     /*the maximum number of tapdisk ring devices    */
@@ -518,7 +519,7 @@ found:
 
 		if ((class = get_xen_class()) != NULL)
 			device_create(class, NULL, MKDEV(blktap_major, minor),
-				      "blktap%d", minor);
+				      NULL, "blktap%d", minor);
 	}
 
 out:
@@ -1738,7 +1739,8 @@ static int __init blkif_init(void)
 		 * We only create the device when a request of a new device is
 		 * made.
 		 */
-		device_create(class, NULL, MKDEV(blktap_major, 0), "blktap0");
+		device_create(class, NULL, MKDEV(blktap_major, 0), NULL,
+			      "blktap0");
 	} else {
 		/* this is bad, but not fatal */
 		WPRINTK("blktap: sysfs xen_class not created\n");
