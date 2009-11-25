@@ -173,7 +173,7 @@ static int __cpuinit xen_smp_intr_init(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static void __cpuexit xen_smp_intr_exit(unsigned int cpu)
+static void __cpuinit xen_smp_intr_exit(unsigned int cpu)
 {
 	if (cpu != 0)
 		local_teardown_timer(cpu);
@@ -392,7 +392,7 @@ int __cpuexit __cpu_disable(void)
 	return 0;
 }
 
-void __cpuexit __cpu_die(unsigned int cpu)
+void __cpuinit __cpu_die(unsigned int cpu)
 {
 	while (HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
 		current->state = TASK_UNINTERRUPTIBLE;
