@@ -36,10 +36,10 @@ dev_to_blktap(struct blktap_device *dev)
 }
 
 static int
-blktap_device_open(struct inode *inode, struct file *filep)
+blktap_device_open(struct block_device *bd, fmode_t mode)
 {
 	struct blktap *tap;
-	struct blktap_device *dev = inode->i_bdev->bd_disk->private_data;
+	struct blktap_device *dev = bd->bd_disk->private_data;
 
 	if (!dev)
 		return -ENOENT;
@@ -55,9 +55,9 @@ blktap_device_open(struct inode *inode, struct file *filep)
 }
 
 static int
-blktap_device_release(struct inode *inode, struct file *filep)
+blktap_device_release(struct gendisk *disk, fmode_t mode)
 {
-	struct blktap_device *dev = inode->i_bdev->bd_disk->private_data;
+	struct blktap_device *dev = disk->private_data;
 	struct blktap *tap = dev_to_blktap(dev);
 
 	dev->users--;
@@ -85,18 +85,17 @@ blktap_device_getgeo(struct block_device *bd, struct hd_geometry *hg)
 }
 
 static int
-blktap_device_ioctl(struct inode *inode, struct file *filep,
+blktap_device_ioctl(struct block_device *bd, fmode_t mode,
 		    unsigned command, unsigned long argument)
 {
 	int i;
 
-	DPRINTK_IOCTL("command: 0x%x, argument: 0x%lx, dev: 0x%04x\n",
-		      command, (long)argument, inode->i_rdev);
+	DPRINTK_IOCTL("command: 0x%x, argument: 0x%lx\n",
+		      command, (long)argument);
 
 	switch (command) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16)
 	case HDIO_GETGEO: {
-		struct block_device *bd = inode->i_bdev;
 		struct hd_geometry geo;
 		int ret;
 
