@@ -683,7 +683,6 @@ static const struct xenbus_device_id xenpci_ids[] = {
 
 static struct xenbus_driver xenbus_pciback_driver = {
 	.name 			= "pciback",
-	.owner 			= THIS_MODULE,
 	.ids 			= xenpci_ids,
 	.probe 			= pciback_xenbus_probe,
 	.remove 		= pciback_xenbus_remove,
