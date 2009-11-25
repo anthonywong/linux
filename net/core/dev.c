@@ -136,6 +136,12 @@
 /* This should be increased if a protocol with a bigger head is added. */
 #define GRO_MAX_HEAD (MAX_HEADER + 128)
 
+#ifdef CONFIG_XEN
+#include <net/ip.h>
+#include <linux/tcp.h>
+#include <linux/udp.h>
+#endif
+
 /*
  *	The list of packet types we will receive (as opposed to discard)
  *	and the routines to invoke.
@@ -1804,6 +1810,43 @@ static struct netdev_queue *dev_pick_tx(struct net_device *dev,
 	return netdev_get_tx_queue(dev, queue_index);
 }
 
+#ifdef CONFIG_XEN
+inline int skb_checksum_setup(struct sk_buff *skb)
+{
+	if (skb->proto_csum_blank) {
+		if (skb->protocol != htons(ETH_P_IP))
+			goto out;
+		skb->h.raw = (unsigned char *)skb->nh.iph + 4*skb->nh.iph->ihl;
+		if (skb->h.raw >= skb->tail)
+			goto out;
+		switch (skb->nh.iph->protocol) {
+		case IPPROTO_TCP:
+			skb->csum = offsetof(struct tcphdr, check);
+			break;
+		case IPPROTO_UDP:
+			skb->csum = offsetof(struct udphdr, check);
+			break;
+		default:
+			if (net_ratelimit())
+				printk(KERN_ERR "Attempting to checksum a non-"
+				       "TCP/UDP packet, dropping a protocol"
+				       " %d packet", skb->nh.iph->protocol);
+			goto out;
+		}
+		if ((skb->h.raw + skb->csum + 2) > skb->tail)
+			goto out;
+		skb->ip_summed = CHECKSUM_HW;
+		skb->proto_csum_blank = 0;
+	}
+	return 0;
+out:
+	return -EPROTO;
+}
+#else
+inline int skb_checksum_setup(struct sk_buff *skb) { return 0; }
+#endif
+EXPORT_SYMBOL(skb_checksum_setup);
+
 static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct net_device *dev,
 				 struct netdev_queue *txq)
@@ -1869,6 +1912,12 @@ int dev_queue_xmit(struct sk_buff *skb)
 	struct netdev_queue *txq;
 	struct Qdisc *q;
 	int rc = -ENOMEM;
+
+ 	/* If a checksum-deferred packet is forwarded to a device that needs a
+ 	 * checksum, correct the pointers and force checksumming.
+ 	 */
+ 	if (skb_checksum_setup(skb))
+ 		goto out_kfree_skb;
 
 	/* GSO will handle the following emulations directly. */
 	if (netif_needs_gso(dev, skb))
@@ -2325,6 +2374,19 @@ int netif_receive_skb(struct sk_buff *skb)
 	if (skb->tc_verd & TC_NCLS) {
 		skb->tc_verd = CLR_TC_NCLS(skb->tc_verd);
 		goto ncls;
+	}
+#endif
+
+#ifdef CONFIG_XEN
+	switch (skb->ip_summed) {
+	case CHECKSUM_UNNECESSARY:
+		skb->proto_data_valid = 1;
+		break;
+	case CHECKSUM_HW:
+		/* XXX Implement me. */
+	default:
+		skb->proto_data_valid = 0;
+		break;
 	}
 #endif
 
