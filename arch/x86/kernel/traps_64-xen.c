@@ -33,6 +33,8 @@
 #include <linux/kdebug.h>
 #include <linux/utsname.h>
 
+#include <mach_traps.h>
+
 #if defined(CONFIG_EDAC)
 #include <linux/edac.h>
 #endif
@@ -601,10 +603,16 @@ void die(const char * str, struct pt_regs * regs, long err)
 }
 
 #if defined(CONFIG_X86_LOCAL_APIC) || defined(CONFIG_SYSCTL)
-void __kprobes die_nmi(char *str, struct pt_regs *regs, int do_panic)
+notrace __kprobes void
+die_nmi(char *str, struct pt_regs *regs, int do_panic)
 {
-	unsigned long flags = oops_begin();
+	unsigned long flags;
 
+	if (notify_die(DIE_NMIWATCHDOG, str, regs, 0, 2, SIGINT) ==
+	    NOTIFY_STOP)
+		return;
+
+	flags = oops_begin();
 	/*
 	 * We are in trouble anyway, lets at least try
 	 * to get a message out.
@@ -769,7 +777,7 @@ asmlinkage void __kprobes do_general_protection(struct pt_regs * regs,
 	die("general protection fault", regs, error_code);
 }
 
-static __kprobes void
+static notrace __kprobes void
 mem_parity_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
@@ -792,7 +800,7 @@ mem_parity_error(unsigned char reason, struct pt_regs * regs)
 	clear_mem_error(reason);
 }
 
-static __kprobes void
+static notrace __kprobes void
 io_check_error(unsigned char reason, struct pt_regs * regs)
 {
 	printk("NMI: IOCK error (debug interrupt?)\n");
@@ -802,9 +810,11 @@ io_check_error(unsigned char reason, struct pt_regs * regs)
 	clear_io_check_error(reason);
 }
 
-static __kprobes void
+static notrace __kprobes void
 unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 {
+	if (notify_die(DIE_NMIUNKNOWN, "nmi", regs, reason, 2, SIGINT) == NOTIFY_STOP)
+		return;
 	printk(KERN_EMERG "Uhhuh. NMI received for unknown reason %02x.\n",
 		reason);
 	printk(KERN_EMERG "Do you have a strange power saving mode enabled?\n");
@@ -817,7 +827,7 @@ unknown_nmi_error(unsigned char reason, struct pt_regs * regs)
 
 /* Runs on IST stack. This code must keep interrupts off all the time.
    Nested NMIs are prevented by the CPU. */
-asmlinkage __kprobes void default_do_nmi(struct pt_regs *regs)
+asmlinkage notrace  __kprobes void default_do_nmi(struct pt_regs *regs)
 {
 	unsigned char reason = 0;
 	int cpu;
@@ -1117,11 +1127,25 @@ asmlinkage void __attribute__((weak)) mce_threshold_interrupt(void)
 asmlinkage void math_state_restore(void)
 {
 	struct task_struct *me = current;
+
+	if (!used_math()) {
+		local_irq_enable();
+		/*
+		 * does a slab alloc which can sleep
+		 */
+		if (init_fpu(me)) {
+			/*
+			 * ran out of memory!
+			 */
+			do_group_exit(SIGKILL);
+			return;
+		}
+		local_irq_disable();
+	}
+
         /* clts(); */ /* 'clts' is done for us by Xen during virtual trap. */
 
-	if (!used_math())
-		init_fpu(me);
-	restore_fpu_checking(&me->thread.i387.fxsave);
+	restore_fpu_checking(&me->thread.xstate->fxsave);
 	task_thread_info(me)->status |= TS_USEDFPU;
 	me->fpu_counter++;
 }
@@ -1167,6 +1191,10 @@ void __init trap_init(void)
         if (ret) 
 		printk("HYPERVISOR_set_trap_table failed: error %d\n", ret);
 
+	/*
+	 * initialize the per thread extended state:
+	 */
+        init_thread_xstate();
 	/*
 	 * Should be a barrier for any external CPU state.
 	 */
