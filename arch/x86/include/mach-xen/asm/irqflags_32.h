@@ -11,6 +11,40 @@
 #define _ASM_IRQFLAGS_H
 
 #ifndef __ASSEMBLY__
+#define xen_save_fl(void) (current_vcpu_info()->evtchn_upcall_mask)
+
+#define xen_restore_fl(f)					\
+do {								\
+	vcpu_info_t *_vcpu;					\
+	barrier();						\
+	_vcpu = current_vcpu_info();				\
+	if ((_vcpu->evtchn_upcall_mask = (f)) == 0) {		\
+		barrier(); /* unmask then check (avoid races) */\
+		if (unlikely(_vcpu->evtchn_upcall_pending))	\
+			force_evtchn_callback();		\
+	}							\
+} while (0)
+
+#define xen_irq_disable()					\
+do {								\
+	current_vcpu_info()->evtchn_upcall_mask = 1;		\
+	barrier();						\
+} while (0)
+
+#define xen_irq_enable()					\
+do {								\
+	vcpu_info_t *_vcpu;					\
+	barrier();						\
+	_vcpu = current_vcpu_info();				\
+	_vcpu->evtchn_upcall_mask = 0;				\
+	barrier(); /* unmask then check (avoid races) */	\
+	if (unlikely(_vcpu->evtchn_upcall_pending))		\
+		force_evtchn_callback();			\
+} while (0)
+
+void xen_safe_halt(void);
+
+void xen_halt(void);
 
 /* 
  * The use of 'barrier' in the following reflects their use as local-lock
@@ -20,48 +54,31 @@
  * includes these barriers, for example.
  */
 
-#define __raw_local_save_flags() (current_vcpu_info()->evtchn_upcall_mask)
+#define __raw_local_save_flags() xen_save_fl()
 
-#define raw_local_irq_restore(x)					\
-do {									\
-	vcpu_info_t *_vcpu;						\
-	barrier();							\
-	_vcpu = current_vcpu_info();					\
-	if ((_vcpu->evtchn_upcall_mask = (x)) == 0) {			\
-		barrier(); /* unmask then check (avoid races) */	\
-		if (unlikely(_vcpu->evtchn_upcall_pending))		\
-			force_evtchn_callback();			\
-	}								\
-} while (0)
+#define raw_local_irq_restore(flags) xen_restore_fl(flags)
 
-#define raw_local_irq_disable()						\
-do {									\
-	current_vcpu_info()->evtchn_upcall_mask = 1;			\
-	barrier();							\
-} while (0)
+#define raw_local_irq_disable()	xen_irq_disable()
 
-#define raw_local_irq_enable()						\
-do {									\
-	vcpu_info_t *_vcpu;						\
-	barrier();							\
-	_vcpu = current_vcpu_info();					\
-	_vcpu->evtchn_upcall_mask = 0;					\
-	barrier(); /* unmask then check (avoid races) */		\
-	if (unlikely(_vcpu->evtchn_upcall_pending))			\
-		force_evtchn_callback();				\
-} while (0)
+#define raw_local_irq_enable() xen_irq_enable()
 
 /*
  * Used in the idle loop; sti takes one instruction cycle
  * to complete:
  */
-void raw_safe_halt(void);
+static inline void raw_safe_halt(void)
+{
+	xen_safe_halt();
+}
 
 /*
  * Used when interrupts are already enabled or to
  * shutdown the processor:
  */
-void halt(void);
+static inline void halt(void)
+{
+	xen_halt();
+}
 
 /*
  * For spinlocks, etc:
@@ -106,7 +123,7 @@ sysexit_scrit:	/**** START OF SYSEXIT CRITICAL REGION ****/		; \
 14:	__DISABLE_INTERRUPTS						; \
 	TRACE_IRQS_OFF							; \
 sysexit_ecrit:	/**** END OF SYSEXIT CRITICAL REGION ****/		; \
-	mov  $__KERNEL_PDA, %ecx					; \
+	mov  $__KERNEL_PERCPU, %ecx					; \
 	push %esp							; \
 	mov  %ecx, %fs							; \
 	call evtchn_do_upcall						; \
