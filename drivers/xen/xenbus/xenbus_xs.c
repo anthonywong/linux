@@ -227,6 +227,9 @@ void *xenbus_dev_request_and_reply(struct xsd_sockmsg *msg)
 
 	return ret;
 }
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+EXPORT_SYMBOL(xenbus_dev_request_and_reply);
+#endif
 
 /* Send message to xs, get kmalloc'ed reply.  ERR_PTR() on error. */
 static void *xs_talkv(struct xenbus_transaction t,
