@@ -395,7 +395,28 @@ static void connect(struct backend_info *be)
 	int err;
 
 	struct xenbus_device *dev = be->dev;
+	struct xenbus_transaction xbt;
 
+	/* Write feature-barrier to xenstore */
+again:
+	err = xenbus_transaction_start(&xbt);
+	if (err) {
+		xenbus_dev_fatal(dev, err, "starting transaction");
+		return;
+	}
+
+	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",  "1");
+	if (err) {
+		xenbus_dev_fatal(dev, err, "writing feature-barrier");
+		xenbus_transaction_end(xbt, 1);
+		return;
+	}
+
+	err = xenbus_transaction_end(xbt, 0);
+	if (err == -EAGAIN)
+		goto again;
+
+	/* Switch state */
 	err = xenbus_switch_state(dev, XenbusStateConnected);
 	if (err)
 		xenbus_dev_fatal(dev, err, "switching to Connected state",
