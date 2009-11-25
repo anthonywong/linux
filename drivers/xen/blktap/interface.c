@@ -177,5 +177,5 @@ void tap_blkif_kmem_cache_free(blkif_t *blkif)
 void __init tap_blkif_interface_init(void)
 {
 	blkif_cachep = kmem_cache_create("blktapif_cache", sizeof(blkif_t), 
-					 0, 0, NULL, NULL);
+					 0, 0, NULL);
 }

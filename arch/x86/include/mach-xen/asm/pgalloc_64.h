@@ -21,7 +21,7 @@ static inline void pmd_populate_kernel(struct mm_struct *mm, pmd_t *pmd, pte_t *
 
 static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
 {
-	if (unlikely((mm)->context.pinned)) {
+	if (unlikely(PagePinned(virt_to_page((mm)->pgd)))) {
 		BUG_ON(HYPERVISOR_update_va_mapping(
 			       (unsigned long)__va(page_to_pfn(pte) << PAGE_SHIFT),
 			       pfn_pte(page_to_pfn(pte), PAGE_KERNEL_RO), 0));
@@ -33,7 +33,7 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *p
 
 static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
 {
-	if (unlikely((mm)->context.pinned)) {
+	if (unlikely(PagePinned(virt_to_page((mm)->pgd)))) {
 		BUG_ON(HYPERVISOR_update_va_mapping(
 			       (unsigned long)pmd,
 			       pfn_pte(virt_to_phys(pmd)>>PAGE_SHIFT, 
@@ -50,7 +50,7 @@ static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
  */
 static inline void pgd_populate(struct mm_struct *mm, pgd_t *pgd, pud_t *pud)
 {
-	if (unlikely((mm)->context.pinned)) {
+	if (unlikely(PagePinned(virt_to_page((mm)->pgd)))) {
 		BUG_ON(HYPERVISOR_update_va_mapping(
 			       (unsigned long)pud,
 			       pfn_pte(virt_to_phys(pud)>>PAGE_SHIFT, 
