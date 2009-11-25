@@ -713,6 +713,72 @@ void xen_destroy_contiguous_region(unsigned long vstart, unsigned int order)
 }
 EXPORT_SYMBOL_GPL(xen_destroy_contiguous_region);
 
+int __init early_create_contiguous_region(unsigned long pfn,
+					  unsigned int order,
+					  unsigned int address_bits)
+{
+	unsigned long *in_frames = discontig_frames, out_frame = pfn;
+	unsigned int i;
+	int rc, success;
+	struct xen_memory_exchange exchange = {
+		.in = {
+			.nr_extents   = 1UL << order,
+			.extent_order = 0,
+			.domid        = DOMID_SELF
+		},
+		.out = {
+			.nr_extents   = 1,
+			.extent_order = order,
+			.address_bits = address_bits,
+			.domid        = DOMID_SELF
+		}
+	};
+
+	if (xen_feature(XENFEAT_auto_translated_physmap))
+		return 0;
+
+	if (unlikely(order > MAX_CONTIG_ORDER))
+		return -ENOMEM;
+
+	for (i = 0; i < (1U << order); ++i) {
+		in_frames[i] = pfn_to_mfn(pfn + i);
+		set_phys_to_machine(pfn + i, INVALID_P2M_ENTRY);
+	}
+
+	set_xen_guest_handle(exchange.in.extent_start, in_frames);
+	set_xen_guest_handle(exchange.out.extent_start, &out_frame);
+
+	rc = HYPERVISOR_memory_op(XENMEM_exchange, &exchange);
+	success = (exchange.nr_exchanged == (1UL << order));
+	BUG_ON(!success && (exchange.nr_exchanged || !rc));
+	BUG_ON(success && rc);
+#if CONFIG_XEN_COMPAT <= 0x030002
+	if (unlikely(rc == -ENOSYS)) {
+		/* Compatibility when XENMEM_exchange is unavailable. */
+		if (HYPERVISOR_memory_op(XENMEM_decrease_reservation,
+					 &exchange.in) != (1UL << order))
+			BUG();
+		success = (HYPERVISOR_memory_op(XENMEM_populate_physmap,
+						&exchange.out) == 1);
+		if (!success) {
+			for (i = 0; i < (1U << order); ++i)
+				in_frames[i] = pfn + i;
+			if (HYPERVISOR_memory_op(XENMEM_populate_physmap,
+						 &exchange.in) != (1UL << order))
+				BUG();
+		}
+	}
+#endif
+
+	for (i = 0; i < (1U << order); ++i, ++out_frame) {
+		if (!success)
+			out_frame = in_frames[i];
+		set_phys_to_machine(pfn + i, out_frame);
+	}
+
+	return success ? 0 : -ENOMEM;
+}
+
 static void undo_limit_pages(struct page *pages, unsigned int order)
 {
 	BUG_ON(xen_feature(XENFEAT_auto_translated_physmap));
@@ -879,42 +945,9 @@ int write_ldt_entry(struct desc_struct *ldt, int entry, const void *desc)
 	return HYPERVISOR_update_descriptor(mach_lp, *(const u64*)desc);
 }
 
-#define MAX_BATCHED_FULL_PTES 32
-
-int xen_change_pte_range(struct mm_struct *mm, pmd_t *pmd,
-			 unsigned long addr, unsigned long end, pgprot_t newprot,
-			 int dirty_accountable)
+int write_gdt_entry(struct desc_struct *gdt, int entry, const void *desc,
+		    int type)
 {
-	int rc = 0, i = 0;
-	mmu_update_t u[MAX_BATCHED_FULL_PTES];
-	pte_t *pte;
-	spinlock_t *ptl;
-
-	if (!xen_feature(XENFEAT_mmu_pt_update_preserve_ad))
-		return 0;
-
-	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-	do {
-		if (pte_present(*pte)) {
-			pte_t ptent = pte_modify(*pte, newprot);
-
-			if (dirty_accountable && pte_dirty(ptent))
-				ptent = pte_mkwrite(ptent);
-			u[i].ptr = (__pmd_val(*pmd) & PHYSICAL_PAGE_MASK)
-				   | ((unsigned long)pte & ~PAGE_MASK)
-				   | MMU_PT_UPDATE_PRESERVE_AD;
-			u[i].val = __pte_val(ptent);
-			if (++i == MAX_BATCHED_FULL_PTES) {
-				if ((rc = HYPERVISOR_mmu_update(
-					&u[0], i, NULL, DOMID_SELF)) != 0)
-					break;
-				i = 0;
-			}
-		}
-	} while (pte++, addr += PAGE_SIZE, addr != end);
-	if (i)
-		rc = HYPERVISOR_mmu_update( &u[0], i, NULL, DOMID_SELF);
-	pte_unmap_unlock(pte - 1, ptl);
-	BUG_ON(rc && rc != -ENOSYS);
-	return !rc;
+	maddr_t mach_gp = virt_to_machine(gdt + entry);
+	return HYPERVISOR_update_descriptor(mach_gp, *(const u64*)desc);
 }

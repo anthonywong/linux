@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/version.h>
+#include <asm/traps.h>
 
 #define DP(_f, _args...) printk(KERN_ALERT "  " _f "\n" , ## _args )
 
