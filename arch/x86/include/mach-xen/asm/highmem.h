@@ -80,6 +80,7 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 	clear_highpage(page);
 }
 #define __HAVE_ARCH_CLEAR_HIGHPAGE
+#define clear_user_highpage clear_user_highpage
 #define __HAVE_ARCH_CLEAR_USER_HIGHPAGE
 
 void copy_highpage(struct page *to, struct page *from);

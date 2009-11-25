@@ -536,7 +536,6 @@ void sync_buffer(int cpu)
 	int cpu_mode = CPU_MODE_KERNEL;
 	sync_buffer_state state = sb_buffer_start;
 	unsigned int i;
-	int domain_switch = 0;
 	unsigned long available;
 	unsigned long flags;
 	struct op_entry entry;
@@ -560,15 +559,6 @@ void sync_buffer(int cpu)
 		sample = op_cpu_buffer_read_entry(&entry, cpu);
 		if (!sample)
 			break;
-
-#ifdef CONFIG_XEN
-		if (domain_switch) {
-			cpu_current_domain[cpu] = sample->eip;
-			add_domain_switch(sample->eip);
-			domain_switch = 0;
-			continue;
-		}
-#endif
 
 		if (is_code(sample->eip)) {
 			flags = sample->event;
@@ -595,8 +585,11 @@ void sync_buffer(int cpu)
 				add_user_ctx_switch(new, cookie);
 			}
 #ifdef CONFIG_XEN
-			if (flags & DOMAIN_SWITCH)
-				domain_switch = 1;
+			if ((flags & DOMAIN_SWITCH)
+			    && op_cpu_buffer_get_data(&entry, &val)) {
+				cpu_current_domain[cpu] = val;
+				add_domain_switch(val);
+			}
 #endif
 			if (op_cpu_buffer_get_size(&entry))
 				add_data(&entry, mm);
