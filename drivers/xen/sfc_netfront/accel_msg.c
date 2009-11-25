@@ -47,7 +47,7 @@ static void vnic_start_interrupts(netfront_accel_vnic *vnic)
 		netfront_accel_disable_net_interrupts(vnic);
 		vnic->irq_enabled = 0;
 		NETFRONT_ACCEL_STATS_OP(vnic->stats.poll_schedule_count++);
-		netif_rx_schedule(&np->napi);
+		napi_schedule(&np->napi);
 	} else {
 		/*
 		 * Nothing yet, make sure we get interrupts through
@@ -532,7 +532,7 @@ irqreturn_t netfront_accel_net_channel_irq_from_bend(int irq, void *context)
 				vnic->stats.event_count_since_irq;
 		vnic->stats.event_count_since_irq = 0;
 #endif
-		netif_rx_schedule(&np->napi);
+		napi_schedule(&np->napi);
 	}
 	else {
 		spin_unlock_irqrestore(&vnic->irq_enabled_lock, flags);

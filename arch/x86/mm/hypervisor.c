@@ -36,6 +36,7 @@
 #include <linux/vmalloc.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/setup.h>
 #include <asm/hypervisor.h>
 #include <xen/balloon.h>
 #include <xen/features.h>
@@ -46,6 +47,9 @@
 #include <linux/highmem.h>
 
 EXPORT_SYMBOL(hypercall_page);
+
+shared_info_t *__read_mostly HYPERVISOR_shared_info = (shared_info_t *)empty_zero_page;
+EXPORT_SYMBOL(HYPERVISOR_shared_info);
 
 #define NR_MC     BITS_PER_LONG
 #define NR_MMU    BITS_PER_LONG
@@ -538,7 +542,7 @@ int xen_create_contiguous_region(
 		unsigned int level;
 
 		if (vstart < __START_KERNEL_map
-		    || vstart + (PAGE_SIZE << order) > (unsigned long)_end)
+		    || vstart + (PAGE_SIZE << order) > _brk_end)
 			return -EINVAL;
 		ptep = lookup_address((unsigned long)__va(__pa(vstart)),
 				      &level);
@@ -953,6 +957,6 @@ int write_ldt_entry(struct desc_struct *ldt, int entry, const void *desc)
 int write_gdt_entry(struct desc_struct *gdt, int entry, const void *desc,
 		    int type)
 {
-	maddr_t mach_gp = virt_to_machine(gdt + entry);
+	maddr_t mach_gp = arbitrary_virt_to_machine(gdt + entry);
 	return HYPERVISOR_update_descriptor(mach_gp, *(const u64*)desc);
 }
