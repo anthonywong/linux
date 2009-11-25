@@ -645,6 +645,8 @@ static int blkif_queue_request(struct request *req)
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
 	if (blk_barrier_rq(req))
 		ring_req->operation = BLKIF_OP_WRITE_BARRIER;
+	if (blk_pc_request(req))
+		ring_req->operation = BLKIF_OP_PACKET;
 
 	ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
 	BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
@@ -702,7 +704,7 @@ void do_blkif_request(struct request_queue *rq)
 
 		blk_start_request(req);
 
-		if (!blk_fs_request(req)) {
+		if (!blk_fs_request(req) && !blk_pc_request(req)) {
 			__blk_end_request_all(req, -EIO);
 			continue;
 		}
@@ -773,6 +775,7 @@ static irqreturn_t blkif_int(int irq, void *dev_id)
 			/* fall through */
 		case BLKIF_OP_READ:
 		case BLKIF_OP_WRITE:
+		case BLKIF_OP_PACKET:
 			if (unlikely(bret->status != BLKIF_RSP_OKAY))
 				DPRINTK("Bad return from blkdev data "
 					"request: %x\n", bret->status);
