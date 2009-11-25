@@ -452,9 +452,6 @@ restore_nocheck_notrace:
 1:	INTERRUPT_RETURN
 .section .fixup,"ax"
 iret_exc:
-#ifndef CONFIG_XEN
-	ENABLE_INTERRUPTS(CLBR_NONE)
-#endif
 	pushl $0			# no error code
 	pushl $do_iret_error
 	jmp error_code

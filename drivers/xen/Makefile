@@ -1,10 +1,12 @@
-obj-y	+= core/
-obj-y	+= console/
-obj-y	+= evtchn/
-obj-y	+= xenbus/
-obj-y	+= char/
+obj-$(CONFIG_PARAVIRT_XEN)	+= grant-table.o
 
-obj-y	+= util.o
+obj-$(CONFIG_XEN)		+= core/
+obj-$(CONFIG_XEN)		+= console/
+obj-$(CONFIG_XEN)		+= evtchn/
+obj-y				+= xenbus/
+obj-$(CONFIG_XEN)		+= char/
+
+obj-$(CONFIG_XEN)		+= util.o
 obj-$(CONFIG_XEN_BALLOON)		+= balloon/
 obj-$(CONFIG_XEN_BLKDEV_BACKEND)	+= blkback/
 obj-$(CONFIG_XEN_BLKDEV_TAP)		+= blktap/

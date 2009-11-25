@@ -125,11 +125,14 @@ void __init setup_per_cpu_areas(void)
 } 
 
 #ifdef CONFIG_XEN
-static void switch_pt(void)
+static void __init_refok switch_pt(int cpu)
 {
+	if (cpu == 0)
+		xen_init_pt();
 	xen_pt_switch(__pa_symbol(init_level4_pgt));
 	xen_new_user_pt(__pa_symbol(__user_pgd(init_level4_pgt)));
 }
+#define switch_pt() switch_pt(cpu)
 
 static void __cpuinit cpu_gdt_init(const struct desc_ptr *gdt_descr)
 {
@@ -185,9 +188,6 @@ void pda_init(int cpu)
 	pda->mmu_state = 0;
 
 	if (cpu == 0) {
-#ifdef CONFIG_XEN
-		xen_init_pt();
-#endif
 		/* others are initialized in smpboot.c */
 		pda->pcurrent = &init_task;
 		pda->irqstackptr = boot_cpu_stack; 
