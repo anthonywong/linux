@@ -104,8 +104,8 @@ void xen_set_ldt(const void *ptr, unsigned int ents);
 #include <linux/cpumask.h>
 void xen_tlb_flush_all(void);
 void xen_invlpg_all(unsigned long ptr);
-void xen_tlb_flush_mask(cpumask_t *mask);
-void xen_invlpg_mask(cpumask_t *mask, unsigned long ptr);
+void xen_tlb_flush_mask(const cpumask_t *mask);
+void xen_invlpg_mask(const cpumask_t *mask, unsigned long ptr);
 #else
 #define xen_tlb_flush_all xen_tlb_flush
 #define xen_invlpg_all xen_invlpg
@@ -156,7 +156,9 @@ static inline void arch_leave_lazy_mmu_mode(void)
 	xen_multicall_flush(false);
 }
 
-#ifndef arch_use_lazy_mmu_mode
+#if defined(CONFIG_X86_32)
+#define arch_use_lazy_mmu_mode() unlikely(x86_read_percpu(xen_lazy_mmu))
+#elif !defined(arch_use_lazy_mmu_mode)
 #define arch_use_lazy_mmu_mode() unlikely(__get_cpu_var(xen_lazy_mmu))
 #endif
 

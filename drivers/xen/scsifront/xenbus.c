@@ -96,7 +96,7 @@ static int scsifront_alloc_ring(struct vscsifrnt_info *info)
 
 	err = bind_listening_port_to_irqhandler(
 			dev->otherend_id, scsifront_intr,
-			SA_SAMPLE_RANDOM, "scsifront", info);
+			IRQF_SAMPLE_RANDOM, "scsifront", info);
 
 	if (err <= 0) {
 		xenbus_dev_fatal(dev, err, "bind_listening_port_to_irqhandler");
