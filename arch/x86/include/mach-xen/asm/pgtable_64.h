@@ -1,5 +1,5 @@
-#ifndef _X86_64_PGTABLE_H
-#define _X86_64_PGTABLE_H
+#ifndef _ASM_X86_PGTABLE_64_H
+#define _ASM_X86_PGTABLE_64_H
 
 #include <linux/const.h>
 #ifndef __ASSEMBLY__
@@ -65,14 +65,14 @@ extern void paging_init(void);
 	printk("%s:%d: bad pte %p(%016lx pfn %010lx).\n",		\
 	       __FILE__, __LINE__, &(e), __pte_val(e), pte_pfn(e))
 #define pmd_ERROR(e)							\
-	printk("%s:%d: bad pmd %p(%016lx pfn %010lx).\n",		\
+	printk("%s:%d: bad pmd %p(%016lx pfn %010Lx).\n",		\
 	       __FILE__, __LINE__, &(e), __pmd_val(e), pmd_pfn(e))
 #define pud_ERROR(e)							\
-	printk("%s:%d: bad pud %p(%016lx pfn %010lx).\n",		\
+	printk("%s:%d: bad pud %p(%016lx pfn %010Lx).\n",		\
 	       __FILE__, __LINE__, &(e), __pud_val(e),			\
 	       (pud_val(e) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 #define pgd_ERROR(e)							\
-	printk("%s:%d: bad pgd %p(%016lx pfn %010lx).\n",		\
+	printk("%s:%d: bad pgd %p(%016lx pfn %010Lx).\n",		\
 	       __FILE__, __LINE__, &(e), __pgd_val(e),			\
 	       (pgd_val(e) & __PHYSICAL_MASK) >> PAGE_SHIFT)
 
@@ -181,14 +181,6 @@ static inline int pmd_bad(pmd_t pmd)
 #define pages_to_mb(x)	((x) >> (20 - PAGE_SHIFT))   /* FIXME: is this right? */
 
 #define __pte_mfn(_pte) (((_pte).pte & PTE_PFN_MASK) >> PAGE_SHIFT)
-#define pte_mfn(_pte) ((_pte).pte & _PAGE_PRESENT ? \
-	__pte_mfn(_pte) : pfn_to_mfn(__pte_mfn(_pte)))
-#define pte_pfn(_pte) ((_pte).pte & _PAGE_IO ? max_mapnr :	\
-		       (_pte).pte & _PAGE_PRESENT ?		\
-		       mfn_to_local_pfn(__pte_mfn(_pte)) :	\
-		       __pte_mfn(_pte))
-
-#define pte_page(x)	pfn_to_page(pte_pfn((x)))
 
 /*
  * Macro to mark a page protection value as "uncacheable".
@@ -312,4 +304,4 @@ extern void cleanup_highmap(void);
 #define __HAVE_ARCH_PTE_SAME
 #endif /* !__ASSEMBLY__ */
 
-#endif /* _X86_64_PGTABLE_H */
+#endif /* _ASM_X86_PGTABLE_64_H */

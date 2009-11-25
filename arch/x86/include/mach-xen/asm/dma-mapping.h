@@ -1,17 +1,12 @@
-#ifndef _ASM_DMA_MAPPING_H_
+#ifndef _ASM_X86_DMA_MAPPING_H_
 
 #include_next <asm/dma-mapping.h>
 
-static inline int
-address_needs_mapping(struct device *hwdev, dma_addr_t addr)
-{
-	dma_addr_t mask = 0xffffffff;
-	/* If the device has a mask, use it, otherwise default to 32 bits */
-	if (hwdev && hwdev->dma_mask)
-		mask = *hwdev->dma_mask;
-	return (addr & ~mask) != 0;
-}
+void dma_generic_free_coherent(struct device *, size_t, void *, dma_addr_t);
+
+#define address_needs_mapping(hwdev, addr, size) \
+	!is_buffer_dma_capable(dma_get_mask(hwdev), addr, size)
 
 extern int range_straddles_page_boundary(paddr_t p, size_t size);
 
-#endif /* _ASM_DMA_MAPPING_H_ */
+#endif /* _ASM_X86_DMA_MAPPING_H_ */

@@ -42,6 +42,7 @@
 
 #include <asm/delay.h>
 #include <asm/time.h>
+#include <asm/timer.h>
 
 #include <xen/evtchn.h>
 #include <xen/sysctl.h>
@@ -406,14 +407,9 @@ unsigned long profile_pc(struct pt_regs *regs)
 	unsigned long pc = instruction_pointer(regs);
 
 #if defined(CONFIG_SMP) || defined(__x86_64__)
-# ifdef __i386__
-	if (!v8086_mode(regs) && SEGMENT_IS_KERNEL_CODE(regs->cs)
-# else
-	if (!user_mode(regs)
-# endif
-	    && in_lock_functions(pc)) {
+	if (!user_mode_vm(regs) && in_lock_functions(pc)) {
 # ifdef CONFIG_FRAME_POINTER
-		return ((unsigned long *)regs->bp)[1];
+		return *(unsigned long *)(regs->bp + sizeof(long));
 # else
 #  ifdef __i386__
 		unsigned long *sp = (unsigned long *)&regs->sp;
@@ -565,6 +561,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id)
 	run_local_timers();
 	if (rcu_pending(cpu))
 		rcu_check_callbacks(cpu, user_mode_vm(get_irq_regs()));
+	printk_tick();
 	scheduler_tick();
 	run_posix_cpu_timers(current);
 	profile_tick(CPU_PROFILING);
@@ -785,7 +782,8 @@ static void stop_hz_timer(void)
 	smp_mb();
 
 	/* Leave ourselves in tick mode if rcu or softirq or timer pending. */
-	if (rcu_needs_cpu(cpu) || local_softirq_pending() ||
+	if (rcu_needs_cpu(cpu) || printk_needs_cpu(cpu) ||
+	    local_softirq_pending() ||
 	    (j = get_next_timer_interrupt(jiffies),
 	     time_before_eq(j, jiffies))) {
 		cpu_clear(cpu, nohz_cpu_mask);

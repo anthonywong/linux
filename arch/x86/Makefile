@@ -110,7 +110,7 @@ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
 KBUILD_CFLAGS += $(call cc-option,-mno-sse -mno-mmx -mno-sse2 -mno-3dnow,)
 
 # Xen subarch support
-mflags-$(CONFIG_XEN)		:= -Iinclude/asm-x86/mach-xen
+mflags-$(CONFIG_XEN)		:= -Iarch/x86/include/mach-xen
 mcore-$(CONFIG_XEN)		:= arch/x86/mach-xen/
 
 KBUILD_CFLAGS += $(mflags-y)
@@ -154,7 +154,7 @@ PHONY += bzImage vmlinuz $(BOOT_TARGETS)
 
 ifdef CONFIG_XEN
 KBUILD_CPPFLAGS := -D__XEN_INTERFACE_VERSION__=$(CONFIG_XEN_INTERFACE_VERSION) \
-	-Iinclude$(if $(KBUILD_SRC),2)/asm/mach-xen $(KBUILD_CPPFLAGS)
+	-I$(srctree)/arch/x86/include/mach-xen $(KBUILD_CPPFLAGS)
 
 ifdef CONFIG_X86_64
 LDFLAGS_vmlinux := -e startup_64
