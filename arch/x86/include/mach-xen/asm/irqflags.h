@@ -157,23 +157,6 @@ static inline int raw_irqs_disabled_flags(unsigned long flags)
 	raw_irqs_disabled_flags(flags);					\
 })
 
-/*
- * makes the traced hardirq state match with the machine state
- *
- * should be a rarely used function, only in places where its
- * otherwise impossible to know the irq state, like in traps.
- */
-static inline void trace_hardirqs_fixup_flags(unsigned long flags)
-{
-	if (raw_irqs_disabled_flags(flags))
-		trace_hardirqs_off();
-	else
-		trace_hardirqs_on();
-}
-
-#define trace_hardirqs_fixup() \
-	trace_hardirqs_fixup_flags(__raw_local_save_flags())
-
 #else
 
 #ifdef CONFIG_X86_64
