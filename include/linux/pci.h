@@ -1298,5 +1298,11 @@ extern void pci_hp_create_module_link(struct pci_slot *pci_slot);
 extern void pci_hp_remove_module_link(struct pci_slot *pci_slot);
 #endif
 
+#ifdef CONFIG_PCI_GUESTDEV
+int pci_is_guestdev(struct pci_dev *dev);
+#else
+#define pci_is_guestdev(dev)	0
+#endif
+
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
