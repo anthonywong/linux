@@ -181,6 +181,17 @@ static int __init nonx32_setup(char *str)
 }
 __setup("noexec32=", nonx32_setup);
 
+static __init unsigned long get_table_end(void)
+{
+	BUG_ON(!e820_table_end);
+	if (xen_start_info->mfn_list < __START_KERNEL_map
+	    && e820_table_end == xen_start_info->first_p2m_pfn) {
+		e820_table_end += xen_start_info->nr_p2m_frames;
+		e820_table_top += xen_start_info->nr_p2m_frames;
+	}
+	return e820_table_end++;
+}
+
 /*
  * NOTE: This function is marked __ref because it calls __init function
  * (alloc_bootmem_pages). It's safe to do it ONLY when after_bootmem == 0.
@@ -192,8 +203,7 @@ static __ref void *spp_getpage(void)
 	if (after_bootmem)
 		ptr = (void *) get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
 	else if (e820_table_end < e820_table_top) {
-		ptr = __va(e820_table_end << PAGE_SHIFT);
-		e820_table_end++;
+		ptr = __va(get_table_end() << PAGE_SHIFT);
 		memset(ptr, 0, PAGE_SIZE);
 	} else
 		ptr = alloc_bootmem_pages(PAGE_SIZE);
@@ -388,8 +398,7 @@ static __ref void *alloc_low_page(unsigned long *phys)
 		return adr;
 	}
 
-	BUG_ON(!e820_table_end);
-	pfn = e820_table_end++;
+	pfn = get_table_end();
 	if (pfn >= e820_table_top)
 		panic("alloc_low_page: ran out of memory");
 
@@ -415,13 +424,28 @@ static inline int __meminit make_readonly(unsigned long paddr)
 	/* Make new page tables read-only on the first pass. */
 	if (!xen_feature(XENFEAT_writable_page_tables)
 	    && !max_pfn_mapped
-	    && (paddr >= (e820_table_start << PAGE_SHIFT))
-	    && (paddr < (e820_table_top << PAGE_SHIFT)))
-		readonly = 1;
+	    && (paddr >= (e820_table_start << PAGE_SHIFT))) {
+		unsigned long top = e820_table_top;
+
+		/* Account for the range get_table_end() skips. */
+		if (xen_start_info->mfn_list < __START_KERNEL_map
+		    && e820_table_end <= xen_start_info->first_p2m_pfn
+		    && top > xen_start_info->first_p2m_pfn)
+			top += xen_start_info->nr_p2m_frames;
+		if (paddr < (top << PAGE_SHIFT))
+			readonly = 1;
+	}
 	/* Make old page tables read-only. */
 	if (!xen_feature(XENFEAT_writable_page_tables)
 	    && (paddr >= (xen_start_info->pt_base - __START_KERNEL_map))
 	    && (paddr < (e820_table_end << PAGE_SHIFT)))
+		readonly = 1;
+	/* Make P->M table (and its page tables) read-only. */
+	if (!xen_feature(XENFEAT_writable_page_tables)
+	    && xen_start_info->mfn_list < __START_KERNEL_map
+	    && paddr >= (xen_start_info->first_p2m_pfn << PAGE_SHIFT)
+	    && paddr < (xen_start_info->first_p2m_pfn
+			+ xen_start_info->nr_p2m_frames) << PAGE_SHIFT)
 		readonly = 1;
 
 	/*
@@ -718,6 +742,12 @@ void __init xen_init_pt(void)
 	       (PTRS_PER_PUD - pud_index(__START_KERNEL_map))
 	       * sizeof(*level3_kernel_pgt));
 
+	/* Copy the initial P->M table mappings if necessary. */
+	addr = pgd_index(xen_start_info->mfn_list);
+	if (addr < pgd_index(__START_KERNEL_map))
+		init_level4_pgt[addr] =
+			((pgd_t *)xen_start_info->pt_base)[addr];
+
 	/* Do an early initialization of the fixmap area. */
 	addr = __fix_to_virt(FIX_EARLYCON_MEM_BASE);
 	if (pud_present(level3_kernel_pgt[pud_index(addr)])) {
@@ -749,21 +779,26 @@ void __init xen_init_pt(void)
 void __init xen_finish_init_mapping(void)
 {
 	unsigned long start, end;
+	struct mmuext_op mmuext;
 
 	/* Re-vector virtual addresses pointing into the initial
 	   mapping to the just-established permanent ones. */
 	xen_start_info = __va(__pa(xen_start_info));
 	xen_start_info->pt_base = (unsigned long)
 		__va(__pa(xen_start_info->pt_base));
-	if (!xen_feature(XENFEAT_auto_translated_physmap)) {
+	if (!xen_feature(XENFEAT_auto_translated_physmap)
+	    && xen_start_info->mfn_list >= __START_KERNEL_map)
 		phys_to_machine_mapping =
 			__va(__pa(xen_start_info->mfn_list));
-		xen_start_info->mfn_list = (unsigned long)
-			phys_to_machine_mapping;
-	}
 	if (xen_start_info->mod_start)
 		xen_start_info->mod_start = (unsigned long)
 			__va(__pa(xen_start_info->mod_start));
+
+	/* Unpin the no longer used Xen provided page tables. */
+	mmuext.cmd = MMUEXT_UNPIN_TABLE;
+	mmuext.arg1.mfn = virt_to_mfn(xen_start_info->pt_base);
+	if (HYPERVISOR_mmuext_op(&mmuext, 1, NULL, DOMID_SELF))
+		BUG();
 
 	/* Destroy the Xen-created mappings beyond the kernel image. */
 	start = PAGE_ALIGN(_brk_end);

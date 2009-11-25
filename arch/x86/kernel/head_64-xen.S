@@ -17,6 +17,7 @@
 #include <linux/elfnote.h>
 #include <asm/segment.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/msr.h>
 #include <asm/cache.h>
 #include <asm/dwarf2.h>
@@ -144,6 +145,7 @@ ENTRY(empty_zero_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_ENTRY,          .quad startup_64)
 	ELFNOTE(Xen, XEN_ELFNOTE_HYPERCALL_PAGE, .quad hypercall_page)
 	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .quad _PAGE_PRESENT, _PAGE_PRESENT)
+	ELFNOTE(Xen, XEN_ELFNOTE_INIT_P2M,       .quad VMEMMAP_START)
 	ELFNOTE(Xen, XEN_ELFNOTE_FEATURES,       .asciz "writable_page_tables|writable_descriptor_tables|auto_translated_physmap|pae_pgdir_above_4gb|supervisor_mode_kernel")
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz "generic")
 	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long 1)
