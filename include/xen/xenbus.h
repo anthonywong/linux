@@ -93,8 +93,7 @@ struct xenbus_device_id
 
 /* A xenbus driver. */
 struct xenbus_driver {
-	char *name;
-	struct module *owner;
+	const char *name;
 	const struct xenbus_device_id *ids;
 	int (*probe)(struct xenbus_device *dev,
 		     const struct xenbus_device_id *id);
@@ -115,8 +114,25 @@ static inline struct xenbus_driver *to_xenbus_driver(struct device_driver *drv)
 	return container_of(drv, struct xenbus_driver, driver);
 }
 
-int xenbus_register_frontend(struct xenbus_driver *drv);
-int xenbus_register_backend(struct xenbus_driver *drv);
+int __must_check __xenbus_register_frontend(struct xenbus_driver *drv,
+					    struct module *owner,
+					    const char *mod_name);
+
+static inline int __must_check
+xenbus_register_frontend(struct xenbus_driver *drv)
+{
+	return __xenbus_register_frontend(drv, THIS_MODULE, KBUILD_MODNAME);
+}
+
+int __must_check __xenbus_register_backend(struct xenbus_driver *drv,
+					   struct module *owner,
+					   const char *mod_name);
+static inline int __must_check
+xenbus_register_backend(struct xenbus_driver *drv)
+{
+	return __xenbus_register_backend(drv, THIS_MODULE, KBUILD_MODNAME);
+}
+
 void xenbus_unregister_driver(struct xenbus_driver *drv);
 
 struct xenbus_transaction
