@@ -87,7 +87,6 @@ struct driverlink_port {
 	enum net_accel_hw_type type;
 	struct net_device *net_dev;
 	struct efx_dl_device *efx_dl_dev;
-	int nic_index;
 	void *fwd_priv;
 };
 
@@ -164,25 +163,6 @@ static struct netback_accel_hooks accel_hooks = {
 };
 
 
-/*
- * Handy helper which given an efx_dl_device works out which
- * efab_nic_t index into efrm_nic_table.nics[] it corresponds to 
- */
-static int efx_device_to_efab_nic_index(struct efx_dl_device *efx_dl_dev) 
-{
-	int i, rc = -1;
-	struct efhw_nic *nic;
-
-	EFRM_FOR_EACH_NIC(i, nic) {
-		if (nic != NULL && nic->net_driver_dev != NULL &&
-		    nic->net_driver_dev->pci_dev == efx_dl_dev->pci_dev)
-			rc = i;
-	}
-
-	return rc;
-}
-
-
 /* Driver link probe - register our callbacks */
 static int bend_dl_probe(struct efx_dl_device *efx_dl_dev,
 			 const struct net_device *net_dev,
@@ -215,17 +195,6 @@ static int bend_dl_probe(struct efx_dl_device *efx_dl_dev,
 
 	port->efx_dl_dev = efx_dl_dev;
 	efx_dl_dev->priv = port;
-
-	port->nic_index = efx_device_to_efab_nic_index(efx_dl_dev);
-	if (port->nic_index < 0) {
-		/*
-		 * This can happen in theory if the resource driver
-		 * failed to initialise properly
-		 */
-		EPRINTK("%s: nic structure not found\n", __FUNCTION__);
-		rc = -EINVAL;
-		goto fail2;
-	}
 
 	port->fwd_priv = netback_accel_init_fwd_port();
 	if (port->fwd_priv == NULL) {
@@ -368,8 +337,6 @@ int netback_accel_sf_hwtype(struct netback_accel *bend)
 			bend->accel_setup = netback_accel_setup_vnic_hw;
 			bend->accel_shutdown = netback_accel_shutdown_vnic_hw;
 			bend->fwd_priv = port->fwd_priv;
-			/* This is just needed to pass to efx_vi_alloc */
-			bend->nic_index = port->nic_index;
 			bend->net_dev = port->net_dev;
 			mutex_unlock(&accel_mutex);
 			return 0;
@@ -496,7 +463,7 @@ static int ef_get_vnic(struct netback_accel *bend)
 
 	accel_hw_priv = bend->accel_hw_priv;
 
-	rc = efx_vi_alloc(&accel_hw_priv->efx_vih, bend->nic_index);
+	rc = efx_vi_alloc(&accel_hw_priv->efx_vih, bend->net_dev->ifindex);
 	if (rc != 0) {
 		EPRINTK("%s: efx_vi_alloc failed %d\n", __FUNCTION__, rc);
 		free_page_state(bend);
