@@ -872,7 +872,7 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 
 	result = processor_extcntl_prepare(pr);
 	if (result)
-		goto end;
+		goto err_power_exit;
 
 	pr->cdev = thermal_cooling_device_register("Processor", device,
 						&processor_cooling_ops);
