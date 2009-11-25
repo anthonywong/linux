@@ -111,6 +111,7 @@ typedef struct tap_blkif {
 	unsigned long mode;           /*current switching mode               */
 	int minor;                    /*Minor number for tapdisk device      */
 	pid_t pid;                    /*tapdisk process id                   */
+	struct pid_namespace *pid_ns; /*... and its corresponding namespace  */
 	enum { RUNNING, CLEANSHUTDOWN } status; /*Detect a clean userspace 
 						  shutdown                   */
 	unsigned long *idx_map;       /*Record the user ring id to kern 
@@ -296,16 +297,14 @@ static inline int OFFSET_TO_SEG(int offset)
  * BLKTAP VM OPS
  */
 
-static struct page *blktap_nopage(struct vm_area_struct *vma,
-				  unsigned long address,
-				  int *type)
+static int blktap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	/*
 	 * if the page has not been mapped in by the driver then return
-	 * NOPAGE_SIGBUS to the domain.
+	 * VM_FAULT_SIGBUS to the domain.
 	 */
 
-	return NOPAGE_SIGBUS;
+	return VM_FAULT_SIGBUS;
 }
 
 static pte_t blktap_clear_pte(struct vm_area_struct *vma,
@@ -423,7 +422,7 @@ static void blktap_vma_close(struct vm_area_struct *vma)
 }
 
 static struct vm_operations_struct blktap_vm_ops = {
-	nopage:   blktap_nopage,
+	fault:    blktap_fault,
 	zap_pte:  blktap_clear_pte,
 	open:     blktap_vma_open,
 	close:    blktap_vma_close,
@@ -518,9 +517,8 @@ found:
 		tapfds[minor] = info;
 
 		if ((class = get_xen_class()) != NULL)
-			class_device_create(class, NULL,
-					    MKDEV(blktap_major, minor), NULL,
-					    "blktap%d", minor);
+			device_create(class, NULL, MKDEV(blktap_major, minor),
+				      "blktap%d", minor);
 	}
 
 out:
@@ -562,7 +560,7 @@ void signal_tapdisk(int idx)
 		return;
 
 	if (info->pid > 0) {
-		ptask = find_task_by_pid(info->pid);
+		ptask = find_task_by_pid_ns(info->pid, info->pid_ns);
 		if (ptask)
 			info->status = CLEANSHUTDOWN;
 	}
@@ -796,8 +794,9 @@ static int blktap_ioctl(struct inode *inode, struct file *filp,
 	{
 		if (info) {
 			info->pid = (pid_t)arg;
-			DPRINTK("blktap: pid received %d\n", 
-			       info->pid);
+			info->pid_ns = current->nsproxy->pid_ns;
+			DPRINTK("blktap: pid received %p:%d\n",
+			        info->pid_ns, info->pid);
 		}
 		return 0;
 	}
@@ -1739,9 +1738,7 @@ static int __init blkif_init(void)
 		 * We only create the device when a request of a new device is
 		 * made.
 		 */
-		class_device_create(class, NULL,
-				    MKDEV(blktap_major, 0), NULL,
-				    "blktap0");
+		device_create(class, NULL, MKDEV(blktap_major, 0), "blktap0");
 	} else {
 		/* this is bad, but not fatal */
 		WPRINTK("blktap: sysfs xen_class not created\n");
