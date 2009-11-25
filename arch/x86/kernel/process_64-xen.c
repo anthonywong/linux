@@ -1,6 +1,4 @@
 /*
- *  linux/arch/x86-64/kernel/process.c
- *
  *  Copyright (C) 1995  Linus Torvalds
  *
  *  Pentium III FXSR, SSE support
@@ -41,6 +39,7 @@
 #include <linux/notifier.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
+#include <linux/tick.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -172,6 +171,9 @@ void cpu_idle (void)
 
 			if (__get_cpu_var(cpu_idle_state))
 				__get_cpu_var(cpu_idle_state) = 0;
+
+			tick_nohz_stop_sched_tick();
+
 			rmb();
 			idle = xen_idle; /* no alternatives */
 			if (cpu_is_offline(smp_processor_id()))
@@ -190,10 +192,15 @@ void cpu_idle (void)
 			__exit_idle();
 		}
 
+		tick_nohz_restart_sched_tick();
 		preempt_enable_no_resched();
 		schedule();
 		preempt_disable();
 	}
+}
+
+static void do_nothing(void *unused)
+{
 }
 
 void cpu_idle_wait(void)
@@ -221,6 +228,13 @@ void cpu_idle_wait(void)
 				cpu_clear(cpu, map);
 		}
 		cpus_and(map, map, cpu_online_map);
+		/*
+		 * We waited 1 sec, if a CPU still did not call idle
+		 * it may be because it is in idle and not waking up
+		 * because it has nothing to do.
+		 * Give all the remaining CPUS a kick.
+		 */
+		smp_call_function_mask(map, do_nothing, 0, 0);
 	} while (!cpus_empty(map));
 
 	set_cpus_allowed(current, tmp);
@@ -528,7 +542,7 @@ static inline void __switch_to_xtra(struct task_struct *prev_p,
  *
  * Kprobes not supported here. Set the probe on schedule instead.
  */
-__kprobes struct task_struct *
+struct task_struct *
 __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 {
 	struct thread_struct *prev = &prev_p->thread,

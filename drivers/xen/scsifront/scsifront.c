@@ -246,11 +246,10 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 {
 	grant_ref_t gref_head;
 	struct page *page;
-	int err, i, ref, ref_cnt = 0;
+	int err, ref, ref_cnt = 0;
 	int write = (sc->sc_data_direction == DMA_TO_DEVICE);
-	int nr_pages, off, len, bytes;
+	unsigned int i, nr_pages, off, len, bytes;
 	unsigned long buffer_pfn;
-	unsigned int data_len = 0;
 
 	if (sc->sc_data_direction == DMA_NONE)
 		return 0;
@@ -263,25 +262,31 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 
 	if (sc->use_sg) {
 		/* quoted scsi_lib.c/scsi_req_map_sg . */
-		struct scatterlist *sg = (struct scatterlist *)sc->request_buffer;
-		nr_pages = (sc->request_bufflen + sg[0].offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		struct scatterlist *sg, *sgl = (struct scatterlist *)sc->request_buffer;
+		unsigned int data_len = sc->request_bufflen;
 
+		nr_pages = (sc->request_bufflen + sgl->offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		if (nr_pages > VSCSIIF_SG_TABLESIZE) {
 			printk(KERN_ERR "scsifront: Unable to map request_buffer for command!\n");
 			ref_cnt = (-E2BIG);
 			goto big_to_sg;
 		}
 
-		for (i = 0; i < sc->use_sg; i++) {
-			page = sg[i].page;
-			off = sg[i].offset;
-			len = sg[i].length;
-			data_len += len;
+		for_each_sg (sgl, sg, sc->use_sg, i) {
+			page = sg_page(sg);
+			off = sg->offset;
+			len = sg->length;
 
 			buffer_pfn = page_to_phys(page) >> PAGE_SHIFT;
 
-			while (len > 0) {
+			while (len > 0 && data_len > 0) {
+				/*
+				 * sg sends a scatterlist that is larger than
+				 * the data_len it wants transferred for certain
+				 * IO sizes
+				 */
 				bytes = min_t(unsigned int, len, PAGE_SIZE - off);
+				bytes = min(bytes, data_len);
 				
 				ref = gnttab_claim_grant_reference(&gref_head);
 				BUG_ON(ref == -ENOSPC);
@@ -296,6 +301,7 @@ static int map_data_for_request(struct vscsifrnt_info *info,
 
 				buffer_pfn++;
 				len -= bytes;
+				data_len -= bytes;
 				off = 0;
 				ref_cnt++;
 			}

@@ -157,6 +157,8 @@ struct netfront_info {
 	spinlock_t   tx_lock;
 	spinlock_t   rx_lock;
 
+	struct napi_struct	napi;
+
 	unsigned int irq;
 	unsigned int copying_receiver;
 	unsigned int carrier;

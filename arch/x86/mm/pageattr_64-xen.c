@@ -17,9 +17,6 @@
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 
-LIST_HEAD(mm_unpinned);
-DEFINE_SPINLOCK(mm_unpinned_lock);
-
 static void _pin_lock(struct mm_struct *mm, int lock) {
 	if (lock)
 		spin_lock(&mm->page_table_lock);
@@ -81,8 +78,8 @@ static void _pin_lock(struct mm_struct *mm, int lock) {
 #define PIN_BATCH 8
 static DEFINE_PER_CPU(multicall_entry_t[PIN_BATCH], pb_mcl);
 
-static inline unsigned int mm_walk_set_prot(void *pt, pgprot_t flags,
-                                            unsigned int cpu, unsigned int seq)
+static inline unsigned int pgd_walk_set_prot(void *pt, pgprot_t flags,
+					     unsigned int cpu, unsigned int seq)
 {
 	struct page *page = virt_to_page(pt);
 	unsigned long pfn = page_to_pfn(page);
@@ -100,9 +97,9 @@ static inline unsigned int mm_walk_set_prot(void *pt, pgprot_t flags,
 	return seq;
 }
 
-static void mm_walk(struct mm_struct *mm, pgprot_t flags)
+static void pgd_walk(pgd_t *pgd_base, pgprot_t flags)
 {
-	pgd_t       *pgd;
+	pgd_t       *pgd = pgd_base;
 	pud_t       *pud;
 	pmd_t       *pmd;
 	pte_t       *pte;
@@ -110,7 +107,6 @@ static void mm_walk(struct mm_struct *mm, pgprot_t flags)
 	unsigned int cpu, seq;
 	multicall_entry_t *mcl;
 
-	pgd = mm->pgd;
 	cpu = get_cpu();
 
 	/*
@@ -125,18 +121,18 @@ static void mm_walk(struct mm_struct *mm, pgprot_t flags)
 			continue;
 		pud = pud_offset(pgd, 0);
 		if (PTRS_PER_PUD > 1) /* not folded */ 
-			seq = mm_walk_set_prot(pud,flags,cpu,seq);
+			seq = pgd_walk_set_prot(pud,flags,cpu,seq);
 		for (u = 0; u < PTRS_PER_PUD; u++, pud++) {
 			if (pud_none(*pud))
 				continue;
 			pmd = pmd_offset(pud, 0);
 			if (PTRS_PER_PMD > 1) /* not folded */ 
-				seq = mm_walk_set_prot(pmd,flags,cpu,seq);
+				seq = pgd_walk_set_prot(pmd,flags,cpu,seq);
 			for (m = 0; m < PTRS_PER_PMD; m++, pmd++) {
 				if (pmd_none(*pmd))
 					continue;
 				pte = pte_offset_kernel(pmd,0);
-				seq = mm_walk_set_prot(pte,flags,cpu,seq);
+				seq = pgd_walk_set_prot(pte,flags,cpu,seq);
 			}
 		}
 	}
@@ -148,17 +144,39 @@ static void mm_walk(struct mm_struct *mm, pgprot_t flags)
 		seq = 0;
 	}
 	MULTI_update_va_mapping(mcl + seq,
-	       (unsigned long)__user_pgd(mm->pgd),
-	       pfn_pte(virt_to_phys(__user_pgd(mm->pgd))>>PAGE_SHIFT, flags),
+	       (unsigned long)__user_pgd(pgd_base),
+	       pfn_pte(virt_to_phys(__user_pgd(pgd_base))>>PAGE_SHIFT, flags),
 	       0);
 	MULTI_update_va_mapping(mcl + seq + 1,
-	       (unsigned long)mm->pgd,
-	       pfn_pte(virt_to_phys(mm->pgd)>>PAGE_SHIFT, flags),
+	       (unsigned long)pgd_base,
+	       pfn_pte(virt_to_phys(pgd_base)>>PAGE_SHIFT, flags),
 	       UVMF_TLB_FLUSH);
 	if (unlikely(HYPERVISOR_multicall_check(mcl, seq + 2, NULL)))
 		BUG();
 
 	put_cpu();
+}
+
+static void __pgd_pin(pgd_t *pgd)
+{
+	pgd_walk(pgd, PAGE_KERNEL_RO);
+	xen_pgd_pin(__pa(pgd)); /* kernel */
+	xen_pgd_pin(__pa(__user_pgd(pgd))); /* user */
+	SetPagePinned(virt_to_page(pgd));
+}
+
+static void __pgd_unpin(pgd_t *pgd)
+{
+	xen_pgd_unpin(__pa(pgd));
+	xen_pgd_unpin(__pa(__user_pgd(pgd)));
+	pgd_walk(pgd, PAGE_KERNEL);
+	ClearPagePinned(virt_to_page(pgd));
+}
+
+void pgd_test_and_unpin(pgd_t *pgd)
+{
+	if (PagePinned(virt_to_page(pgd)))
+		__pgd_unpin(pgd);
 }
 
 void mm_pin(struct mm_struct *mm)
@@ -167,15 +185,7 @@ void mm_pin(struct mm_struct *mm)
 		return;
 
 	pin_lock(mm);
-
-	mm_walk(mm, PAGE_KERNEL_RO);
-	xen_pgd_pin(__pa(mm->pgd)); /* kernel */
-	xen_pgd_pin(__pa(__user_pgd(mm->pgd))); /* user */
-	SetPagePinned(virt_to_page(mm->pgd));
-	spin_lock(&mm_unpinned_lock);
-	list_del(&mm->context.unpinned);
-	spin_unlock(&mm_unpinned_lock);
-
+	__pgd_pin(mm->pgd);
 	pin_unlock(mm);
 }
 
@@ -185,34 +195,30 @@ void mm_unpin(struct mm_struct *mm)
 		return;
 
 	pin_lock(mm);
-
-	xen_pgd_unpin(__pa(mm->pgd));
-	xen_pgd_unpin(__pa(__user_pgd(mm->pgd)));
-	mm_walk(mm, PAGE_KERNEL);
-	ClearPagePinned(virt_to_page(mm->pgd));
-	spin_lock(&mm_unpinned_lock);
-	list_add(&mm->context.unpinned, &mm_unpinned);
-	spin_unlock(&mm_unpinned_lock);
-
+	__pgd_unpin(mm->pgd);
 	pin_unlock(mm);
 }
 
 void mm_pin_all(void)
 {
+	struct page *page;
+	unsigned long flags;
+
 	if (xen_feature(XENFEAT_writable_page_tables))
 		return;
 
 	/*
-	 * Allow uninterrupted access to the mm_unpinned list. We don't
-	 * actually take the mm_unpinned_lock as it is taken inside mm_pin().
+	 * Allow uninterrupted access to the pgd_list. Also protects
+	 * __pgd_pin() by disabling preemption.
 	 * All other CPUs must be at a safe point (e.g., in stop_machine
 	 * or offlined entirely).
 	 */
-	preempt_disable();
-	while (!list_empty(&mm_unpinned))	
-		mm_pin(list_entry(mm_unpinned.next, struct mm_struct,
-				  context.unpinned));
-	preempt_enable();
+	spin_lock_irqsave(&pgd_lock, flags);
+	list_for_each_entry(page, &pgd_list, lru) {
+		if (!PagePinned(page))
+			__pgd_pin((pgd_t *)page_address(page));
+	}
+	spin_unlock_irqrestore(&pgd_lock, flags);
 }
 
 void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
@@ -331,11 +337,11 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
 	return base;
 } 
 
-static void cache_flush_page(void *adr)
+void clflush_cache_range(void *adr, int size)
 {
 	int i;
-	for (i = 0; i < PAGE_SIZE; i += boot_cpu_data.x86_clflush_size)
-		asm volatile("clflush (%0)" :: "r" (adr + i));
+	for (i = 0; i < size; i += boot_cpu_data.x86_clflush_size)
+		clflush(adr+i);
 }
 
 static void flush_kernel_map(void *arg)
@@ -350,7 +356,7 @@ static void flush_kernel_map(void *arg)
 		asm volatile("wbinvd" ::: "memory");
 	else list_for_each_entry(pg, l, lru) {
 		void *adr = page_address(pg);
-		cache_flush_page(adr);
+		clflush_cache_range(adr, PAGE_SIZE);
 	}
 	__flush_tlb_all();
 }
@@ -418,6 +424,7 @@ __change_page_attr(unsigned long address, unsigned long pfn, pgprot_t prot,
 			split = split_large_page(address, prot, ref_prot2);
 			if (!split)
 				return -ENOMEM;
+			pgprot_val(ref_prot2) &= ~_PAGE_NX;
 			set_pte(kpte, mk_pte(split, ref_prot2));
 			kpte_page = split;
 		}
@@ -510,9 +517,14 @@ void global_flush_tlb(void)
 	struct page *pg, *next;
 	struct list_head l;
 
-	down_read(&init_mm.mmap_sem);
+	/*
+	 * Write-protect the semaphore, to exclude two contexts
+	 * doing a list_replace_init() call in parallel and to
+	 * exclude new additions to the deferred_pages list:
+	 */
+	down_write(&init_mm.mmap_sem);
 	list_replace_init(&deferred_pages, &l);
-	up_read(&init_mm.mmap_sem);
+	up_write(&init_mm.mmap_sem);
 
 	flush_map(&l);
 

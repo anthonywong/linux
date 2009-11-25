@@ -28,7 +28,6 @@
  *  - flush_tlb_page(vma, vmaddr) flushes one page
  *  - flush_tlb_range(vma, start, end) flushes a range of pages
  *  - flush_tlb_kernel_range(start, end) flushes a range of kernel pages
- *  - flush_tlb_pgtables(mm, start, end) flushes a range of page tables
  *
  * x86-64 can only flush individual pages or full VMs. For a range flush
  * we always do the full VM. Might be worth trying if for a small
@@ -93,14 +92,6 @@ static inline void flush_tlb_kernel_range(unsigned long start,
 					unsigned long end)
 {
 	flush_tlb_all();
-}
-
-static inline void flush_tlb_pgtables(struct mm_struct *mm,
-				      unsigned long start, unsigned long end)
-{
-	/* x86_64 does not keep any page table caches in a software TLB.
-	   The CPUs do in their hardware TLBs, but they are handled
-	   by the normal TLB flushing algorithms. */
 }
 
 #endif /* _X8664_TLBFLUSH_H */

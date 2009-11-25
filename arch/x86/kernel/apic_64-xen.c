@@ -63,22 +63,38 @@ int setup_profiling_timer(unsigned int multiplier)
 
 void smp_local_timer_interrupt(void)
 {
-	profile_tick(CPU_PROFILING);
 #ifndef CONFIG_XEN
-#ifdef CONFIG_SMP
-	update_process_times(user_mode(get_irq_regs()));
-#endif
-#endif
+	int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(lapic_events, cpu);
+
 	/*
-	 * We take the 'long' return path, and there every subsystem
-	 * grabs the appropriate locks (kernel lock/ irq lock).
+	 * Normally we should not be here till LAPIC has been initialized but
+	 * in some cases like kdump, its possible that there is a pending LAPIC
+	 * timer interrupt from previous kernel's context and is delivered in
+	 * new kernel the moment interrupts are enabled.
 	 *
-	 * We might want to decouple profiling from the 'long path',
-	 * and do the profiling totally in assembly.
-	 *
-	 * Currently this isn't too much of an issue (performance wise),
-	 * we can take more than 100K local irqs per second on a 100 MHz P5.
+	 * Interrupts are enabled early and LAPIC is setup much later, hence
+	 * its possible that when we get here evt->event_handler is NULL.
+	 * Check for event_handler being NULL and discard the interrupt as
+	 * spurious.
 	 */
+	if (!evt->event_handler) {
+		printk(KERN_WARNING
+		       "Spurious LAPIC timer interrupt on cpu %d\n", cpu);
+		/* Switch it off */
+		lapic_timer_setup(CLOCK_EVT_MODE_SHUTDOWN, evt);
+		return;
+	}
+#endif
+
+	/*
+	 * the NMI deadlock-detector uses this.
+	 */
+	add_pda(apic_timer_irqs, 1);
+
+#ifndef CONFIG_XEN
+	evt->event_handler(evt);
+#endif
 }
 
 /*
@@ -92,11 +108,6 @@ void smp_local_timer_interrupt(void)
 void smp_apic_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
-
-	/*
-	 * the NMI deadlock-detector uses this.
-	 */
-	add_pda(apic_timer_irqs, 1);
 
 	/*
 	 * NOTE! We'd better ACK the irq immediately,
@@ -132,6 +143,7 @@ asmlinkage void smp_spurious_interrupt(void)
 	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
 		ack_APIC_irq();
 
+	add_pda(irq_spurious_count, 1);
 	irq_exit();
 }
 

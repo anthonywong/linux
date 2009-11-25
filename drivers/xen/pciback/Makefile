@@ -12,6 +12,4 @@ pciback-$(CONFIG_XEN_PCIDEV_BACKEND_SLOT) += slot.o
 pciback-$(CONFIG_XEN_PCIDEV_BACKEND_PASS) += passthrough.o
 pciback-$(CONFIG_XEN_PCIDEV_BACKEND_CONTROLLER) += controller.o
 
-ifeq ($(CONFIG_XEN_PCIDEV_BE_DEBUG),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
+ccflags-$(CONFIG_XEN_PCIDEV_BE_DEBUG) += -DDEBUG
