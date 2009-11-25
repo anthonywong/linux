@@ -5,6 +5,7 @@
 
 #include <xen/gnttab.h>
 
+#include <asm/iommu.h>
 #include <asm/proto.h>
 #include <asm/dma.h>
 #include <asm/swiotlb.h>
@@ -36,7 +37,7 @@ gnttab_map_sg(struct device *hwdev, struct scatterlist *sgl, int nents,
 			gnttab_dma_map_page(sg_page(sg)) + sg->offset;
 		sg->dma_length  = sg->length;
 		IOMMU_BUG_ON(address_needs_mapping(
-			hwdev, sg->dma_address));
+			hwdev, sg->dma_address, sg->length));
 		IOMMU_BUG_ON(range_straddles_page_boundary(
 			page_to_pseudophys(sg_page(sg)) + sg->offset,
 			sg->length));
@@ -67,7 +68,7 @@ gnttab_map_single(struct device *dev, phys_addr_t paddr, size_t size,
 	dma = gnttab_dma_map_page(pfn_to_page(paddr >> PAGE_SHIFT)) +
 	      offset_in_page(paddr);
 	IOMMU_BUG_ON(range_straddles_page_boundary(paddr, size));
-	IOMMU_BUG_ON(address_needs_mapping(dev, dma));
+	IOMMU_BUG_ON(address_needs_mapping(dev, dma, size));
 
 	return dma;
 }
@@ -79,7 +80,9 @@ gnttab_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	gnttab_dma_unmap_page(dma_addr);
 }
 
-static struct dma_mapping_ops nommu_dma_ops = {
+struct dma_mapping_ops nommu_dma_ops = {
+	.alloc_coherent = dma_generic_alloc_coherent,
+	.free_coherent = dma_generic_free_coherent,
 	.map_single = gnttab_map_single,
 	.unmap_single = gnttab_unmap_single,
 	.map_sg = gnttab_map_sg,

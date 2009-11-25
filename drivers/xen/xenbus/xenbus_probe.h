@@ -40,6 +40,11 @@
 #define XEN_BUS_ID_SIZE			BUS_ID_SIZE
 #endif
 
+#ifdef CONFIG_PARAVIRT_XEN
+#define is_running_on_xen() xen_domain()
+#define is_initial_xendomain() xen_initial_domain()
+#endif
+
 #if defined(CONFIG_XEN_BACKEND) || defined(CONFIG_XEN_BACKEND_MODULE)
 extern void xenbus_backend_suspend(int (*fn)(struct device *, void *));
 extern void xenbus_backend_resume(int (*fn)(struct device *, void *));

@@ -1007,7 +1007,7 @@ config MICROCODE
 
 config MICROCODE_INTEL
 	bool "Intel microcode patch loading support"
-	depends on MICROCODE
+	depends on MICROCODE && !XEN
 	default MICROCODE
 	select FW_LOADER
 	---help---
@@ -1020,7 +1020,7 @@ config MICROCODE_INTEL
 
 config MICROCODE_AMD
 	bool "AMD microcode patch loading support"
-	depends on MICROCODE
+	depends on MICROCODE && !XEN
 	select FW_LOADER
 	---help---
 	  If you select this option, microcode patch loading support for AMD
@@ -1318,6 +1318,7 @@ config HIGHPTE
 
 config X86_CHECK_BIOS_CORRUPTION
 	bool "Check for low memory corruption"
+	depends on !XEN
 	---help---
 	  Periodically check for memory corruption in low memory, which
 	  is suspected to be caused by BIOS.  Even when enabled in the
@@ -1348,6 +1349,7 @@ config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
 
 config X86_RESERVE_LOW_64K
 	bool "Reserve low 64K of RAM on AMI/Phoenix BIOSen"
+	depends on !XEN
 	default y
 	---help---
 	  Reserve the first 64K of physical RAM on BIOSes that are known
@@ -2028,7 +2030,7 @@ config DMAR_FLOPPY_WA
 
 config INTR_REMAP
 	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
-	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && !XEN && EXPERIMENTAL
 	---help---
 	  Supports Interrupt remapping for IO-APIC and MSI devices.
 	  To use x2apic mode in the CPU's which support x2APIC enhancements or
