@@ -9,6 +9,9 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
+void arch_exit_mmap(struct mm_struct *mm);
+void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
+
 /*
  * possibly do the LDT unload here?
  */
