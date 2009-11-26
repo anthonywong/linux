@@ -1,4 +1,5 @@
 #ifndef _ASM_X86_DMA_MAPPING_H_
+#define _ASM_X86_DMA_MAPPING_H_
 
 #define phys_to_dma _phys_to_dma_
 #define dma_to_phys _dma_to_phys_
