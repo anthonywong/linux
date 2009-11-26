@@ -2132,7 +2132,7 @@ static MV_BOOLEAN mvPMInitDevicesStateHandler(MV_IAL_COMMON_ADAPTER_EXTENSION *i
 			continue;
 	      }
 	      
-	      if (((SStatus & 0xf) == 3) && (PMPort < 4)) {
+	      if ((SStatus & 0xf) == 3) {
 		   if(H2DReceived == MV_TRUE){
 			channelExt->port_state = MV_PORT_ISSUE_SRST;
 		   }else{
