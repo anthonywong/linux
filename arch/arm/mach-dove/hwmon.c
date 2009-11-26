@@ -37,8 +37,8 @@
 #define	DOVE_OVERCOOL_DELAY	0x700
 
 /* Junction Temperature */
-#define DOVE_TSEN_TEMP2RAW(x)  ((231470 - (1000 * x)) / 715) /* in Celsius */
-#define DOVE_TSEN_RAW2TEMP(x)  (231470 - (715 * x))	/* in miliCelsius */
+#define DOVE_TSEN_TEMP2RAW(x)  ((2281638 - (10000 * x)) / 7298) /* in Celsius */
+#define DOVE_TSEN_RAW2TEMP(x)  ((2281638 - (7298 * x)) / 10)	/* in miliCelsius */
 
 #define LABEL "T-junction"
 static struct device *hwmon_dev;
