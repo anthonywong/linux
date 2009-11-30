@@ -35,6 +35,10 @@
 #include <asm/param.h>
 #include <asm/page.h>
 
+#ifndef arch_add_exec_range
+#define arch_add_exec_range(mm, limit) do { ; } while (0)
+#endif
+
 static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs);
 static int load_elf_library(struct file *);
 static unsigned long elf_map(struct file *, unsigned long, struct elf_phdr *,
