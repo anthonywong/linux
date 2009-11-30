@@ -314,8 +314,10 @@ SECTIONS
 /*
  * The ASSERT() sink to . is intentional, for binutils 2.14 compatibility:
  */
+#if !defined(CONFIG_XEN) || CONFIG_XEN_COMPAT > 0x030002
 . = ASSERT((_end - LOAD_OFFSET <= KERNEL_IMAGE_SIZE),
 	   "kernel image bigger than KERNEL_IMAGE_SIZE");
+#endif
 #else
 /*
  * Per-cpu symbols which need to be offset from __per_cpu_load
@@ -328,10 +330,8 @@ INIT_PER_CPU(irq_stack_union);
 /*
  * Build-time check on the image size:
  */
-#if !defined(CONFIG_XEN) || CONFIG_XEN_COMPAT > 0x030002
 . = ASSERT((_end - _text <= KERNEL_IMAGE_SIZE),
 	   "kernel image bigger than KERNEL_IMAGE_SIZE");
-#endif
 
 #ifdef CONFIG_SMP
 . = ASSERT((per_cpu__irq_stack_union == 0),
