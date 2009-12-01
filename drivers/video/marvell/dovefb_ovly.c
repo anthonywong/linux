@@ -205,14 +205,14 @@ static u32 dovefb_ovly_set_colorkeyalpha(struct dovefb_layer_info *dfli)
 	case DOVEFB_ENABLE_RGB_COLORKEY_MODE:
 		x |= CFG_COLOR_KEY_MODE(0x3);
 
-		/* check whether h/w turn on RB swap. */
-		rb = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
-		if (rb & CFG_DMA_SWAPRB_MASK) {
-			/* exchange r b fields. */
-			temp = color_a->Y_ColorAlpha;
-			color_a->Y_ColorAlpha = color_a->V_ColorAlpha;
-			color_a->V_ColorAlpha = temp;
-		}
+                /* check whether h/w turn on RB swap. */
+                rb = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
+                if (rb & CFG_DMA_SWAPRB_MASK) {
+                        /* exchange r b fields. */
+                        temp = color_a->Y_ColorAlpha;
+                        color_a->Y_ColorAlpha = color_a->V_ColorAlpha;
+                        color_a->V_ColorAlpha = temp;
+                }
 
 		break;
 	case DOVEFB_ENABLE_R_COLORKEY_MODE:
