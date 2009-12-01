@@ -58,6 +58,10 @@
 #include "clock.h"
 #include "twsi.h"
 
+static unsigned int dove_vmeta_memory_start;
+static unsigned int dove_gpu_memory_start;
+
+
 /* used for memory allocation for the VMETA video engine */
 #ifdef CONFIG_UIO_DOVE_VMETA
 #define UIO_DOVE_VMETA_MEM_SIZE (CONFIG_UIO_DOVE_VMETA_MEM_SIZE << 20)
@@ -65,8 +69,21 @@
 #define UIO_DOVE_VMETA_MEM_SIZE 0
 #endif
 
-static unsigned int dove_vmeta_memory_start;
-static unsigned int vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
+unsigned int __initdata vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
+
+static int __init vmeta_size_setup(char *str)
+{
+	get_option(&str, &vmeta_size);
+
+	if (!vmeta_size)
+		return 1;
+
+	vmeta_size <<= 20;
+
+	return 1;
+}
+__setup("vmeta_size=", vmeta_size_setup);
+
 
 /* used for memory allocation for the GPU graphics engine */
 #ifdef CONFIG_DOVE_GPU
@@ -75,8 +92,21 @@ static unsigned int vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
 #define DOVE_GPU_MEM_SIZE 0
 #endif
 
-static unsigned int dove_gpu_memory_start;
-static unsigned int gpu_size = DOVE_GPU_MEM_SIZE;
+unsigned int __initdata gpu_size = DOVE_GPU_MEM_SIZE;
+
+static int __init gpu_size_setup(char *str)
+{
+	get_option(&str, &gpu_size);
+
+	if (!gpu_size)
+		return 1;
+
+	gpu_size <<= 20;
+
+	return 1;
+}
+__setup("gpu_size=", gpu_size_setup);
+
 
 char *useNandHal = NULL;
 static int __init useNandHal_setup(char *s)
