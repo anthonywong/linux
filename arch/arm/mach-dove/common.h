@@ -66,7 +66,7 @@ void dove_cesa_init(void);
 void dove_hwmon_init(void);
 void dove_ssp_init(struct dove_ssp_platform_data *pdata);
 void dove_ac97_setup(void);
-void __init dove_pcie_id(u32 *dev, u32 *rev);
+
 /*
  * Basic Dove PM functions
  */
