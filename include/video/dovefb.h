@@ -94,7 +94,7 @@
 #define DOVEFB_IOCTL_GET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 22)
 
 /* clear framebuffer: Makes resolution or color space changes look nicer */
-#define FBIO_CLEAR_FRAMEBUFFER			_IO(FB_IOC_MAGIC, 19)
+#define FBIO_CLEAR_FRAMEBUFFER              	_IO(FB_IOC_MAGIC, 19)
 
 /* Global alpha blend controls - Maintaining compatibility with existing
    user programs. */
@@ -199,28 +199,28 @@ struct _sVideoBufferAddr {
 };
 
 struct dovefb_chroma {
-	u_char     mode;
-	u_char     y_alpha;
-	u_char     y;
-	u_char     y1;
-	u_char     y2;
-	u_char     u_alpha;
-	u_char     u;
-	u_char     u1;
-	u_char     u2;
-	u_char     v_alpha;
-	u_char     v;
-	u_char     v1;
-	u_char     v2;
+        u_char     mode;
+        u_char     y_alpha;
+        u_char     y;
+        u_char     y1;
+        u_char     y2;
+        u_char     u_alpha;
+        u_char     u;
+        u_char     u1;
+        u_char     u2;
+        u_char     v_alpha;
+        u_char     v;
+        u_char     v1;
+        u_char     v2;
 };
 
 struct _sColorKeyNAlpha {
-	unsigned int mode;
-	unsigned int alphapath;
-	unsigned int config;
-	unsigned int Y_ColorAlpha;
-	unsigned int U_ColorAlpha;
-	unsigned int V_ColorAlpha;
+        unsigned int mode;
+        unsigned int alphapath;
+        unsigned int config;
+        unsigned int Y_ColorAlpha;
+        unsigned int U_ColorAlpha;
+        unsigned int V_ColorAlpha;
 };
 
 struct _sOvlySurface {
