@@ -16,6 +16,15 @@
 #include <mach/vmalloc.h>
 
 /*
+ * Marvell Dove Revision IDs
+ */
+#define DOVE_REV_Z0			0x0
+#define DOVE_REV_Z1			0x1
+#define DOVE_REV_Y0			0x2
+#define DOVE_REV_Y1			0x3
+#define DOVE_REV_X0			0x4
+
+/*
  * Marvell Dove address maps.
  *
  * phys		virt		size

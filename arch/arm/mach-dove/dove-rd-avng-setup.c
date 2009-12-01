@@ -513,9 +513,12 @@ static void dove_rd_avng_gpio_init(void)
 static int __init dove_rd_avng_pm_init(void)
 {
 	MV_PMU_INFO pmuInitInfo;	
+	u32 dev, rev;
 
 	if (!machine_is_dove_rd_avng())
 		return 0;
+
+	dove_pcie_id(&dev, &rev);
 
 	pmuInitInfo.batFltMngDis = MV_FALSE;			/* Keep battery fault enabled */
 	pmuInitInfo.exitOnBatFltDis = MV_FALSE;			/* Keep exit from STANDBY on battery fail enabled */
@@ -523,7 +526,10 @@ static int __init dove_rd_avng_pm_init(void)
 	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;	/* STANDBY => 0: I/O off, 1: I/O on */
 	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;	/* power on push button */
-	pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
+	if (rev >= DOVE_REV_X0) /* For X0 and higher Power Good indication is not needed */
+		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
+	else
+		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
 	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
 	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;		/* Charger interrupt - not used */
 	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
@@ -537,6 +543,10 @@ static int __init dove_rd_avng_pm_init(void)
 	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
 	pmuInitInfo.dvsDelay = 0x4200;				/* ~100us in 166MHz cc - delay for DVS change */
 	pmuInitInfo.ddrTermGpioNum = 6;				/* GPIO 6 used to disable terminations */
+	if (rev >= DOVE_REV_X0) /* For X0 and higher wait at least 150ms + spare */
+		pmuInitInfo.standbyPwrDelay = 0x2000;		/* 250ms delay to wait for complete powerup */
+	else
+		pmuInitInfo.standbyPwrDelay = 0x140;		/* 10ms delay after getting the power good indication */
 
 	/* Initialize the PMU HAL */
 	if (mvPmuInit(&pmuInitInfo) != MV_OK)

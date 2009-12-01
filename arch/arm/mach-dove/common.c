@@ -240,6 +240,33 @@ static u32 dove_upstream_regs[DOVE_UPSTRM_BRDG_SIZE];
 #endif
 
 /*****************************************************************************
+ * General
+ ****************************************************************************/
+
+/*
+ * Identify device ID and revision.
+ */
+static char * __init dove_id(void)
+{
+	u32 dev, rev;
+
+	dove_pcie_id(&dev, &rev);
+
+	if (rev == DOVE_REV_Z0)
+		return "MV88AP510-Z0";
+	if (rev == DOVE_REV_Z1)
+		return "MV88AP510-Z1";
+	if (rev == DOVE_REV_Y0)
+		return "MV88AP510-Y0";
+	if (rev == DOVE_REV_Y1)
+		return "MV88AP510-Y1";
+	if (rev == DOVE_REV_X0)
+		return "MV88AP510-X0";
+	else
+		return "MV88AP510-Rev-Unsupported";
+}
+
+/*****************************************************************************
  * I/O Address Mapping
  ****************************************************************************/
 static struct map_desc dove_io_desc[] __initdata = {
@@ -1785,7 +1812,7 @@ void __init dove_init(void)
 	}
 	tclk = clk_get_rate(clk);
 
-	printk(KERN_INFO "Dove MV88F6781 SoC, ");
+	printk(KERN_INFO "Dove %s SoC, ", dove_id());
 	printk("TCLK = %dMHz\n", (tclk + 499999) / 1000000);
 
 	dove_setup_cpu_mbus();
