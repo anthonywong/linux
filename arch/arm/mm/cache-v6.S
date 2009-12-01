@@ -46,7 +46,7 @@ ENTRY(v6_icache_inval_all)
 	mov	pc, lr
 #endif
 
-#ifdef CONFIG_ARCH_DOVE
+#ifdef CONFIG_DOVE_REV_Z0
 #define L1D_WORKAROUND
 #endif
 /*
