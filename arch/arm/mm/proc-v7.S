@@ -322,14 +322,17 @@ __v7_setup:
 	 *   NOS = PRRR[24+n] = 1	- not outer shareable
 	 */
 	ldr	r5, =0xff0a81a8			@ PRRR
+	ldr	r6, =0x40e040e0			@ NMRR
 #ifdef CONFIG_CPU_ENABLE_WRITECO
 						@ FIXME: Work around for WCO
 						@ not working when TRE=1
 						@ Set write-through, noWA instead
 						@ Impact: D$ performance
-	ldr	r6, =0x40e840e8
-#else
-	ldr	r6, =0x40e040e0			@ NMRR
+
+	mrc	p15, 0, r0, c0, c0, 0		@ Main ID
+	and	r0, #0xF
+	cmp	r0, #1
+	ldreq	r6, =0x40e840e8
 #endif
 #ifdef	CONFIG_CPU_WA_ENABLE
 	bic	r6, r6, #0x80
