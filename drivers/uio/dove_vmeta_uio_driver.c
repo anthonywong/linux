@@ -273,7 +273,7 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 	}
 
 	id = VMETA_DMA_BUFFER_MAP;
-	size = CONFIG_UIO_DOVE_VMETA_MEM_SIZE << 20;
+	size = res->end - res->start + 1;
 	start = res->start;
 	vd->uio_info.mem[id].internal_addr =
 		(void __iomem *)ioremap_nocache(start, size);
