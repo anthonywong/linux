@@ -82,6 +82,7 @@ void __init dove_setup_cpu_mbus(void)
 {
 	int i;
 	int cs;
+	u32 dev, rev;
 
 	/*
 	 * First, disable and clear windows.
@@ -116,8 +117,13 @@ void __init dove_setup_cpu_mbus(void)
 	/*
 	 * Setup the Window to the BootROM for Stanby and Sleep Resume
 	 */
-	setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
-			      TARGET_BOOTROM, ATTR_DEV_SPI0_ROM /*ATTR_BOOTROM*/, -1);
+	dove_pcie_id(&dev, &rev);
+	if (rev >= DOVE_REV_X0) /* For X0 and higher use the internal BootROM */
+		setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
+			      TARGET_BOOTROM, ATTR_BOOTROM, -1);
+	else			/* Use the BootROM on the SPI */
+		setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
+			      TARGET_BOOTROM, ATTR_DEV_SPI0_ROM, -1);
 
 #ifndef CONFIG_DOVE_REV_Z0
 	/*

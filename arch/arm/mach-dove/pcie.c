@@ -33,6 +33,14 @@ struct pcie_port {
 static struct pcie_port pcie_port[2];
 static int num_pcie_ports;
 
+#define PCIE_BASE	((void __iomem *)DOVE_PCIE0_VIRT_BASE)
+
+void __init dove_pcie_id(u32 *dev, u32 *rev)
+{
+	*dev = orion_pcie_dev_id(PCIE_BASE);
+	*rev = orion_pcie_rev(PCIE_BASE);
+}
+
 /*
  * Optimal setting for PCIe clocks current drive - 13.5mA
  */
