@@ -801,7 +801,7 @@ config MRV_PTE_IN_L2
 
 config CACHE_L2LINEFILL_BURST8_ENABLE
 	bool "Enable L2 Line Fill Burst Length 8"
-	depends on CACHE_TAUROS2
+	depends on CACHE_TAUROS2 && !MV_L2_PREFETCH_OFF
 	default n
 	help
 	  Say Y to enable L2 line fill burst length to 8
