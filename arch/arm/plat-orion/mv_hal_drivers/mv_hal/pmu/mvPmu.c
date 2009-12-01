@@ -133,7 +133,6 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{1,0x1}, 	/* DDR:PLL 1:1 */
  #define PMU_DEEPIDLE_CPU_PWR_DLY	0x208D			/* TCLK clock cycles - ~50 us */
 #endif
 #define PMU_STBY_CPU_PWR_DLY		0x1			/* RTC 32KHz clock cycles ~31.25us */
-#define PMU_STBY_CORE_PWR_DLY		0x140			/* RTC 32KHz clock cycles ~10ms */
 #define PMU_DVS_POLL_DLY		10000			/* Poll DVS done count */
 
 /* DVS defaults */
@@ -217,7 +216,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	MV_32 i;
 
 	/* Set the DeepIdle and Standby power delays */
-      	MV_REG_WRITE(PMU_STANDBY_PWR_DELAY_REG, PMU_STBY_CORE_PWR_DLY);
+      	MV_REG_WRITE(PMU_STANDBY_PWR_DELAY_REG, pmu->standbyPwrDelay);
 
 	/* Configure the Battery Management Control register */
 	reg = 0;
