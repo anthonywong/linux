@@ -1,0 +1,1 @@
+obj-$(CONFIG_KG2_ANX7150) += kg2.o
