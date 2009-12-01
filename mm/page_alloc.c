@@ -3720,9 +3720,10 @@ static void __init setup_usemap(struct pglist_data *pgdat,
 {
 	unsigned long usemapsize = usemap_size(zonesize);
 	zone->pageblock_flags = NULL;
+#ifdef CONFIG_DOVE_REV_Z0
 	/* saeed: reserve first page */
 	alloc_bootmem_node(pgdat, PAGE_SIZE);
-
+#endif
 	if (usemapsize) 
 		zone->pageblock_flags = alloc_bootmem_node(pgdat, usemapsize);
 }
