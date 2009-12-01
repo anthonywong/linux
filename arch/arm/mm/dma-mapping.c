@@ -24,7 +24,7 @@
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
 
-#ifdef CONFIG_ARCH_DOVE
+#ifdef CONFIG_DOVE_REV_Z0
 #define L1D_WORKAROUND
 #endif
 
