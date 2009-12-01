@@ -434,13 +434,16 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 		writel(irq_ena | DOVEFB_GFX_INT_MASK | DOVEFB_VSYNC_INT_MASK, 
 		       dfli->reg_base + SPU_IRQ_ENA);
 		
-		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
-						      atomic_read(&dfli->w_intr), 40);
-		
-		if ( rc <= 0)
+		//rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
+		//				      atomic_read(&dfli->w_intr), 40);
+		rc = wait_event_interruptible(dfli->w_intr_wq,
+						      atomic_read(&dfli->w_intr));
+		if ( rc < 0)
 			printk(KERN_ERR "%s: gfx wait for vsync timed out, rc %d\n",
-			       __func__, rc);
-		
+				__func__, rc);
+		//else
+		//	printk(KERN_INFO "Caught VSync Event.\n");
+
 		writel(irq_ena, 
 		       dfli->reg_base + SPU_IRQ_ENA);
 		atomic_set(&dfli->w_intr, 0);
@@ -465,6 +468,7 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 static int dovefb_pan_display(struct fb_var_screeninfo *var,
     struct fb_info *fi)
 {
+	wait_for_vsync(fi->par);
 	set_graphics_start(fi, var->xoffset, var->yoffset);
 
 	return 0;
