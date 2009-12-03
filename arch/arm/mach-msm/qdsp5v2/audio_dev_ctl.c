@@ -43,7 +43,7 @@ static struct audio_dev_ctrl_state audio_dev_ctrl;
 
 struct audio_routing_info {
 	int running;
-	unsigned short mixer_mask[5];
+	unsigned short mixer_mask[6];
 	unsigned short audrec_mixer_mask[2];
 };
 
@@ -177,7 +177,8 @@ int msm_get_voc_route(u32 *rx_id, u32 *tx_id)
 	if (!rc) {
 		pr_err("failed to get voice tx and rx opened  within 30s\n");
 		rc = -ENODEV;
-	}
+	} else
+		rc = 0;
 
 	return rc;
 }
