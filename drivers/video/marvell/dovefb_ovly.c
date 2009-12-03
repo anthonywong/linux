@@ -219,11 +219,14 @@ static u32 dovefb_ovly_create_surface(struct _sOvlySurface *pOvlySurface)
 
 static u32 dovefb_ovly_set_colorkeyalpha(struct dovefb_layer_info *dfli)
 {
+	unsigned int rb;
+	unsigned int temp;
 	unsigned int x;
 	struct _sColorKeyNAlpha *color_a = &dfli->ckey_alpha;
 
 	/* reset to 0x0 to disable color key. */
-	x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL1) & ~CFG_COLOR_KEY_MASK;
+	x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL1) &
+		~(CFG_COLOR_KEY_MASK | CFG_ALPHA_MODE_MASK | CFG_ALPHA_MASK);
 
 	/* switch to color key mode */
 	switch (color_a->mode) {
@@ -241,6 +244,16 @@ static u32 dovefb_ovly_set_colorkeyalpha(struct dovefb_layer_info *dfli)
 		break;
 	case DOVEFB_ENABLE_RGB_COLORKEY_MODE:
 		x |= CFG_COLOR_KEY_MODE(0x3);
+
+		/* check whether h/w turn on RB swap. */
+		rb = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
+		if (rb & CFG_DMA_SWAPRB_MASK) {
+			/* exchange r b fields. */
+			temp = color_a->Y_ColorAlpha;
+			color_a->Y_ColorAlpha = color_a->V_ColorAlpha;
+			color_a->V_ColorAlpha = temp;
+		}
+
 		break;
 	case DOVEFB_ENABLE_R_COLORKEY_MODE:
 		x |= CFG_COLOR_KEY_MODE(0x5);
@@ -255,6 +268,25 @@ static u32 dovefb_ovly_set_colorkeyalpha(struct dovefb_layer_info *dfli)
 		printk(KERN_INFO "unknown mode");
 		return -1;
 	}
+
+	/* switch to alpha path selection */
+	switch (color_a->alphapath) {
+	case DOVEFB_VID_PATH_ALPHA:
+		x |= CFG_ALPHA_MODE(0x0);
+		break;
+	case DOVEFB_GRA_PATH_ALPHA:
+		x |= CFG_ALPHA_MODE(0x1);
+		break;
+	case DOVEFB_CONFIG_ALPHA:
+		x |= CFG_ALPHA_MODE(0x2);
+		break;
+	default:
+		printk(KERN_INFO "unknown alpha path");
+		return -1;
+	}
+
+	/* configure alpha */
+	x |= CFG_ALPHA((color_a->config & 0xff));
 
 	writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL1);
 	writel(color_a->Y_ColorAlpha, dfli->reg_base + LCD_SPU_COLORKEY_Y);
