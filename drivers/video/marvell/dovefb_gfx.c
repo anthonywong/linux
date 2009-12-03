@@ -137,7 +137,7 @@ static inline u64 calc_diff(u64 a, u64 b)
 	else
 		return b - a;
 }
-
+#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 		u32 *lcd_div, u32 *is_ext_rem)
 {
@@ -252,6 +252,7 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 	*axi_div = best_axi_div;
 	return;
 }
+#endif /* ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK */
 #endif /* CONFIG_DOVE_REV_Z0 */
 
 
@@ -448,32 +449,9 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 	int pixel_offset;
 	unsigned long addr;
 
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-	if (lcd_config.display_mode < 3) {
-		pixel_offset = (yoffset * var->xres_virtual) + xoffset;
-
-		addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
-		writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
-		if (lcd_config.display_mode == DISPLAY_DUALVIEW) {
-			struct dovefb_layer_info *dfli1 = lcd_config.lcd1_gfx->par;
-			int pixel_offset1;
-			unsigned long addr1;
-
-
-			pixel_offset1 = (yoffset * var->xres_virtual) + xoffset;
-
-			addr1 = dfli->fb_start_dma + (pixel_offset1 * (var->bits_per_pixel >> 3));
-			writel(addr1, dfli1->reg_base + LCD_CFG_GRA_START_ADDR0);
-	
-		}
-	}
-#else
-		pixel_offset = (yoffset * var->xres_virtual) + xoffset;
-
-		addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
-		writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
-#endif
+	pixel_offset = (yoffset * var->xres_virtual) + xoffset;
+	addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
+	writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
 }
 
 static int dovefb_pan_display(struct fb_var_screeninfo *var,
@@ -605,49 +583,14 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	/*
 	 * Configure graphics DMA parameters.
 	 */
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-	switch (lcd_config.display_mode) {
-	case DISPLAY_EXTENDED:
-		if (1 == dfli->info->id) {
-			set_graphics_start(fi, fi->var.xoffset+(var->xres/2), fi->var.yoffset);
-			break;
-		}
-	case DISPLAY_NORMAL:
-	case DISPLAY_CLONE:
-	case DISPLAY_DUALVIEW:
-		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
-		break;
-	default:
-		;
-	}
-#else
-		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
-#endif
+	set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
+
 	x = readl(dfli->reg_base + LCD_CFG_GRA_PITCH);
 	x = (x & ~0xFFFF) | ((var->xres_virtual * var->bits_per_pixel) >> 3);
 	writel(x, dfli->reg_base + LCD_CFG_GRA_PITCH);
 
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-	switch (lcd_config.display_mode) {
-	case DISPLAY_EXTENDED:
-		writel((var->yres << 16) | (var->xres*lcd_config.extend_ratio/4),
-				dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
-		break;
-	case DISPLAY_NORMAL:
-	case DISPLAY_CLONE:
-	case DISPLAY_DUALVIEW:
-		writel((var->yres << 16) | (var->xres),
-			dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
-		break;
-	default:
-		;
-	}
-#else
-		writel((var->yres << 16) | (var->xres),
-			dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
-#endif
+	writel((var->yres << 16) | (var->xres),
+		dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
 
 	if (info->fixed_output) {
 		writel((info->out_vmode.yres << 16) | info->out_vmode.xres,
@@ -712,6 +655,7 @@ static int dovefb_blank(int blank, struct fb_info *fi)
 	return 0;
 }
 
+#ifdef DOVE_USING_HWC
 static int dovefb_cursor(struct fb_info *fi, struct fb_cursor *cursor)
 {
 	struct dovefb_layer_info *dfli = fi->par;
@@ -830,6 +774,7 @@ static int dovefb_cursor(struct fb_info *fi, struct fb_cursor *cursor)
 	}
 	return 0;
 }
+#endif
 
 static int dovefb_fb_sync(struct fb_info *info)
 {
@@ -1254,7 +1199,9 @@ struct fb_ops dovefb_gfx_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	/*.fb_cursor	= dovefb_cursor,*/
+#ifdef DOVE_USING_HWC
+	.fb_cursor	= dovefb_cursor,
+#endif
 	.fb_sync	= dovefb_fb_sync,
 	.fb_ioctl	= dovefb_gfx_ioctl,
 };
