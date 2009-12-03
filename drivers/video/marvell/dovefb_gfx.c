@@ -65,14 +65,24 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli);
 static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 {
 	u32	reg;
+	u32	old_clock_div, old_half_div;
 
 	/* disable preemption, the gen conf regs might be accessed by other
 	** drivers.
 	*/
 	preempt_disable();
 
-	/* Clear LCD_Clk_Enable (Enable LCD Clock).			*/
+	/*
+	 * If current setting is right, just return.
+	 */
 	reg = readl(DOVE_GLOBAL_CONFIG_1);
+	old_clock_div = (reg & (0x3F << 10)) >> 10;
+	old_half_div = (reg & (1 << 16)) >> 16;
+
+	if (clock_div == old_clock_div && is_half_div == old_half_div)
+		return;
+
+	/* Clear LCD_Clk_Enable (Enable LCD Clock).			*/
 	reg &= ~(1 << 17);
 	writel(reg, DOVE_GLOBAL_CONFIG_1);
 
@@ -261,7 +271,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	int divider_int;
 	int needed_pixclk;
 	u64 div_result;
-	u32 x = 0;
+	u32 x = 0, x_bk;
 	struct dovefb_info *info = dfli->info;
 #ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 	u32 axi_div, lcd_div, is_ext;
@@ -327,18 +337,21 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	/*
 	 * Set setting to reg.
 	 */
+	x_bk = readl(dfli->reg_base + LCD_CFG_SCLK_DIV);
 	x |= divider_int;
-	writel(x, dfli->reg_base + LCD_CFG_SCLK_DIV);
+
+	if (x != x_bk)
+		writel(x, dfli->reg_base + LCD_CFG_SCLK_DIV);
 }
 
 static void set_dma_control0(struct dovefb_layer_info *dfli)
 {
-	u32 x;
+	u32 x, x_bk;
 
 	/*
 	 * Set bit to enable graphics DMA.
 	 */
-	x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
+	x_bk = x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0);
 	//x |= (dfli->active && dfli->enabled) ? CFG_GRA_ENA_MASK : 0;
 	x |= CFG_GRA_ENA_MASK;
 	dfli->active = 0;
@@ -377,19 +390,20 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 	x &= ~(1 << 12);
 	x |= ((dfli->pix_fmt & 1) ^ (dfli->info->panel_rbswap)) << 12;
 
-	writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL0);
+	if (x != x_bk)
+		writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL0);
 }
 
 static void set_dma_control1(struct dovefb_layer_info *dfli, int sync)
 {
-	u32 x;
+	u32 x, x_bk;
 
 	/*
 	 * Configure default bits: vsync triggers DMA, gated clock
 	 * enable, power save enable, configure alpha registers to
 	 * display 100% graphics, and set pixel command.
 	 */
-	x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL1);
+	x_bk = x = readl(dfli->reg_base + LCD_SPU_DMA_CTRL1);
 
 	/*
 	 * We trigger DMA on the falling edge of vsync if vsync is
@@ -398,8 +412,8 @@ static void set_dma_control1(struct dovefb_layer_info *dfli, int sync)
 	if (!(sync & FB_SYNC_VERT_HIGH_ACT))
 		x |= 0x08000000;
 
-
-	writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL1);
+	if (x != x_bk)
+		writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL1);
 }
 
 static int wait_for_vsync(struct dovefb_layer_info *dfli)
@@ -475,14 +489,15 @@ static void set_dumb_panel_control(struct fb_info *fi, int gpio_only)
 	struct dovefb_layer_info *dfli = fi->par;
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
 	u32	mask = 0x1;
-	u32 x;
+	u32 x, x_bk;
 
 	/*
 	 * Preserve enable flag.
 	 */
 	if (gpio_only)
 		mask |= ~(0xffff << 12);
-	x = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL) & mask;
+	x_bk = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL) & mask;
+	x = x_bk & mask;
 
 	x |= dmi->gpio_output_data << 20;
 	x |= dmi->gpio_output_mask << 12;
@@ -496,7 +511,9 @@ static void set_dumb_panel_control(struct fb_info *fi, int gpio_only)
 		x |= (fi->var.sync & FB_SYNC_HOR_HIGH_ACT) ? 0 : 0x00000004;
 		x |= dmi->invert_pixclock ? 0x00000002 : 0;
 	}
-	writel(x, dfli->reg_base + LCD_SPU_DUMB_CTRL);
+
+	if (x != x_bk)
+		writel(x, dfli->reg_base + LCD_SPU_DUMB_CTRL);
 }
 
 static void set_dumb_screen_dimensions(struct fb_info *fi)
@@ -507,6 +524,9 @@ static void set_dumb_screen_dimensions(struct fb_info *fi)
 	struct fb_videomode	 *ov = &info->out_vmode;
 	int x;
 	int y;
+	u32 reg, reg_bk;
+
+	reg_bk = readl(dfli->reg_base + LCD_SPUT_V_H_TOTAL);
 
 	if (info->fixed_output) {
 		x = ov->xres + ov->right_margin + ov->hsync_len +
@@ -518,7 +538,10 @@ static void set_dumb_screen_dimensions(struct fb_info *fi)
 		y = v->yres + v->lower_margin + v->vsync_len + v->upper_margin;
 	}
 
-	writel((y << 16) | x, dfli->reg_base + LCD_SPUT_V_H_TOTAL);
+	reg = (y << 16)|x;
+
+	if (reg != reg_bk)
+		writel((y << 16) | x, dfli->reg_base + LCD_SPUT_V_H_TOTAL);
 }
 
 static int dovefb_gfx_set_par(struct fb_info *fi)
@@ -658,7 +681,8 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	 * Re-enable panel output.
 	 */
 	x = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL);
-	writel(x | 1, dfli->reg_base + LCD_SPU_DUMB_CTRL);
+	if ((x & 0x1) == 0)
+		writel(x | 1, dfli->reg_base + LCD_SPU_DUMB_CTRL);
 #ifdef CONFIG_CH7025_COMPOSITE
 	{
 		struct input_stream_info info;
