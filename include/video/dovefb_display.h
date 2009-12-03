@@ -17,13 +17,24 @@
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
 
-struct dcon_config {
-	unsigned char dcon_disable;
-	unsigned char lcd_disable;
-	unsigned char vga_disable;
-	unsigned char mode_porta;
-	unsigned char mode_portb;
-};
+#define FBIO_SET_DISPLAY_MODE  0
+#define FBIO_GET_DISPLAY_MODE  1
+#define FBIO_CONFIG_DCON       2
+#define FBIO_CONFIG_PORTA      3
+#define FBIO_CONFIG_PORTB      4
+#define FBIO_GET_DCON_STATUS   5
+
+/* PORTA mode. */
+#define PORTA_OUTPUT_LCD0      0
+//#define PORTA_OUTPUT_DUAL    1
+//#define PORTA_OUTPUT_DUAL    2
+//#define PORTA_OUTPUT_DUAL    3
+
+/* PORTB mode. */
+#define PORTB_OUTPUT_LCD1      0
+#define PORTB_OUTPUT_LCD01
+//#define PORTA_OUTPUT_DUAL    2
+//#define PORTA_OUTPUT_DUAL    3
 
 #define DISPLAY_NORMAL		0
 #define DISPLAY_CLONE		1

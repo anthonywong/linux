@@ -41,17 +41,12 @@
 
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
-#include <video/dovefb_display.h>
 #include "dovefb_if.h"
 
 #define MAX_QUEUE_NUM	60
 #define RESET_BUF	0x1
 #define FREE_ENTRY	0x2
 
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-extern struct display_settings lcd_config;
-#endif
 static int dovefb_ovly_set_par(struct fb_info *fi);
 static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset);
 static void set_dma_control0(struct dovefb_layer_info *dfli);
@@ -84,41 +79,6 @@ static void dovefb_do_tasklet(unsigned long data)
 
 	fi = (struct fb_info *)data;
 	dovefb_switch_buff(fi);
-}
-
-static struct fb_videomode *
-find_best_mode(struct dovefb_layer_info *dfli, struct fb_var_screeninfo *var)
-{
-	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
-	struct fb_videomode *best_mode;
-	int i;
-
-	best_mode = NULL;
-	for (i = 0; i < dmi->num_modes; i++) {
-		struct fb_videomode *m = dmi->modes + i;
-
-		/*
-		 * Check whether this mode is suitable.
-		 */
-		if (var->xres > m->xres)
-			continue;
-		if (var->yres > m->yres)
-			continue;
-
-		/*
-		 * Check whether this mode is more suitable than
-		 * the best mode so far.
-		 */
-		if (best_mode != NULL &&
-		    (best_mode->xres < m->xres ||
-		     best_mode->yres < m->yres ||
-		     best_mode->pixclock > m->pixclock))
-			continue;
-
-		best_mode = m;
-	}
-
-	return best_mode;
 }
 
 static int convert_pix_fmt(u32 vmode)
@@ -767,7 +727,7 @@ static int dovefb_ovly_open(struct fb_info *fi, int user)
 	dfli->surface.viewPortInfo.srcHeight = var->yres;
 	dfli->surface.viewPortInfo.zoomXSize = var->xres;
 	dfli->surface.viewPortInfo.zoomYSize = var->yres;
-	dfli->surface.videoBufferAddr.startAddr = fi->fix.smem_start;
+	dfli->surface.videoBufferAddr.startAddr = (unsigned char *)fi->fix.smem_start;
 	dovefb_set_pix_fmt(var, dfli->pix_fmt);
 	dovefb_ovly_set_par(fi);
 
@@ -1034,27 +994,9 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 	/*
 	 * Configure graphics DMA parameters.
 	 */
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-	switch (lcd_config.display_mode) {
-	case DISPLAY_NORMAL:
-	case DISPLAY_CLONE:
-	case DISPLAY_DUALVIEW:
-		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
-		xbefzoom = var->xres/2;
-		break;
-	case DISPLAY_EXTENDED:
-		xbefzoom = var->xres/2/2;
-		set_graphics_start(fi, fi->var.xoffset+(var->xres/2), fi->var.yoffset);
-	default:
-		set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
-		xbefzoom = var->xres/2;
-		;
-	}
-#else
 	xbefzoom = var->xres/2;
 	set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
-#endif
+
 	if ((dfli->pix_fmt >= 0) && (dfli->pix_fmt < 10)) {
 		writel((var->xres_virtual * var->bits_per_pixel) >> 3,
 			dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
@@ -1163,7 +1105,7 @@ int dovefb_ovly_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 	atomic_set(&dfli->tasklet.count, 0);
 	dfli->tasklet.func = dovefb_do_tasklet;
 	dfli->tasklet.data = (unsigned long)fi;
-	dfli->surface.videoBufferAddr.startAddr = fi->fix.smem_start; 
+	dfli->surface.videoBufferAddr.startAddr = (unsigned char *)fi->fix.smem_start; 
 
 	init_waitqueue_head(&dfli->w_intr_wq);
 	mutex_init(&dfli->access_ok);
