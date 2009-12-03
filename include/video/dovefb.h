@@ -93,6 +93,27 @@
 #define DOVEFB_IOCTL_SET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 21)
 #define DOVEFB_IOCTL_GET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 22)
 
+/* clear framebuffer: Makes resolution or color space changes look nicer */
+#define FBIO_CLEAR_FRAMEBUFFER			_IO(FB_IOC_MAGIC, 19)
+
+/* Global alpha blend controls - Maintaining compatibility with existing
+   user programs. */
+#define FBIOPUT_VIDEO_ALPHABLEND            0xeb
+#define FBIOPUT_GLOBAL_ALPHABLEND           0xe1
+#define FBIOPUT_GRAPHIC_ALPHABLEND          0xe2
+
+/* color swapping */
+#define FBIOPUT_SWAP_GRAPHIC_RED_BLUE       0xe3
+#define FBIOPUT_SWAP_GRAPHIC_U_V            0xe4
+#define FBIOPUT_SWAP_GRAPHIC_Y_UV           0xe5
+#define FBIOPUT_SWAP_VIDEO_RED_BLUE         0xe6
+#define FBIOPUT_SWAP_VIDEO_U_V              0xe7
+#define FBIOPUT_SWAP_VIDEO_Y_UV             0xe8
+
+/* colorkey compatibility */
+#define FBIOGET_CHROMAKEYS                  0xe9
+#define FBIOPUT_CHROMAKEYS                  0xea
+
 #define DOVEFB_VMODE_RGB565			0x100
 #define DOVEFB_VMODE_BGR565			0x101
 #define DOVEFB_VMODE_RGB1555			0x102
@@ -125,6 +146,23 @@
 #define	DOVEFB_ENABLE_R_COLORKEY_MODE		0x5
 #define	DOVEFB_ENABLE_G_COLORKEY_MODE		0x6
 #define	DOVEFB_ENABLE_B_COLORKEY_MODE		0x7
+
+#define DOVEFB_VID_PATH_ALPHA               0x0
+#define DOVEFB_GRA_PATH_ALPHA               0x1
+#define DOVEFB_CONFIG_ALPHA                 0x2
+
+#define DOVEFB_SYNC_COLORKEY_TO_CHROMA          1
+#define DOVEFB_SYNC_CHROMA_TO_COLORKEY          2
+
+/* Compatible to pxa168. */
+#define FB_IOCTL_SET_COLORKEYnALPHA            _IO(FB_IOC_MAGIC, 13)
+#define FB_IOCTL_GET_COLORKEYnALPHA            _IO(FB_IOC_MAGIC, 14)
+#define FB_VID_PATH_ALPHA               0x0
+#define FB_GRA_PATH_ALPHA               0x1
+#define FB_CONFIG_ALPHA                 0x2
+
+#define FB_SYNC_COLORKEY_TO_CHROMA          1
+#define FB_SYNC_CHROMA_TO_COLORKEY          2
 
 #define DOVEFB_FB_NUM		2
 
@@ -160,8 +198,26 @@ struct _sVideoBufferAddr {
 	unsigned int length;		/* input data's length */
 };
 
+struct dovefb_chroma {
+	u_char     mode;
+	u_char     y_alpha;
+	u_char     y;
+	u_char     y1;
+	u_char     y2;
+	u_char     u_alpha;
+	u_char     u;
+	u_char     u1;
+	u_char     u2;
+	u_char     v_alpha;
+	u_char     v;
+	u_char     v1;
+	u_char     v2;
+};
+
 struct _sColorKeyNAlpha {
 	unsigned int mode;
+	unsigned int alphapath;
+	unsigned int config;
 	unsigned int Y_ColorAlpha;
 	unsigned int U_ColorAlpha;
 	unsigned int V_ColorAlpha;
