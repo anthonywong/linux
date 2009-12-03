@@ -31,7 +31,7 @@
 static unsigned int lcd_regbase;
 //module_param(lcd_regbase, uint, 0xf1810000);
 module_param(lcd_regbase, uint, 0);
-MODULE_PARM_DESC(lcd_regbase, "LCD controller register base");
+MODULE_PARM_DESC(lcd_regbase, "DCON register base");
 
 /*
  * 0 means lcd0 = regbase + 0x0, lcd1 = regbase + 0x10000;
@@ -41,172 +41,102 @@ static unsigned int lcdseq;
 module_param(lcdseq, uint, 1);
 MODULE_PARM_DESC(lcdseq, "LCD sequence");
 
-extern struct display_settings lcd_config;
 extern struct class *fb_class;
 static void *lcd0_regbase;
 static void *lcd1_regbase;
 static void *dcon_regbase;
 
-static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset,
-	struct fb_info *newfi)
+static int config_dcon(unsigned int settings)
 {
-	struct dovefb_layer_info *dfli = fi->par;
-	struct fb_var_screeninfo *var = &fi->var;
-	int pixel_offset;
-	unsigned long addr;
-	unsigned int x;
-
-	if (newfi) {
-		fi->var.xres_virtual = newfi->var.xres_virtual;
-
-		x = readl(dfli->reg_base + LCD_CFG_GRA_PITCH);
-		x = (x & ~0xFFFF) | ((var->xres_virtual * var->bits_per_pixel) >> 3);
-		writel(x, dfli->reg_base + LCD_CFG_GRA_PITCH);
-	}
-	pixel_offset = (yoffset * var->xres_virtual) + xoffset;
-
-	if (newfi) {
-		struct dovefb_layer_info *newdfli = newfi->par;
-		addr = newdfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
-	} else
-		addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
-
-	writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
+	writel(settings, dcon_regbase+DCON_CTRL0);
 }
 
-static void dcon_portb(uint mode)
+static int config_porta(unsigned int settings)
 {
 	unsigned int ctrl0;
 
-	/* enable lcd0 pass to PortB */
 	ctrl0 = readl(dcon_regbase+DCON_CTRL0);
-	ctrl0 &= ~(0x3 << 8);
-	ctrl0 |= (mode << 8);
+	ctrl0 &= ~(0x3 << 6);
+	ctrl0 |= (settings << 6);
 	writel(ctrl0, dcon_regbase+DCON_CTRL0);
-
-}
-
-static void set_back(void)
-{
-	//uint x;
-	struct dovefb_layer_info *dfli0_gfx = lcd_config.lcd0_gfx->par;
-	//struct dovefb_layer_info *dfli0_vid = lcd_config.lcd0_vid->par;
-	struct dovefb_layer_info *dfli1_gfx = lcd_config.lcd1_gfx->par;
-	//struct dovefb_layer_info *dfli1_vid = lcd_config.lcd1_vid->par;
-
-	struct fb_var_screeninfo *var0_gfx = &lcd_config.lcd0_gfx->var;
-	//struct fb_var_screeninfo *var0_vid = &lcd_config.lcd0_vid->var;
-	struct fb_var_screeninfo *var1_gfx = &lcd_config.lcd1_gfx->var;
-	//struct fb_var_screeninfo *var1_vid = &lcd_config.lcd1_vid->var;
-
-	/* set lcd0 src scan line */
-	writel((var0_gfx->yres << 16) | (var0_gfx->xres),
-		dfli0_gfx->reg_base + LCD_SPU_GRA_HPXL_VLN);
-
-	/* set lcd1 src scan line */
-	writel((var1_gfx->yres << 16) | (var1_gfx->xres),
-		dfli1_gfx->reg_base + LCD_SPU_GRA_HPXL_VLN);
-	
-	/* set lcd1 refresh whole area. */
-	set_graphics_start(lcd_config.lcd1_gfx,
-		var1_gfx->xoffset,
-		var1_gfx->yoffset,
-		lcd_config.lcd0_gfx);
-}
-
-static int setup_display(struct display_settings *config)
-{
-	//uint x;
-	//struct dovefb_layer_info *dfli0_gfx = lcd_config.lcd0_gfx->par;
-	//struct dovefb_layer_info *dfli0_vid = lcd_config.lcd0_vid->par;
-	//struct dovefb_layer_info *dfli1_gfx = lcd_config.lcd1_gfx->par;
-	//struct dovefb_layer_info *dfli1_vid = lcd_config.lcd1_vid->par;
-
-	//struct fb_var_screeninfo *var0_gfx = &lcd_config.lcd0_gfx->var;
-	//struct fb_var_screeninfo *var0_vid = &lcd_config.lcd0_vid->var;
-	struct fb_var_screeninfo *var1_gfx = &lcd_config.lcd1_gfx->var;
-	//struct fb_var_screeninfo *var1_vid = &lcd_config.lcd1_vid->var;
-
-	if (!config)
-		return -1;
-
-	switch (config->display_mode) {
-	case DISPLAY_EXTENDED:
-		dcon_portb(0);
-		printk(KERN_INFO "configure to EXTENDED Mode\n");
-		/* set lcd0 src scan line */
-//		writel((var0_gfx->yres << 16) | (var0_gfx->xres*lcd_config.extend_ratio/4),
-//				dfli0_gfx->reg_base + LCD_SPU_GRA_HPXL_VLN);
-
-		/* set lcd1 src scan line */
-//		writel((var1_gfx->yres << 16) | (var1_gfx->xres*lcd_config.extend_ratio/4),
-//				dfli1_gfx->reg_base + LCD_SPU_GRA_HPXL_VLN);
-	
-		/* set lcd1 refresh second half portion. */
-		set_graphics_start(lcd_config.lcd1_gfx,
-			var1_gfx->xoffset+(var1_gfx->xres),
-			var1_gfx->yoffset, lcd_config.lcd0_gfx);
-		break;
-	case DISPLAY_NORMAL:
-		printk(KERN_INFO "configure to NORMAL Mode\n");
-		dcon_portb(0);
-		set_back();
-		set_graphics_start(lcd_config.lcd1_gfx,
-			var1_gfx->xoffset,
-			var1_gfx->yoffset, 0);
-	
-		/* switch lcd1's buffer addr back. */
-		break;
-	case DISPLAY_CLONE:
-		printk(KERN_INFO "configure to CLONE Mode\n");
-		dcon_portb(1);
-		set_back();
-#if 0 // test code, set lcd0 to dump16bit mode.
-#endif
-		break;
-	case DISPLAY_DUALVIEW:
-		printk(KERN_INFO "configure to DUALVIEW Mode\n");
-		dcon_portb(0);
-		set_back();
-		break;
-	default:
-		;
-	}
-
 
 	return 0;
 }
 
+static int config_portb(unsigned int settings)
+{
+	unsigned int ctrl0;
+
+	ctrl0 = readl(dcon_regbase+DCON_CTRL0);
+	ctrl0 &= ~(0x3 << 8);
+	ctrl0 |= (settings << 8);
+	writel(ctrl0, dcon_regbase+DCON_CTRL0);
+
+	return 0;
+}
+
+/*
+ * #define FBIO_SET_DISPLAY_MODE   0
+ * #define FBIO_GET_DISPLAY_MODE   1
+ * #define FBIO_CONFIG_DCON        2
+ * #define FBIO_CONFIG_PORTA       3
+ * #define FBIO_CONFIG_PORTB       4
+ * #define FBIO_GET_DCON_STATUS    5
+ */
 static long display_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct display_settings config;
 	switch (cmd) {
-	case 0:	/* configure display mode. */
-		printk(KERN_INFO "driver set display config.\n");
+	case FBIO_SET_DISPLAY_MODE:
+		/* configure display mode. */
+		printk(KERN_INFO "Reserved!! Not implement yet.\n");
+		break;
+	case FBIO_GET_DISPLAY_MODE:
+		/* get display configuration. */
+		printk(KERN_INFO "Reserved!! Not implement yet.\n");
+		break;
+	case FBIO_CONFIG_DCON:
+	{
+		unsigned int settings;
+		/* Get data from user space. */
+		if (copy_from_user(&settings, (void *)arg, sizeof(unsigned int)))
+			return -EFAULT;
+		config_dcon(settings);
+		break;
+	}
+	case FBIO_CONFIG_PORTA:
+	{
+		unsigned int settings;
+		/* Get data from user space. */
+		if (copy_from_user(&settings, (void *)arg, sizeof(unsigned int)))
+			return -EFAULT;
+
+		config_porta(settings);
+		break;
+	}
+	case FBIO_CONFIG_PORTB:
+	{
+		unsigned int settings;
 
 		/* Get data from user space. */
-		if (copy_from_user(&config, (void *)arg, sizeof(struct display_settings)))
+		if (copy_from_user(&settings, (void *)arg, sizeof(unsigned int)))
 			return -EFAULT;
 
-		lcd_config.display_mode = config.display_mode;
-		lcd_config.extend_ratio = config.extend_ratio;
-
-#ifdef MTL_DEBUG
-		printk("Get mode = %d\n", lcd_config.display_mode);
-		printk("Get ratio = %d\n", lcd_config.extend_ratio);
-#endif
-		/*
-		 * set up lcd0
-		 */
-		//printk(KERN_INFO "case 0 .... driver set display config.\n");
-		setup_display(&lcd_config);
+		config_portb(settings);
 		break;
-	case 1:
-		/* get display configuration. */
-		printk(KERN_INFO "get display config.\n");
-		if (copy_to_user((void *)arg, &lcd_config, sizeof(struct display_settings)))
+	}
+	case FBIO_GET_DCON_STATUS:
+	{
+		unsigned int dc_status;
+
+		/* get dcon configuration. */
+		dc_status = readl(dcon_regbase+DCON_CTRL0);
+
+		printk(KERN_INFO "get dcon config.\n");
+		if (copy_to_user((void *)arg, &dc_status, sizeof(unsigned int)))
 			return -EFAULT;
 		break;
+	}
 	default:
 		printk(KERN_ERR "Unknown command\n");
 	}
