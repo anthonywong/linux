@@ -130,7 +130,7 @@ static struct dovefb_mach_info dove_rd_avng_lcd1_dmi = {
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 0,
 	.gpio_output_mask	= 0,
-	.ddc_i2c_adapter	= 0,
+	.ddc_i2c_adapter	= 3,
 	.invert_composite_blank	= 0,
 	.invert_pix_val_ena	= 0,
 	.invert_pixclock	= 0,
@@ -234,6 +234,8 @@ subsys_initcall(dove_rd_avng_pci_init);
 static struct cafe_cam_platform_data dove_cafe_cam_data = {
 	.power_down 	= 2, //CTL0 connected to the sensor power down
 	.reset		= 1, //CTL1 connected to the sensor reset
+	.numbered_i2c_bus = 1,
+	.i2c_bus_id	= 3,
 };
 
 static int __init dove_rd_avng_cam_init(void)

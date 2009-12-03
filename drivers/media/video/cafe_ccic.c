@@ -2227,7 +2227,8 @@ static int cafe_init_cam(struct cafe_camera *cam)
 	return 0;
 
 out_smbus:
-	cafe_smbus_shutdown(cam);
+	if (!cam->numbered_i2c_bus)
+		cafe_smbus_shutdown(cam);
 out:
 	cafe_ctlr_power_down(cam);
 	return ret;
