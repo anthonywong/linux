@@ -930,7 +930,7 @@ config FORCE_MAX_ZONEORDER
 	int
 	depends on SA1111 || ARCH_DOVE
 	default "9" if SA1111
-	default "12" if ARCH_DOVE
+	default "19" if ARCH_DOVE
 
 menu "Bus support"
 
