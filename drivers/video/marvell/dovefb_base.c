@@ -42,7 +42,6 @@
 
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
-#include <video/dovefb_display.h>
 #include "dovefb_if.h"
 
 #define MAX_HWC_SIZE		(64*64*2)
@@ -51,12 +50,6 @@
 #define DOVEFB_INT_MASK  (DOVEFB_VSYNC_INT_MASK |\
 			  DOVEFB_GFX_INT_MASK |\
 			  DOVEFB_VID_INT_MASK)
-
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-struct display_settings lcd_config;
-EXPORT_SYMBOL(lcd_config);
-#endif
 
 #define USING_SAME_BUFF
 #ifdef USING_SAME_BUFF
@@ -180,7 +173,7 @@ proc_lcd_read(char *page, char **start, off_t off, int count, int *eof,
 	bit16to31 = (x & 0xffff0000) >> 16;
 	p += sprintf(p, "|\n|front porch(%d)\n|vsync(%d)\n|back porch(%d)\n",
 		bit0to15, total_v-bit0to15-bit16to31-active_v, bit16to31);
-	p += sprintf(p, "---------------------------------------------------------------------\n", total_h, total_v);
+	p += sprintf(p, "---------------------------------------------------------------------\n");
 	/*
 	 * Get Line Pitch
 	 */
@@ -1091,19 +1084,6 @@ static int __init dovefb_probe(struct platform_device *pdev)
 		goto failed_fb;
 	}
 
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-	lcd_config.display_mode = DISPLAY_NORMAL;
-	lcd_config.extend_ratio = 2;
-
-	if (info->id == 0) {
-		lcd_config.lcd0_gfx = info->gfx_plane->fb_info;
-		lcd_config.lcd0_vid = info->vid_plane->fb_info;
-	} else {
-		lcd_config.lcd1_gfx = info->gfx_plane->fb_info;
-		lcd_config.lcd1_vid = info->vid_plane->fb_info;
-	}
-#endif
 	printk(KERN_INFO "  o dovefb: frame buffer device was successfully "
 			"loaded.\n");
 	return 0;
@@ -1135,7 +1115,6 @@ failed:
 static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct dovefb_info *dfi = platform_get_drvdata(pdev);
-	unsigned int reg;
 
 	printk(KERN_INFO "dovefb_suspend(): state = %d.\n", mesg.event);
 
