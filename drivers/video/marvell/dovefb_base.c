@@ -805,11 +805,12 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	/*
 	 * Allocate framebuffer memory.
 	 */
-	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE);
+	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE*4);
 #ifdef USING_SAME_BUFF
 	if ((gfx_fb_start == 0) || (vid_fb_start == 0) ) {
 #endif
-#ifdef CONFIG_ARCH_DOVE
+//#ifdef CONFIG_ARCH_DOVE
+#if 0
 	dfli->fb_start = dma_alloc_writecombine(dfli->dev, dfli->fb_size,
 						&dfli->fb_start_dma,
 						GFP_KERNEL);
@@ -884,7 +885,8 @@ failed:
 		if (dfli->mem_status)
 			free_pages((unsigned long)dfli->fb_start,
 				get_order(dfli->fb_size));
-#ifdef CONFIG_ARCH_DOVE
+//#ifdef CONFIG_ARCH_DOVE
+#if 0
 		else
 			dma_free_writecombine(dfli->dev, dfli->fb_size,
 				dfli->fb_start, dfli->fb_start_dma);
