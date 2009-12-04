@@ -181,7 +181,7 @@ static u32 dovefb_ovly_set_colorkeyalpha(struct dovefb_layer_info *dfli)
 {
 	unsigned int rb;
 	unsigned int temp;
-	unsigned int x;
+	unsigned int x, x_ckey;
 	struct _sColorKeyNAlpha *color_a = &dfli->ckey_alpha;
 
 	/* reset to 0x0 to disable color key. */
@@ -247,6 +247,10 @@ static u32 dovefb_ovly_set_colorkeyalpha(struct dovefb_layer_info *dfli)
 
 	/* configure alpha */
 	x |= CFG_ALPHA((color_a->config & 0xff));
+
+	/* Have to program new regs to enable color key for new chip. */
+	x_ckey = readl(dfli->reg_base + LCD_SPU_DMA_CTRL1);
+	writel( x_ckey | (0x1 << 19), dfli->reg_base + 0x84);
 
 	writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL1);
 	writel(color_a->Y_ColorAlpha, dfli->reg_base + LCD_SPU_COLORKEY_Y);
