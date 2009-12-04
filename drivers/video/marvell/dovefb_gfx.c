@@ -270,6 +270,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	const struct fb_videomode *m)
 {
 	int divider_int;
+	u32 div_bigger;
 	int needed_pixclk;
 	u64 div_result;
 	u32 x = 0, x_bk;
@@ -315,11 +316,12 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 
 #ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 	calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
-	printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
-			needed_pixclk, axi_div, lcd_div, is_ext);
+	//printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
+	//		needed_pixclk, axi_div, lcd_div, is_ext);
 	divider_int = lcd_div;
 #else
-	divider_int = dmi->sclk_clock / needed_pixclk;
+	divider_int = (dmi->sclk_clock + (needed_pixclk / 2)) / needed_pixclk;
+	
 	/* check whether divisor is too small. */
 	if (divider_int < 2) {
 		printk(KERN_WARNING "Warning: clock source is too slow."
