@@ -703,6 +703,9 @@ typedef struct
 
 }Voice_DSP_Reg;
 
+#define USE_DAPM_CTRL 0
+
+
 extern struct snd_soc_dai rt5630_dai[2];
 extern struct snd_soc_codec_device soc_codec_dev_rt5630;
 extern int rt5630_codec_set_pll1(struct snd_soc_codec * codec, int pll_id, unsigned int freq_in, unsigned int freq_out);
