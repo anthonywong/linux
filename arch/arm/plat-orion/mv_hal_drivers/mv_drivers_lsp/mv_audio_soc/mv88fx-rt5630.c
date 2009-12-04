@@ -99,8 +99,13 @@ static int mv88fx_machine_hifi_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
+	/* codec system clock is supplied by codec pll1*/
+	ret = codec_dai->ops->set_pll(codec_dai, RT5630_PLL1_FROM_MCLK, clk,clk*2);
+	 if (ret < 0)
+	  	return ret;
+	 
 	/* codec system clock is supplied by mv88fx*/
-	ret = codec_dai->ops->set_sysclk(codec_dai, 0, clk, SND_SOC_CLOCK_IN);
+	ret = codec_dai->ops->set_sysclk(codec_dai, 0, clk*2, SND_SOC_CLOCK_IN);
 	if (ret < 0)
 		return ret;
 
