@@ -21,7 +21,7 @@
 #include "rt5630.h"
 
 #define RT5630_VERSION "0.04"
-#define USE_DAPM_CTRL 0
+
 
 /*
 #define RT5630_DEBUG(format, args...) \
@@ -122,7 +122,7 @@ Voice_DSP_Reg VODSP_AEC_Init_Value[]=
 	{0x230b, 0x0003},
 	{0x230d, 0x0800},
 	{0x230e, 0x0100},
-	{0x2314, 0xd000},
+	{0x2314, 0xc000},
 	{0x22cf, 0x0000},
 	{0x22c0, 0x8800},
 	{0x22c1, 0x1650},
@@ -277,7 +277,9 @@ struct Voice_DSP_Function
 	Voice_DSP_Reg *reg_setting;
 	int regsize;
 };
+
 static int dsp_init_state;
+
 static struct Voice_DSP_Function voice_dsp_function_table[] =
 {
 		{VODSP_AEC_FUNC, VODSP_AEC_Init_Value, SET_VODSP_REG_AEC_INIT_NUM},
@@ -285,9 +287,6 @@ static struct Voice_DSP_Function voice_dsp_function_table[] =
 		{VODSP_ALL_FUNC, NULL, 0},
 };
 
-/*here we default set dsp init data to be aec function*/
-static Voice_DSP_Reg *dsp_reg_for_misc_func = VODSP_AEC_Init_Value;           
-static int dsp_reg_num = SET_VODSP_REG_AEC_INIT_NUM;
 
 
 static struct snd_soc_device *rt5630_socdev;
@@ -333,7 +332,7 @@ static unsigned int rt5630_read(struct snd_soc_codec *codec, unsigned int reg)
 
 
 
-	return rt5630_read_reg_cache(codec, reg);
+	return rt5630_read_hw_reg(codec, reg);
 }
 
 
@@ -374,7 +373,7 @@ static int rt5630_write(struct snd_soc_codec *codec, unsigned int reg,
 	}
 	else 
 	{
-		RT5630_DEBUG("rt5630_write fail\n");
+		printk(KERN_ERR "rt5630_write fail\n");
 		return -EIO;
 	}
 }
@@ -427,7 +426,7 @@ static int rt5630_write_vodsp_reg(struct snd_soc_codec *codec, unsigned int vods
 	
 }
 
-static int rt5630_read_vodsp_reg(struct snd_soc_codec *codec, unsigned int vodspreg, unsigned int value)
+static int rt5630_read_vodsp_reg(struct snd_soc_codec *codec, unsigned int vodspreg)
 {
 	int ret = 0;
 	unsigned int nDataH, nDataL;
@@ -455,7 +454,14 @@ static int rt5630_read_vodsp_reg(struct snd_soc_codec *codec, unsigned int vodsp
 	return ((nDataH & 0xff) << 8) |(nDataL & 0xff);	
 }
 
+static unsigned int rt5630_read_index(struct snd_soc_codec *codec, unsigned int reg)
+{
+	unsigned int  val;
 
+	rt5630_write(codec, 0x6a, reg);
+	val = rt5630_read(codec, 0x6c);
+	return val;
+}
 
 
 static const char *rt5630_spk_out_sel[] = {"Class AB", "Class D"}; 					/*1*/
@@ -488,44 +494,14 @@ SOC_ENUM_SINGLE(RT5630_MIC_CTRL, 8, 4, rt5630_mic2_boost_sel),				/*9*/
 SOC_ENUM_SINGLE(RT5630_DMIC_CTRL, 0, 8, rt5630_dmic_boost_sel),				/*10*/
 };
 
-static int init_vodsp(struct snd_soc_codec *codec)
-{
-	int i;
-	int ret = 0;
-	RT5630_DEBUG("");
-	
-	/*enable LDO power and set output voltage to 1.2V*/
-	rt5630_write_mask(codec, RT5630_LDO_CTRL,LDO_ENABLE|LDO_OUT_VOL_CTRL_1_20V,LDO_ENABLE|LDO_OUT_VOL_CTRL_MASK);
-	mdelay(20);
-	/*enable power of VODSP I2C interface*/ 
-	rt5630_write_mask(codec, RT5630_PWR_MANAG_ADD3,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP);
-	mdelay(1);
-	rt5630_write_mask(codec, RT5630_VODSP_CTL,0,VODSP_NO_RST_MODE_ENA);	/*Reset VODSP*/
-	mdelay(1);
-	rt5630_write_mask(codec, RT5630_VODSP_CTL,VODSP_NO_RST_MODE_ENA,VODSP_NO_RST_MODE_ENA);	/*set VODSP to non-reset status*/		
-	mdelay(20);
-
-	/*initize AEC paramter*/
-	for(i = 0; i < dsp_reg_num; i++)
-	{
-		ret = rt5630_write_vodsp_reg(codec, dsp_reg_for_misc_func[i].VoiceDSPIndex,dsp_reg_for_misc_func[i].VoiceDSPValue);
-
-		if(ret)
-			return -EIO;
-	}		
-	mdelay(100);
-
-	//set VODSP to pown down mode	
-	rt5630_write_mask(codec, RT5630_VODSP_CTL,0,VODSP_NO_PD_MODE_ENA);	
-	rt5630_write_mask(codec, RT5630_PWR_MANAG_ADD3,0,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP);            //disable txdc/txdp/rxdp
-
-	return 0;
-}
 
 static int init_vodsp_update(struct snd_soc_codec *codec, struct Voice_DSP_Function *dsp_func)
 {
 	int i;
 	int ret;
+	unsigned int reg;
+	int timeout = 10;
+
 	RT5630_DEBUG("dsp_init_state=%d\n",dsp_init_state);
 
 	if (dsp_func->feature == dsp_init_state)
@@ -533,21 +509,21 @@ static int init_vodsp_update(struct snd_soc_codec *codec, struct Voice_DSP_Funct
 	
 	switch(dsp_init_state)
 	{
+//init_dsp:
 		case VODSP_NULL:
 			/*enable LDO power and set output voltage to 1.2V*/
 			rt5630_write_mask(codec, RT5630_LDO_CTRL,LDO_ENABLE|LDO_OUT_VOL_CTRL_1_20V,LDO_ENABLE|LDO_OUT_VOL_CTRL_MASK);
 			mdelay(20);
-			/*enable power of VODSP I2C interface*/ 
+		default:
+			rt5630_write_mask(codec, RT5630_VODSP_CTL,VODSP_NO_PD_MODE_ENA, VODSP_NO_PD_MODE_ENA);
+			mdelay(20);
 			rt5630_write_mask(codec, RT5630_PWR_MANAG_ADD3,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP);
 			mdelay(1);
 			rt5630_write_mask(codec, RT5630_VODSP_CTL,0,VODSP_NO_RST_MODE_ENA);	/*Reset VODSP*/
 			mdelay(1);
 			rt5630_write_mask(codec, RT5630_VODSP_CTL,VODSP_NO_RST_MODE_ENA,VODSP_NO_RST_MODE_ENA);	/*set VODSP to non-reset status*/
 			mdelay(20);
-		default:
-			rt5630_write_mask(codec, RT5630_VODSP_CTL,1,VODSP_NO_PD_MODE_ENA);
-			mdelay(1);
-			rt5630_write_mask(codec, RT5630_PWR_MANAG_ADD3,0x0300,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP);            //enable  txdc/txdp/rxdp
+
 			dsp_init_state = dsp_func->feature;
 
 			for (i = 0; i < dsp_func->regsize; i ++) {
@@ -555,7 +531,24 @@ static int init_vodsp_update(struct snd_soc_codec *codec, struct Voice_DSP_Funct
 				if (ret < 0)
 					return ret;
 			}
-			mdelay(100);
+			schedule_timeout_uninterruptible(msecs_to_jiffies(100));
+			reg = rt5630_read_vodsp_reg(codec, 0x230c);
+			while(timeout && (reg !=0x5a5a)) {
+				rt5630_write_vodsp_reg(codec, 0x230c, 0x0000);
+				schedule_timeout_uninterruptible(msecs_to_jiffies(10));
+				timeout --;
+				reg = rt5630_read_vodsp_reg(codec, 0x230c);
+				
+			}
+			if (!timeout) {
+				RT5630_DEBUG("warning: dsp dump not ok!\n");
+				rt5630_write_mask(codec, RT5630_LDO_CTRL,0,LDO_ENABLE|LDO_OUT_VOL_CTRL_MASK);
+				mdelay(20);
+//				goto init_dsp;
+			}
+			else
+				RT5630_DEBUG("dsp succesful to start\n");
+
 			break;
 	}
 	
@@ -653,7 +646,7 @@ static int set_vodsp_aec_path(struct snd_soc_codec *codec, unsigned int mode)
 int enable_vodsp_aec_func(struct snd_soc_codec *codec, unsigned int VodspAEC_En, unsigned int AEC_mode)
 {
 	int  ret = 0;
-
+	unsigned int reg;
 	RT5630_DEBUG("VodspAEC_En=%d\n",VodspAEC_En);
 	
 	if (VodspAEC_En != 0)
@@ -667,6 +660,8 @@ int enable_vodsp_aec_func(struct snd_soc_codec *codec, unsigned int VodspAEC_En,
 		//set VODSP to active			
 		rt5630_write_mask(codec, RT5630_VODSP_CTL,VODSP_NO_PD_MODE_ENA,VODSP_NO_PD_MODE_ENA);	
 		mdelay(50);	
+		reg = rt5630_read_vodsp_reg(codec, 0x230c);
+		RT5630_DEBUG("dsp reg 0x230c is 0x%x\n", reg);	
 	}
 	else
 	{
@@ -682,45 +677,7 @@ int enable_vodsp_aec_func(struct snd_soc_codec *codec, unsigned int VodspAEC_En,
 }
 
 EXPORT_SYMBOL_GPL(enable_vodsp_aec_func);
-static void rt5630_aec_config(struct snd_soc_codec *codec, unsigned int mode)
-{
 
-	unsigned int aec_enable = 1;
-	RT5630_DEBUG("mode=%x\n",mode);
-
-	if (mode == VODSP_AEC_DISABLE)
-		aec_enable = 0;
-	
-	enable_vodsp_aec_func(codec, aec_enable, mode);	
-}
-
-
-static int rt5630_get_aec_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-
-	int mode = rt5630_read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & 0x03;  
-	RT5630_DEBUG("mode=%x\n",mode);
-
-	ucontrol->value.integer.value[0] = mode;    
-	return 0;
-}
-
-
-static int rt5630_set_aec_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int mode = rt5630_read(codec, VIRTUAL_REG_FOR_MISC_FUNC);
-	RT5630_DEBUG("mode=%x\n",mode);
-	if ( (mode & 0x03) == ucontrol->value.integer.value[0])
-		return 0;
-
-	mode &= 0xfffc;
-	mode |= ucontrol->value.integer.value[0];
-	rt5630_write(codec, VIRTUAL_REG_FOR_MISC_FUNC, mode);
-	rt5630_aec_config(codec, ucontrol->value.integer.value[0]);
-	return 1;
-}
 
 
 static int set_vodsp_ve_path(struct snd_soc_codec *codec, int VE_mode)
@@ -732,7 +689,7 @@ RT5630_DEBUG("VE_mode=%d",VE_mode);
 			rt5630_write_mask(codec, 0x1a, 0x2020, 0x2030);                     /*I2S source from TXDP*/
 			break;
 		case TXDP_TO_PCM:
-			rt5630_write_mask(codec, 0x1a, 0x2080, 0x2080);                  /*vodac source from TXDP*/
+			rt5630_write_mask(codec, 0x1a, 0x0080, 0x0080); 			       /*vodac source from TXDP*/
 			break;
 		case VE_DISABLE:
 			rt5630_write_mask(codec, 0x1a, 0x0000, 0x20b0);
@@ -747,11 +704,11 @@ RT5630_DEBUG("VE_mode=%d",VE_mode);
 int enable_vodsp_ve_func(struct snd_soc_codec *codec, int vodsp_ve_en, int VE_mode)
 {
 	int ret = 0;
+	unsigned int reg;
 	RT5630_DEBUG("vodsp_ve_en=%d\n",vodsp_ve_en);
 
 	if(vodsp_ve_en != 0)
 	{	
-		rt5630_write_mask(codec, RT5630_DMIC_CTRL, 0x8000, 0x8000);         /*enable dmic*/
 		set_vodsp_ve_path(codec, VE_mode);
 		//enable power of VODSP I2C interface & VODSP interface
 		rt5630_write_mask(codec, RT5630_PWR_MANAG_ADD3,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP);
@@ -760,12 +717,13 @@ int enable_vodsp_ve_func(struct snd_soc_codec *codec, int vodsp_ve_en, int VE_mo
 		//set VODSP to active			
 		rt5630_write_mask(codec, RT5630_VODSP_CTL,VODSP_NO_PD_MODE_ENA,VODSP_NO_PD_MODE_ENA);	
 		msleep(50);	
+		reg = rt5630_read_vodsp_reg(codec, 0x230c);
+		RT5630_DEBUG("dsp reg 0x230c is 0x%x\n", reg);
 
 	}
 	else
 	{
 		//set VODSP to power down mode			
-		rt5630_write_mask(codec, RT5630_DMIC_CTRL, 0x0000, 0x8000);        /*disable dmic*/
 		rt5630_write_mask(codec, RT5630_VODSP_CTL,0,VODSP_NO_PD_MODE_ENA);
 		//disable power of VODSP I2C interface & VODSP interface
 		rt5630_write_mask(codec, RT5630_PWR_MANAG_ADD3,0,PWR_VODSP_INTERFACE|PWR_I2C_FOR_VODSP);
@@ -776,89 +734,6 @@ int enable_vodsp_ve_func(struct snd_soc_codec *codec, int vodsp_ve_en, int VE_mo
 }
 EXPORT_SYMBOL_GPL(enable_vodsp_ve_func);
 
-
-static void rt5630_ve_config(struct snd_soc_codec *codec, unsigned int mode)
-{
-	unsigned int ve_enable = 1;
-	RT5630_DEBUG("mode =%x\n",mode);
-
-	if (mode == VE_DISABLE)
-		ve_enable = 0;
-	
-	enable_vodsp_ve_func(codec, ve_enable, mode);	
-}
-
-static int rt5630_get_ve_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	int mode = rt5630_read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & (0x03 << 10);  
-	RT5630_DEBUG("mode =%x\n",mode);
-
-	ucontrol->value.integer.value[0] = (mode >> 10);    
-	return 0;
-}
-
-
-static int rt5630_set_ve_mode(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-
-	int mode = rt5630_read(codec, VIRTUAL_REG_FOR_MISC_FUNC);
-	RT5630_DEBUG("mode=%x\n",mode);
-
-	if (((mode >> 10) & 0x03) == ucontrol->value.integer.value[0])
-		return 0;
-
-	mode &= 0xf3ff;
-	mode |= (ucontrol->value.integer.value[0] << 10);
-	rt5630_write(codec, VIRTUAL_REG_FOR_MISC_FUNC, mode);
-	rt5630_ve_config(codec, ucontrol->value.integer.value[0]);	
-	return 0;
-}
-
-
-
-
-
-static int rt5630_set_vodsp_init_reg(struct snd_soc_codec *codec, int mode)
-{
-	struct Voice_DSP_Function *p;
-	RT5630_DEBUG("");
-
-	for (p = voice_dsp_function_table; p != NULL; p++)
-	{
-		if (p->feature == mode)
-			break;
-	}
-
-	if ((p->feature == VODSP_ALL_FUNC) ||(p->reg_setting == NULL))
-		return 0;
-
-	dsp_reg_for_misc_func = p->reg_setting;
-	dsp_reg_num = p->regsize;
-	return 0;
-}
-
-
-/*template driver when you want to use aec func*/
-/*here we assume that your mclk is 13Mhz, and pcm in pcm out*/
-
-int rt5630_set_vodsp_func_template(struct snd_soc_codec *codec, int enable)
-{
-	RT5630_DEBUG("enable =%d\n",enable);
-
-	
-	if (enable) {
-		rt5630_codec_set_pll1(codec, RT5630_PLL1_FROM_MCLK, 13000000,24576000);
-		rt5630_write_mask(codec, 0x40, 0x8000, 0x8000);     // sysclk from pll1
-		rt5630_write_mask(codec, 0x1e, 0x0000, 0x8000);     //vodsp clk from sysclk    
-
-		enable_vodsp_aec_func(codec, 1, PCM_IN_PCM_OUT);
-	}
-	else {
-		enable_vodsp_aec_func(codec, 0, PCM_IN_PCM_OUT);
-	}
-}
 
 static int realtek_aec_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol) 
 {
@@ -915,7 +790,7 @@ static int realtek_ve_mode_set(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 
 	init_vodsp_update(codec, &voice_dsp_function_table[1]);
 
-	if (((mode & 0x8000) >> 14) == ucontrol->value.integer.value[0])
+	if (((mode & 0x4000) >> 14) == ucontrol->value.integer.value[0])
 		return 0;
 
 	mode &= ~(0x4000);
@@ -925,24 +800,24 @@ static int realtek_ve_mode_set(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 	return 0;
 }
 static const struct snd_kcontrol_new rt5630_snd_controls[] = {
-SOC_ENUM("SPK Amp Type", rt5630_enum[0]),
-SOC_ENUM("Left SPK Source", rt5630_enum[1]),
-SOC_ENUM("SPK Amp Ratio", rt5630_enum[6]),
+//SOC_ENUM("SPK Amp Type", rt5630_enum[0]),
+//SOC_ENUM("Left SPK Source", rt5630_enum[1]),
+//SOC_ENUM("SPK Amp Ratio", rt5630_enum[6]),
 //SOC_ENUM("Mic1 Boost", rt5630_enum[7]),
-SOC_ENUM("Mic2 Boost", rt5630_enum[8]),
-SOC_ENUM("Dmic Boost", rt5630_enum[9]),
+//SOC_ENUM("Mic2 Boost", rt5630_enum[8]),
+//SOC_ENUM("Dmic Boost", rt5630_enum[9]),
 //SOC_DOUBLE("LineIn Playback Volume", RT5630_LINE_IN_VOL, 8, 0, 31, 1),
 //SOC_SINGLE("Phone Playback Volume", RT5630_PHONEIN_VOL, 8, 31, 1),
 //SOC_SINGLE("Mic1 Playback Volume", RT5630_MIC_VOL, 8, 31, 1),
-SOC_SINGLE("Mic2 Playback Volume", RT5630_MIC_VOL, 0, 31, 1),
+//SOC_SINGLE("Mic2 Playback Volume", RT5630_MIC_VOL, 0, 31, 1),
+SOC_SINGLE("Mic Playback Volume", RT5630_MIC_VOL, 0, 31, 1),
 SOC_DOUBLE("PCM Capture Volume", RT5630_ADC_REC_GAIN, 8, 0, 31, 0),
 SOC_DOUBLE("SPKOUT Playback Volume", RT5630_SPK_OUT_VOL, 8, 0, 31, 1),
-SOC_DOUBLE("SPKOUT Playback Switch", RT5630_SPK_OUT_VOL, 15, 7, 1, 0),
+SOC_DOUBLE("SPKOUT Playback Switch", RT5630_SPK_OUT_VOL, 15, 7, 1, 1),
 SOC_DOUBLE("HPOUT Playback Volume", RT5630_HP_OUT_VOL, 8, 0, 31, 1),
-SOC_DOUBLE("HPOUT Playback Switch", RT5630_HP_OUT_VOL, 15, 7, 1, 0),
+SOC_DOUBLE("HPOUT Playback Switch", RT5630_HP_OUT_VOL, 15, 7, 1, 1),
 //SOC_DOUBLE("AUXOUT Playback Volume", RT5630_AUX_OUT_VOL, 8, 0, 31, 1),
 //SOC_DOUBLE("AUXOUT Playback Switch", RT5630_AUX_OUT_VOL, 15, 7, 1, 1),
-//SOC_DOUBLE("ADC Record Gain", RT5630_ADC_REC_GAIN, 8, 0, 31, 0),
 SOC_SINGLE_EXT("AEC Switch", VIRTUAL_REG_FOR_MISC_FUNC, 15, 1, 0, realtek_aec_mode_get, realtek_aec_mode_set),
 SOC_SINGLE_EXT("VE Switch", VIRTUAL_REG_FOR_MISC_FUNC, 14, 1, 0, realtek_ve_mode_get,realtek_ve_mode_set),
 };
@@ -976,6 +851,7 @@ static void hp_depop_mode2(struct snd_soc_codec *codec)
 	rt5630_write_mask(codec, RT5630_PWR_MANAG_ADD1, PWR_HP_OUT_AMP,
 		PWR_HP_OUT_AMP);
 }
+
 #if USE_DAPM_CTRL
 /*
  * _DAPM_ Controls
@@ -1107,12 +983,20 @@ static int spk_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, 
 			rt5630_write_mask(codec, 0x3e, 0x3000, 0x3000);
 			rt5630_write_mask(codec, 0x02, 0x0000, 0x8080);
 			rt5630_write_mask(codec, 0x3a, 0x0400, 0x0400);                  //power on spk amp
+#if  CONFIG_SND_DOVE_SOC_AC97_AVD1
+			spk_amplifier_enable(1); //enable spk amp
+#endif
+
 			break;
 		case SND_SOC_DAPM_POST_PMD:
 			RT5630_DEBUG("aftet virtual spk power down!\n");
 			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0400);//power off spk amp
 			rt5630_write_mask(codec, 0x02, 0x8080, 0x8080);
 			rt5630_write_mask(codec, 0x3e, 0x0000, 0x3000);                 
+#if  CONFIG_SND_DOVE_SOC_AC97_AVD1
+			spk_amplifier_enable(0); //disable spk amp
+#endif
+			
 			break;
 		default:
 			return 0;
@@ -1162,18 +1046,18 @@ static int aux_pga_event(struct snd_soc_dapm_widget *w, struct snd_kcontrol *k, 
 
 /*SPKOUT Mux*/
 static const struct snd_kcontrol_new rt5630_spkout_mux_out_controls = 
-SOC_DAPM_ENUM("Route", rt5630_enum[3]);
+SOC_DAPM_ENUM("Route", rt5630_enum[2]);
 
 /*HPLOUT MUX*/
 static const struct snd_kcontrol_new rt5630_hplout_mux_out_controls = 
-SOC_DAPM_ENUM("Route", rt5630_enum[4]);
+SOC_DAPM_ENUM("Route", rt5630_enum[3]);
 
 /*HPROUT MUX*/
 static const struct snd_kcontrol_new rt5630_hprout_mux_out_controls = 
-SOC_DAPM_ENUM("Route", rt5630_enum[5]);
+SOC_DAPM_ENUM("Route", rt5630_enum[4]);
 /*AUXOUT MUX*/
 static const struct snd_kcontrol_new rt5630_auxout_mux_out_controls = 
-SOC_DAPM_ENUM("Route", rt5630_enum[6]);
+SOC_DAPM_ENUM("Route", rt5630_enum[5]);
 
 static const struct snd_soc_dapm_widget rt5630_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("Left LineIn"),
@@ -1430,26 +1314,42 @@ static int rt5630_set_path_from_dac_to_output(struct snd_soc_codec *codec, int e
 #endif
 
 #if !USE_DAPM_CTRL
+
 static int rt5630_pcm_hw_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *codec_dai)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int stream = substream->stream;
+	u16 reg=0;
 	RT5630_DEBUG("stream=%d\n",stream);
-
+	
 	switch (stream)
 	{
 		case SNDRV_PCM_STREAM_PLAYBACK:
-			rt5630_write_mask(codec, 0x3c, 0x0300, 0x0300);        /*power daclr*/
-			rt5630_write_mask(codec, 0x3c, 0x0030, 0x0030);       /*power hp mixerlr*/
-			hp_depop_mode2(codec);
-			rt5630_write_mask(codec, 0x3e, 0x3000, 0x3000);       /*power spklr volume*/
-			rt5630_write_mask(codec, 0x04, 0x0000, 0x8080);        /*unmute hp*/
-			rt5630_write_mask(codec, 0x02, 0x0000, 0x8080);        /*unmute spk*/
-			rt5630_write_mask(codec, 0x3a, 0x0400, 0x0400);        /*power on classabd amp*/
 
+			reg=rt5630_read(codec, 0x02);
+			if (!(reg & 0x8080))
+			{
+				//power on SPK
+				rt5630_write_mask(codec, 0x3c, 0x2300, 0x2300);        /*power hp mixerlr, daclr*/
+
+				rt5630_write_mask(codec, 0x3e, 0x3000, 0x3000);       /*power spklr volume*/
+				rt5630_write_mask(codec, 0x02, 0x0000, 0x8080);        /*unmute spk*/
+				rt5630_write_mask(codec, 0x3a, 0x0400, 0x0400);        /*power on classabd amp*/
 #if  CONFIG_SND_DOVE_SOC_AC97_AVD1
-			spk_amplifier_enable(1);
-#endif
+				spk_amplifier_enable(1);
+#endif				
+			}
+			
+			reg=rt5630_read(codec, 0x04);			
+			if (!(reg & 0x8080))
+			{
+				//power on hp
+				rt5630_write_mask(codec, 0x3c, 0x2300, 0x2300);        /*power hp mixerlr, daclr*/
+				hp_depop_mode2(codec);			
+
+				rt5630_write_mask(codec, 0x04, 0x0000, 0x8080);        /*unmute hp*/				
+			}			
+
 
 			break;
 		case SNDRV_PCM_STREAM_CAPTURE:
@@ -1461,8 +1361,7 @@ static int rt5630_pcm_hw_prepare(struct snd_pcm_substream *substream, struct snd
 			rt5630_write_mask(codec, 0x3a, 0x0004, 0x0004);        /*mic bias2*/
 //			rt5630_write_mask(codec, 0x3e, 0x0002, 0x0002);        /*power mic1 boost*/
 //			rt5630_write_mask(codec, 0x3a, 0x0008, 0x0008);        /*mic bias*/
-			rt5630_write_mask(codec, 0x3c, 0x0003, 0x0003);        /*power adc rec mixer lr*/
-			rt5630_write_mask(codec, 0x3c, 0x00c0, 0x00c0);         /*power adc lr*/
+			rt5630_write_mask(codec, 0x3c, 0x00c3, 0x00c3);         /*power adc lr and rec mixer lr*/
 			break;
 		default:
 			return 0;
@@ -1486,13 +1385,15 @@ static int rt5630_vopcm_hw_prepare(struct snd_pcm_substream *substream, struct s
 			rt5630_write_mask(codec, 0x3a, 0x0400, 0x0400);  
 			break;
 		case SNDRV_PCM_STREAM_CAPTURE: 
-//			rt5630_write_mask(codec, 0x3e, 0x0002, 0x0002);   
-//			rt5630_write_mask(codec, 0x3a, 0x0008, 0x0008);        /*mic bias*/
+			rt5630_write_mask(codec, 0x3e, 0x0002, 0x0002);   
+			rt5630_write_mask(codec, 0x3a, 0x0008, 0x0008);        /*mic bias*/
 			rt5630_write_mask(codec, 0x3c, 0x0041, 0x0041);  		
 	}
 	return 0;
 }
+
 #endif
+
 struct _pll_div{
 	u32 pll_in;
 	u32 pll_out;
@@ -1512,7 +1413,9 @@ static const struct _pll_div codec_master_pll1_div[] = {
 		
 	{  2048000,  24576000,	0x2ea0},
 	{  3686400,  24576000,	0xee27},	
+	{ 11289600,  22579200,	0x06a0},	
 	{ 12000000,  24576000,	0x2915},   
+	{ 12288000,  24576000,  0x06a0},  
 	{ 13000000,  24576000,	0x772e},
 	{ 13100000,	 24576000,	0x0d20},	
 };
@@ -1545,12 +1448,12 @@ struct _coeff_div_voice {
 
 static const struct _coeff_div_stereo coeff_div_stereo[] = {
 		/*bclk is config to 32fs, if codec is choose to be slave mode , input bclk should be 32*fs */
+		{22579200, 44100, 0x3174, 0x1010},	
 		{24576000, 48000, 0x3174, 0x1010},                 
 		{12288000, 48000, 0x1174, 0x0000},
 		{18432000, 48000, 0x2174, 0x1111},
 		{36864000, 48000, 0x2274, 0x2020},
 		{49152000, 48000, 0xf074, 0x3030},
-		{11289600, 44100, 0x1174, 0x0000},
 		{0, 0, 0, 0},
 };
 
@@ -1580,7 +1483,7 @@ static int get_coeff(unsigned int mclk, unsigned int rate, int mode)
 	}
 
 	return -EINVAL;
-	RT5630_DEBUG("can't find a matched mclk and rate in %s\n", 
+	printk(KERN_ERR "can't find a matched mclk and rate in %s\n", 
 				(mode ? "coeff_div_voice[]" : "coeff_div_audio[]"));
 }
 
@@ -1590,7 +1493,7 @@ int rt5630_codec_set_pll1(struct snd_soc_codec *codec, int pll_id,
 	int i;
 	int ret = -EINVAL;
 
-	RT5630_DEBUG("");
+	RT5630_DEBUG("pll_id = %d, freq_in = %d, freq_out = %d\n", pll_id, freq_in, freq_out);
 
 	if (pll_id < RT5630_PLL1_FROM_MCLK || pll_id > RT5630_PLL1_FROM_VBCLK)
 		return -EINVAL;
@@ -1695,7 +1598,7 @@ static int rt5630_hifi_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return 0;
 	}
 	
-	RT5630_DEBUG("unsupported sysclk freq %u for audio i2s\n", freq);
+	printk(KERN_ERR "unsupported sysclk freq %u for audio i2s\n", freq);
 	return -EINVAL;
 }
 
@@ -1711,7 +1614,7 @@ static int rt5630_voice_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		return 0;
 	}			
 
-	RT5630_DEBUG("unsupported sysclk freq %u for voice pcm\n", freq);
+	printk(KERN_ERR "unsupported sysclk freq %u for voice pcm\n", freq);
 	return -EINVAL;
 }
 
@@ -1957,6 +1860,7 @@ static int rt5630_voice_codec_mute(struct snd_soc_dai *dai, int mute)
 
 
 #if USE_DAPM_CTRL
+
 static int rt5630_set_bias_level(struct snd_soc_codec *codec, 
 			enum snd_soc_bias_level level)
 {
@@ -1967,83 +1871,96 @@ static int rt5630_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
+			rt5630_write(codec, 0x3e, 0x0000);
+			rt5630_write(codec, 0x3a, 0x0002);
+			rt5630_write(codec, 0x3c, 0x2000);	
+		break;
 	case SND_SOC_BIAS_OFF:		
-		rt5630_write_mask(codec, 0x3a, 0x0000, 0x0800);    /*enable main i2s*/
-		rt5630_write_mask(codec, 0x3a, 0x0000, 0x0001);	/*enable dac ref*/
-		rt5630_write_mask(codec, 0x3c, 0x0000, 0xc000);  /*off pll*/
+			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0300);
+			rt5630_write_mask(codec, 0x02, 0x8080, 0x8080);
+			rt5630_write_mask(codec, 0x04, 0x8080, 0x8080);
+			rt5630_write(codec, 0x3e, 0x0000);
+			rt5630_write(codec, 0x3a, 0x0000);
+			rt5630_write(codec, 0x3c, 0x0000);
 		break;
 	}
 	codec->bias_level = level;
 	return 0;
 }
+
 #else
+
 static int rt5630_set_bias_level(struct snd_soc_codec *codec, 
 			enum snd_soc_bias_level level)
 {
-#if 0
+
 	switch(level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
+		break;
 	case SND_SOC_BIAS_OFF:
 			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0300);
 			rt5630_write_mask(codec, 0x02, 0x8080, 0x8080);
 			rt5630_write_mask(codec, 0x04, 0x8080, 0x8080);
-			rt5630_write(codec, 0x3a, 0x0002);
-			rt5630_write(codec, 0x3c, 0x2000);
-			rt5630_write(codec, 0x3e, 0x8000);
+			rt5630_write(codec, 0x3e, 0x0000);
+			rt5630_write(codec, 0x3a, 0x0000);
+			rt5630_write(codec, 0x3c, 0x0000);
+			
+#if  CONFIG_SND_DOVE_SOC_AC97_AVD1
+				spk_amplifier_enable(0);
+#endif			
+			
 		break;
 	
 	}
-#endif
+
 	codec->bias_level = level;
 	return 0;
 }
-#endif
 
-
-static int rt5630_voice_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *codec_dai)
-{
-	struct snd_soc_codec *codec = codec_dai->codec;
-			RT5630_DEBUG("");
-	rt5630_write_mask(codec, 0x2e, 0x0000, 0x0030);
-#if !USE_DAPM_CTRL
-	rt5630_write_mask(codec, 0x3a, 0x0000, 0x0300);
-	rt5630_write_mask(codec, 0x02, 0x8080, 0x8080);
-	rt5630_write_mask(codec, 0x04, 0x8080, 0x8080);
-	rt5630_write(codec, 0x3a, 0x0002);
-	rt5630_write(codec, 0x3c, 0x2000);
-	rt5630_write(codec, 0x3e, 0x8000);
 #endif
-	return 0;
-}
 
 
 static int rt5630_hifi_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *codec_dai)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	RT5630_DEBUG("");
-	rt5630_write_mask(codec, 0x2e, 0x0000, 0x0030);
-#if !USE_DAPM_CTRL
-	rt5630_write_mask(codec, 0x3a, 0x0000, 0x0300);
-	rt5630_write_mask(codec, 0x02, 0x8080, 0x8080);
-	rt5630_write_mask(codec, 0x04, 0x8080, 0x8080);
-	rt5630_write(codec, 0x3a, 0x0002);
-	rt5630_write(codec, 0x3c, 0x2000);
-	rt5630_write(codec, 0x3e, 0x8000);
-	
+	int stream = substream->stream;
+	RT5630_DEBUG("stream=%d\n",stream);	
+	switch (stream)
+	{		
+		case SNDRV_PCM_STREAM_PLAYBACK:
+			
+//			rt5630_write_mask(codec, 0x04, 0x8080, 0x8080);        /*mute hp*/
+//			rt5630_write_mask(codec, 0x02, 0x8080, 0x8080);        /*mute spk*/			
+//			rt5630_write_mask(codec, 0x3a, 0x0000, 0xcf01);        /*power off DAC path and I2S classabd amp*/
+                     rt5630_write_mask(codec, 0x3a, 0x0000, 0x4f01);        /*power off DAC path*/
+			rt5630_write_mask(codec, 0x3c, 0x0000, 0x0330);        /*power off hp mixerlr and daclr*/
+			rt5630_write_mask(codec, 0x3e, 0x0000, 0x3c00);        /*power spklr volume*/
 #if  CONFIG_SND_DOVE_SOC_AC97_AVD1
 			spk_amplifier_enable(0);
-#endif
+#endif			
+			break;
+			
+		case SNDRV_PCM_STREAM_CAPTURE:
+	
+			rt5630_write_mask(codec, 0x3e, 0x0000, 0x0002);        /*power mic1 boost*/
+			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0008);        /*mic bias*/
+			rt5630_write_mask(codec, 0x3c, 0x0000, 0x00c3);        /*power adc lr and rec mixer lr*/
+
+		   break;
+
+		default:
+			return 0;
+	}		
 
 
-#endif
 	return 0;
 }
 
 
-#define RT5630_STEREO_RATES (SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000)
+#define RT5630_STEREO_RATES (SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_44100)
 #define RT5626_VOICE_RATES (SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_8000)
 
 #define RT5630_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
@@ -2060,7 +1977,7 @@ struct snd_soc_dai_ops rt5630_hifi_ops = {
 		#if !USE_DAPM_CTRL
 		.prepare = rt5630_pcm_hw_prepare,
 		#endif
-		.shutdown = rt5630_hifi_shutdown,
+	.shutdown = rt5630_hifi_shutdown,
 };
 
 struct snd_soc_dai_ops rt5630_voice_ops = {
@@ -2071,7 +1988,7 @@ struct snd_soc_dai_ops rt5630_voice_ops = {
 		#if !USE_DAPM_CTRL
 		.prepare = rt5630_vopcm_hw_prepare,
 		#endif
-		.shutdown = rt5630_voice_shutdown,
+
 };
 
 struct snd_soc_dai rt5630_dai[] = {
@@ -2142,7 +2059,9 @@ static int rt5630_init(struct snd_soc_device *socdev)
 	codec->set_bias_level = rt5630_set_bias_level;
 	codec->dai= rt5630_dai;
 	codec->num_dai = 2;
-	codec->reg_cache_size = ARRAY_SIZE(rt5630_reg);
+	codec->reg_cache_step=2;
+	codec->reg_cache_size = sizeof(rt5630_reg);
+
 	codec->reg_cache = kmemdup(rt5630_reg, sizeof(rt5630_reg), GFP_KERNEL);
 	if (codec->reg_cache == NULL)
 		return -ENOMEM;
@@ -2152,20 +2071,18 @@ static int rt5630_init(struct snd_soc_device *socdev)
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0 )
 	{
-		RT5630_DEBUG("rt5630:  failed to create pcms\n");
+		printk(KERN_ERR "rt5630:  failed to create pcms\n");
 		goto pcm_err;
 	}
 	
 	rt5630_write(codec, RT5630_PD_CTRL_STAT, 0);
 	rt5630_write(codec, RT5630_PWR_MANAG_ADD1, PWR_MAIN_BIAS);
 	rt5630_write(codec, RT5630_PWR_MANAG_ADD2, PWR_MIXER_VREF);
+
+	schedule_delayed_work(&codec->delayed_work, msecs_to_jiffies(1000));	
 	rt5630_reg_init(codec);
 	rt5630_set_bias_level(codec, SND_SOC_BIAS_PREPARE);
 	codec->bias_level = SND_SOC_BIAS_STANDBY;
-	schedule_delayed_work(&codec->delayed_work, msecs_to_jiffies(1000));
-	
-	//rt5630_hifi_codec_mute(codec->dai, 1);
-	//rt5630_voice_codec_mute(codec->dai, 1);
 	
 	rt5630_add_controls(codec);
 #if USE_DAPM_CTRL
@@ -2174,7 +2091,7 @@ static int rt5630_init(struct snd_soc_device *socdev)
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
 	{
-		RT5630_DEBUG("rt5630: failed to register card\n");
+		printk(KERN_ERR "rt5630: failed to register card\n");
 		goto card_err;
 	}
 	RT5630_DEBUG("rt5630: initial ok\n");
@@ -2275,6 +2192,88 @@ err_driver:
 }
 
 
+static ssize_t rt5630_dsp_reg_show(struct device *dev, 
+	struct device_attribute *attr, char *buf)
+{
+	struct snd_soc_device *socdev = dev_get_drvdata(dev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int count = 0;
+	int dsp_value;
+	int i;
+	Voice_DSP_Reg *vodsp_reg;
+	int dsp_num;
+
+	if (dsp_init_state == VODSP_AEC_FUNC) {
+		dsp_num = SET_VODSP_REG_AEC_INIT_NUM;
+		vodsp_reg = VODSP_AEC_Init_Value;
+	} else if (dsp_init_state == VODSP_VE_FUNC) {
+		dsp_num = SET_VODSP_VE_REG_INIT_NUM;
+		vodsp_reg = VODSP_VE_Init_Value;
+	} else
+		return -ENOSYS;
+	
+	count += sprintf(buf, "%s dsp registers\n", codec ->name);
+	for (i = 0; i < dsp_num; i ++) {
+		count += sprintf(buf + count, "0x%4x:", vodsp_reg[i].VoiceDSPIndex);
+		if (count > PAGE_SIZE - 1)
+			break;
+		dsp_value = rt5630_read_vodsp_reg(codec, vodsp_reg[i].VoiceDSPIndex);
+		count += snprintf(buf + count, PAGE_SIZE - count, "0x%4x", dsp_value);
+
+		if (count >= PAGE_SIZE - 1)
+			break;
+		
+		count += snprintf(buf + count, PAGE_SIZE - count, "\n");
+		if (count >= PAGE_SIZE - 1)
+			break;
+	}
+
+	if (count >= PAGE_SIZE)
+		count = PAGE_SIZE - 1;
+
+
+	return count;
+
+}
+
+static DEVICE_ATTR(dsp_reg, 0444, rt5630_dsp_reg_show, NULL);
+
+static ssize_t rt5630_index_reg_show(struct device *dev, 
+	struct device_attribute *attr, char *buf)
+{
+	struct snd_soc_device *socdev = dev_get_drvdata(dev);
+	struct snd_soc_codec *codec = socdev->card->codec;
+	int count = 0;
+	int value;
+	int i; 
+	
+	count += sprintf(buf, "%s index register\n", codec->name);
+
+	for (i = 0; i < 60; i++) {
+		count += sprintf(buf + count, "index-%2x", i);
+		if (count >= PAGE_SIZE - 1)
+			break;
+		value = rt5630_read_index(codec, i);
+		count += snprintf(buf + count, PAGE_SIZE - count, "0x%4x", value);
+
+		if (count >= PAGE_SIZE - 1)
+			break;
+
+		count += snprintf(buf + count, PAGE_SIZE - count, "\n");
+		if (count >= PAGE_SIZE - 1)
+			break;
+	}
+
+	if (count >= PAGE_SIZE)
+			count = PAGE_SIZE - 1;
+		
+	return count;
+	
+}
+
+static DEVICE_ATTR(index_reg, 0444, rt5630_index_reg_show, NULL);
+
+
 static int rt5630_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -2300,7 +2299,12 @@ static int rt5630_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_paths);
 	rt5630_socdev = socdev;
 	INIT_DELAYED_WORK(&codec->delayed_work, rt5630_work);
-
+	ret = device_create_file(&pdev->dev, &dev_attr_dsp_reg);
+	if (ret < 0)
+		printk(KERN_WARNING "asoc: failed to add dsp_reg sysfs files\n");
+	ret = device_create_file(&pdev->dev, &dev_attr_index_reg);
+	if (ret < 0)
+		printk(KERN_WARNING "asoc: failed to add index_reg sysfs files\n");
 	ret = -ENODEV;
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
@@ -2311,6 +2315,7 @@ static int rt5630_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		kfree(codec->private_data);
 		kfree(codec);
+		socdev->card->codec = NULL;
 	}
 	return ret;
 }
@@ -2342,6 +2347,8 @@ static int rt5630_remove(struct platform_device *pdev)
 	run_delayed_work(&codec->delayed_work);
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
+	device_remove_file(&pdev->dev, &dev_attr_dsp_reg);
+	device_remove_file(&pdev->dev, &dev_attr_index_reg);
 	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&rt5630_i2c_driver);
 	kfree(codec->private_data);
