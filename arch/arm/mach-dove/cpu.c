@@ -56,7 +56,7 @@ void __save_processor_state(struct saved_context *ctxt)
 	asm volatile ("mrc p15, 0, %0, c2, c0, 2" : "=r" (ctxt->TTBCR));
 	asm volatile ("mrc p15, 0, %0, c2, c0, 0" : "=r" (ctxt->TTBR0));
 	asm volatile ("mrc p15, 0, %0, c2, c0, 1" : "=r" (ctxt->TTBR1));
-	asm volatile ("mrc p15, 0, %0, c15, c1, 1" : "=r" (ctxt->EFR));
+	asm volatile ("mrc p15, 0, %0, c15, c1, 0" : "=r" (ctxt->EFR));
 }
 
 extern void swsusp_save_pg_dir(void);
@@ -68,7 +68,7 @@ void save_processor_state(void)
 void __restore_processor_state(struct saved_context *ctxt)
 {
 	/* restore coprocessor 15 registers */
-	asm volatile ("mcr p15, 0, %0, c15, c1, 1" : : "r" (ctxt->EFR));
+	asm volatile ("mcr p15, 0, %0, c15, c1, 0" : : "r" (ctxt->EFR));
 	asm volatile ("mcr p15, 0, %0, c2, c0, 1" : : "r" (ctxt->TTBR1));
 	asm volatile ("mcr p15, 0, %0, c2, c0, 0" : : "r" (ctxt->TTBR0));
 	asm volatile ("mcr p15, 0, %0, c2, c0, 2" : : "r" (ctxt->TTBCR));
