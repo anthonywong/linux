@@ -860,6 +860,15 @@ if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
 
+config MRVL_ERRATA_THUMB_VLDR
+	bool "Marvell errata: VLDR from a PC-relative address in Thumb-2 mode can cause DABT exception"
+	depends on CPU_PJ4 && ARM_THUMB && VFP
+	help
+	  This option enables the workaround for the Thumb-2 VLDR PJ4 erratum.
+	  If a VLDR in thumb-2 mode is not aligned to 4 and trying to load from a
+	  PC-relative address, a DABT exception will happen. The workaround handles
+	  the exception and load correct data to VFP register.
+
 config ARM_ERRATA_411920
 	bool "ARM errata: Invalidation of the Instruction Cache operation can fail"
 	depends on CPU_V6 && !SMP
