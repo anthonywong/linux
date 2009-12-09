@@ -158,8 +158,15 @@ static int kgsl_first_open_locked(void)
 
 	kgsl_driver.power_flags = KGSL_PWRFLAGS_CLK_OFF |
 		KGSL_PWRFLAGS_POWER_OFF | KGSL_PWRFLAGS_IRQ_OFF;
-	kgsl_pwrctrl(KGSL_PWRFLAGS_POWER_ON);
+	#ifndef CONFIG_ARCH_MSM7X30
+		kgsl_pwrctrl(KGSL_PWRFLAGS_POWER_ON);
+	#endif
 	kgsl_pwrctrl(KGSL_PWRFLAGS_CLK_ON);
+	#ifdef CONFIG_ARCH_MSM7X30
+		/* 7x30 has HW bug and needs clocks turned on before the power
+		rails */
+		kgsl_pwrctrl(KGSL_PWRFLAGS_POWER_ON);
+	#endif
 	kgsl_driver.is_suspended = KGSL_FALSE;
 
 	/* init memory apertures */
@@ -197,8 +204,15 @@ static int kgsl_last_release_locked(void)
 	/* shutdown memory apertures */
 	kgsl_sharedmem_close(&kgsl_driver.shmem);
 
-	kgsl_pwrctrl(KGSL_PWRFLAGS_CLK_OFF);
+	#ifndef CONFIG_ARCH_MSM7X30
+		kgsl_pwrctrl(KGSL_PWRFLAGS_CLK_OFF);
+	#endif
 	kgsl_pwrctrl(KGSL_PWRFLAGS_POWER_OFF);
+	#ifdef CONFIG_ARCH_MSM7X30
+		/* 7x30 has HW bug and needs clocks turned off before the power
+		rails */
+		kgsl_pwrctrl(KGSL_PWRFLAGS_CLK_OFF);
+	#endif
 	kgsl_driver.power_flags = 0;
 
 	return 0;
@@ -982,7 +996,7 @@ static void __exit kgsl_mod_exit(void)
 module_init(kgsl_mod_init);
 module_exit(kgsl_mod_exit);
 
-MODULE_DESCRIPTION("3D graphics driver for QSD8x50 and MSM7x27");
+MODULE_DESCRIPTION("3D graphics driver for QSD8x50, MSM7x27, and MSM7x30");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:kgsl");
