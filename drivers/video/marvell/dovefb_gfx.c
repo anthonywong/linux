@@ -266,11 +266,13 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
  * Calculate integer and fractional divider for given clk_in
  * and clk_out.
  */
+#ifndef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
+static int init_ext_divider = 0;
+#endif
 static void set_clock_divider(struct dovefb_layer_info *dfli,
 	const struct fb_videomode *m)
 {
 	int divider_int;
-	u32 div_bigger;
 	int needed_pixclk;
 	u64 div_result;
 	u32 x = 0, x_bk;
@@ -334,7 +336,10 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 #ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 	set_external_lcd_clock(axi_div, is_ext);
 #else
-	set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+	if (0 == init_ext_divider) {
+		init_ext_divider = 1;
+		set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+	}
 #endif
 #endif
 	/*
@@ -1093,9 +1098,26 @@ static int dovefb_init_mode(struct fb_info *fi,
 
 	/* try to find best video mode. */
 	m = fb_find_best_mode(&fi->var, &fi->modelist);
-	info->out_vmode = *m;
-	if (m)
+	if (m) {
+		info->out_vmode = *m;
 		fb_videomode_to_var(&fi->var, m);
+	} else {
+		printk("Video mode list doesn't contain %dx%d, "
+			"Please check display's edid support this mode "
+			"or add built-in Mode\n"
+			"Now we try 1024x768 mode.",
+			var->xres, var->yres);
+		fi->var.xres = 1024;
+		fi->var.yres = 768;
+	
+		m = fb_find_best_mode(&fi->var, &fi->modelist);
+		if (!m) {
+			printk("Can't find 1024x768 either!!!\n");
+			return -1;
+		}
+		info->out_vmode = *m;
+		fb_videomode_to_var(&fi->var, m);
+	}
 
 	/* Init settings. */
 	var->xres_virtual = var->xres;
