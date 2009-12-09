@@ -334,7 +334,7 @@ static int cafe_smbus_write_done(struct cafe_camera *cam)
 	 * and never does give us good status.  Fortunately, we don't do this
 	 * often.
 	 */
-	udelay(20);
+	/* udelay(20); */
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	c1 = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
@@ -422,7 +422,7 @@ static int cafe_smbus_read_done(struct cafe_camera *cam)
 	 * and never does give us good status.  Fortunately, we don't do this
 	 * often.
 	 */
-	udelay(20);
+	/* udelay(20); */
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	c1 = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
@@ -436,6 +436,8 @@ static int cafe_smbus_read_data(struct cafe_camera *cam,
 {
 	unsigned int rval;
 	unsigned long flags;
+	int max_count = HZ;
+	DEFINE_WAIT(the_wait);
 
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = TWSIC0_EN | ((addr << TWSIC0_SID_SHIFT) & TWSIC0_SID);
@@ -451,8 +453,24 @@ static int cafe_smbus_read_data(struct cafe_camera *cam,
 	cafe_reg_write(cam, REG_TWSIC1, rval);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 
+	do {
+		prepare_to_wait(&cam->smbus_wait, &the_wait,
+				TASK_UNINTERRUPTIBLE);
+		schedule_timeout(1); /* even 1 jiffy is too long */
+		finish_wait(&cam->smbus_wait, &the_wait);
+#if 1
+		if(max_count-- <= 0) {
+			cam_err(cam, "SMBUS read (%02x/%02x) timed out\n", addr,
+				command);
+			return -EIO;
+		}
+#endif
+	} while (!cafe_smbus_read_done(cam));
+
+#ifdef IF_THE_CAFE_HARDWARE_WORKED_RIGHT
 	wait_event_timeout(cam->smbus_wait,
 			cafe_smbus_read_done(cam), CAFE_SMBUS_TIMEOUT);
+#endif
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	rval = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
