@@ -112,31 +112,16 @@ static struct fb_videomode video_modes[] = {
 	.xres		= 800,	/* 960 */
 	.yres		= 600,  /* 620 */
 
-	.hsync_len	= 60,
-	.left_margin	= 50,
-	.right_margin	= 50,
+	.hsync_len	= 80,
+	.left_margin	= 112,
+	.right_margin	= 32,
 
-	.vsync_len	= 4,
-	.upper_margin	= 8,
-	.lower_margin	= 8,
+	.vsync_len	= 3,
+	.upper_margin	= 18,
+	.lower_margin	= 1,
 	.sync		= 0,
 	},
 	[2] = {
-	.pixclock	= 0,
-	.refresh	= 60,
-	.xres		= 1024, /* 1328 */
-	.yres		= 768,  /* 816 */
-
-	.hsync_len	= 136,
-	.left_margin	= 144,
-	.right_margin	= 24,
-
-	.vsync_len	= 6,
-	.upper_margin	= 39,
-	.lower_margin	= 3,
-	.sync		= 0,
-	},
-	[3] = {
 	.pixclock	= 0,
 	.refresh	= 60,
 	.xres		= 1024, /* 1200 */
@@ -151,49 +136,79 @@ static struct fb_videomode video_modes[] = {
 	.lower_margin	= 8,
 	.sync		= 0,
 	},
+	[3] = {
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1024, /* 1328 */
+	.yres		= 768,  /* 816 */
+
+	.hsync_len	= 104,
+	.left_margin	= 160,
+	.right_margin	= 56,
+
+	.vsync_len	= 3,
+	.upper_margin	= 23,
+	.lower_margin	= 1,
+	.sync		= 0,
+	},
 	[4] = {
 	.pixclock	= 0,
 	.refresh	= 60,
-	.xres		= 1280, /* 1440 */
-	.yres		= 1024,  /* 1050 */
+	.xres		= 1280, /* 1328 */
+	.yres		= 720,  /* 816 */
 
-	.hsync_len	= 100,
-	.left_margin	= 30,
-	.right_margin	= 30,
+	.hsync_len	= 40,
+	.left_margin	= 220,
+	.right_margin	= 110,
 
-	.vsync_len	= 6,
-	.upper_margin	= 10,
-	.lower_margin	= 10,
+	.vsync_len	= 5,
+	.upper_margin	= 20,
+	.lower_margin	= 5,
 	.sync		= 0,
 	},
 	[5] = {
 	.pixclock	= 0,
 	.refresh	= 60,
-	.xres 		= 1280, /* 1440 */
-	.yres		= 768,  /* 812 */
+	.xres		= 1280, /* 1440 */
+	.yres		= 1024,  /* 1050 */
 
-	.hsync_len	= 96,
-	.left_margin	= 16,
-	.right_margin	= 48,
+	.hsync_len	= 136,
+	.left_margin	= 216,
+	.right_margin	= 80,
 
-	.vsync_len	= 2,
-	.upper_margin	= 11,
-	.lower_margin	= 31,
+	.vsync_len	= 3,
+	.upper_margin	= 32,
+	.lower_margin	= 1,
 	.sync		= 0,
 	},
 	[6] = {
 	.pixclock	= 0,
 	.refresh	= 60,
+	.xres		= 1366,
+	.yres		= 768,
+
+	.hsync_len	= 144,
+	.left_margin	= 216,
+	.right_margin	= 72,
+
+	.vsync_len	= 3,
+	.upper_margin	= 23,
+	.lower_margin	= 1,
+	.sync		= 0,
+	},
+	[7] = {
+	.pixclock	= 0,
+	.refresh	= 60,
 	.xres		= 1920,
 	.yres		= 1080,
 
-	.hsync_len	= 32,
-	.left_margin	= 80,
-	.right_margin	= 48,
+	.hsync_len	= 44,
+	.left_margin	= 148,
+	.right_margin	= 88,
 
 	.vsync_len	= 5,
-	.upper_margin	= 23,
-	.lower_margin	= 3,
+	.upper_margin	= 36,
+	.lower_margin	= 4,
 	.sync		= 0,
 	},
 
