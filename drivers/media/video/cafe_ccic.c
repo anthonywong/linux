@@ -334,7 +334,7 @@ static int cafe_smbus_write_done(struct cafe_camera *cam)
 	 * and never does give us good status.  Fortunately, we don't do this
 	 * often.
 	 */
-	/* udelay(20); */
+	udelay(20);
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	c1 = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
@@ -422,7 +422,7 @@ static int cafe_smbus_read_done(struct cafe_camera *cam)
 	 * and never does give us good status.  Fortunately, we don't do this
 	 * often.
 	 */
-	/* udelay(20); */
+	udelay(20);
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	c1 = cafe_reg_read(cam, REG_TWSIC1);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
