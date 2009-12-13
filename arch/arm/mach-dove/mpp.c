@@ -62,7 +62,7 @@ void __init dove_mpp_pmu_config(int mpp, enum dove_mpp_type type);
 /* The index is the mpp number
  * The table still not complete
  */
-struct mpp_config dove_mpp_table[] = 
+struct mpp_config dove_mpp_table[] __initdata = 
 {
 	/* MPP 0 */
 	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, MPP_LAST4},
