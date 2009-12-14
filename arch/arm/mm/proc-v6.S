@@ -81,8 +81,11 @@ ENTRY(cpu_v6_do_idle)
 	mcr	p15, 0, r1, c7, c10, 4		@ DWB - WFI may enter a low-power mode
 	mcr	p15, 0, r1, c7, c0, 4		@ wait for interrupt
 #ifdef CONFIG_DOVE_REV_Y0
-	mcr     p15, 0, r1, c7, c5, 4           @ Prefetch Flush - ISB
-	mcr	p15, 0, r1, c7, c10, 4		@ Sync Data barrier
+	mrc	p15, 0, r0, c0, c0, 0		@ Main ID
+	and	r0, #0xF
+	cmp	r0, #1				@ issue the following instructions for Y0 only
+	mcreq   p15, 0, r1, c7, c5, 4           @ Prefetch Flush - ISB
+	mcreq	p15, 0, r1, c7, c10, 4		@ Sync Data barrier
 #endif
 	mov	pc, lr
 
