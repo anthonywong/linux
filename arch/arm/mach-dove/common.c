@@ -1799,6 +1799,35 @@ void __init dove_config_arbitration(void)
 			 ARRAY_SIZE(dove_arbitration_regs));
 #endif
 }
+
+#ifdef CONFIG_DEBUG_LL
+extern void printascii(const char *);
+static void check_cpu_mode(void)
+{
+		u32 cpu_id_code_ext;
+		int cpu_mode;
+		asm volatile("mrc p15, 1, %0, c15, c12, 0": "=r"(cpu_id_code_ext));
+
+		if (((cpu_id_code_ext >> 16) & 0xF) == 0x2)
+			cpu_mode = 6;
+		else if (((cpu_id_code_ext >> 16) & 0xF) == 0x3)
+			cpu_mode = 7;
+		else 
+			pr_err("unknow cpu mode!!!\n");
+
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
+		if (cpu_mode != 6) {
+			printascii("cpu mode (ARMv7) doesn't mach kernel configuration\n");
+		}
+#else
+#ifdef CONFIG_CPU_V7
+		if (cpu_mode != 7) {
+			printascii("cpu mode (ARMv6) doesn't mach kernel configuration\n");
+		}
+#endif
+#endif
+}
+#endif
 void __init dove_init(void)
 {
 	int tclk;
@@ -1814,7 +1843,9 @@ void __init dove_init(void)
 
 	printk(KERN_INFO "Dove %s SoC, ", dove_id());
 	printk("TCLK = %dMHz\n", (tclk + 499999) / 1000000);
-
+#ifdef CONFIG_DEBUG_LL
+	check_cpu_mode();
+#endif
 	dove_setup_cpu_mbus();
 	dove_config_arbitration();
 #if defined(CONFIG_CACHE_TAUROS2)
