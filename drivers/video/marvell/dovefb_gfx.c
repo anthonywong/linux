@@ -1055,8 +1055,10 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 {
 	writel(0x80000001, dfli->reg_base + LCD_CFG_SCLK_DIV);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_BLANKCOLOR);
-	/* known h/w issue. The bit [18:19] might make h/w irq not workable. */
-	writel(dfli->info->io_pin_allocation | (0x3 << 18),
+	/* known h/w issue. The bit [18:19] might
+	 * 1. make h/w irq not workable. */
+	/* 2. make h/w output skew data. */
+	writel(dfli->info->io_pin_allocation,
 			dfli->reg_base + SPU_IOPAD_CONTROL);
 	writel(0x00000000, dfli->reg_base + LCD_CFG_GRA_START_ADDR1);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_GRA_OVSA_HPXL_VLN);
