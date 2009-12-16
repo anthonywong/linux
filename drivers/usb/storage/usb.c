@@ -331,6 +331,15 @@ static int usb_stor_control_thread(void * __us)
 		/* we've got a command, let's do it! */
 		else {
 			US_DEBUG(usb_stor_show_command(us->srb));
+#ifdef CONFIG_MACH_MX51_BABBAGE
+			if ((us->srb->cmnd[0] == 0x85) &&
+			    (le16_to_cpu(us->pusb_dev->descriptor.idVendor)
+								== 0x05e3) &&
+			    (le16_to_cpu(us->pusb_dev->descriptor.idProduct)
+								== 0x0718))
+				US_DEBUGP("Skip ATA PASS-THROUGH command\n");
+			else
+#endif
 			us->proto_handler(us->srb, us);
 		}
 
