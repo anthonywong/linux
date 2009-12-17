@@ -4752,6 +4752,12 @@ BYTE ANX7150_DDC_Read (ANX7150_DDC_Addr ddc_address, const BYTE *DDC_data,
     return DDC_Err;
 }
 
+void ANX7150_Timer_Process_Re_init() 
+{
+	timer_slot =-1;
+}
+
+
 /*Function name:    ANX7150_DDC_Write()*/
 /*Function :    write data to DDC channel*/
 /*Parameter :   ddc_address,DDC_data,length,DDC_type*/
