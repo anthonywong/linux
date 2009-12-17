@@ -1,9 +1,9 @@
-/* arch/arm/mach-msm/idle.S
+/*
+ * Idle processing for ARMv6-based Qualcomm SoCs.
+ * Work around bugs with SWFI.
  *
- * Idle processing for MSM7X00A - work around bugs with SWFI.
- *
- * Copyright (c) 2007 QUALCOMM Incorporated.
  * Copyright (C) 2007 Google, Inc.
+ * Copyright (c) 2007-2009, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -34,24 +34,29 @@ ENTRY(msm_pm_collapse)
 	mrc     p15, 0, ip, c15, c12, 3 /* pmn1 */
 	stmia   r0!, {r1-r3, ip}
 #endif
+	mrc	p15, 0, r1, c1, c0, 2	/* read CACR */
+	stmia   r0!, {r1}
 	/* fall though */
 ENTRY(msm_arch_idle)
 #if defined(CONFIG_MSM_FIQ_SUPPORT)
-	cpsid	f
+	cpsid   f
 #endif
-	mrc     p15, 0, r1, c1, c0, 0    /* read current CR    */ 
+	mcr     p15, 0, r0, c7, c10, 0   /* flush the cache    */
+	mrc     p15, 0, r1, c1, c0, 0    /* read current CR    */
 	bic     r0, r1, #(1 << 2)        /* clear dcache bit   */
 	bic     r0, r0, #(1 << 12)       /* clear icache bit   */
 	mcr     p15, 0, r0, c1, c0, 0    /* disable d/i cache  */
 
-	mov     r0, #0                   /* prepare wfi value  */ /* also used as return value from msm_pm_collapse */
-	mcr     p15, 0, r0, c7, c10, 0   /* flush the cache    */
+	mov     r0, #0                   /* prepare wfi value
+					  * also used as return value from
+					  * msm_pm_collapse */
+
 	mcr     p15, 0, r0, c7, c10, 4   /* memory barrier     */
 	mcr     p15, 0, r0, c7, c0, 4    /* wait for interrupt */
 
 	mcr     p15, 0, r1, c1, c0, 0    /* restore d/i cache  */
 #if defined(CONFIG_MSM_FIQ_SUPPORT)
-	cpsie	f
+	cpsie   f
 #endif
 	mov     pc, lr
 
@@ -70,6 +75,9 @@ ENTRY(msm_pm_collapse_exit)
 	adr     r3, msm_pm_collapse_exit
 	add     r1, r1, r3
 	sub     r1, r1, r2
+
+	ldmdb   r1!, {r2}
+	mcr	p15, 0, r2, c1, c0, 2	/* restore CACR */
 #if defined(CONFIG_OPROFILE)
 	ldmdb   r1!, {r2-r5}
 	mcr     p15, 0, r3, c15, c12, 1 /* ccnt */
@@ -80,11 +88,36 @@ ENTRY(msm_pm_collapse_exit)
 	ldmdb   r1!, {r2-r5}
 	mcr     p15, 0, r4, c3, c0, 0 /* dacr */
 	mcr     p15, 0, r3, c2, c0, 0 /* ttb */
-	mcr	p15, 0, r5, c13, c0, 1	/* context ID */
+	mcr     p15, 0, r5, c13, c0, 1	/* context ID */
 	ldmdb   r1!, {r4-r14}
-	mov     r0, #1
 
-	mcr     p15, 0, r2, c1, c0, 0 /* MMU control */
+	/* Add 1:1 map in the PMD to allow smooth switch when turning on MMU */
+	and     r3, r3, #~0x7F  /* mask off lower 7 bits of TTB */
+	adr     r0, msm_pm_mapped_pa /* get address of the mapped instr */
+	lsr     r1, r0, #20     /* get the addr range of addr in MB */
+	lsl     r1, r1, #2      /* multiply by 4 to get to the pg index */
+	add     r3, r3, r1      /* pgd + pgd_index(addr) */
+	ldr     r1, [r3]        /* save current entry to r1 */
+	lsr     r0, #20         /* align current addr to 1MB boundary */
+	lsl     r0, #20
+	/* Create new entry for this 1MB page */
+	orr     r0, r0, #0x400   /* PMD_SECT_AP_WRITE */
+	orr     r0, r0, #0x2     /* PMD_TYPE_SECT|PMD_DOMAIN(DOMAIN_KERNEL) */
+	str     r0, [r3]         /* put new entry into the MMU table */
+	mcr     p15, 0, r3, c7, c10, 1  /* flush_pmd */
+	mcr     p15, 0, r2, c1, c0, 0   /* MMU control */
+msm_pm_mapped_pa:
+	/* Switch to virtual */
+	adr     r2, msm_pm_pa_to_va
+	ldr     r0, =msm_pm_pa_to_va
+	mov     pc, r0
+msm_pm_pa_to_va:
+	sub     r0, r0, r2
+	/* Restore r1 in MMU table */
+	add     r3, r3, r0
+	str     r1, [r3]
+	mcr     p15, 0, r3, c7, c10, 1  /* flush_pmd */
+	mov     r0, #1
 	mov     pc, lr
 	nop
 	nop
@@ -102,5 +135,6 @@ saved_state:
 #if defined(CONFIG_OPROFILE)
 	.space  4 * 4  /* more cp15 - pmnc, ccnt, pmn0, pmn1 */
 #endif
+	.space  4	/* cacr */
 saved_state_end:
 
