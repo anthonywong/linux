@@ -11,6 +11,8 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
+#include <linux/freezer.h>
+#include <linux/workqueue.h>
 
 
 //Extra include for ANX7150 here
@@ -51,6 +53,10 @@ static struct i2c_client *get_anx7150_i2c_client(void)
 {
 	return anx7150_i2c_client;
 }
+
+static struct workqueue_struct * anx7150_workqueue;
+static struct delayed_work anx7150_work;
+static long last_jiffies;
 
 
 static int anx7150_reg_get(int offset, unsigned char *pDataBuf, int datasize)
@@ -237,55 +243,65 @@ int j=100;
 }
 
 
-int anx7150_thread (void) 
+//int anx7150_thread (void) 
+void anx7150_work_func(struct work_struct * work)
 {
+/*
    int j=100,k=100;
 
     while (1) 
     {
+*/
+        set_freezable();
+	unsigned long interval = jiffies_to_msecs((unsigned long)((long) jiffies - last_jiffies));
+	printk("anx7150: anx7150_work_func() is called, intervel: %lu msec.\n", interval);
+	last_jiffies = (long) jiffies;
 
 	while(BIST_EN)
 	{
-	    BIST();
-            msleep(500);
+		BIST();
+		msleep(500);
 	}
 
+	if (1) 
+	{
+		if(!ANX7150_shutdown)
+		{
+			ANX7150_API_Input_Changed();
+			ANX7150_Task();
+			if(1)
+			{
+				if( ANX7150_parse_edid_done == 1 
+				    &&   ANX7150_system_config_done == 0)
+				{
+					//system should config all the parameters here
+					//ANX7150_API_PRINT_EDID_Parsing_Result();
+					ANX7150_API_System_Config();
+					ANX7150_system_config_done = 1;
+				}
+			}
+			else
+			{
+				ANX7150_system_config_done = 0;
+			}
+		}
+	}
 
-
-        if (1) 
-        {
-            if(!ANX7150_shutdown)
-            {	
-                ANX7150_API_Input_Changed();
-                ANX7150_Task();
-                if(1)
-                {
-                    if( ANX7150_parse_edid_done == 1 
-                            &&   ANX7150_system_config_done == 0)
-                    {
-                        //system should config all the parameters here
-                        //ANX7150_API_PRINT_EDID_Parsing_Result();
-                        ANX7150_API_System_Config();
-                        ANX7150_system_config_done = 1;
-                    }
-                }
-                else
-                {
-                    ANX7150_system_config_done = 0;
-                }
-            }
-        }
+	queue_delayed_work(anx7150_workqueue, &anx7150_work, msecs_to_jiffies(500));
+/*
         msleep(500);
 
     }
 
 return 0;
+*/
 }
 
 static int anx7150_i2c_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	int rc,i;
+
 	memcpy(&g_client, &client, sizeof(client));	
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
@@ -312,11 +328,29 @@ static int anx7150_i2c_probe(struct i2c_client *client,
 	if (BIST3_EN)
     		BIST3();
 	else
-    		rc=kernel_thread(anx7150_thread, NULL, CLONE_VM);
-    if (rc < 0)
-		printk("!!!Fail to creat ANX7150 thread!!!\n");
-    else
-		printk("##ANX7150 thread ok!!!\n");
+	{
+
+		anx7150_workqueue = create_singlethread_workqueue("ANX7150_WORKQUEUE");
+
+		if (anx7150_workqueue == NULL)
+		{
+			printk("anx7150: Failed to creat work queue.\n");
+			goto exit;
+		}
+
+		last_jiffies = (long) jiffies;
+		INIT_DELAYED_WORK(&anx7150_work, anx7150_work_func);
+		queue_delayed_work(anx7150_workqueue, &anx7150_work, 0);
+/*
+
+		rc=kernel_thread(anx7150_thread, NULL, CLONE_VM);
+
+		if (rc < 0)
+			printk("!!!Fail to creat ANX7150 thread!!!\n");
+		else
+			printk("##ANX7150 thread ok!!!\n");
+*/
+	}
 
 	return 0;
 	
@@ -326,10 +360,22 @@ static int anx7150_i2c_probe(struct i2c_client *client,
 
 static int anx7150_i2c_remove(struct i2c_client *client)
 {
+	destroy_workqueue(anx7150_workqueue);
+
 	anx7150_i2c_client = NULL;
 	return 0;
 }
 
+static int anx7150_suspend(struct i2c_client *client)
+{
+	ANX7150_Timer_Process_Re_init();
+	return 0;
+}
+static int anx7150_resume(struct i2c_client *client)
+{
+	ANX7150_Timer_Process_Re_init();
+	return 0;
+}
 
 static struct i2c_driver anx7150_driver = {
      .driver = {
@@ -338,6 +384,8 @@ static struct i2c_driver anx7150_driver = {
      },
      .probe          = anx7150_i2c_probe,
      .remove         = anx7150_i2c_remove,
+     .suspend        = anx7150_suspend,
+     .resume         = anx7150_resume,
      .id_table       = anx7150_register_id,
 };
 
