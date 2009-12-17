@@ -46,6 +46,7 @@
 
 #include "dovefb_if.h"
 #include <video/ch7025_composite.h>
+#include <video/kg2.h>
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
 
@@ -649,6 +650,28 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 		}
 	}
 #endif
+#ifdef CONFIG_KG2_ANX7150
+	{
+		AVC_CMD_TIMING_PARAM kg2_timing_param;
+
+		if (strstr(fi->fix.id, "GFX Layer 0"))
+		{
+			kg2_timing_param.HTotal = var->left_margin + var->xres + var->right_margin + var->hsync_len;
+			kg2_timing_param.HActive = var->xres;
+			kg2_timing_param.HFrontPorch = var->right_margin;
+			kg2_timing_param.HSyncWidth = var->hsync_len;
+			kg2_timing_param.HPolarity = (var->sync & FB_SYNC_HOR_HIGH_ACT) ? 0: 1;
+			kg2_timing_param.VTotal = var->upper_margin + var->yres + var->lower_margin + var->vsync_len;
+			kg2_timing_param.VActive = var->yres;
+			kg2_timing_param.VFrontPorch = var->lower_margin;
+			kg2_timing_param.VSyncWidth = var->vsync_len;
+			kg2_timing_param.VPolarity = (var->sync & FB_SYNC_VERT_HIGH_ACT) ? 0: 1;
+
+			kg2_set_input_timing(&kg2_timing_param);
+		}
+	}
+#endif
+
 	return 0;
 }
 
