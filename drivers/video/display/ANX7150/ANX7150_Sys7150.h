@@ -1314,5 +1314,5 @@ BYTE ANX7150_IS_KSVList_VLD(void);
 //void ANX7150_IS_KSVFIFO_Ready(void);//wen
 //BYTE ANX7150_Check_KSV_SRM(void);//wen
 void ANX7150_Task(void);
-
+void ANX7150_Timer_Process_Re_init(void);
 #endif
