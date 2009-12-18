@@ -402,6 +402,24 @@ static void pm_dev_err(struct device *dev, pm_message_t state, char *info,
 		kobject_name(&dev->kobj), pm_verb(state.event), info, error);
 }
 
+static void device_show_time(struct device *dev, ktime_t starttime, pm_message_t state, char *info)
+{
+	ktime_t calltime;
+	s64 usecs64;
+	int usecs;
+
+	calltime = ktime_get();
+	usecs64 = ktime_to_ns(ktime_sub(calltime, starttime));
+	do_div(usecs64, NSEC_PER_USEC);
+	usecs = usecs64;
+	if (usecs == 0)
+		usecs = 1;
+	if ((usecs / USEC_PER_MSEC) > CONFIG_SR_REPORT_TIME_LIMIT)
+		pr_info("PM: %s%s%s of drv:%s dev:%s complete after %ld.%03ld msecs\n", info ?: "", info ? " " : "", pm_verb(state.event),
+		dev_driver_string(dev), dev_name(dev), usecs / USEC_PER_MSEC,
+		usecs % USEC_PER_MSEC);
+}
+
 static void dpm_show_time(ktime_t starttime, pm_message_t state, char *info)
 {
 	ktime_t calltime;
@@ -432,6 +450,7 @@ static void dpm_show_time(ktime_t starttime, pm_message_t state, char *info)
 static int device_resume_noirq(struct device *dev, pm_message_t state)
 {
 	int error = 0;
+	ktime_t starttime = ktime_get();
 
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
@@ -439,6 +458,7 @@ static int device_resume_noirq(struct device *dev, pm_message_t state)
 	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "EARLY ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
+		device_show_time(dev, starttime, state, "early");
 	}
 
 	TRACE_RESUME(error);
@@ -503,6 +523,7 @@ static int legacy_resume(struct device *dev, int (*cb)(struct device *dev))
 static int device_resume(struct device *dev, pm_message_t state, bool async)
 {
 	int error = 0;
+	ktime_t starttime = ktime_get();
 
 	TRACE_DEVICE(dev);
 	TRACE_RESUME(0);
@@ -542,6 +563,7 @@ static int device_resume(struct device *dev, pm_message_t state, bool async)
 			error = legacy_resume(dev, dev->class->resume);
 		}
 	}
+	device_show_time(dev, starttime, state, NULL);
  End:
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
@@ -734,10 +756,12 @@ static pm_message_t resume_event(pm_message_t sleep_state)
 static int device_suspend_noirq(struct device *dev, pm_message_t state)
 {
 	int error = 0;
+	ktime_t starttime = ktime_get();
 
 	if (dev->bus && dev->bus->pm) {
 		pm_dev_dbg(dev, state, "LATE ");
 		error = pm_noirq_op(dev, dev->bus->pm, state);
+		device_show_time(dev, starttime, state, "late");
 	}
 	return error;
 }
@@ -807,6 +831,7 @@ static int async_error;
 static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 {
 	int error = 0;
+	ktime_t starttime = ktime_get();
 
 	dpm_wait_for_children(dev, async);
 	device_lock(dev);
@@ -848,6 +873,7 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 	if (!error)
 		dev->power.status = DPM_OFF;
 
+	device_show_time(dev, starttime, state, NULL);
  End:
 	device_unlock(dev);
 	complete_all(&dev->power.completion);
