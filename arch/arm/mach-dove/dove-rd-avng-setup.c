@@ -44,6 +44,7 @@
 #include "pmu/mvPmu.h"
 #include "pmu/mvPmuRegs.h"
 #include "pdma/mvPdma.h"
+#include "gpp/mvGppRegs.h"
 #include <ctrlEnv/mvCtrlEnvRegs.h>
 #include <audio/mvAudioRegs.h>
 
@@ -73,6 +74,24 @@ extern char *useNandHal;
  * LCD input clock.
  */
 #define LCD_SCLK	(CONFIG_FB_DOVE_CLCD_SCLK_VALUE*1000*1000)
+
+void dovefb_config_lcd_power(unsigned int reg_offset, int on)
+{
+		unsigned int x;
+		volatile unsigned int* addr;
+
+		addr = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0);
+		/*
+		 * LCD Power Control through dedicated pins.
+	 	 * Suppose MPP has been set to right mode.
+		 * We just set the value directly.
+		 */
+		x = *addr;
+		x &= ~(0x1 << 11);
+		x |= (on << 11);
+		*addr = x;
+}
+EXPORT_SYMBOL(dovefb_config_lcd_power);
 
 static struct dovefb_mach_info dove_rd_avng_lcd0_dmi = {
 	.id_gfx			= "GFX Layer 0",
@@ -171,6 +190,31 @@ static struct dovebl_platform_data dove_rd_avng_backlight_data = {
 	.max_brightness = 0xe,
 	.gpio_pm_control = 1,
 };
+
+void dovefb_config_backlight_power(unsigned int reg_offset, int on)
+{
+	if (reg_offset) {
+		/*
+		 * BL Power Control through bit of register.
+		 */
+	} else {
+		unsigned int x;
+		volatile unsigned int* addr;
+
+		addr = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0);
+		/*
+		 * BL Power Control through dedicated pins.
+	 	 * Suppose MPP has been set to right mode.
+		 * We just set the value directly.
+		 */
+		x = *addr;
+		x &= ~(0x1 << 17);
+		x |= (on << 17);
+		*addr = x;
+	}
+
+}
+EXPORT_SYMBOL(dovefb_config_backlight_power);
 
 void __init dove_rd_avng_clcd_init(void) {
 #ifdef CONFIG_FB_DOVE

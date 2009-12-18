@@ -22,7 +22,8 @@
 #include <video/dovefbreg.h>
 #include <mach/dove_bl.h>
 
-
+extern void dovefb_config_lcd_power(unsigned int reg_offset, int on);
+extern void dovefb_config_backlight_power(unsigned int reg_offset, int on);
 
 struct dove_backlight {
 	int powermode;          /* blacklight */
@@ -122,37 +123,30 @@ static int dove_lcd_get_power(struct lcd_device *ld)
 static int dove_lcd_set_power(struct lcd_device *ld, int power)
 {
 	struct dove_backlight *bl = lcd_get_data(ld);
-	unsigned int x, x_bk;
-
-	x = x_bk = readl(bl->reg_base + LCD_SPU_DUMB_CTRL);
 
 	switch (power) {
 	case FB_BLANK_UNBLANK:          /* 0 */
 		/* Set backlight power on. */
-		x |= 0x1 << 20;         /* set bit on */
-		x |= 0x1 << 12;         /* set bitmask */
+		dovefb_config_backlight_power(0, 1);
+
 		/* Set LCD panel power on. */
-		x |= 0x1 << 21;         /* set bit on */
-		x |= 0x1 << 13;         /* set bitmask */
+		dovefb_config_lcd_power(0, 1);
 		break;
 	case FB_BLANK_POWERDOWN:        /* 4 */
-		/* Set power down. */
 		/* Set backlight power down. */
-		x &= ~(0x1 << 20);      /* set bit on */
-		x |= 0x1 << 12;         /* set bitmask */
+		dovefb_config_backlight_power(0, 0);
+
 		/* Set LCD panel power down. */
-		x &= ~(0x1 << 21);      /* set bit on */
-		x |= 0x1 << 13;         /* set bitmask */
+		dovefb_config_lcd_power(0, 0);
 		break;
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 		/* Set backlight power down. */
-		x &= ~(0x1 << 20);      /* set bit on */
-		x |= 0x1 << 12;         /* set bitmask */
+		dovefb_config_backlight_power(0, 0);
+
 		/* Set LCD panel power on. */
-		x |= 0x1 << 21;         /* set bit on */
-		x |= 0x1 << 13;         /* set bitmask */
+		dovefb_config_lcd_power(0, 1);
 		break;
 
 	default:
@@ -161,8 +155,6 @@ static int dove_lcd_set_power(struct lcd_device *ld, int power)
 
 	bl->lcd_powermode = power;
 
-	if (x != x_bk)
-		writel(x, bl->reg_base + LCD_SPU_DUMB_CTRL);
 	return 0;
 }
 
