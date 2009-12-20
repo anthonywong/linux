@@ -741,8 +741,10 @@ static void __init dove_db_init(void)
 
 	dove_mpp_conf(dove_db_mpp_modes);
 	
-	if ((front_panel) && (left_tact || right_tact))
+	if ((front_panel) && (left_tact || right_tact)) {
 		dove_mpp_conf(dove_db_tact_int_mpp_modes);
+		i2s1_data.spdif_play = 0;
+	}
 
 	pm_power_off = dove_db_power_off;
 
