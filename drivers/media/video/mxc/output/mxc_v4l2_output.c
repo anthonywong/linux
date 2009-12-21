@@ -1452,6 +1452,11 @@ static int mxc_v4l2out_streamon(vout_data * vout)
 		ipu_select_buffer(vout->post_proc_ch, IPU_INPUT_BUFFER, 1);
 		ipu_enable_channel(vout->post_proc_ch);
 	}
+
+	/* during v4l running, ipu display channel
+	 * should not be changed */
+	ipu_request_disp_sem(vout->display_ch);
+
 	vout->start_jiffies = jiffies;
 
 	msleep(1);
@@ -1482,6 +1487,8 @@ static int mxc_v4l2out_streamoff(vout_data * vout)
 	if (vout->state == STATE_STREAM_OFF) {
 		return 0;
 	}
+
+	ipu_release_disp_sem(vout->display_ch);
 
 	if (INTERLACED_CONTENT(vout))
 		ipu_free_irq(IPU_IRQ_PRP_VF_OUT_EOF, vout);
@@ -2576,6 +2583,19 @@ static int mxc_v4l2out_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int mxc_v4l2out_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	if (g_vout->state != STATE_STREAM_OFF)
+		mxc_v4l2out_streamoff(g_vout);
+	return 0;
+}
+
+static int mxc_v4l2out_resume(struct platform_device *pdev)
+{
+	/*TODO: need make everything ok after resume*/
+	return 0;
+}
+
 /*!
  * This structure contains pointers to the power management callback functions.
  */
@@ -2584,6 +2604,8 @@ static struct platform_driver mxc_v4l2out_driver = {
 		   .name = "MXC Video Output",
 		   },
 	.probe = mxc_v4l2out_probe,
+	.suspend = mxc_v4l2out_suspend,
+	.resume = mxc_v4l2out_resume,
 	.remove = mxc_v4l2out_remove,
 };
 
