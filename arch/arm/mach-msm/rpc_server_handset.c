@@ -135,7 +135,6 @@ report_headset_switch(struct input_dev *dev, int key, int value)
 	struct msm_handset *hs = input_get_drvdata(dev);
 
 	input_report_switch(dev, key, value);
-	switch_set_state(&hs->sdev, value);
 	input_sync(dev);
 }
 

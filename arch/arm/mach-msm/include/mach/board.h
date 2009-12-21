@@ -20,6 +20,7 @@
 
 #include <linux/types.h>
 #include <linux/input.h>
+#include <linux/clk.h>
 
 /* platform device data structures */
 
