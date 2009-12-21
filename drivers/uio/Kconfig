@@ -122,4 +122,13 @@ config VMETA_NEW
 	help
 	  This is used for VMETA version 1.2 or higher.
 
+config MEM_FOR_MULTIPROCESS
+	bool "VMETA support multiple processes"
+	depends on UIO_DOVE_VMETA
+	default n
+	help
+	  This is used for the case of multi-processes use
+	  VMETA H/W engine
+
+
 endif
