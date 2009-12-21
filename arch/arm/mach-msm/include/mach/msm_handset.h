@@ -17,7 +17,6 @@
 #define _MSM_HANDSET_H
 
 #include <linux/input.h>
-#include <linux/switch.h>
 
 #if defined(CONFIG_INPUT_MSM_HANDSET)
 struct input_dev *msm_get_handset_input_dev(void);
@@ -30,7 +29,6 @@ struct input_dev *msm_get_handset_input_dev(void)
 
 struct msm_handset {
 	struct input_dev *ip_dev;
-	struct switch_dev sdev;
 };
 
 #endif

@@ -712,7 +712,7 @@ unsigned long long sched_clock(void)
 		cs = &clock->clocksource;
 
 		last_ticks = saved_ticks;
-		saved_ticks = ticks = cs->read();
+		saved_ticks = ticks = cs->read(cs);
 		if (!saved_ticks_valid) {
 			saved_ticks_valid = 1;
 			last_ticks = ticks;
