@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.31.5-dove-4.2.0.1
-# Mon Dec 21 10:34:18 2009
+# Mon Dec 21 13:04:20 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1992,6 +1992,7 @@ CONFIG_UIO_PDRV=y
 CONFIG_UIO_DOVE_VMETA=y
 CONFIG_UIO_DOVE_VMETA_MEM_SIZE=96
 CONFIG_VMETA_NEW=y
+CONFIG_MEM_FOR_MULTIPROCESS=y
 # CONFIG_STAGING is not set
 
 #
