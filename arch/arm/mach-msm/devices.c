@@ -99,77 +99,6 @@ struct platform_device msm_device_uart3 = {
 #define MSM_UART2DM_PHYS      0xA0300000
 #endif
 
-static struct resource resources_i2c[] = {
-	{
-		.start	= MSM_I2C_PHYS,
-		.end	= MSM_I2C_PHYS + MSM_I2C_SIZE - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_PWB_I2C,
-		.end	= INT_PWB_I2C,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device msm_device_i2c = {
-	.name		= "msm_i2c",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(resources_i2c),
-	.resource	= resources_i2c,
-};
-
-static struct resource resources_hsusb[] = {
-	{
-		.start	= MSM_HSUSB_PHYS,
-		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_USB_HS,
-		.end	= INT_USB_HS,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device msm_device_hsusb_peripheral = {
-#ifdef CONFIG_USB_ANDROID
-	.name		= "msm_hsusb",
-#else
-	.name		= "msm_hsusb_peripheral",
-#endif
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(resources_hsusb_peripheral),
-	.resource	= resources_hsusb_peripheral,
-	.dev		= {
-		.dma_mask 		= &dma_mask,
-		.coherent_dma_mask	= 0xffffffffULL,
-	},
-};
-
-static struct resource resources_hsusb_host[] = {
-	{
-		.start	= MSM_HSUSB_PHYS,
-		.end	= MSM_HSUSB_PHYS + MSM_HSUSB_SIZE,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= INT_USB_HS,
-		.end	= INT_USB_HS,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device msm_device_hsusb_host = {
-	.name		= "msm_hsusb_host",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(resources_hsusb_host),
-	.resource	= resources_hsusb_host,
-	.dev		= {
-		.dma_mask 		= &dma_mask,
-		.coherent_dma_mask	= 0xffffffffULL,
-	},
-};
 
 struct flash_platform_data msm_nand_data = {
 	.parts		= NULL,
@@ -347,65 +276,6 @@ int __init msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat)
 	return platform_device_register(pdev);
 }
 
-#define CLOCK(clk_name, clk_id, clk_dev, clk_flags, clk_arch) {	\
-	.name = clk_name, \
-	.id = clk_id, \
-	.flags = (clk_flags) | ((clk_arch) & CLKFLAG_ARCH_ALL), \
-	.dev = clk_dev, \
-	}
-
-static struct platform_device msm_tvenc_device = {
-	.name   = "tvenc",
-	.id     = 0,
-	.num_resources  = ARRAY_SIZE(msm_tvenc_resources),
-	.resource       = msm_tvenc_resources,
-};
-
-static void __init msm_register_device(struct platform_device *pdev, void *data)
-{
-	int ret;
-
-	pdev->dev.platform_data = data;
-
-	ret = platform_device_register(pdev);
-	if (ret)
-		dev_err(&pdev->dev,
-			  "%s: platform_device_register() failed = %d\n",
-			  __func__, ret);
-}
-
-void __init msm_fb_register_device(char *name, void *data)
-{
-	if (!strncmp(name, "mdp", 3))
-		msm_register_device(&msm_mdp_device, data);
-	else if (!strncmp(name, "pmdh", 4))
-		msm_register_device(&msm_mddi_device, data);
-	else if (!strncmp(name, "emdh", 4))
-		msm_register_device(&msm_mddi_ext_device, data);
-	else if (!strncmp(name, "ebi2", 4))
-		msm_register_device(&msm_ebi2_lcd_device, data);
-	else if (!strncmp(name, "tvenc", 5))
-		msm_register_device(&msm_tvenc_device, data);
-	else if (!strncmp(name, "lcdc", 4))
-		msm_register_device(&msm_lcdc_device, data);
-	else
-		printk(KERN_ERR "%s: unknown device! %s\n", __func__, name);
-}
-
-static struct platform_device msm_camera_device = {
-	.name	= "msm_camera",
-	.id	= 0,
-};
-
-void __init msm_camera_register_device(void *res, uint32_t num,
-	void *data)
-{
-	msm_camera_device.num_resources = num;
-	msm_camera_device.resource = res;
-
-	msm_register_device(&msm_camera_device, data);
-}
-
 struct clk msm_clocks_7x01a[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
@@ -440,8 +310,6 @@ struct clk msm_clocks_7x01a[] = {
 	CLK_PCOM("uart_clk",	UART1_CLK,	&msm_device_uart1.dev, OFF),
 	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
 	CLK_PCOM("uart_clk",	UART3_CLK,	&msm_device_uart3.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART1DM_CLK,	&msm_device_uart_dm1.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART2DM_CLK,	&msm_device_uart_dm2.dev, 0),
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",	USB_HS_PCLK,	NULL, OFF),
 	CLK_PCOM("usb_otg_clk",	USB_OTG_CLK,	NULL, 0),
@@ -484,8 +352,6 @@ struct clk msm_clocks_7x25[] = {
 	CLK_PCOM("uart_clk",	UART1_CLK,	&msm_device_uart1.dev, OFF),
 	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
 	CLK_PCOM("uart_clk",	UART3_CLK,	&msm_device_uart3.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART1DM_CLK,	&msm_device_uart_dm1.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART2DM_CLK,	&msm_device_uart_dm2.dev, 0),
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",	USB_HS_PCLK,	NULL, OFF),
 	CLK_PCOM("usb_otg_clk",	USB_OTG_CLK,	NULL, 0),
@@ -530,8 +396,6 @@ struct clk msm_clocks_7x27[] = {
 	CLK_PCOM("uart_clk",	UART1_CLK,	&msm_device_uart1.dev, OFF),
 	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
 	CLK_PCOM("uart_clk",	UART3_CLK,	&msm_device_uart3.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART1DM_CLK,	&msm_device_uart_dm1.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART2DM_CLK,	&msm_device_uart_dm2.dev, 0),
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",	USB_HS_PCLK,	NULL, OFF),
 	CLK_PCOM("usb_otg_clk",	USB_OTG_CLK,	NULL, 0),
@@ -579,7 +443,6 @@ struct clk msm_clocks_7x30[] = {
 	CLK_PCOM("mi2s_codec_tx_s_clk",	MI2S_CODEC_TX_SCLK,  NULL, 0),
 	CLK_PCOM("pbus_clk",	PBUS_CLK,	NULL, CLK_MIN),
 	CLK_PCOM("pcm_clk",	PCM_CLK,	NULL, 0),
-	CLK_PCOM("qup_clk",	QUP_I2C_CLK,	&qup_device_i2c.dev, 0),
 	CLK_PCOM("rotator_clk",	AXI_ROTATOR_CLK,		NULL, 0),
 	CLK_PCOM("rotator_imem_clk",	ROTATOR_IMEM_CLK,	NULL, OFF),
 	CLK_PCOM("rotator_pclk",	ROTATOR_PCLK,		NULL, OFF),
@@ -597,8 +460,6 @@ struct clk msm_clocks_7x30[] = {
 	CLK_PCOM("uart_clk",	UART1_CLK,	&msm_device_uart1.dev, OFF),
 	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
 	CLK_PCOM("uart_clk",	UART3_CLK,	&msm_device_uart3.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART1DM_CLK,	&msm_device_uart_dm1.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART2DM_CLK,	&msm_device_uart_dm2.dev, 0),
 	CLK_PCOM("usb_hs_clk",		USB_HS_CLK,		NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",		USB_HS_PCLK,		NULL, OFF),
 	CLK_PCOM("usb_hs_core_clk",	USB_HS_CORE_CLK,	NULL, OFF),
@@ -655,8 +516,6 @@ struct clk msm_clocks_8x50[] = {
 	CLK_PCOM("uart_clk",	UART1_CLK,	&msm_device_uart1.dev, OFF),
 	CLK_PCOM("uart_clk",	UART2_CLK,	&msm_device_uart2.dev, 0),
 	CLK_PCOM("uart_clk",	UART3_CLK,	&msm_device_uart3.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART1DM_CLK,	&msm_device_uart_dm1.dev, OFF),
-	CLK_PCOM("uartdm_clk",	UART2DM_CLK,	&msm_device_uart_dm2.dev, 0),
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",	USB_HS_PCLK,	NULL, OFF),
 	CLK_PCOM("usb_otg_clk",	USB_OTG_CLK,	NULL, 0),
