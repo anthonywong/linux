@@ -254,7 +254,7 @@ void anx7150_work_func(struct work_struct * work)
 */
         set_freezable();
 	unsigned long interval = jiffies_to_msecs((unsigned long)((long) jiffies - last_jiffies));
-	printk("anx7150: anx7150_work_func() is called, intervel: %lu msec.\n", interval);
+//	printk("anx7150: anx7150_work_func() is called, intervel: %lu msec.\n", interval);
 	last_jiffies = (long) jiffies;
 
 	while(BIST_EN)
