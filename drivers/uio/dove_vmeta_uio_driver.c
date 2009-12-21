@@ -30,21 +30,26 @@ struct vmeta_uio_data {
 	struct uio_info		uio_info;
 };
 
+#ifndef CONFIG_MEM_FOR_MULTIPROCESS
 static atomic_t vmeta_available = ATOMIC_INIT(1);
+#endif
 
 static int vmeta_open(struct uio_info *info, struct inode *inode)
 {
+#ifndef CONFIG_MEM_FOR_MULTIPROCESS
 	if (!atomic_dec_and_test(&vmeta_available)) {
 		atomic_inc(&vmeta_available);
 		return -EBUSY;	/* already open */
 	}
-
+#endif
 	return 0;
 }
 
 static int vmeta_release(struct uio_info *info, struct inode *inode)
 {
+#ifndef CONFIG_MEM_FOR_MULTIPROCESS
 	atomic_inc(&vmeta_available); /* release the device */
+#endif
 	return 0;
 }
 
@@ -209,6 +214,10 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 	struct vmeta_uio_data *vd;
 	struct vmeta_xv_data *xvd;
 
+#ifdef CONFIG_MEM_FOR_MULTIPROCESS
+	dma_addr_t mem_dma_addr;
+	void *mem_vir_addr;
+#endif
 	printk(KERN_INFO "Registering VMETA UIO driver:.\n");
 
 	vd = kzalloc(sizeof(struct vmeta_uio_data), GFP_KERNEL);
@@ -273,7 +282,11 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 	}
 
 	id = VMETA_DMA_BUFFER_MAP;
-	size = res->end - res->start + 1;
+#ifndef CONFIG_MEM_FOR_MULTIPROCESS
+	size = CONFIG_UIO_DOVE_VMETA_MEM_SIZE << 20;
+#else
+	size = (CONFIG_UIO_DOVE_VMETA_MEM_SIZE - 1) << 20;
+#endif
 	start = res->start;
 	vd->uio_info.mem[id].internal_addr =
 		(void __iomem *)ioremap_nocache(start, size);
@@ -283,6 +296,17 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 
 	printk(KERN_INFO "  o Mapping buffer at %ld MB Size %ld MB.\n",
 			start >> 20, vd->uio_info.mem[id].size >> 20);
+#ifdef CONFIG_MEM_FOR_MULTIPROCESS
+	start += (( CONFIG_UIO_DOVE_VMETA_MEM_SIZE - 1) << 20);
+	size = 1 << 20;
+        vd->uio_info.mem[VMETA_VDEC_MEM].internal_addr = 
+			(void __iomem *)ioremap_nocache(start, size);
+        vd->uio_info.mem[VMETA_VDEC_MEM].addr = start;
+        vd->uio_info.mem[VMETA_VDEC_MEM].memtype = UIO_MEM_PHYS;
+        vd->uio_info.mem[VMETA_VDEC_MEM].size = size;
+
+#endif
+
 #endif /* CONFIG_VMETA_NEW */
 
 	platform_set_drvdata(pdev, vd);
