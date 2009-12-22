@@ -22,7 +22,6 @@
 
 #define RT5630_VERSION "0.04"
 
-
 /*
 #define RT5630_DEBUG(format, args...) \
 	printk(KERN_DEBUG "%s(%d): "format"\n", __FUNCTION__, __LINE__, ##args)
@@ -1908,10 +1907,6 @@ static int rt5630_set_bias_level(struct snd_soc_codec *codec,
 			rt5630_write(codec, 0x3a, 0x0000);
 			rt5630_write(codec, 0x3c, 0x0000);
 			
-#if  CONFIG_SND_DOVE_SOC_AC97_AVD1
-				spk_amplifier_enable(0);
-#endif			
-			
 		break;
 	
 	}
@@ -2281,7 +2276,6 @@ static int rt5630_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	struct rt5630_priv *rt5630;
 	int ret;
-
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
 	if (codec == NULL)
 		return -ENOMEM;
@@ -2364,7 +2358,6 @@ static int rt5630_suspend(struct platform_device *pdev, pm_message_t state)
         struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[3];
-	
 	rt5630_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	for (i = 0; i < ARRAY_SIZE(rt5630_suspend_reg); i ++) {
 		data[0] = rt5630_suspend_reg[i];
@@ -2382,7 +2375,6 @@ static int rt5630_resume(struct platform_device *pdev)
 	int i;
 	u8 data[3];
 	u16 *cache = codec->reg_cache;
-
 	rt5630_write_mask(codec, 0x3a, 0x0002, 0x0002); 
 	rt5630_write_mask(codec, 0x3c, 0x2000, 0x2000);  
 	schedule_timeout_uninterruptible(msecs_to_jiffies(110));
@@ -2419,14 +2411,40 @@ struct snd_soc_codec_device soc_codec_dev_rt5630 = {
 
 EXPORT_SYMBOL_GPL(soc_codec_dev_rt5630);
 
+static int __devinit rt5630_dev_probe(struct platform_device *pdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rt5630_dai); i++)
+		rt5630_dai[i].dev = &pdev->dev;
+
+	return snd_soc_register_dais(rt5630_dai, ARRAY_SIZE(rt5630_dai));
+}
+
+static int __devexit rt5630_dev_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dais(rt5630_dai, ARRAY_SIZE(rt5630_dai));
+
+	return 0;
+}
+
+static struct platform_driver rt5630_driver = {
+	.probe		= rt5630_dev_probe,
+	.remove		= __devexit_p(rt5630_dev_remove),
+	.driver		= {
+		.name	= "rt5630-codec",
+		.owner	= THIS_MODULE,
+	},
+};
+
 static int __init rt5630_modinit(void)
 {
-	return snd_soc_register_dais(rt5630_dai, ARRAY_SIZE(rt5630_dai));
+	return platform_driver_register(&rt5630_driver);
 }
 
 static void __exit rt5630_exit(void)
 {
-	snd_soc_unregister_dais(rt5630_dai, ARRAY_SIZE(rt5630_dai));
+	platform_driver_unregister(&rt5630_driver);
 }
 
 module_init(rt5630_modinit);
