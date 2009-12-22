@@ -864,9 +864,9 @@ static int qh_schedule(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		qh->start = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
-		qh->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
-		qh->hw_info2 |= cpu_to_hc32(ehci, s_mask);
-		qh->hw_info2 |= c_mask;
+		hw->hw_info2 &= cpu_to_hc32(ehci, ~(QH_CMASK | QH_SMASK));
+		hw->hw_info2 |= cpu_to_hc32(ehci, s_mask);
+		hw->hw_info2 |= c_mask;
 	} else
 		ehci_dbg(ehci, "reused qh %p schedule\n", qh);
 
