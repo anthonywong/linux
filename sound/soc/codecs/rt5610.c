@@ -35,6 +35,7 @@
 	printk(KERN_WARNING AUDIO_NAME ": " format "\n" , ## arg)
 	
 static struct snd_soc_codec *codec;
+bool rt5610_codec_resumed=0;
 
 /* codec private data */
 struct rt5610_priv {
@@ -174,6 +175,7 @@ int rt5610_reset(struct snd_soc_codec *codec, int try_warm)
 	soc_ac97_ops.reset(codec->ac97);
 	if(rt5610_read(codec, 0) != rt5610_reg[0])
 		return -EIO;
+	mdelay(10);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt5610_reset);
@@ -1101,7 +1103,7 @@ static struct snd_soc_dai_ops rt5610_pcm_ops = {
 struct snd_soc_dai rt5610_dai[2] = { 
 	
 	{
-		.name = "RT5610-Hi Fi",
+		.name = "RT5610 HiFi",
 		.playback = {
 			.stream_name = "HiFi Playback",
 			.channels_min = 1,
@@ -1118,7 +1120,7 @@ struct snd_soc_dai rt5610_dai[2] = {
 	},
 
 	{
-		.name = "RT5610-Voice",		
+		.name = "RT5610 Voice",		
 		.playback = {
 			.stream_name = "Voice Playback",
 			.channels_min = 1,
@@ -1158,13 +1160,12 @@ int spk_amplifier_enable(bool enable)
 }
 EXPORT_SYMBOL_GPL(spk_amplifier_enable);
 
-
-
-
 static int rt5610_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
+
+	rt5610_codec_resumed=0;
 
 	/* we only need to suspend if we are a valid card */
 	if(!codec->card)
@@ -1173,7 +1174,6 @@ static int rt5610_suspend(struct platform_device *pdev, pm_message_t state)
 	rt5610_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 	return 0;
 }
-
 static int rt5610_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -1182,6 +1182,7 @@ static int rt5610_resume(struct platform_device *pdev)
 	int ret, i;
 	u16 *cache = codec->reg_cache;
 
+	rt5610_reset(codec, 0);
 	ret = rt5610_reset(codec, 1);
 	if (ret < 0) {
 		err("could not reset AC97 codec\n");
@@ -1205,7 +1206,7 @@ static int rt5610_resume(struct platform_device *pdev)
 
 	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
 		rt5610_set_bias_level(codec, SND_SOC_BIAS_ON);
-
+	rt5610_codec_resumed=1;
 	return ret;
 	
 }
@@ -1220,7 +1221,6 @@ static int rt5610_resume(struct platform_device *pdev)
 static int rt5610_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
-//	struct snd_soc_codec *codec;
 	int ret;
 
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
@@ -1242,7 +1242,7 @@ static int rt5610_probe(struct platform_device *pdev)
 		goto priv_err;
 	}
 
-	codec->name = "rt5610";
+	codec->name = "RT5610";
 	codec->owner = THIS_MODULE;
 	codec->dai = rt5610_dai;
 	codec->num_dai = ARRAY_SIZE(rt5610_dai);
@@ -1331,14 +1331,40 @@ struct snd_soc_codec_device soc_codec_dev_rt5610 = {
 
 EXPORT_SYMBOL_GPL(soc_codec_dev_rt5610);
 
+static int __devinit rt5610_dev_probe(struct platform_device *pdev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rt5610_dai); i++)
+		rt5610_dai[i].dev = &pdev->dev;
+
+	return snd_soc_register_dais(rt5610_dai, ARRAY_SIZE(rt5610_dai));
+}
+
+static int __devexit rt5610_dev_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_dais(rt5610_dai, ARRAY_SIZE(rt5610_dai));
+
+	return 0;
+}
+
+static struct platform_driver rt5610_driver = {
+	.probe		= rt5610_dev_probe,
+	.remove		= __devexit_p(rt5610_dev_remove),
+	.driver		= {
+		.name	= "rt5610-codec",
+		.owner	= THIS_MODULE,
+	},
+};
+
 static int __init rt5610_modinit(void)
 {
-	return snd_soc_register_dais(rt5610_dai, ARRAY_SIZE(rt5610_dai));
+	return platform_driver_register(&rt5610_driver);
 }
 
 static void __exit rt5610_exit(void)
 {
-	snd_soc_unregister_dais(rt5610_dai, ARRAY_SIZE(rt5610_dai));
+	platform_driver_unregister(&rt5610_driver);
 }
 
 module_init(rt5610_modinit);
