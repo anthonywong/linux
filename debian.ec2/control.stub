@@ -8,7 +8,7 @@ Build-Depends-Indep: xmlto, docbook-utils, gs, transfig, bzip2, sharutils
 Build-Conflicts: findutils (= 4.4.1-1ubuntu1)
 Vcs-Git: http://kernel.ubuntu.com/git-repos/ubuntu/ubuntu-karmic.git
 
-Package: linux-ec2-source-2.6.31
+Package: linux-ec2-source-2.6.32
 Architecture: all
 Section: devel
 Priority: optional
@@ -44,7 +44,7 @@ Description: Linux kernel specific documentation for version 2.6.31
  /usr/share/doc/linux-ec2-doc/00-INDEX for a list of what is
  contained in each file.
 
-Package: linux-headers-2.6.31-302
+Package: linux-headers-2.6.32-300
 Architecture: all
 Section: devel
 Priority: optional
@@ -56,7 +56,7 @@ Description: Header files related to Linux kernel version 2.6.31
  /usr/share/doc/linux-headers-2.6.31-302/debian.README.gz for details
 
 
-Package: linux-image-2.6.31-302-ec2
+Package: linux-image-2.6.32-300-ec2
 Architecture: i386 amd64
 Section: admin
 Priority: optional
@@ -82,7 +82,7 @@ Description: Linux kernel image for version 2.6.31 on x86/x86_64
  the linux-ec2 meta-package, which will ensure that upgrades work
  correctly, and that supporting packages are also installed.
 
-Package: linux-headers-2.6.31-302-ec2
+Package: linux-headers-2.6.32-300-ec2
 Architecture: i386 amd64
 Section: devel
 Priority: optional
@@ -94,7 +94,7 @@ Description: Linux kernel headers for version 2.6.31 on x86/x86_64
  This is for sites that want the latest kernel headers.  Please read
  /usr/share/doc/linux-headers-2.6.31-302/debian.README.gz for details.
 
-Package: linux-image-debug-2.6.31-302-ec2
+Package: linux-image-debug-2.6.32-300-ec2
 Architecture: i386 amd64
 Section: devel
 Priority: optional
