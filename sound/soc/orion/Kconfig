@@ -28,7 +28,7 @@ config SND_DOVE_SOC_AC97_AVD1
         select SND_PXA2XX_SOC
 	select SND_PXA2XX_LIB
         select SND_PXA2XX_SOC_AC97
-	select SND_PXA2XX_SOC_AC97_SURROUND
+        select SND_PXA2XX_SOC_AC97_SURROUND
         select SND_SOC_RT5610
 
 
