@@ -29,6 +29,7 @@
 #include <sound/pxa2xx-lib.h>
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-ac97.h"
+#include <asm/mach-types.h>
 
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_surround_out = {
 	.name			= "AC97 PCM Surround out",
@@ -132,6 +133,8 @@ EXPORT_SYMBOL_GPL(pxa_ac97_surround_dai);
 
 static int __init pxa_ac97_surround_init(void)
 {
+	if (machine_is_dove_rd_avng())
+		return -ENODEV;
 	return snd_soc_register_dais(pxa_ac97_surround_dai,
 			ARRAY_SIZE(pxa_ac97_surround_dai));
 }
