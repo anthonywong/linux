@@ -2206,7 +2206,7 @@ static int cafe_init_cam(struct cafe_camera *cam)
 	if (cam->sensor == NULL) {
 		cam->sensor = v4l2_i2c_new_subdev(&cam->v4l2_dev,
 				&cam->i2c_adapter, "ov7680", "ov7680",
-				cam->sensor_addr);
+						  cam->sensor_addr, NULL);
 		if (cam->sensor == NULL) {
 			ret = -ENODEV;
 			goto out_smbus;
