@@ -677,12 +677,21 @@ static struct platform_device dove_ac97_touch = {
 };
 
 
-void __init dove_ac97_ts_init(void)
+
+static struct platform_device dove_ac97_snd= {
+	.name           = "rt5611_snd",
+	.id             = 0,
+};
+void __init dove_ac97_dev_init(void)
 {
+	//TouchScreen
 	dove_avng_ac97_ts_gpio_setup();
 	platform_device_register(&dove_ac97_touch);
-}
 
+	//Codec
+	platform_device_register(&dove_ac97_snd);
+
+}
 
 /*****************************************************************************
  * Board Init
@@ -705,7 +714,8 @@ static void __init dove_rd_avng_init(void)
 	/* Initialize AC'97 related regs. */
 	dove_avng_ac97_init();
 	dove_ac97_setup();
-	dove_ac97_ts_init();
+	dove_ac97_dev_init();	
+	
 	dove_rtc_init();
 	pxa_init_dma_wins(&dove_mbus_dram_info);
 	pxa_init_dma(16);

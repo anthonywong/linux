@@ -43,6 +43,9 @@ static inline void poll_delay(int d)
 	udelay(delay_table[d] + 3 * AC97_LINK_FRAME);
 }
 
+static bool rt5611_ts_resumed=0;
+extern bool rt5610_codec_resumed;
+
 int rt5611_ts_reg_read(struct rt5611_ts *rt, u16 reg)
 {
 	int val = 0;
@@ -294,7 +297,7 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 				input_report_abs(rt->input_dev, ABS_PRESSURE, data.p);
 				input_report_key(rt->input_dev, BTN_TOUCH, 1);
 				input_sync(rt->input_dev);
-				RT5611_TS_DEBUG("pen down: x=%, y=%d, p=%d\n",
+				RT5611_TS_DEBUG("pen down: x=%d, y=%d, p=%d\n",
 						data.x, data.y, data.p);
 			}
 		}
@@ -313,6 +316,14 @@ static void rt5611_ts_reader(struct work_struct *work)
 	int rc = 0;
 	struct rt5611_ts *rt = container_of(work, struct rt5611_ts, ts_reader.work);
 
+#ifdef CONFIG_PM
+	/* Wait for codec resume done. To avoid system hang due to AC97 not wakeup (clock enable) and reset*/
+	if(rt5611_ts_resumed && !rt5610_codec_resumed)
+	{
+	       queue_delayed_work(rt->ts_workq, &rt->ts_reader,  100);
+		   return ;
+	}
+#endif
 	RT5611_TS_DEBUG("rt5611_ts_reader\n");
 
 	/* Insure TSC is enabled.*/
@@ -450,8 +461,8 @@ static void rt5611_ts_input_close(struct input_dev *idev)
 		/* Return the interrupt to GPIO usage (disabling it)
 		 * Config GPIO2 as GPIO
 		 */
-		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_SHARING, 0,
-					 GPIO2_PIN_SHARING_MASK);
+//		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_SHARING, 0,
+//					 GPIO2_PIN_SHARING_MASK);
 		free_irq(rt->pen_irq, rt);
 	}
 
@@ -466,7 +477,7 @@ static void rt5611_ts_input_close(struct input_dev *idev)
 	destroy_workqueue(rt->ts_workq);
 
 	/* stop digitiser */
-	rt5611_ts_enable(rt, RT_TP_DISABLE);
+//	rt5611_ts_enable(rt, RT_TP_DISABLE);
 }
 
 static int rt5611_ts_reset(struct snd_soc_codec *codec, int try_warm)
@@ -482,6 +493,7 @@ static int rt5611_ts_reset(struct snd_soc_codec *codec, int try_warm)
 	soc_ac97_ops.reset(codec->ac97);
 	if (soc_ac97_ops.read(codec->ac97, 0) != rt5611_reg_defalt_00h)
 		return -EIO;
+        mdelay(10);
 	return 0;
 }
 
@@ -523,12 +535,6 @@ static int rt5611_ts_probe(struct platform_device *pdev)
 	/* set up physical characteristics */
 	rt5611_ts_phy_init(rt);
 	/* load gpio cache */
-	rt->gpio[0] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_CONFIG);
-	rt->gpio[1] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_POLARITY);
-	rt->gpio[2] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_STICKY);
-	rt->gpio[3] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_WAKEUP);
-	rt->gpio[4] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_STATUS);
-	rt->gpio[5] = rt5611_ts_reg_read(rt, RT_GPIO_PIN_SHARING);
 
 	rt->input_dev = input_allocate_device();
 	if (rt->input_dev == NULL) {
@@ -585,60 +591,23 @@ static int rt5611_ts_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int rt5611_ts_resume(struct platform_device *pdev)
 {
-	struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
+	struct rt5611_ts *rt = platform_get_drvdata(pdev);
 	RT5611_TS_DEBUG("rt5611_ts_resume\n");
-
-	/* restore TouchPanel and gpios */
-
-	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE1, rt->cb[0]);
-	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE2, rt->cb[1]);
-	rt5611_ts_reg_write(rt, RT_MISC_CTRL, rt->misc);
-	if (rt->input_dev->users)
-		rt5611_ts_reg_write_mask(rt, RT_PWR_MANAG_ADD2, 1, PWR_TP_ADC);
-
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_CONFIG,	rt->gpio[0]);
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_POLARITY,	rt->gpio[1]);
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_STICKY,	rt->gpio[2]);
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_WAKEUP,	rt->gpio[3]);
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_STATUS,	rt->gpio[4]);
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_SHARING,	rt->gpio[5]);
-
-	if (rt->input_dev->users && !rt->pen_irq) {
-		rt->ts_reader_interval = rt->ts_reader_min_interval;
-		queue_delayed_work(rt->ts_workq, &rt->ts_reader,
-				   rt->ts_reader_interval);
-	}
-
+        queue_delayed_work(rt->ts_workq, &rt->ts_reader,  100);
+	rt5611_ts_resumed=1;
 	return 0;
 }
 
 static int rt5611_ts_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	u16 reg = 0;
-	int suspend_mode = 0;
+	struct rt5611_ts *rt = platform_get_drvdata(pdev);
 
-	struct rt5611_ts *rt = dev_get_drvdata(&pdev->dev);
 	RT5611_TS_DEBUG("rt5611_ts_suspend\n");
-
-	if (device_may_wakeup(&rt->input_dev->dev))
-		suspend_mode = rt->suspend_mode;
-	else
-		suspend_mode = 0;
-
-	if (rt->input_dev->users)
 		cancel_delayed_work_sync(&rt->ts_reader);
 
-	/* Power down TP  (bypassing the cache for resume) */
-	rt5611_ts_reg_write_mask(rt, RT_TP_CTRL_BYTE1, 0, POW_TP_CTRL_MASK);
-
-	if (rt->input_dev->users)
-		reg |= suspend_mode;
-
-	/* rt5611_ts has an additional power bit - turn it off if there
-	 * are no users or if suspend mode is zero. */
-	if (!rt->input_dev->users || !suspend_mode)
-		rt5611_ts_reg_write_mask(rt, RT_PWR_MANAG_ADD2, 0, PWR_TP_ADC);
-
+	if (rt->pen_irq)
+		disable_irq(rt->pen_irq);
+	rt5611_ts_resumed=0;
 	return 0;
 }
 #else
@@ -649,7 +618,6 @@ static int rt5611_ts_suspend(struct platform_device *pdev, pm_message_t state)
 static struct platform_driver rt5611_ts_driver = {
 	.driver = {
 		.name =		"rt5611_ts",
-		.bus =		&ac97_bus_type,
 		.owner =		THIS_MODULE,
 	},
 	.probe =		rt5611_ts_probe,
@@ -657,7 +625,6 @@ static struct platform_driver rt5611_ts_driver = {
 	.suspend =	rt5611_ts_suspend,
 	.resume =	rt5611_ts_resume,
 };
-
 static int __init rt5611_ts_init(void)
 {
 	return platform_driver_register(&rt5611_ts_driver);
