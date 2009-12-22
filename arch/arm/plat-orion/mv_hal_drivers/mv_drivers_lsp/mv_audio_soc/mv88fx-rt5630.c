@@ -205,6 +205,11 @@ static struct snd_soc_device mv88fx_snd_devdata = {
 	.codec_data = &rt5630_setup,
 };
 
+struct platform_device rt5630_codec_dev = {
+	.name           = "rt5630-codec",
+	.id             = -1,
+};
+
 static int mv88fx_initalize_machine_data(struct platform_device *pdev)
 {
 	struct resource *r = NULL;
@@ -267,7 +272,7 @@ static int mv88fx_snd_probe(struct platform_device *pdev)
 	if (mv88fx_initalize_machine_data(pdev) != 0)
 		goto error;
 
-	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", -1);
+	mv88fx_machine_data.snd_dev = platform_device_alloc("soc-audio", 0);
 	if (!mv88fx_machine_data.snd_dev) {
 		ret = -ENOMEM;
 		goto error;
@@ -285,6 +290,9 @@ static int mv88fx_snd_probe(struct platform_device *pdev)
                 platform_device_put(mv88fx_machine_data.snd_dev);
 	}
 
+	ret = platform_device_register(&rt5630_codec_dev);
+	if(ret)
+                platform_device_unregister(&rt5630_codec_dev);
 	return ret;
 error:
 	mv88fx_snd_error("");
@@ -312,6 +320,7 @@ static int mv88fx_snd_remove(struct platform_device *dev)
 	mv88fx_machine_data.snd_dev->dev.platform_data = NULL;
 	platform_device_unregister(mv88fx_machine_data.snd_dev);
 	release_mem_region(mv88fx_machine_data.res->start, SZ_16K);
+        platform_device_unregister(&rt5630_codec_dev);	
 	return 0;
 }
 

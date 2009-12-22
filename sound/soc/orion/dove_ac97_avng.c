@@ -53,14 +53,19 @@ static struct snd_soc_device dove_ac97_snd_devdata = {
 	.codec_dev = &soc_codec_dev_rt5610,
 };
 
-static int __init dove_ac97_snd_init(void)
+struct platform_device rt5610_codec_dev = {
+	.name           = "rt5610-codec",
+	.id             = -1,
+};
+
+static int dove_ac97_snd_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 
         if (!machine_is_dove_rd_avng() && !machine_is_dove_rd_avng_z0())
                 return -ENODEV;
 
-	dove_ac97_snd_device = platform_device_alloc("soc-audio", 0);
+	dove_ac97_snd_device = platform_device_alloc("soc-audio", 1);
 	if (!dove_ac97_snd_device)
 		return -ENOMEM;
 
@@ -71,15 +76,42 @@ static int __init dove_ac97_snd_init(void)
 	if (ret)
 		platform_device_put(dove_ac97_snd_device);
 
+	ret = platform_device_register(&rt5610_codec_dev);
+	if(ret)
+                platform_device_unregister(&rt5610_codec_dev);
+
+
 	return ret;
 
 }
 
-static void __exit dove_ac97_snd_exit(void)
+static int dove_ac97_snd_remove(struct platform_device *pdev)
+
 {
+       platform_device_unregister(&rt5610_codec_dev);
 	platform_device_unregister(dove_ac97_snd_device);
 }
+static struct platform_driver dove_ac97_snd_driver = {
+	.probe = dove_ac97_snd_probe,
+	.remove = dove_ac97_snd_remove,
+	.driver = {
+		   .name = "rt5611_snd",
+		   },
 
+};
+static int __init dove_ac97_snd_init(void)
+{
+	if (!machine_is_dove_rd_avng())
+		return -ENODEV;
+
+	return platform_driver_register(&dove_ac97_snd_driver);
+}
+
+static void __exit dove_ac97_snd_exit(void)
+{
+	platform_driver_unregister(&dove_ac97_snd_driver);
+
+}
 module_init(dove_ac97_snd_init);
 module_exit(dove_ac97_snd_exit);
 
