@@ -1805,7 +1805,7 @@ extern void printascii(const char *);
 static void check_cpu_mode(void)
 {
 		u32 cpu_id_code_ext;
-		int cpu_mode;
+		int cpu_mode = 0;
 		asm volatile("mrc p15, 1, %0, c15, c12, 0": "=r"(cpu_id_code_ext));
 
 		if (((cpu_id_code_ext >> 16) & 0xF) == 0x2)
@@ -1818,11 +1818,13 @@ static void check_cpu_mode(void)
 #ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 		if (cpu_mode != 6) {
 			printascii("cpu mode (ARMv7) doesn't mach kernel configuration\n");
+			panic("cpu mode mismach");
 		}
 #else
 #ifdef CONFIG_CPU_V7
 		if (cpu_mode != 7) {
 			printascii("cpu mode (ARMv6) doesn't mach kernel configuration\n");
+			panic("cpu mode mismach");
 		}
 #endif
 #endif
