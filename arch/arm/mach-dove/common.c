@@ -1818,13 +1818,13 @@ static void check_cpu_mode(void)
 #ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 		if (cpu_mode != 6) {
 			printascii("cpu mode (ARMv7) doesn't mach kernel configuration\n");
-			panic("cpu mode mismach");
+			panic("cpu mode mismatch");
 		}
 #else
 #ifdef CONFIG_CPU_V7
 		if (cpu_mode != 7) {
 			printascii("cpu mode (ARMv6) doesn't mach kernel configuration\n");
-			panic("cpu mode mismach");
+			panic("cpu mode mismatch");
 		}
 #endif
 #endif
