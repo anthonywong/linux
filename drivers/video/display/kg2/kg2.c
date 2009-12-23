@@ -158,7 +158,7 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 	HWI_FE_CHANNEL_REG		regFrontEnd;
 
 	if (i2c_client_kg2 == NULL) {
-		pr_err("No KG2 device found\n");
+		pr_info("No KG2 device found\n");
 		return;
 	}
 	dev_info(&i2c_client_kg2->dev, "Set KG2 input timing\n");
