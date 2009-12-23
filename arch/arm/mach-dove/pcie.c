@@ -44,7 +44,7 @@ void __init dove_pcie_id(u32 *dev, u32 *rev)
 /*
  * Optimal setting for PCIe clocks current drive - 13.5mA
  */
-static int __init dove_pcie_clk_out_config(int nr)
+static int dove_pcie_clk_out_config(int nr)
 {
 	u32 reg = readl(DOVE_PCIE_PORT_CONTROL);
 	reg |= 3 << nr;
