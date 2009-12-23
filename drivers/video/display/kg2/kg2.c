@@ -157,6 +157,10 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 	HWI_FLEXIPORT_PIN_CONTROL_BITS	regFlexiPort = {{0x00}, 0x00, 0x00};
 	HWI_FE_CHANNEL_REG		regFrontEnd;
 
+	if (i2c_client_kg2 == NULL) {
+		pr_err("No KG2 device found\n");
+		return;
+	}
 	dev_info(&i2c_client_kg2->dev, "Set KG2 input timing\n");
 
 	// Log if KG2 is accessed by two or more drivers simultaneously
@@ -302,7 +306,7 @@ int kg2_i2c_write(unsigned char baseaddr, unsigned char subaddr,
 
 	if (i2c_client_kg2 == NULL)
 	{
-		dev_err(&i2c_client_kg2->dev, "i2c_client_kg2 = NULL\n");
+		pr_err("i2c_client_kg2 = NULL\n");
 		return -1;
 	}
 
