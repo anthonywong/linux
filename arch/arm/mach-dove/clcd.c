@@ -1,8 +1,6 @@
 /*
  *  linux/arch/arm/mach-dove/clcd.c
  *
- *  Copyright (C) 2000-2003 Deep Blue Solutions Ltd
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -35,6 +33,8 @@
 #include <video/dovefbreg.h>
 #include <video/dovedcon.h>
 #include <mach/dove_bl.h>
+#include "gpp/mvGppRegs.h"
+#include <ctrlEnv/mvCtrlEnvRegs.h>
 
 static unsigned int lcd0_enable;
 module_param(lcd0_enable, uint, 0);
@@ -374,6 +374,50 @@ static struct platform_device backlight_platform_device = {
 	.num_resources	= ARRAY_SIZE(backlight_res),
 	.resource	= backlight_res,
 };
+
+void dovefb_config_lcd_power(unsigned int reg_offset, int on)
+{
+		unsigned int x;
+		volatile unsigned int* addr;
+
+		addr = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0);
+		/*
+		 * LCD Power Control through dedicated pins.
+	 	 * Suppose MPP has been set to right mode.
+		 * We just set the value directly.
+		 */
+		x = *addr;
+		x &= ~(0x1 << 11);
+		x |= (on << 11);
+		*addr = x;
+}
+EXPORT_SYMBOL(dovefb_config_lcd_power);
+
+void dovefb_config_backlight_power(unsigned int reg_offset, int on)
+{
+	if (reg_offset) {
+		/*
+		 * BL Power Control through bit of register.
+		 */
+	} else {
+		unsigned int x;
+		volatile unsigned int* addr;
+
+		addr = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0);
+		/*
+		 * BL Power Control through dedicated pins.
+	 	 * Suppose MPP has been set to right mode.
+		 * We just set the value directly.
+		 */
+		x = *addr;
+		x &= ~(0x1 << 17);
+		x |= (on << 17);
+		*addr = x;
+	}
+
+}
+EXPORT_SYMBOL(dovefb_config_backlight_power);
+
 #endif /* CONFIG_FB_DOVE_DCON */
 
 int clcd_platform_init(struct dovefb_mach_info *lcd0_dmi_data,
