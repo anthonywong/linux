@@ -123,4 +123,10 @@ config BATTERY_DS2782
 	help
 	  Say Y here to enable support for batteries with ds2782 chip.
 
+config BATTERY_MCU
+	tristate "MCU DS2782 battery driver"
+	depends on I2C
+	help
+	  Say Y here to enable support for batteries with MCU ds2782 chip.
+
 endif # POWER_SUPPLY
