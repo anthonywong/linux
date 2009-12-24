@@ -70,6 +70,7 @@ obj-$(CONFIG_PRINTER)		+= lp.o
 
 obj-$(CONFIG_APM_EMU_DS2782)	+= ds2782.o
 obj-$(CONFIG_APM_EMULATION)	+= apm-emulation.o
+obj-$(CONFIG_BATTERY_MCU)	+= power_mcu.o
 
 obj-$(CONFIG_DTLK)		+= dtlk.o
 obj-$(CONFIG_R3964)		+= n_r3964.o
