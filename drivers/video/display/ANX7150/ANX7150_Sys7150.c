@@ -218,6 +218,7 @@ void ANX7150_Timer_Slot1()
     
     if(ANX7150_system_state == ANX7150_READ_PARSE_EDID)
     {
+
         ANX7150_i2c_read_p0_reg(ANX7150_TMDS_CLKCH_CONFIG_REG, &c);
         ANX7150_DEBUG("ANX7150_WAIT_HOTPLUG--->111111111ANX7150_TMDS_CLKCH_CONFIG_REG=%x\n",c);	
         ANX7150_i2c_write_p0_reg(ANX7150_TMDS_CLKCH_CONFIG_REG, c |0x80);
@@ -229,6 +230,10 @@ void ANX7150_Timer_Slot1()
         ANX7150_hdcp_auth_en = 0;
 
         ANX7150_RST_DDCChannel();
+    //enable video input
+    ANX7150_i2c_read_p0_reg(ANX7150_VID_CTRL_REG, &c);
+    ANX7150_i2c_write_p0_reg(ANX7150_VID_CTRL_REG, c | ANX7150_VID_CTRL_IN_EN);  
+    ANX7150_DEBUG("Video pre-onfigure OK~~!\n");
         
         ANX7150_Parse_EDID();
 	 ANX7150_parse_edid_done = 1;
