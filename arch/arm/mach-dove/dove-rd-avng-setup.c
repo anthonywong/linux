@@ -213,6 +213,11 @@ static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
 		I2C_BOARD_INFO("pic-16f887", 0x??),
 	},
 #endif
+#ifdef CONFIG_BATTERY_MCU
+	{
+		I2C_BOARD_INFO("power_mcu", 0x2C),
+	},
+#endif
 };
 
 /*****************************************************************************
@@ -648,6 +653,11 @@ void __init dove_ac97_dev_init(void)
 	platform_device_register(&dove_ac97_snd);
 
 }
+void __init dove_battery_init(void)
+{
+	platform_device_register_simple("battery", 0, NULL, 0);
+}
+
 
 /*****************************************************************************
  * Board Init
@@ -726,7 +736,9 @@ static void __init dove_rd_avng_init(void)
 				ARRAY_SIZE(dove_rd_avng_i2c_devs));
 	spi_register_board_info(dove_rd_avng_spi_flash_info,
 				ARRAY_SIZE(dove_rd_avng_spi_flash_info));
-
+#ifdef CONFIG_BATTERY_MCU
+	dove_battery_init();
+#endif
 	//mvmpp_sys_init();
 }
 
