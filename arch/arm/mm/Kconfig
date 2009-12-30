@@ -792,11 +792,11 @@ config CACHE_TAUROS2
 	  found on PJ1/PJ4).
 
 config MRV_PTE_IN_L2
-	bool "Enable Table work in L2 to improve performance"
+	bool "Enable Table walk in L2 to improve performance"
 	depends on CACHE_TAUROS2
 	default y
 	help
-	  Say Y if you wan to enable table work in L2 (MMU get pte
+	  Say Y if you wan to enable table walk in L2 (MMU get pte
 	  from L2 memory) to improve performance
 
 config CACHE_L2LINEFILL_BURST8_ENABLE
