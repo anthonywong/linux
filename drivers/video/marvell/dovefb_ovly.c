@@ -36,7 +36,7 @@
 #include <linux/uaccess.h>
 #include <linux/console.h>
 #include <linux/io.h>
-
+#include <asm/mach-types.h>
 #include <asm/irq.h>
 
 #include <video/dovefb.h>
@@ -866,6 +866,10 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 	} else {	/* RGB, BGR format */
 		x |= ((pix_fmt & 1)^(dfli->info->panel_rbswap)) << 4;
 	}
+
+	/* Requires fix */
+	if (machine_is_videoplug())
+		x |= 1 << 4;
 
 	if (x_bk != x)
 		writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL0);
