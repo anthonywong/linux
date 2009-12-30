@@ -457,6 +457,7 @@ static int mv88fx_cs42l51_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
+extern struct snd_soc_dai dit_stub_dai;
 
 static struct snd_soc_dai_link mv88fx_dai0[] = {
 	{
@@ -658,9 +659,9 @@ static struct platform_driver mv88fx_snd_driver = {
 
 static int __init mv88fx_snd_init(void)
 {
-	if (!machine_is_dove_db() && !machine_is_dove_db_z0())
+	if (!machine_is_dove_db() && !machine_is_dove_db_z0() && !machine_is_videoplug())
 		return -ENODEV;
-	
+
 	mv88fx_snd_debug("");
 	return platform_driver_register(&mv88fx_snd_driver);
 }
