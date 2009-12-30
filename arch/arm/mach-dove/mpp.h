@@ -43,6 +43,7 @@ enum dove_mpp_type {
 	MPP_PMU,
 	MPP_MII,
 	MPP_PCIE,
+	MPP_NFC8_15,
 	/*
 	 * This indicates end of table .
 	 */

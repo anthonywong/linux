@@ -257,6 +257,34 @@ struct mpp_config dove_mpp_table[] __initdata =
 	/* MPP 63 (HIGH 31) */
 	{{{MPP_GPIO, 4}, {MPP_UART1, 4}, MPP_LAST5},
 	 dove_mpp_high_config},
+	/* MPP 64 (HIGH 32) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 65 (HIGH 33) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 66 (HIGH 34) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 67 (HIGH 35) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 68 (HIGH 36) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 69 (HIGH 37) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 70 (HIGH 38) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 71 (HIGH 39) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+	/* MPP 72 (HIGH 40) */
+	{{{MPP_GPIO, 0}, {MPP_NFC8_15, 0}, MPP_LAST5},
+	 dove_mpp_high_config},
+
 };
 
 void __init dove_mpp_conf(struct dove_mpp_mode *mode)
@@ -385,6 +413,14 @@ int __init dove_mpp_high_config(int mpp, enum dove_mpp_type type, int mask)
 			mpp_general_config |= DOVE_AU1_SPDIFO_GPIO_EN;
 		else
 			mpp_general_config &= ~DOVE_AU1_SPDIFO_GPIO_EN;
+		writel(mpp_general_config, DOVE_MPP_GENERAL_VIRT_BASE);
+	}
+	if (mpp >= 64 && mpp <= 72) {
+		u32 mpp_general_config = readl(DOVE_MPP_GENERAL_VIRT_BASE);
+		if (type == MPP_GPIO)
+			mpp_general_config |= 0x1 << mask;
+		else
+			mpp_general_config &= ~(0x1 << mask);
 		writel(mpp_general_config, DOVE_MPP_GENERAL_VIRT_BASE);
 	}
 
