@@ -58,6 +58,7 @@ static int dovefb_fill_edid(struct fb_info *fi,
 				struct dovefb_mach_info *dmi);
 static int wait_for_vsync(struct dovefb_layer_info *dfli);
 static void dovefb_set_defaults(struct dovefb_layer_info *dfli);
+extern unsigned int lcd_accurate_clock;
 
 #define AXI_BASE_CLK	(2000000000ll)	/* 2000MHz */
 
@@ -136,7 +137,6 @@ static inline u64 calc_diff(u64 a, u64 b)
 	else
 		return b - a;
 }
-#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 		u32 *lcd_div, u32 *is_ext_rem)
 {
@@ -263,9 +263,8 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
  * Calculate integer and fractional divider for given clk_in
  * and clk_out.
  */
-#ifndef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 static int init_ext_divider = 0;
-#endif
+
 static void set_clock_divider(struct dovefb_layer_info *dfli,
 	const struct fb_videomode *m)
 {
@@ -274,11 +273,8 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	u64 div_result;
 	u32 x = 0, x_bk;
 	struct dovefb_info *info = dfli->info;
-#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 	u32 axi_div, lcd_div, is_ext;
-#else
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
-#endif
 
 
 	/*
@@ -313,32 +309,32 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	do_div(div_result, m->pixclock);
 	needed_pixclk = (u32)div_result;
 
-#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
-	calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
-	//printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
-	//		needed_pixclk, axi_div, lcd_div, is_ext);
-	divider_int = lcd_div;
-#else
-	divider_int = (dmi->sclk_clock + (needed_pixclk / 2)) / needed_pixclk;
-	
-	/* check whether divisor is too small. */
-	if (divider_int < 2) {
-		printk(KERN_WARNING "Warning: clock source is too slow."
-				 "Try smaller resolution\n");
-		divider_int = 2;
-	}
-#endif
-
 	if (lcd_accurate_clock) {
-		set_external_lcd_clock(axi_div, is_ext);
+		calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
+		//printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
+		//		needed_pixclk, axi_div, lcd_div, is_ext);
+		divider_int = lcd_div;
 	} else {
-		if (0 == init_ext_divider) {
-			init_ext_divider = 1;
-			printk(KERN_ERR "fix to (2G/%d) without half divider.\n", (2000000000/dmi->sclk_clock));
-			set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+		divider_int = (dmi->sclk_clock + (needed_pixclk / 2)) / needed_pixclk;
+		
+		/* check whether divisor is too small. */
+		if (divider_int < 2) {
+			printk(KERN_WARNING "Warning: clock source is too slow."
+					 "Try smaller resolution\n");
+			divider_int = 2;
 		}
 	}
 
+#ifndef CONFIG_DOVE_REV_Z0
+	if (lcd_accurate_clock)
+		set_external_lcd_clock(axi_div, is_ext);
+	else {
+		if (0 == init_ext_divider) {
+			init_ext_divider = 1;
+			set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+		}
+	}
+#endif
 	/*
 	 * Set setting to reg.
 	 */
