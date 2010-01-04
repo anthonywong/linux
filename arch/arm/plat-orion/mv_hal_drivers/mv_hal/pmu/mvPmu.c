@@ -78,41 +78,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define ROUND_DOWN(value,boundary)	((value) & (~((boundary)-1)))
 
 /* PMU uController code fixes <add,val> couples */
-#ifdef CONFIG_DOVE_REV_Z0
-MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
-		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {252,0x44}, {253,0x00}, {254,0xF3}, \
-		{255,0xF0}, {297, 0x7C}, {388, 0x71}, {389, 0x30}, {390, 0x49}, {391, 0xa8}, {392, 0x18}, \
-		{393, 0x80}, {394, 0x39}, {395, 0xa8}, {396, 0x14}, {397, 0x80}, {398, 0x90}, {399, 0x28}, \
-            	{400, 0x80}, {401, 0xff}, {402, 0x00}, {403, 0x04}, {404, 0x20}, {405, 0x69}, {406, 0x80}, \
-            	{407, 0x28}, {408, 0x80}, {409, 0xff}, {410, 0x08}, {411, 0x20}, {412, 0x80}, {413, 0x28}, \
-            	{414, 0x80}, {415, 0xff}, {416, 0x04}, {417, 0x20}, {418, 0x59}, {419, 0x08}, {420, 0x94}, \
-            	{421 ,0x41}, {422 ,0x70}, {423, 0x7D}, {424, 0x94}, {425, 0x40}, {426, 0x94}, {427, 0x42}, \
-		{428, 0xFF}};
-#else
 MV_U32	uCfix[][2] = {{0,0x01}, {38, 0x33}, {120,0xB0}, {121,0x00}, {122,0x80}, {123,0xC0}, {124,0x00}, \
 		{125,0x00}, {126,0x00}, {127,0x00}, {214,0x00}, {239,0xB0}, {252,0x44}, {253,0x00}, {254,0xF3}, \
 		{255,0xF0}, {284, 0x00}, {297, 0x7C}, {356, 0x00}, {388, 0x71}, {389, 0x30}, {390, 0x80}, {391, 0x28}, {392, 0x80}, \
 		{393, 0xFF}, {394, 0x08}, {395, 0x49}, {396, 0x39}, {397, 0x20}, {398, 0xA8}, {399, 0x18}, \
             	{400, 0x80}, {401, 0x69}, {402, 0x59}, {403, 0x08}, {404, 0x94}, {405 ,0x41}, {406 , 0x00}, \
 		{407, 0x7D}, {408, 0x19}, {409, 0x94}, {410, 0x40}, {411, 0x94}, {412, 0x42}, {413, 0xFF}};
-#endif
 
 /* Save L2 ratio at system power up */
 static MV_U32 l2TurboRatio;
 
 /* PLL 2 DDR Ratio Divider Map Table */
-#ifdef CONFIG_DOVE_REV_Z0
-#define MAX_RATIO_MAP_CNT	9
-MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{2,0x1}, 	/* DDR:PLL 1:2 */
-						{3,0xD}, 	/* DDR:PLL 1:3 */
-						{4,0x2}, 	/* DDR:PLL 1:4 */
-						{5,0xE}, 	/* DDR:PLL 1:5 */
-						{6,0x3}, 	/* DDR:PLL 1:6 */
-						{7,0xF}, 	/* DDR:PLL 1:7 */
-						{8,0x4}, 	/* DDR:PLL 1:8 */
-						{10,0x5}, 	/* DDR:PLL 1:10 */
-						{12,0x6}}; 	/* DDR:PLL 1:12 */
-#else
 #define MAX_RATIO_MAP_CNT	10
 MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{1,0x1}, 	/* DDR:PLL 1:1 */
 						{2,0x2}, 	/* DDR:PLL 1:2 */
@@ -124,14 +100,9 @@ MV_U32 ratio2DivMapTable[MAX_RATIO_MAP_CNT][2] = {{1,0x1}, 	/* DDR:PLL 1:1 */
 						{8,0x8}, 	/* DDR:PLL 1:8 */
 						{10,0xA}, 	/* DDR:PLL 1:10 */
 						{12,0xC}}; 	/* DDR:PLL 1:12 */
-#endif
 
 /* Timing delays for CPU and Core powers */
-#ifdef CONFIG_DOVE_REV_Z0
- #define PMU_DEEPIDLE_CPU_PWR_DLY	0x1C0000		/* TCLK clock cycles - ~11.01ms */
-#else
- #define PMU_DEEPIDLE_CPU_PWR_DLY	0x208D			/* TCLK clock cycles - ~50 us */
-#endif
+#define PMU_DEEPIDLE_CPU_PWR_DLY	0x208D			/* TCLK clock cycles - ~50 us */
 #define PMU_STBY_CPU_PWR_DLY		0x1			/* RTC 32KHz clock cycles ~31.25us */
 #define PMU_DVS_POLL_DLY		10000			/* Poll DVS done count */
 
@@ -214,6 +185,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 {
 	MV_U32 reg;
 	MV_32 i;
+	MV_32 cke_mpp_num = -1;
 
 	/* Set the DeepIdle and Standby power delays */
       	MV_REG_WRITE(PMU_STANDBY_PWR_DELAY_REG, pmu->standbyPwrDelay);
@@ -224,18 +196,6 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	if (pmu->exitOnBatFltDis) reg |= PMU_BAT_FLT_STBY_EXIT_DIS_MASK;
 	MV_REG_WRITE(PMU_BAT_MNGMT_CTRL_REG, reg);
 	
-#ifdef CONFIG_DOVE_REV_Z0
-	/* Invert the CPU and whole chip Power Down Polarity */
-	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
-	reg &= ~PMU_PWR_CPU_OFF_LEVEL_MASK;	/* 0 - CPU is powered down (DEEP IDLE) */
-	reg |= PMU_PWR_CPU_ON_LEVEL_MASK;	/* 1 - CPU is powered up */
-	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
-
-	/* Reset bit0 in the Reset Strap since it is mixed up with the test mode in the BootROM */
-	reg = MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0);
-	reg &= ~0x1;
-	MV_REG_WRITE(MPP_SAMPLE_AT_RESET_REG0, reg);
-#else
 	/* Invert the CPU and whole chip Power Down Polarity */
 	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
 	reg &= ~PMU_PWR_CPU_OFF_LEVEL_MASK;	/* 0 - CPU is powered down (DEEP IDLE) */
@@ -243,7 +203,6 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	reg &= ~PMU_PWR_STBY_ON_LEVEL_MASK;	/* 0 - Dove is powered down (STANDBY) */
 	reg |= PMU_PWR_STBY_OFF_LEVEL_MASK;	/* 1 - Dove is powered up */
 	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
-#endif
 
 	/* Enable the PMU Control on the CPU reset) */
 	reg = MV_REG_READ(CPU_CONTROL_REG);
@@ -273,6 +232,16 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 		}
 	}
 
+	/* Check if CKE workaround is applicable */
+	for (i=0; i<8; i++)
+	{
+		if (pmu->sigSelctor[i] == PMU_SIGNAL_CKE_OVRID)
+		{
+			cke_mpp_num = i;
+			break;
+		}
+	}
+
 	/* Configure the blinking led timings */
 	MV_REG_WRITE(PMU_BLINK_PERIOD_CTRL_REG, PMU_STBY_LED_PERIOD);
 	MV_REG_WRITE(PMU_BLINK_DUTY_CYCLE_CTRL_REG, PMU_STBY_LED_DUTY);
@@ -287,7 +256,7 @@ MV_STATUS mvPmuInit (MV_PMU_INFO * pmu)
 	reg = MV_REG_READ(PMU_CLK_DIVIDER_0_REG);
 	l2TurboRatio = (((reg & PMU_CLK_DIV_XPRATIO_MASK) >> PMU_CLK_DIV_XPRATIO_OFFS) << PMU_DFS_CTRL_L2_RATIO_OFFS);
 
-	return mvPmuSramInit(pmu->ddrTermGpioNum);
+	return mvPmuSramInit(pmu->ddrTermGpioNum, cke_mpp_num);
 }
 
 /*******************************************************************************
@@ -1395,8 +1364,6 @@ MV_STATUS mvPmuCpuSetOP (MV_PMU_CPU_SPEED cpuSpeed, MV_BOOL dvsEnable)
 	return ret;
 }
 
-#ifndef CONFIG_DOVE_REV_Z0
-
 /*******************************************************************************
 * mvPmuCpuIdleThresholdsSet - Set Hi and Low Thresholds	
 *
@@ -1632,5 +1599,3 @@ MV_VOID mvPmuMcIdleIntStatGet(MV_BOOL *hiIntStat, MV_BOOL *lowIntStat)
 	else
 		*hiIntStat = MV_FALSE;
 }
-
-#endif /* CONFIG_DOVE_REV_Z0 */
