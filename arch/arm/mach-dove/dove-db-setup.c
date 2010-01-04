@@ -680,22 +680,22 @@ static int __init dove_db_pm_init(void)
 
 	dove_pcie_id(&dev, &rev);
 
-	pmuInitInfo.batFltMngDis = MV_FALSE;			/* Keep battery fault enabled */
-	pmuInitInfo.exitOnBatFltDis = MV_FALSE;			/* Keep exit from STANDBY on battery fail enabled */
+	pmuInitInfo.batFltMngDis = MV_FALSE;				/* Keep battery fault enabled */
+	pmuInitInfo.exitOnBatFltDis = MV_FALSE;				/* Keep exit from STANDBY on battery fail enabled */
 	pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;	/* STANDBY => 0: I/O off, 1: I/O on */
-	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;	/* power on push button */	
+	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;		/* STANDBY => 0: I/O off, 1: I/O on */
+	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;		/* power on push button */	
 	if (rev >= DOVE_REV_X0) /* For X0 and higher Power Good indication is not needed */
-		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
+		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC/*PMU_SIGNAL_CKE_OVRID*/;	/* CKE controlled by Dove */
 	else
 		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
-	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
-	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;		/* Charger interrupt - not used */
-	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
+	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;		/* DEEP-IdLE => 0: CPU off, 1: CPU on */
+	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC/*PMU_SIGNAL_MRESET_OVRID*/;		/* M_RESET is pulled up - always HI */
+	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;			/* Standby Led - inverted */
 	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC;		/* CPU power good  - not used */
-	pmuInitInfo.sigSelctor[10] = PMU_SIGNAL_SDI;		/* Voltage regulator control */
+	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC;			/* CPU power good  - not used */
+	pmuInitInfo.sigSelctor[10] = PMU_SIGNAL_SDI;			/* Voltage regulator control */
 	pmuInitInfo.sigSelctor[11] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[12] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[13] = PMU_SIGNAL_NC;

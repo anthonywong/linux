@@ -97,7 +97,12 @@ typedef enum
 	PMU_SIGNAL_EXT0_WKUP = 0xB,
 	PMU_SIGNAL_EXT1_WKUP = 0xC,
 	PMU_SIGNAL_EXT2_WKUP = 0xD,
-	PMU_SIGNAL_BLINK = 0xE
+	PMU_SIGNAL_BLINK = 0xE,
+/*
+ * Following are virtiual values. The value set in the PMU signal selector is masked with 0xF
+ */
+	PMU_SIGNAL_MRESET_OVRID = 0x10,	/* Converted to 0x0 ==> NC after masking - Pull-UP */
+	PMU_SIGNAL_CKE_OVRID = 0x11	/* Converted to 0x1 ==> force '0' after masking  - CKE normal */
 } MV_PMU_SIG_SRC;
 
 /* CPU Clock Speed - DFS */
@@ -201,7 +206,6 @@ MV_STATUS mvPmuGpuPowerDown	(MV_BOOL pwrStat);
 MV_STATUS mvPmuVpuPowerDown	(MV_BOOL pwrStat);
 MV_STATUS mvPmuGetCurrentFreq	(MV_PMU_FREQ_INFO * freqs);
 MV_STATUS mvPmuCpuSetOP 	(MV_PMU_CPU_SPEED cpuSpeed, MV_BOOL dvsEnable);
-#ifndef CONFIG_DOVE_REV_Z0
 MV_VOID   mvPmuCpuIdleThresholdsSet	(MV_U32 hiThreshold, MV_U32 lowThreshold);
 MV_VOID   mvPmuCpuIdleTimeBaseValueSet	(MV_U32 timeBase);
 MV_VOID   mvPmuCpuIdleIntMaskSet	(MV_BOOL hiIntEnable, MV_BOOL lowIntEnable);
@@ -212,7 +216,6 @@ MV_VOID   mvPmuMcIdleTimeBaseValueSet	(MV_U32 timeBase);
 MV_VOID   mvPmuMcIdleIntMaskSet		(MV_BOOL hiIntEnable, MV_BOOL lowIntEnable);
 MV_U32 	  mvPmuMcIdleTimeGet		(void);
 MV_VOID   mvPmuMcIdleIntStatGet		(MV_BOOL *hiIntStat, MV_BOOL *lowIntStat);
-#endif
 
 #ifdef __cplusplus
 }
