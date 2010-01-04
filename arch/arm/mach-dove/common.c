@@ -84,6 +84,19 @@ unsigned int __initdata gpu_size = DOVE_GPU_MEM_SIZE;
 
 unsigned int __initdata pvt_size = 0;
 
+static int __init pvt_size_setup(char *str)
+{
+	get_option(&str, &pvt_size);
+
+	if (!pvt_size)
+		return 1;
+
+	pvt_size <<= 20;
+
+	return 1;
+}
+__setup("pvt_size=", pvt_size_setup);
+
 char *useNandHal = NULL;
 static int __init useNandHal_setup(char *s)
 {
@@ -1691,6 +1704,10 @@ void __init dove_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 		gpu_size = 0;
 		return;
 	}
+
+	/* Resereve memory from last tag for PVT tests	*/
+	last_tag->u.mem.size -= pvt_size;
+	dove_vmeta_memory_start = last_tag->u.mem.start + last_tag->u.mem.size;
 
 	/* Resereve memory from last tag for VPU usage.	*/
 	last_tag->u.mem.size -= vmeta_size;
