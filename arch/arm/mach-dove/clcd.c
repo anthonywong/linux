@@ -42,6 +42,7 @@ MODULE_PARM_DESC(lcd0_enable, "set to 1 to enable LCD0 output.");
 static unsigned int lcd1_enable = 1;
 module_param(lcd1_enable, uint, 0);
 MODULE_PARM_DESC(lcd1_enable, "set to 1 to enable LCD1 output.");
+unsigned int lcd_accurate_clock = 1;
 
 #if defined(CONFIG_FB_DOVE_CLCD_FLAREON_GV) || \
     defined(CONFIG_FB_DOVE_CLCD_FLAREON_GV_MODULE)
@@ -623,6 +624,9 @@ int clcd_platform_init(struct dovefb_mach_info *lcd0_dmi_data,
 		printk(KERN_INFO "LCD 1 disabled.\n");
 	}
 #endif
+
+	if (lcd0_enable && lcd1_enable)
+		lcd_accurate_clock = 0;
 
 #ifdef CONFIG_FB_DOVE_DCON
 	if (lcd0_enable || lcd1_enable) {
