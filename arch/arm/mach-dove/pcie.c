@@ -33,6 +33,10 @@ struct pcie_port {
 static struct pcie_port pcie_port[2];
 static int num_pcie_ports;
 
+static unsigned int noscan = 0;
+module_param(noscan, uint, 0);
+MODULE_PARM_DESC(noscan, "set to 1 to disable pci scan.");
+
 #define PCIE_BASE	((void __iomem *)DOVE_PCIE0_VIRT_BASE)
 
 void __init dove_pcie_id(u32 *dev, u32 *rev)
@@ -148,6 +152,9 @@ static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 	struct pcie_port *pp = bus_to_port(bus->number);
 	unsigned long flags;
 	int ret;
+
+	if (noscan)
+		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (pcie_valid_config(pp, bus->number, PCI_SLOT(devfn)) == 0) {
 		*val = 0xffffffff;
