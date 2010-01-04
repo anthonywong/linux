@@ -101,7 +101,7 @@ ENTRY(mvPmuSramDdrReconfigFunc)
          * Verify that the SRAM PTE is found in dTLB
          * iTLB is guranteed.... Already in the SRAM
          */
-	ldr     r2, ddfs_sp_addr
+	ldr     r2, pmu_sp_addr
 
 	/* 
 	 * Disable All SB access to DDR
@@ -145,7 +145,7 @@ ENTRY(mvPmuSramDdrReconfigFunc)
 	/*
 	 * Set DDR in Self refresh mode and poll status bit
 	 */
-	ldr	r2, ddfs_ctrl_reg
+	ldr	r2, pmu_ctrl_reg_virt
 	mov	r3, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r4, [r2]
 	orr	r4, r4, r3
@@ -175,7 +175,7 @@ ddr_fs_sr_loop:
 	/*
 	 * Exit DDR self refresh mode if active
 	 */
-	ldr	r0, ddfs_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_virt
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
@@ -277,8 +277,6 @@ ddfs_nb_mask:
 	.word (0xFFF00000)
 ddfs_mc_ctrl_reg:
 	.word (DOVE_NB_REGS_VIRT_BASE + 0x7E0)
-ddfs_ctrl_reg:
-	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 
 ddfs_arbit_low_reg:
 	.word(DOVE_SB_REGS_VIRT_BASE + 0xD02A8)
@@ -286,8 +284,6 @@ ddfs_arbit_hi_reg:
 	.word(DOVE_SB_REGS_VIRT_BASE + 0xD02AC)
 ddfs_arbit_val:
 	.word(0xFFFFFFFF)
-ddfs_sp_addr:
-	.word (PMU_SCRATCHPAD_INT_BASE)
 /*********************************************************************/
 /*
 led_addr:
@@ -339,16 +335,14 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 sb_pc_v2p_res:
 	adr	r1, dix_saved_sp
 
-#ifndef CONFIG_DOVE_REV_Z0
 	/*
 	 * Write SP to scratch NVRAM
 	 * First Convert external to internal addrress space
 	 */
 	ldr	r3, die_nvram_sp_mask
 	and	r1, r1, r3
-	ldr	r3, die_nvram_int_base
+	ldr	r3, pmu_sp_addr
 	orr	r1, r1, r3
-#endif
 	str	r0, [r1]
 
 	/*
@@ -374,7 +368,7 @@ die_skip_l2_clean:
 	 */
 	cmp	r4, #0
 	bne	die_leave_ddr_active
-	ldr	r0, die_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_virt 
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
@@ -402,7 +396,7 @@ die_leave_ddr_active:
 	/*
 	 * Initiate Deep Idle flow
 	 */
-	ldr	r0, die_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_virt
 	mov	r1, #PMU_CTRL_DEEPIDLE_MODE_EN_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
@@ -428,8 +422,6 @@ die_leave_ddr_active:
 
 die_vtp:
 	.word mvPmuSramVirt2Phys
-die_ctrl_reg:
-	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 die_irb_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + 0x20080)
 die_gpio_out_val_reg:
@@ -438,12 +430,8 @@ die_term_ctrl_addr:
 	.word (PMU_SP_TERM_OFF_CTRL_ADDR)
 die_term_mask_addr:
 	.word (PMU_SP_TERM_OFF_MASK_ADDR)
-#ifndef CONFIG_DOVE_REV_Z0
-die_nvram_int_base:
-	.word (PMU_SCRATCHPAD_INT_BASE)
 die_nvram_sp_mask:
 	.word (0x7FF)
-#endif
 
 
 /***************************************************************
@@ -478,7 +466,7 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 	/*
 	 * Check if DDR in self refresh mode
 	 */
-	ldr	r0, dix_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_phys
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
@@ -508,7 +496,7 @@ dix_sr_exit:
 	/*
 	 * Exit DDR Self refresh mode
 	 */
-	ldr	r0, dix_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_phys
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	bic	r2, r2, r1
@@ -534,19 +522,19 @@ dix_ddr_active:
 	adr	r3, dix_resume_after_mmu	@ physical resume address
 	ldr	r4, dix_virt_mask
 	and	r3, r3, r4
-	ldr	r4, dix_virt_offs
+	ldr	r4, sp_virt_offs
 	orr	r3, r3, r4			@ virtual resume address	
 
 	/*
 	 * temporarily map PMU SRAM into the page table so that PA=VA
 	 * otherwise prefetch abort occurs after MMU is turned on
 	 */
-	ldr	r1, dix_virt_offs
+	ldr	r1, sp_virt_offs
 	mov	r1, r1, lsr #20
 	ldr	r0, [r5, r1, lsl #2]		@ use PMU mapping mode
 	bic	r0, r0, #0xFF000000		@ Clear bits 24-31
 	bic	r0, r0, #0x00F00000		@ Clear bits 20-23
-	ldr	r1, dix_phys_offs
+	ldr	r1, sp_phys_offs
 	mov	r1, r1, lsr #20
 	orr	r7, r0, r1, lsl #20		@ temporay mapping
 	ldr	r4, [r5, r1, lsl #2]		@ save original mapping
@@ -587,14 +575,8 @@ dix_resume_after_mmu:
 
 dix_irbd_reg:
 	.word (0xD0020080)
-dix_ctrl_reg:
-	.word (DOVE_SB_REGS_PHYS_BASE + PMU_CTRL_REG)
 dix_virt_mask:
 	.word (0xFFFFF)
-dix_virt_offs:
-	.word (DOVE_SCRATCHPAD_VIRT_BASE)
-dix_phys_offs:
-	.word (DOVE_SCRATCHPAD_PHYS_BASE)
 dix_gpio_out_val_reg:
 	.word (DOVE_SB_REGS_PHYS_BASE + 0xD0400)
 dix_term_ctrl_addr:
@@ -648,7 +630,7 @@ sbe_pc_v2p_res:
 	 */
 	ldr	r2, sbe_nvram_sp_mask
 	and	r1, r1, r2
-	ldr	r2, sbe_nvram_int_base
+	ldr	r2, pmu_sp_addr
 	orr	r1, r1, r2
 	str	r0, [r1]
 
@@ -674,7 +656,7 @@ sbe_skip_l2_clean:
 	/*
 	 * Set DDR in Self refresh mode and poll status bit
 	 */
-	ldr	r0, sbe_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_virt
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
@@ -683,7 +665,7 @@ sbe_sr_loop:
 	ldr	r2, [r0]
 	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
 	beq	sbe_sr_loop
-	
+#if 0
 	/*
 	 * Mask out CKE and M_RESET
 	 */
@@ -692,11 +674,27 @@ sbe_sr_loop:
 	ldr	r2, [r0]
 	orr	r2, r2, r1
 	str	r2, [r0]
+#endif
+	/*
+	 * Force CKE to be LOW at board level
+	 */
+	ldr	r0, sbe_pmu_sig_slct_reg
+	ldr	r1, [r0]
+	ldr	r2, sbe_cke_nib_mask
+	ldr	r2, [r2]
+	cmp	r2, #0x0
+	beq	sbe_skip_cke_wa
+	bic	r1, r1, r2
+	ldr	r2, sbe_cke_nib_frc
+	ldr	r2, [r2]
+	orr	r1, r1, r2
+	str	r1, [r0]
+sbe_skip_cke_wa:
 
 	/*
 	 * Initiate standby flow
 	 */
-	ldr	r0, sbe_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_virt
 	mov	r1, #(PMU_CTRL_STANDBY_MODE_EN_MASK | PMU_CTRL_DDR_SLF_RFRSH_EN_MASK)
 	ldr	r2, [r0]
 	orr	r2, r2, r1
@@ -722,23 +720,20 @@ sbe_sr_loop:
 #endif
 
 
-#ifdef CONFIG_DOVE_REV_Z0
-sbe_nvram_int_base:
-	.word (PMU_CESA_SP_BASE)
-#else
-sbe_nvram_int_base:
-	.word (PMU_SCRATCHPAD_INT_BASE)
-#endif
 sbe_nvram_sp_mask:
 	.word (0x7FF)
 sbe_vtp:
 	.word mvPmuSramVirt2Phys
-sbe_ctrl_reg:
-	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
 sbe_mc_ctrl_reg:
 	.word (DOVE_NB_REGS_VIRT_BASE + 0x7E0)
 sbe_sply_ctrl_reg:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_PWR_SUPLY_CTRL_REG)
+sbe_pmu_sig_slct_reg:
+	.word (DOVE_SB_REGS_VIRT_BASE + PMU_SIG_SLCT_CTRL_0_REG)
+sbe_cke_nib_mask:
+	.word (PMU_SP_CKE_NIB_MASK_ADDR)
+sbe_cke_nib_frc:
+	.word (PMU_SP_CKE_NIB_FRC_ADDR)
 
 
 
@@ -757,10 +752,48 @@ ENTRY(mvPmuSramStandbyExitFunc)
 	mcr	p15, 0, r1, c7, c5, 4		@ Prefetch Flush - ISB
 
 	/*
+	 * Check if CKE WA is implemented on board
+	 */
+	ldr	r3, sbx_cke_bit_mask
+	ldr	r3, [r3]
+	cmp	r3, #0x0
+	beq	sbx_skip_cke_wa
+
+	/*
+	 * Set DDR in Self refresh mode and poll status bit
+	 * Needed for a clean transition of the CKE 
+	 */
+	ldr	r0, pmu_ctrl_reg_phys
+	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
+	ldr	r2, [r0]
+	orr	r2, r2, r1
+	str	r2, [r0]
+sbx_sr_loop:
+	ldr	r2, [r0]
+	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
+	beq	sbx_sr_loop
+
+	/*
+	 * UN-Mask M_RESET and CKE at board level
+	 */
+	ldr	r0, sbx_mpp_pmu_slct_reg
+	ldr	r1, [r0]
+	orr	r1, r1, r3			@ Select MPP used for CKE control as PMU MPP
+	str	r1, [r0]
+
+	ldr	r0, sbx_pmu_sig_slct_reg
+	ldr	r1, [r0]
+	ldr	r2, sbx_cke_nib_rel		@ Set PMU MPP to '0' -> release CKE forcing
+	ldr	r2, [r2]
+	orr	r1, r1, r2
+	str	r1, [r0]
+sbx_skip_cke_wa:
+
+	/*
 	 * Exit DDR self refresh mode if active
 	 * CKE and M_RESET already unmasked at BootROM level
 	 */
-	ldr	r0, sbx_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_phys
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	bic	r2, r2, r1
@@ -785,19 +818,19 @@ sbx_sr_exit_loop:
 	adr	r3, sbx_resume_after_mmu	@ physical resume address
 	ldr	r4, sbx_virt_mask
 	and	r3, r3, r4
-	ldr	r4, sbx_virt_offs
+	ldr	r4, sp_virt_offs
 	orr	r3, r3, r4			@ virtual resume address
 
 	/*
 	 * temporarily map PMU SRAM into the page table so that PA=VA
 	 * otherwise prefetch abort occurs after MMU is turned on
 	 */
-	ldr	r1, sbx_virt_offs
+	ldr	r1, sp_virt_offs
 	mov	r1, r1, lsr #20
 	ldr	r0, [r5, r1, lsl #2]		@ use PMU mapping mode
 	bic	r0, r0, #0xFF000000		@ Clear bits 24-31
 	bic	r0, r0, #0x00F00000		@ Clear bits 20-23
-	ldr	r1, sbx_phys_offs
+	ldr	r1, sp_phys_offs
 	mov	r1, r1, lsr #20
 	orr	r7, r0, r1, lsl #20		@ temporay mapping
 	ldr	r4, [r5, r1, lsl #2]		@ save original mapping
@@ -831,14 +864,16 @@ sbx_resume_after_mmu:
 
 sbx_virt_mask:
 	.word (0xFFFFF)
-sbx_virt_offs:
-	.word (DOVE_SCRATCHPAD_VIRT_BASE)
-sbx_phys_offs:
-	.word (DOVE_SCRATCHPAD_PHYS_BASE)
-sbx_ctrl_reg:
-	.word (DOVE_SB_REGS_PHYS_BASE + PMU_CTRL_REG)
 sbx_sply_ctrl_reg:
 	.word (DOVE_SB_REGS_PHYS_BASE + PMU_PWR_SUPLY_CTRL_REG)
+sbx_mpp_pmu_slct_reg:
+	.word (DOVE_SB_REGS_PHYS_BASE + 0xD0210)
+sbx_cke_bit_mask:
+	.word (PMU_SP_CKE_BIT_MASK_ADDR_PHYS)
+sbx_pmu_sig_slct_reg:
+	.word (DOVE_SB_REGS_PHYS_BASE + PMU_SIG_SLCT_CTRL_0_REG)
+sbx_cke_nib_rel:
+	.word (PMU_SP_CKE_NIB_REL_ADDR_PHYS)
 
 
 /***************************************************************
@@ -850,11 +885,11 @@ sbx_sply_ctrl_reg:
  **************************************************************/
 ENTRY(mvPmuSramCpuDfsFunc)
 	stmfd	sp!, {r0 - r10, lr}	@ save registers on stack
-
+#if 0
 	/*
 	 * Force DDR in SR Mode
 	 */
-	ldr	r0, dfs_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_virt
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	orr	r2, r2, r1
@@ -878,7 +913,7 @@ dfs_sr_enter_loop:
 	/*
 	 * Exit DDR SR Mode
 	 */
-	ldr	r0, dfs_ctrl_reg
+	ldr	r0, pmu_ctrl_reg_virt
 	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	bic	r2, r2, r1
@@ -887,11 +922,23 @@ dfs_sr_exit_loop:
 	ldr	r2, [r0]
 	tst	r2, #PMU_CTRL_MC_SR_ACK_MASK
 	bne	dfs_sr_exit_loop
-
+#endif
 	ldmfd	sp!, {r0 - r10, pc}	@ restore regs and return
 
-dfs_ctrl_reg:
+
+/***************************************************************
+ *    SHARED LITERAL POOL
+ **************************************************************/
+sp_virt_offs:
+	.word (DOVE_SCRATCHPAD_VIRT_BASE)
+sp_phys_offs:
+	.word (DOVE_SCRATCHPAD_PHYS_BASE)
+pmu_ctrl_reg_virt:
 	.word (DOVE_SB_REGS_VIRT_BASE + PMU_CTRL_REG)
+pmu_ctrl_reg_phys:
+	.word (DOVE_SB_REGS_PHYS_BASE + PMU_CTRL_REG)
+pmu_sp_addr:
+	.word (PMU_SCRATCHPAD_INT_BASE)
 
 ENTRY(mvPmuSramFuncSZ)
 	.word	. - mvPmuSramFuncSTART + 0x4
