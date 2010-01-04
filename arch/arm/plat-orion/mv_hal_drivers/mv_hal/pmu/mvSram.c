@@ -75,10 +75,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PMU_MAX_DESCR_CNT		7		
 #define PMU_STANDBY_DESCR_CNT		5
 #define PMU_DEEPIDLE_DESCR_CNT		0
-#ifndef CONFIG_DOVE_REV_Z0
- #define PMU_SP_TARGET_ID		0xD
- #define PMU_SP_ATTRIBUTE		0x0
-#endif
+#define PMU_SP_TARGET_ID		0xD
+#define PMU_SP_ATTRIBUTE		0x0
 #define MV_PMU_POST_CFG_CNT		4			/* 3 window cfgs and DDR3 WL ODT fix */
 
 /* Defines */
@@ -94,6 +92,14 @@ typedef struct
 
 typedef struct
 {
+	MV_U32	nib_mask;					/* PMU Signal selector niblle mask used to force CKE */
+	MV_U32	nib_frc;					/* Niblle value used to force CKE '0' @ Standby entry */
+	MV_U32	nib_rel;					/* Niblle value used to release CKE @ Standby exit */
+	MV_U32	bit_mask;					/* Bit mask of MPP used to foce CKE */
+} MV_PMU_CKE_MASK;
+
+typedef struct
+{
 	MV_U32	addr;
 	MV_U32	val;
 } MV_PMU_AV_CFGS;
@@ -101,6 +107,7 @@ typedef struct
 typedef struct
 {
 	DDR_TERM_CTRL		term_ctrl;			/* Space Holder for DDR termination ctrl */
+	MV_PMU_CKE_MASK		cke_mask;			/* Space Holder for CKE WA Mask */
 	MV_DDR_INIT_POLL_AMV	init_poll;			/* DDR initialization polling info */
 	MV_DDR_BIT_CLR_AM	mask_clr;			/* CKE and M_RESET cleaing info */
 #ifdef MV_PMU_FULL_DDR3_WL
@@ -108,7 +115,7 @@ typedef struct
 #else
 	MV_DDR3_WL_SET_VAL	ddr3_wl;			/* DDR3 write leveling set info */ 
 #endif
-	MV_PMU_AV_CFGS		post_cfg[MV_PMU_POST_CFG_CNT];	/* Post DDR init configurations */
+	MV_PMU_AV_CFGS		post_cfg[MV_PMU_POST_CFG_CNT];	/* Post DDR init configurations */	 
 } MV_PMU_SRAM_DATA;
 
 /* Statics */
@@ -123,6 +130,8 @@ static MV_PMU_AV_CFGS post_init_cfgs[MV_PMU_POST_CFG_CNT] = {
 static MV_VOID * _mvPmuSramDataPtr;				/* Pointer to start of data section */
 static MV_VOID * _mvPmuSramDdrTermCtrlPtr;			/* External Read-only access */
 static MV_VOID * _mvPmuSramDdrTermCtrlPtrInt;			/* Internal Read-write access */
+static MV_VOID * _mvPmuSramCkeMaskCtrlPtr;			/* External Read-only access */
+static MV_VOID * _mvPmuSramCkeMaskCtrlPtrInt;			/* Internal Read-write access */
 static MV_VOID * _mvPmuSramDdrInitPollPtr;			/* External Read-only access */
 static MV_VOID * _mvPmuSramDdrInitPollPtrInt;			/* Internal Read-write access */
 static MV_VOID * _mvPmuSramDdrMresetPtr;			/* External Read-only access */
@@ -320,7 +329,7 @@ MV_VOID mvPmuSramStandby(MV_VOID)
 *    	MV_OK	: All Functions relocated to PMU SRAM successfully
 *	MV_FAIL	: At least on function failed relocation
 *******************************************************************************/
-MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
+MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl, MV_U32 ckeMppNum)
 {
 	/* Allocate all data needed in the SRAM */
 	if ((_mvPmuSramDataPtr = mvPmuSramRelocate(NULL, sizeof(MV_PMU_SRAM_DATA))) == NULL)
@@ -331,6 +340,7 @@ MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 
 	/* Point out the extenal location of each field */
 	_mvPmuSramDdrTermCtrlPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, term_ctrl));
+	_mvPmuSramCkeMaskCtrlPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, cke_mask));
 	_mvPmuSramDdrInitPollPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, init_poll));
 	_mvPmuSramDdrMresetPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, mask_clr));
 	_mvPmuSramDdr3wlPtr = (MV_VOID*) (_mvPmuSramDataPtr + offsetof(MV_PMU_SRAM_DATA, ddr3_wl));
@@ -338,6 +348,7 @@ MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 
 	/* Convert DDR init poll address from External to Internal Space */
 	_mvPmuSramDdrTermCtrlPtrInt = PmuExt2Int(_mvPmuSramDdrTermCtrlPtr);
+	_mvPmuSramCkeMaskCtrlPtrInt = PmuExt2Int(_mvPmuSramCkeMaskCtrlPtr);
 	_mvPmuSramDdrInitPollPtrInt = PmuExt2Int(_mvPmuSramDdrInitPollPtr);
 	_mvPmuSramDdrMresetPtrInt = PmuExt2Int(_mvPmuSramDdrMresetPtr);
 	_mvPmuSramDdr3wlPtrInt = PmuExt2Int(_mvPmuSramDdr3wlPtr);
@@ -345,6 +356,7 @@ MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 
 	dbg_print("_mvPmuSramDataPtr          = %08x\n", (MV_U32)_mvPmuSramDataPtr);
 	dbg_print("_mvPmuSramDdrTermCtrlPtr   = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdrTermCtrlPtr, (MV_U32)_mvPmuSramDdrTermCtrlPtrInt);
+	dbg_print("_mvPmuSramCkeMaskCtrlPtr   = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramCkeMaskCtrlPtr, (MV_U32)_mvPmuSramCkeMaskCtrlPtrInt);
 	dbg_print("_mvPmuSramDdrInitPollPtr   = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdrInitPollPtr, (MV_U32)_mvPmuSramDdrInitPollPtrInt);
 	dbg_print("_mvPmuSramDdrMresetPtr     = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdrMresetPtr, (MV_U32)_mvPmuSramDdrMresetPtrInt);
 	dbg_print("_mvPmuSramDdr3wlPtr        = %08x (Internal = %08x)\n", (MV_U32)_mvPmuSramDdr3wlPtr, (MV_U32)_mvPmuSramDdr3wlPtrInt);
@@ -420,6 +432,22 @@ MV_STATUS mvPmuSramInit (MV_32 ddrTermGpioCtrl)
 		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->addr = 0x0;
 		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->mask = 0x0;
 		((DDR_TERM_CTRL*)_mvPmuSramDdrTermCtrlPtrInt)->off_val = 0x0;
+	}
+
+	/* Fill in the CKE mask control */
+	if ((ckeMppNum >= 0) | (ddrTermGpioCtrl <= 7))
+	{
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->nib_mask = (0xF << (ckeMppNum*4));
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->nib_frc = (PMU_SIGNAL_1 << (ckeMppNum*4));
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->nib_rel = (PMU_SIGNAL_0 << (ckeMppNum*4));
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->bit_mask = (0x1 << ckeMppNum);
+	}
+	else
+	{
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->nib_mask = 0x0;
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->nib_frc = 0x0;
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->nib_rel = 0x0;
+		((MV_PMU_CKE_MASK*)_mvPmuSramCkeMaskCtrlPtr)->bit_mask = 0x0;
 	}
 
 	return MV_OK;
@@ -517,21 +545,15 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 	MV_U32 reg, i, cnt;
 	MV_U32 clear_size = (mvDramIfParamCountGet() * sizeof(MV_DDR_MC_PARAMS));
 	MV_U32 * ptr = (MV_U32*) _mvPmuSramDdrParamPtrInt;
-#ifdef CONFIG_DOVE_REV_Z0
-	MV_U32 * srcptr = (MV_U32*) (PMU_SCRATCHPAD_EXT_BASE);
-	MV_U32 * dstptr = (MV_U32*) (PMU_CESA_SP_BASE);
-#endif
 
 	/* Set the resume address */
 	MV_REG_WRITE(PMU_RESUME_ADDR_REG, PmuSpVirt2Phys(_mvPmuSramStandbyExitPtr));
 
 	/* Prepare the resume control parameters */
 	reg = ((PMU_STANDBY_DESCR_CNT << PMU_RC_DISC_CNT_OFFS) & PMU_RC_DISC_CNT_MASK);	 
-#ifndef CONFIG_DOVE_REV_Z0
 	reg |= ((PMU_SP_TARGET_ID << PMU_RC_WIN6_TARGET_OFFS) & PMU_RC_WIN6_TARGET_MASK);
 	reg |= ((PMU_SP_ATTRIBUTE << PMU_RC_WIN6_ATTR_OFFS) & PMU_RC_WIN6_ATTR_MASK);
 	reg |= (DOVE_SCRATCHPAD_PHYS_BASE & PMU_RC_WIN6_BASE_MASK);
-#endif
 	MV_REG_WRITE(PMU_RESUME_CTRL_REG, reg);
 
 	/**************************************/
@@ -611,15 +633,6 @@ MV_STATUS mvPmuSramStandbyResumePrep(MV_U32 ddrFreq)
 		MV_REG_WRITE(PMU_RESUME_DESC_CTRL_REG(i), 0x0);
 		MV_REG_WRITE(PMU_RESUME_DESC_ADDR_REG(i), 0x0);
 	}
-
-#ifdef CONFIG_DOVE_REV_Z0
-	/*
-	 * PMU ScratchPad BUG workaround
-	 * Copy all SRAM to PMUSP in 32bit access
-	 */	
-	for (i=0; i<512; i++)
-		dstptr[i] = srcptr[i];
-#endif
 
 	return MV_OK;
 }
