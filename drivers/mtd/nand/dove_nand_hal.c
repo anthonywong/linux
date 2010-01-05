@@ -537,7 +537,8 @@ static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info,
 	int ret, timeout = CHIP_DELAY_TIMEOUT;
 	MV_STATUS status;
 	MV_U32	numCmds;
-	MV_NFC_MULTI_CMD descInfo[NFC_MAX_NUM_OF_DESCR];
+	/* static allocation to avoid stack overflow*/
+	static MV_NFC_MULTI_CMD descInfo[NFC_MAX_NUM_OF_DESCR];
 
 	/* Clear all status bits. */
 	MV_REG_WRITE(NFC_STATUS_REG, NFC_SR_MASK);
