@@ -117,7 +117,6 @@ static void __init rd88f6281_init(void)
 	kirkwood_i2c_init();
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	kirkwood_i2s_init();
-	platform_device_register(&rd88f6281_nand_flash);
 }
 
 static int __init rd88f6281_pci_init(void)
