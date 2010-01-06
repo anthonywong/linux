@@ -23,6 +23,7 @@
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
 #include <plat/mvsdio.h>
+#include <plat/orion_nand.h>
 #include "common.h"
 #include "mpp.h"
 
