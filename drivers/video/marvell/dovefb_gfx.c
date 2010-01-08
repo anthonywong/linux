@@ -42,7 +42,6 @@
 #include "../edid.h"
 #include <video/dovefb.h>
 #include <video/dovefbreg.h>
-#include <video/dovefb_display.h>
 
 #include "dovefb_if.h"
 #include <video/ch7025_composite.h>
@@ -50,10 +49,6 @@
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
 
-#if defined(CONFIG_DOVEFB_DISPLAY_MODE_MODULE) || \
-    defined(CONFIG_DOVEFB_DISPLAY_MODE)
-extern struct display_settings lcd_config;
-#endif
 static int dovefb_fill_edid(struct fb_info *fi,
 				struct dovefb_mach_info *dmi);
 static int wait_for_vsync(struct dovefb_layer_info *dfli);
