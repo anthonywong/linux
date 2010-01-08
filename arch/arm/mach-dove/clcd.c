@@ -91,67 +91,217 @@ MODULE_PARM_DESC(lcd1_enable, "set to 1 to enable LCD1 output.");
  * Default mode database.
  */
 static struct fb_videomode video_modes[] = {
-	[0] = {
+	[0] = {			/* 640x480@60 */
 	.pixclock	= 0,
 	.refresh	= 60,
-	.xres		= 640,  /* 1000 */
-	.yres		= 480,  /* 550 */
+	.xres		= 640, 
+	.yres		= 480,
 
+	.right_margin	= 16,
 	.hsync_len	= 96,
 	.left_margin	= 48,
-	.right_margin	= 16,
 
+	.lower_margin	= 11,
 	.vsync_len	= 2,
-	.upper_margin	= 33,
-	.lower_margin	= 10,
+	.upper_margin	= 31,
 	.sync		= 0,
 	},
-	[1] = {
+	[1] = {			/* 640x480@72 */
 	.pixclock	= 0,
-	.refresh	= 60,
-	.xres		= 800,	/* 960 */
-	.yres		= 600,  /* 620 */
+	.refresh	= 72,
+	.xres		= 640, 
+	.yres		= 480,
 
-	.hsync_len	= 80,
-	.left_margin	= 112,
-	.right_margin	= 32,
+	.right_margin	= 24,
+	.hsync_len	= 40,
+	.left_margin	= 128,
 
+	.lower_margin	= 9,
 	.vsync_len	= 3,
-	.upper_margin	= 18,
-	.lower_margin	= 1,
+	.upper_margin	= 28,
 	.sync		= 0,
 	},
-	[2] = {
+	[2] = {			/* 640x480@75 */
+	.pixclock	= 0,
+	.refresh	= 75,
+	.xres		= 640, 
+	.yres		= 480,
+
+	.right_margin	= 16,
+	.hsync_len	= 96,
+	.left_margin	= 48,
+
+	.lower_margin	= 11,
+	.vsync_len	= 2,
+	.upper_margin	= 32,
+	.sync		= 0,
+	},
+	[3] = {			/* 640x480@85 */
+	.pixclock	= 0,
+	.refresh	= 85,
+	.xres		= 640, 
+	.yres		= 480,
+
+	.right_margin	= 32,
+	.hsync_len	= 48,
+	.left_margin	= 112,
+
+	.lower_margin	= 1,
+	.vsync_len	= 3,
+	.upper_margin	= 25,
+	.sync		= 0,
+	},
+	[4] = {			/* 800x600@56 */
+	.pixclock	= 0,
+	.refresh	= 56,
+	.xres		= 800, 
+	.yres		= 600,
+
+	.right_margin	= 32,
+	.hsync_len	= 128,
+	.left_margin	= 128,
+
+	.lower_margin	= 1,
+	.vsync_len	= 4,
+	.upper_margin	= 14,
+	.sync		= 0,
+	},
+	[5] = {			/* 800x600@60 */
 	.pixclock	= 0,
 	.refresh	= 60,
-	.xres		= 1024, /* 1200 */
-	.yres		= 600,  /* 620 */
+	.xres		= 800,
+	.yres		= 600,
 
+	.right_margin	= 40,
+	.hsync_len	= 128,
+	.left_margin	= 88,
+
+	.lower_margin	= 1,
+	.vsync_len	= 4,
+	.upper_margin	= 23,
+	.sync		= 0,
+	},
+	[6] = {			/* 800x600@72 */
+	.pixclock	= 0,
+	.refresh	= 72,
+	.xres		= 800,
+	.yres		= 600,
+
+	.right_margin	= 56,
+	.hsync_len	= 120,
+	.left_margin	= 64,
+
+	.lower_margin	= 37,
+	.vsync_len	= 6,
+	.upper_margin	= 23,
+	.sync		= 0,
+	},
+	[7] = {			/* 800x600@75 */
+	.pixclock	= 0,
+	.refresh	= 75,
+	.xres		= 800,
+	.yres		= 600,
+
+	.right_margin	= 16,
+	.hsync_len	= 80,
+	.left_margin	= 160,
+
+	.lower_margin	= 1,
+	.vsync_len	= 2,
+	.upper_margin	= 21,
+	.sync		= 0,
+	},
+	[8] = {			/* 800x600@85 */
+	.pixclock	= 0,
+	.refresh	= 85,
+	.xres		= 800,
+	.yres		= 600,
+
+	.right_margin	= 32,
+	.hsync_len	= 64,
+	.left_margin	= 152,
+
+	.lower_margin	= 1,
+	.vsync_len	= 3,
+	.upper_margin	= 27,
+	.sync		= 0,
+	},
+	[9] = {			/* 1024x600@60 */
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1024,
+	.yres		= 600,
+
+	.right_margin	= 38,
 	.hsync_len	= 100,
 	.left_margin	= 38,
-	.right_margin	= 38,
 
+	.lower_margin	= 8,
 	.vsync_len	= 4,
 	.upper_margin	= 8,
-	.lower_margin	= 8,
 	.sync		= 0,
 	},
-	[3] = {
+	[10] = {			/* 1024x768@60 */
 	.pixclock	= 0,
 	.refresh	= 60,
-	.xres		= 1024, /* 1328 */
-	.yres		= 768,  /* 816 */
+	.xres		= 1024,
+	.yres		= 768,
 
-	.hsync_len	= 104,
+	.right_margin	= 24,
+	.hsync_len	= 136,
 	.left_margin	= 160,
-	.right_margin	= 56,
 
-	.vsync_len	= 3,
-	.upper_margin	= 23,
-	.lower_margin	= 1,
+	.lower_margin	= 3,
+	.vsync_len	= 6,
+	.upper_margin	= 29,
 	.sync		= 0,
 	},
-	[4] = {
+	[11] = {			/* 1024x768@70 */
+	.pixclock	= 0,
+	.refresh	= 70,
+	.xres		= 1024,
+	.yres		= 768,
+
+	.right_margin	= 24,
+	.hsync_len	= 136,
+	.left_margin	= 144,
+
+	.lower_margin	= 3,
+	.vsync_len	= 6,
+	.upper_margin	= 29,
+	.sync		= 0,
+	},
+	[12] = {			/* 1024x768@75 */
+	.pixclock	= 0,
+	.refresh	= 75,
+	.xres		= 1024,
+	.yres		= 768,
+
+	.right_margin	= 16,
+	.hsync_len	= 96,
+	.left_margin	= 176,
+
+	.lower_margin	= 1,
+	.vsync_len	= 3,
+	.upper_margin	= 28,
+	.sync		= 0,
+	},
+	[12] = {			/* 1024x768@85 */
+	.pixclock	= 0,
+	.refresh	= 85,
+	.xres		= 1024,
+	.yres		= 768,
+
+	.right_margin	= 48,
+	.hsync_len	= 96,
+	.left_margin	= 208,
+
+	.lower_margin	= 1,
+	.vsync_len	= 3,
+	.upper_margin	= 36,
+	.sync		= 0,
+	},
+	[13] = {			/* 1280x720@60 */
 	.pixclock	= 0,
 	.refresh	= 60,
 	.xres		= 1280, /* 1328 */
@@ -166,51 +316,83 @@ static struct fb_videomode video_modes[] = {
 	.lower_margin	= 5,
 	.sync		= 0,
 	},
-	[5] = {
+	[14] = {			/* 1280x1024@60 */
 	.pixclock	= 0,
 	.refresh	= 60,
-	.xres		= 1280, /* 1440 */
-	.yres		= 1024,  /* 1050 */
+	.xres		= 1280,
+	.yres		= 1024,
 
-	.hsync_len	= 136,
-	.left_margin	= 216,
-	.right_margin	= 80,
+	.right_margin	= 48,
+	.hsync_len	= 112,
+	.left_margin	= 248,
 
-	.vsync_len	= 3,
-	.upper_margin	= 32,
 	.lower_margin	= 1,
+	.vsync_len	= 3,
+	.upper_margin	= 38,
 	.sync		= 0,
 	},
-	[6] = {
+	[15] = {			/* 1366x768@60 */
 	.pixclock	= 0,
 	.refresh	= 60,
 	.xres		= 1366,
 	.yres		= 768,
 
+	.right_margin	= 72,
 	.hsync_len	= 144,
 	.left_margin	= 216,
-	.right_margin	= 72,
 
+	.lower_margin	= 1,
 	.vsync_len	= 3,
 	.upper_margin	= 23,
-	.lower_margin	= 1,
 	.sync		= 0,
 	},
-	[7] = {
+#if 1
+	[16] = {			/* 1650x1050@60 */
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1650,
+	.yres		= 1050,
+
+	.right_margin	= 104,
+	.hsync_len	= 184,
+	.left_margin	= 288,
+
+	.lower_margin	= 1,
+	.vsync_len	= 3,
+	.upper_margin	= 33,
+	.sync		= 0,
+	},
+	[17] = {			/* 1920x1080@60 */
 	.pixclock	= 0,
 	.refresh	= 60,
 	.xres		= 1920,
 	.yres		= 1080,
 
+	.right_margin	= 88,
 	.hsync_len	= 44,
 	.left_margin	= 148,
-	.right_margin	= 88,
 
+	.lower_margin	= 4,
 	.vsync_len	= 5,
 	.upper_margin	= 36,
-	.lower_margin	= 4,
 	.sync		= 0,
 	},
+	[18] = {			/* 1920x1200@60 */
+	.pixclock	= 0,
+	.refresh	= 60,
+	.xres		= 1920,
+	.yres		= 1200,
+
+	.right_margin	= 128,
+	.hsync_len	= 208,
+	.left_margin	= 336,
+
+	.lower_margin	= 1,
+	.vsync_len	= 3,
+	.upper_margin	= 38,
+	.sync		= 0,
+	},
+#endif
 
 };
 
