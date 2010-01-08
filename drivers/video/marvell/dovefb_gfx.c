@@ -421,15 +421,11 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 		writel(irq_ena | DOVEFB_GFX_INT_MASK | DOVEFB_VSYNC_INT_MASK, 
 		       dfli->reg_base + SPU_IRQ_ENA);
 		
-		//rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
-		//				      atomic_read(&dfli->w_intr), 40);
-		rc = wait_event_interruptible(dfli->w_intr_wq,
-						      atomic_read(&dfli->w_intr));
+		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
+						      atomic_read(&dfli->w_intr), 4);
 		if ( rc < 0)
 			printk(KERN_ERR "%s: gfx wait for vsync timed out, rc %d\n",
 				__func__, rc);
-		//else
-		//	printk(KERN_INFO "Caught VSync Event.\n");
 
 		writel(irq_ena, 
 		       dfli->reg_base + SPU_IRQ_ENA);
@@ -1351,6 +1347,7 @@ int dovefb_gfx_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 	 * init video mode data.
 	 */
 	dovefb_set_mode(dfli, &fi->var, dmi->modes, dmi->pix_fmt, 0);
+
 	/* 
 	 * configure GPIO's in order to enable the LCD panel to be ready for
 	 * reading the edid data
