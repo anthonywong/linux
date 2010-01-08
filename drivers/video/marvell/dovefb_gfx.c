@@ -1121,6 +1121,75 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 	return;
 }
 
+const struct fb_videomode *dovefb_find_nearest_mode(const struct fb_videomode *mode,
+					        struct list_head *head)
+{
+	struct list_head *pos;
+	struct fb_modelist *modelist;
+	struct fb_videomode *cmode, *best = NULL;
+	u32 diff = -1, diff_refresh = -1;
+	u32 idx = 0;
+
+	list_for_each(pos, head) {
+		u32 d;
+
+		modelist = list_entry(pos, struct fb_modelist, list);
+		cmode = &modelist->mode;
+		d = abs(cmode->xres - mode->xres) +
+			abs(cmode->yres - mode->yres);
+		if (diff > d) {
+			diff = d;
+			best = cmode;
+			diff_refresh = -1;
+
+			d = abs(cmode->refresh - mode->refresh);
+			if (diff_refresh > d) {
+				diff_refresh = d;
+			}
+		} else if (diff == d) {
+			d = abs(cmode->refresh - mode->refresh);
+			if (diff_refresh > d) {
+				diff_refresh = d;
+				best = cmode;
+			}
+		}
+
+		idx++;
+	}
+
+	return best;
+}
+
+static void dovefb_list_vmode(const char *id, struct list_head *head)
+{
+	struct list_head *pos;
+	struct fb_modelist *modelist;
+	struct fb_videomode *m = NULL;
+	u32 idx = 0;
+
+	printk(KERN_INFO "------------<%s video mode database>-----------\n", id);
+	list_for_each(pos, head) {
+
+		modelist = list_entry(pos, struct fb_modelist, list);
+		m = &modelist->mode;
+
+		if (m)
+			printk(KERN_INFO "mode %d: <%4dx%4d@%d> pico=%d\n"
+				"\tfb timings   %4d %4d %4d %4d %4d %4d\n"
+				"\txorg timings %4d %4d %4d %4d %4d %4d %4d %4d\n",
+				idx++, m->xres, m->yres, m->refresh, m->pixclock,
+				m->left_margin, m->right_margin, m->upper_margin, m->lower_margin, m->hsync_len, m->vsync_len,
+				m->xres,
+				m->xres + m->right_margin,
+				m->xres + m->right_margin + m->hsync_len,
+				m->xres + m->right_margin + m->hsync_len + m->left_margin,
+				m->yres,
+				m->yres + m->lower_margin,
+				m->yres + m->lower_margin + m->vsync_len,
+				m->yres + m->lower_margin + m->vsync_len + m->upper_margin);
+				
+	}
+}
 
 static int dovefb_init_mode(struct fb_info *fi,
 				struct dovefb_mach_info *dmi)
@@ -1132,7 +1201,7 @@ static int dovefb_init_mode(struct fb_info *fi,
 	u32 total_w, total_h, refresh;
 	u64 div_result;
 	const struct fb_videomode *m;
-
+	
 	/*
 	 * Set default value
 	 */
@@ -1147,12 +1216,17 @@ static int dovefb_init_mode(struct fb_info *fi,
 					&fi->modelist);
 
 	/*
+	 * Print all video mode in current mode list.
+	 */
+	dovefb_list_vmode(fi->fix.id, &fi->modelist);
+
+	/*
 	 * Check if we are in fixed output mode.
 	 */
 	if (info->fixed_output) {
 		var->xres = info->out_vmode.xres;
 		var->yres = info->out_vmode.yres;
-		m = fb_find_best_mode(&fi->var, &fi->modelist);
+		m = dovefb_find_nearest_mode(&info->out_vmode, &fi->modelist);
 		if (m)
 			info->out_vmode = *m;
 		else {
@@ -1174,9 +1248,9 @@ static int dovefb_init_mode(struct fb_info *fi,
 	}
 
 	/* try to find best video mode. */
-	m = fb_find_best_mode(&fi->var, &fi->modelist);
+	m = dovefb_find_nearest_mode(&info->dft_vmode, &fi->modelist);
 	if (m) {
-		info->out_vmode = *m;
+		printk(KERN_INFO "found <%dx%d@%d>, pixclock=%d\n", m->xres, m->yres, m->refresh, m->pixclock);
 		fb_videomode_to_var(&fi->var, m);
 	} else {
 		printk("Video mode list doesn't contain %dx%d, "
@@ -1192,9 +1266,15 @@ static int dovefb_init_mode(struct fb_info *fi,
 			printk("Can't find 1024x768 either!!!\n");
 			return -1;
 		}
-		info->out_vmode = *m;
 		fb_videomode_to_var(&fi->var, m);
 	}
+
+	/*
+	 * if not using fixed output mode, fixed output mode should be
+	 * equal to current video mode.
+	 */
+	if(!info->fixed_output)
+		info->out_vmode = *m;
 
 	/* Init settings. */
 	var->xres_virtual = var->xres;
@@ -1218,11 +1298,17 @@ static int dovefb_init_mode(struct fb_info *fi,
 int dovefb_gfx_suspend(struct dovefb_layer_info *dfli, pm_message_t mesg)
 {
 	struct fb_info *fi = dfli->fb_info;
+	struct fb_var_screeninfo *var = &fi->var;
 
-	printk(KERN_INFO "dovefb_gfx_suspend(): state = %d.\n", mesg.event);
+	printk(KERN_INFO "dovefb_gfx: dovefb_gfx_suspend(): state = %d.\n",
+		mesg.event);
+	printk(KERN_INFO "dovefb_gfx: suspend lcd %s\n", fi->fix.id);
+	printk(KERN_INFO "dovefb_gfx: save resolution: <%dx%d>\n",
+		var->xres, var->yres);
 
+#ifndef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 	init_ext_divider = 0;
-
+#endif
 	if (mesg.event & PM_EVENT_SLEEP) {
 		fb_set_suspend(fi, 1);
 		dovefb_blank(FB_BLANK_POWERDOWN, fi);
@@ -1234,8 +1320,12 @@ int dovefb_gfx_suspend(struct dovefb_layer_info *dfli, pm_message_t mesg)
 int dovefb_gfx_resume(struct dovefb_layer_info *dfli)
 {
 	struct fb_info *fi = dfli->fb_info;
+	struct fb_var_screeninfo *var = &fi->var;
 
-	printk(KERN_INFO "dovefb_gfx_resume().\n");
+	printk(KERN_INFO "dovefb_gfx: dovefb_gfx_resume().\n");
+	printk(KERN_INFO "dovefb_gfx: resume lcd %s\n", fi->fix.id);
+	printk(KERN_INFO "dovefb_gfx: restore resolution: <%dx%d>\n",
+		var->xres, var->yres);
 
 	dovefb_set_defaults(dfli);
 	dfli->active = 1;
@@ -1245,7 +1335,7 @@ int dovefb_gfx_resume(struct dovefb_layer_info *dfli)
 				"dovefb_gfx_set_par().\n");
 		return -1;
 	}
-
+	
 	fb_set_suspend(fi, 0);
 	dovefb_blank(FB_BLANK_UNBLANK, fi);
 
