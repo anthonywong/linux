@@ -4,6 +4,10 @@ linux-fsl-imx51 (2.6.31-601.4) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Upstream Kernel Changes ]
+
+  * Update to official 2.6.31 BSP release from Freescale.
+
  -- Andy Whitcroft <apw@canonical.com>  Mon, 11 Jan 2010 15:35:58 +0000
 
 linux-fsl-imx51 (2.6.31-601.3) lucid; urgency=low
