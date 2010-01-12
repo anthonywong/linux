@@ -55,9 +55,6 @@ static int bluetooth_power_rfkill_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	/* force Bluetooth off during init to allow for user control */
-	rfkill_init_sw_state(rfkill, 1);
-
 	ret = rfkill_register(rfkill);
 	if (ret) {
 		printk(KERN_DEBUG
@@ -135,8 +132,7 @@ static void __exit bluetooth_power_exit(void)
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("MSM Bluetooth power control driver");
-MODULE_VERSION("1.20");
-MODULE_PARM_DESC(power, "MSM Bluetooth power switch (bool): 0,1=off,on");
+MODULE_VERSION("1.30");
 
 module_init(bluetooth_power_init);
 module_exit(bluetooth_power_exit);
