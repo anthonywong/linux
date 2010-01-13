@@ -4,6 +4,8 @@
 
 #include <linux/i2c.h>
 #include <video/kg2.h>
+#include "autocalib.h"
+#include "kg2_i2c.h"
 #include "kg2_regs.h"
 #include "scripts/step1_INIT_part1.h"
 #include "scripts/step2_INIT_part2.h"
@@ -12,15 +14,18 @@
 #include "scripts/step5_Dove_1024x600_1080P.h"
 #include "scripts/step6_scaler.h"
 
-#define DBG_I2C_DATA_PER_LINE   16
-#define DBG_I2C_LENGTH_PER_DATA 3
-#define DBG_I2C_LENGTH_PER_LINE (DBG_I2C_DATA_PER_LINE * DBG_I2C_LENGTH_PER_DATA + 1)
-//#define DEBUG				// For detail debug messages, including I2C write operations
 
 #define I2C_PAGE_WRITE		0x20	// 0x40 while DEV_ADDR_SEL = 1
 #define I2C_PAGE_READ		0x21	// 0x41 while DEV_ADDR_SEL = 1
 #define I2C_REG_WRITE		0x22	// 0x42 while DEV_ADDR_SEL = 1
 #define I2C_REG_READ		0x23	// 0x43 while DEV_ADDR_SEL = 1
+
+
+// Glocal variable definitions
+bool				bI2CBusy = false;				// Used to detect I2C bus collision
+unsigned char			regCurrentPage = 0xFF;
+AVC_CMD_TIMING_PARAM		avcInputTiming = {0};
+extern struct i2c_client *	i2c_client_kg2;
 
 
 static int kg2_i2c_probe(struct i2c_client * client, const struct i2c_device_id * id);
@@ -33,7 +38,6 @@ static const struct i2c_device_id kg2_i2c_id[] = {
 	{}
 };
 
-static struct i2c_client * i2c_client_kg2 = NULL;
 static struct i2c_driver kg2_driver = {
 	.driver = {
 		.name  = "kg2_i2c",
@@ -45,12 +49,6 @@ static struct i2c_driver kg2_driver = {
 	.resume        = kg2_i2c_resume,
 	.id_table      = kg2_i2c_id,
 };
-
-
-// Glocal variable definitions
-bool				bI2CBusy = false;				// Used to detect I2C bus collision
-unsigned char			regCurrentPage = 0xFF;
-AVC_CMD_TIMING_PARAM		avcInputTiming = {0};
 
 
 static int kg2_i2c_probe(struct i2c_client * client,
@@ -90,20 +88,41 @@ static int kg2_i2c_resume(struct i2c_client * client)
 
 int kg2_initialize(void)
 {
+	unsigned char ana_stat0, page, reg;
+
 	dev_info(&i2c_client_kg2->dev, "Initialize KG2\n");
 
 	bI2CBusy = true;
 
 	// Run script - step1_INIT_part1
-	dev_info(&i2c_client_kg2->dev, "Run script - INIT_Part1\n");
+	dev_info(&i2c_client_kg2->dev, "Run script    - INIT_Part1\n");
 	if (kg2_run_script(step1_INIT_part1, step1_INIT_part1_Count) < 0)
 	{
 		bI2CBusy = false;
 		return -1;
 	}
 
+	// Wait until SSPLL is locked (ANA_STAT0 - bit 6, 0xF41)
+	dev_info(&i2c_client_kg2->dev, "Check status  - SSPLL");
+	page = 0x0F;
+	reg = 0x41;
+
+	if (kg2_i2c_write(I2C_PAGE_WRITE, 0x00, &page, sizeof(page)) == 0)
+	{
+		do
+		{
+			if (kg2_i2c_read(I2C_REG_READ, reg, &ana_stat0, sizeof(ana_stat0)) < 0)
+			{
+				goto ABORT_SSPLL_CHECK;
+			}
+		}
+		while ((ana_stat0 & 0x40) == 0);
+	}
+
+ABORT_SSPLL_CHECK:
+
 	// Run script - step2_INIT_part2.h
-	dev_info(&i2c_client_kg2->dev, "Run script - INIT_Part2\n");
+	dev_info(&i2c_client_kg2->dev, "Run script    - INIT_Part2\n");
 	if (kg2_run_script(step2_INIT_part2, step2_INIT_part2_Count) < 0)
 	{
 		bI2CBusy = false;
@@ -111,7 +130,7 @@ int kg2_initialize(void)
 	}
 
 	// Run script - step3_INIT_IP_Flexiport_RGB24_or_YCbCCr24_for_Dove.h
-	dev_info(&i2c_client_kg2->dev, "Run script - INIT_IP_Flexiport\n");
+	dev_info(&i2c_client_kg2->dev, "Run script    - INIT_IP_Flexiport\n");
 	if (kg2_run_script(step3_INIT_IP_Flexiport_RGB24_or_YCbCCr24_for_Dove,
 	                   step3_INIT_IP_Flexiport_RGB24_or_YCbCCr24_for_Dove_Count) < 0)
 	{
@@ -120,7 +139,7 @@ int kg2_initialize(void)
 	}
 
 	// Run script - step4_INIT_OP_Flexiport_RGB24_or_YCbCr24_for_Dove_RG-swap.h
-	dev_info(&i2c_client_kg2->dev, "Run script - INIT_OP_Flexiport\n");
+	dev_info(&i2c_client_kg2->dev, "Run script    - INIT_OP_Flexiport\n");
 	if (kg2_run_script(step4_INIT_OP_Flexiport_RGB24_or_YCbCr24_for_Dove_RG_swap,
 	                   step4_INIT_OP_Flexiport_RGB24_or_YCbCr24_for_Dove_RG_swap_Count) < 0)
 	{
@@ -128,8 +147,22 @@ int kg2_initialize(void)
 		return -1;
 	}
 
+	// Autocalibrate DDR2's drive strength
+	dev_info(&i2c_client_kg2->dev, "Autocalibrate - SDRAM\n");
+	if (StartSdramAutoCalibration() != 1)
+	{
+		dev_err(&i2c_client_kg2->dev, "Failed to do autocalibration.\n");
+	}
+
+	// Autocalibrate DAPLL
+	dev_info(&i2c_client_kg2->dev, "Autocalibrate - DAPLL\n");
+	if (StartPllAutoCalibration(AVC_DAPLL) != 1)
+	{
+		dev_err(&i2c_client_kg2->dev, "Failed to do autocalibration.\n");
+	}
+
 	// Run script - step5_Dove_1024x600_1080P.h
-	dev_info(&i2c_client_kg2->dev, "Run script - IP_1024x600_OP_1080P\n");
+	dev_info(&i2c_client_kg2->dev, "Run script    - IP_1024x600_OP_1080P\n");
 	if (kg2_run_script(step5_Dove_1024x600_1080P,
 	                   step5_Dove_1024x600_1080P_Count) < 0)
 	{
@@ -137,8 +170,15 @@ int kg2_initialize(void)
 		return -1;
 	}
 
+	// Autocalibrate SAPLL2
+	dev_info(&i2c_client_kg2->dev, "Autocalibrate - SAPLL2\n");
+	if (StartPllAutoCalibration(AVC_SAPLL2) != 1)
+	{
+		dev_err(&i2c_client_kg2->dev, "Failed to do autocalibration.\n");
+	}
+
 	// Run script - step6_scaler.h
-	dev_info(&i2c_client_kg2->dev, "Run script - Scaler\n");
+	dev_info(&i2c_client_kg2->dev, "Run script    - Scaler\n");
 	if (kg2_run_script(step6_scaler,
 	                   step6_scaler_Count) < 0)
 	{
@@ -161,6 +201,7 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 		pr_info("No KG2 device found\n");
 		return;
 	}
+
 	dev_info(&i2c_client_kg2->dev, "Set KG2 input timing\n");
 
 	// Log if KG2 is accessed by two or more drivers simultaneously
@@ -185,15 +226,12 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 	// Calculate the values of the active window coordinates
 	regFlexiPort.MiscInputControl.PolarityInversionforHSync	= avcInputTiming.HPolarity;
 	regFlexiPort.MiscInputControl.PolarityInversionforVSync	= avcInputTiming.VPolarity;
-
 	regFrontEnd.FeDcStrX.Value				= avcInputTiming.HTotal - avcInputTiming.HActive - avcInputTiming.HFrontPorch;
 	regFrontEnd.FeDcStrY.Value				= avcInputTiming.VTotal - avcInputTiming.VActive - avcInputTiming.VFrontPorch;
 	regFrontEnd.FeDcEndX.Value				= regFrontEnd.FeDcStrX.Value + avcInputTiming.HActive;
 	regFrontEnd.FeDcEndY.Value				= regFrontEnd.FeDcStrY.Value + avcInputTiming.VActive;
-
 	regFrontEnd.FeDcFrst					= (avcInputTiming.VTotal - avcInputTiming.VActive) / 2;
 	regFrontEnd.FeDcLrst.Value				= (avcInputTiming.HTotal - avcInputTiming.HActive - avcInputTiming.HSyncWidth) / 4;
-
 	dht							= avcInputTiming.HSyncWidth + avcInputTiming.HFrontPorch;
 	regFrontEnd.FeDeltaHtot					= (dht > 0xFF) ? (0xFF) : dht;
 
@@ -280,77 +318,6 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 	}
 
 	bI2CBusy = false;
-	return 0;
-}
-
-/*-----------------------------------------------------------------------------
- * Description : Write data to KG2 via I2C bus
- * Parameters  : baseaddr - Page/Register access (0x20/0x22 or 0x40/0x42)
- *               subaddr  - Page access: 0x00, Register access: register offset
- *               data     - Page access: page number, Register access: data
- *               dataLen  - Length of data
- * Return Type : =0 - Success
- *               <0 - Fail
- *-----------------------------------------------------------------------------
- */
-
-int kg2_i2c_write(unsigned char baseaddr, unsigned char subaddr,
-                  const unsigned char * data, unsigned short dataLen)
-{
-#if defined(DEBUG)
-	char output[DBG_I2C_LENGTH_PER_LINE];
-	int count = 0;
-#endif
-	unsigned short i = 0;
-	int result = 0;
-
-	if (i2c_client_kg2 == NULL)
-	{
-		pr_err("i2c_client_kg2 = NULL\n");
-		return -1;
-	}
-
-	for (i = 0; i < dataLen; i++)
-	{
-		i2c_client_kg2->addr = baseaddr >> 1;
-		result = i2c_smbus_write_byte_data(i2c_client_kg2,
-		                                   subaddr + i,
-		                                   data[i]);
-		if (result < 0)
-		{
-			dev_err(&i2c_client_kg2->dev,
-			        "Failed to write data via i2c. (baseaddr: 0x%02X, subaddr: 0x%02X, data: 0x%02X)\n",
-			        baseaddr, subaddr + i, data[i]);
-
-			return -1;
-		}
-
-#if defined(DEBUG)
-		count += snprintf(output + count,
-		                  DBG_I2C_LENGTH_PER_LINE - count,
-		                  " %02X",
-		                  data[i]);
-
-		if ((i == (dataLen - 1)) || (i % DBG_I2C_DATA_PER_LINE == (DBG_I2C_DATA_PER_LINE - 1)))
-		{
-			if (i < DBG_I2C_DATA_PER_LINE)
-			{
-				dev_info(&i2c_client_kg2->dev,
-				         "W - %02X %02X%s\n",
-				         baseaddr, subaddr, output);
-			}
-			else
-			{
-				dev_info(&i2c_client_kg2->dev,
-				         "         %s\n",
-				         output);
-			}
-
-			count = 0;
-		}
-#endif
-	}
-
 	return 0;
 }
 
