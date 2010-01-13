@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/suspend.h>
 #include <linux/interrupt.h>
+#include <linux/fb.h>
 #include <asm/hardware/cache-tauros2.h>
 #include <asm/mach/arch.h>
 #include <asm-arm/vfp.h>
@@ -593,7 +594,12 @@ static int pm_proc_init(void)
 }
 #endif /* CONFIG_PMU_PROC */
 
+#if defined(CONFIG_FB)
 static MV_BOOL enable_ebook = MV_TRUE;
+#else
+/* Use Deep-Idle by default if no FB in the system */
+static MV_BOOL enable_ebook = MV_FALSE;
+#endif
 
 static ssize_t ebook_show(struct kobject *kobj, struct kobj_attribute *attr,
 			 char *buf)
@@ -620,6 +626,45 @@ static ssize_t ebook_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 static struct kobj_attribute ebook_attr =
 	__ATTR(ebook, 0644, ebook_show, ebook_store);
+
+#if defined(CONFIG_FB)
+
+/* The framebuffer notifier block */
+static struct notifier_block fb_notif;
+
+/* This callback gets called when something important happens inside a
+ * framebuffer driver. If the LCD is blancking then go into Deep-Idle
+ * instead of eBook.
+ */
+static int pm_fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+
+	/* If we aren't interested in this event, skip it immediately ... */
+	if (event != FB_EVENT_BLANK && event != FB_EVENT_CONBLANK)
+		return 0;
+
+	if (*(int *)evdata->data == FB_BLANK_UNBLANK) {
+		pr_debug("FB notifier: Using eBook mode...\n");
+		enable_ebook = MV_TRUE;		/* Work in eBook mode */
+	}
+	else {
+		pr_debug("FB notifier: Using Deep-Idle mode...\n");
+		enable_ebook = MV_FALSE;	/* Work in Deep-Idle mode */
+	}
+
+	return 0;
+}
+
+static int pm_register_fb(void)
+{
+	memset(&fb_notif, 0, sizeof(fb_notif));
+	fb_notif.notifier_call = pm_fb_notifier_callback;
+	return fb_register_client(&fb_notif);
+}
+#endif /* CONFIG_FB */
+
 
 /*
  * Enter the Dove DEEP IDLE mode (power off CPU only)
@@ -834,6 +879,11 @@ void dove_pm_register (void)
 
 #ifdef CONFIG_PMU_PROC
 	pm_proc_init();
+#endif
+
+#if defined(CONFIG_FB)
+	if (pm_register_fb())
+		printk(KERN_ERR "dove_pm_register: FB notifier register failed!");
 #endif
 
 	if (mvPmuGetCurrentFreq(&freqs) == MV_OK)
