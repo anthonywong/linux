@@ -97,9 +97,9 @@ struct clkctl_acpu_speed acpu_freq_tbl_998[] = {
 
 struct clkctl_acpu_speed acpu_freq_tbl_768[] = {
 	{ 0, 19200, ACPU_PLL_TCXO, 0, 0, 0, 0, 14000, 0, 0, 1000},
+	/* Use AXI source. Row number in acpuclk_init() must match this. */
 	{ 0, 128000, ACPU_PLL_1, 1, 5, 0, 0, 14000, 2, 0, 1000},
 	{ 1, 245760, ACPU_PLL_0, 4, 0, 0, 0, 29000, 0, 0, 1000},
-	/* Update AXI_S and PLL0_S macros if above row numbers change. */
 	{ 1, 384000, ACPU_PLL_3, 0, 0, 0, 0, 58000, 1, 0xA, 1075},
 	{ 0, 422400, ACPU_PLL_3, 0, 0, 0, 0, 117000, 1, 0xB, 1100},
 	{ 0, 460800, ACPU_PLL_3, 0, 0, 0, 0, 117000, 1, 0xC, 1125},
@@ -115,17 +115,6 @@ struct clkctl_acpu_speed acpu_freq_tbl_768[] = {
 };
 
 static struct clkctl_acpu_speed *acpu_freq_tbl = acpu_freq_tbl_998;
-#define AXI_S	(&acpu_freq_tbl[1])
-#define PLL0_S	(&acpu_freq_tbl[2])
-
-/* Use 128MHz for PC since ACPU will auto-switch to AXI (128MHz) before
- * coming back up. This allows detection of return-from-PC, since 128MHz
- * is only used for power collapse. */
-#define POWER_COLLAPSE_KHZ (AXI_S->acpuclk_khz)
-/* Use 245MHz (not 128MHz) for SWFI to avoid unnecessary steps between
- * 128MHz<->245MHz. Jumping to high frequencies from 128MHz directly
- * is not allowed. */
-#define WAIT_FOR_IRQ_KHZ (PLL0_S->acpuclk_khz)
 
 #ifdef CONFIG_CPU_FREQ_MSM
 static struct cpufreq_frequency_table freq_table[20];
