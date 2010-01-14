@@ -85,6 +85,12 @@ extern char *useNandHal;
 #define LCD_SCLK	(CONFIG_FB_DOVE_CLCD_SCLK_VALUE*1000*1000)
 #endif
 
+/*
+ * LCD HW output Red[0] to LDD[0] when set bit [19:16] of reg 0x190
+ * to 0x0. Which means HW outputs BGR format default. All platforms
+ * uses this controller should enable .panel_rbswap. Unless layout
+ * design connects Blue[0] to LDD[0] instead.
+ */
 static struct dovefb_mach_info dove_db_lcd0_dmi = {
 	.id_gfx			= "GFX Layer 0",
 	.id_ovly		= "Video Layer 0",
