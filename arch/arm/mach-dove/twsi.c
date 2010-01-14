@@ -13,7 +13,7 @@
 #include <mach/dove.h>
 
 #include "twsi.h"
-#ifndef CONFIG_DOVE_REV_Z0
+
 static void dove_twsi_option_set(dove_twsi_option option, unsigned int enable)
 {
 	u32	reg;
@@ -48,13 +48,10 @@ static void dove_twsi_option_set(dove_twsi_option option, unsigned int enable)
 
 	writel(reg, addr);	
 }
-#endif
 
 static unsigned int port_id_old;
 int dove_select_exp_port(unsigned int port_id)
 {
-#ifndef CONFIG_DOVE_REV_Z0
-
 	if(port_id_old != port_id)
 	{	       
 		/* disable all*/
@@ -66,13 +63,11 @@ int dove_select_exp_port(unsigned int port_id)
 		dove_twsi_option_set(port_id, 1);
 		port_id_old = port_id;
 	}
-#endif
+
 	return 0;
 }
 
 void dove_reset_exp_port()
 {
-#ifndef CONFIG_DOVE_REV_Z0
 	port_id_old = 0;
-#endif
 }

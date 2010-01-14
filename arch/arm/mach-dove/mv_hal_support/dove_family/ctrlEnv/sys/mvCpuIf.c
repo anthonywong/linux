@@ -1048,13 +1048,6 @@ MV_VOID mvCpuIfEnablePmu(void)
 {
 	MV_U32 reg;
 
-#ifdef CONFIG_DOVE_REV_Z0
-	/* Reset bit0 in the Reset Strap since it is mixed up with the test mode in the BootROM */
-	reg = MV_REG_READ(MPP_SAMPLE_AT_RESET_REG0);
-	reg &= ~0x1;
-	MV_REG_WRITE(MPP_SAMPLE_AT_RESET_REG0, reg);
-#endif
-
 	reg = MV_REG_READ(CPU_CONTROL_REG);
 	reg |= CPU_CTRL_PMU_CPU_RST_EN_MASK;
 	MV_REG_WRITE(CPU_CONTROL_REG, reg);

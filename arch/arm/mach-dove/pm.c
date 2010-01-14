@@ -273,11 +273,7 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		printk("Enter DeepIdle mode ");
 		mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_REG);
 		mc2 = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
-#ifdef CONFIG_DOVE_REV_Z0
-		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x100); /* disable all interrupts except UART1 */
-#else
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x80); /* disable all interrupts except UART0 */
-#endif
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, 0x0);
 		dove_pm_cpuidle_deepidle();
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, mc);
@@ -309,11 +305,7 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		printk("Enter WFI mode ");
 		mc = MV_REG_READ(CPU_MAIN_IRQ_MASK_REG);
 		mc2 = MV_REG_READ(CPU_MAIN_IRQ_MASK_HIGH_REG);
-#ifdef CONFIG_DOVE_REV_Z0
-		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x100); /* disable all interrupts except UART1 */
-#else
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_REG, 0x80); /* disable all interrupts except UART0 */
-#endif
 		MV_REG_WRITE(CPU_MAIN_IRQ_MASK_HIGH_REG, 0x0);		
 
 #ifdef CONFIG_DOVE_DEBUGGER_MODE_V6

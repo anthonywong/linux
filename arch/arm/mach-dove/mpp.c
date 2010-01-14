@@ -125,7 +125,6 @@ struct mpp_config dove_mpp_table[] __initdata =
 	/* MPP 19 */
 	{{{MPP_GPIO, 0}, {MPP_UART3, 2}, {MPP_TWSI, 4}, {MPP_MII, 6}, MPP_LAST3},
 	 dove_mpp_legacy_config},
-#ifndef CONFIG_DOVE_REV_Z0
 	/* MPP 20 */
 	{{{MPP_GPIO, 0}, {MPP_NB_CLOCK, 4}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST3},
 	 dove_mpp_legacy_config},
@@ -138,20 +137,6 @@ struct mpp_config dove_mpp_table[] __initdata =
 	/* MPP 23 */
 	{{{MPP_GPIO, 0}, {MPP_LCD0_SPI, 2}, {MPP_SPI1, 6}, MPP_LAST4},
 	 dove_mpp_legacy_config},
-#else
-	/* MPP 20 */
-	{{{MPP_GPIO, 0}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_SDIO0, 5}, MPP_LAST3},
-	 dove_mpp_legacy_config},
-	/* MPP 21 */
-	{{{MPP_GPIO, 0}, {MPP_UART1, 1}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_NB_CLOCK, 4}, {MPP_SDIO0, 5}, MPP_LAST},
-	 dove_mpp_legacy_config},
-	/* MPP 22 */
-	{{{MPP_GPIO, 0}, {MPP_UART1, 1}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_SDIO0, 5}, MPP_LAST2},
-	 dove_mpp_legacy_config},
-	/* MPP 23 */
-	{{{MPP_GPIO, 0}, {MPP_SPI1, 2}, {MPP_SDIO1, 3}, {MPP_SDIO0, 5}, MPP_LAST3},
-	 dove_mpp_legacy_config},
-#endif
 	/* MPP 24 */
 	{{{MPP_GPIO, 2}, {MPP_CAM, 2}, MPP_LAST5},
 	 dove_mpp_high_config},
@@ -376,7 +361,6 @@ int __init dove_mpp_high_config(int mpp, enum dove_mpp_type type, int mask)
 
 	writel(mpp_ctrl, DOVE_MPP_CTRL4_VIRT_BASE);
 
-#ifndef CONFIG_DOVE_REV_Z0
 	if (mpp >= 52 && mpp <= 55) {
 		u32 ssp_ctrl = readl(DOVE_SSP_CTRL_STATUS_1);
 
@@ -403,7 +387,7 @@ int __init dove_mpp_high_config(int mpp, enum dove_mpp_type type, int mask)
 			mpp_general_config &= ~DOVE_AU1_SPDIFO_GPIO_EN;
 		writel(mpp_general_config, DOVE_MPP_GENERAL_VIRT_BASE);
 	}
-#endif
+
 	return 0;
 }
 
