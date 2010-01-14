@@ -223,29 +223,6 @@ extern "C" {
 
 #ifndef MV_ASMLANGUAGE
 
-#ifdef CONFIG_DOVE_REV_Z0
-
-/* CPU clock for 6781Z0. 0->Resereved */
-#define MV_CPU_CLCK_TBL { 	0,		0, 		0, 		1200000000,	\
-			     	1067000000, 	933000000,	800000000,	667000000,	\
-			     	533000000, 	0,		0,		0,		\
-			     	0,		0,		0,		0}
-/* DDR clock RATIO for 6781Z0. {0,0}->Reserved */
-#define MV_DDR_CLCK_RTIO_TBL	{\
-	{1, 1}, {3, 2}, {2, 1}, {5, 2}, \
-	{3, 1}, {7, 2}, {4, 1}, {9, 2}, \
-	{5, 1}, {11, 2}, {6, 1}, {13, 2}, \
-	{7, 1}, {15, 2}, {8, 1}, {10, 1} \
-}
-
-/* L2 clock RATIO for 6781Z0. {0,0}->Reserved */
-#define MV_L2_CLCK_RTIO_TBL	{\
-	{0, 0}, {3, 2}, {2, 1}, {5, 2}, \
-	{3, 1}, {7, 2}, {4, 1}, {0, 0} \
-}
-
-#else /* CONFIG_DOVE_REV_Y0 */
-
 /* CPU clock for 6781Y0. 0->Resereved */
 #define MV_CPU_CLCK_TBL { 	0,		0, 		0, 		0,		\
 			     	0,		1000000000, 	933000000,	933000000,	\
@@ -265,9 +242,6 @@ extern "C" {
 	{1, 1}, {0, 0}, {2, 1}, {0, 0}, \
 	{3, 1}, {0, 0}, {4, 1}, {0, 0} \
 }
-
-#endif /* CONFIG_DOVE_REV_Z0 */
-
 
 /* These macros help units to identify a target Mbus Arbiter group */
 #define MV_PCI_DRAM_BAR_TO_DRAM_TARGET(bar)   0

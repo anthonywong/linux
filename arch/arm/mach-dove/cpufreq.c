@@ -24,46 +24,6 @@
 /*
  * Following table maps 4 bit reset sample to CPU clock.
  */
-#ifdef CONFIG_DOVE_REV_Z0
-u32 dove_sar2cpu_clk[] = { 0, 0, 0, /* 0x0 -> 0x2 reserved */
-			   1200000, 1067000, 933000,
-			   800000, 667000, 533000,
-			   400000, /* 0x9 -> Should be reserved */
-			   0, 0, 0, 0, 0, 0}; /* 0x10->0x15 reserved */
-/*
- * Following table maps 3 bit reset sample to CPU:L2 ratio.
- */
-					/* CPU : L2 */
-u32 dove_sar_cpu2l2_ratio[] = { 0, 	/* Reserved */
-				15, 	/* 1 : 1.5 */
-				20, 	/* 1 : 2 */
-				25, 	/* 1 : 2.5 */
-				30, 	/* 1 : 3 */
-				35, 	/* 1 : 3.5 */
-				40, 	/* 1 : 4 */
-				0};	/* Reserved */
-
-/*
- * Following table maps 4 bit reset sample to CPU:DDR ratio.
- */
-					/* CPU : DDR */
-u32 dove_sar_cpu2ddr_ratio[] = {10, 	/* 1 : 1 */
-				15, 	/* 1 : 1.5 */
-				20, 	/* 1 : 2 */
-				25, 	/* 1 : 2.5 */
-				30, 	/* 1 : 3 */
-				35, 	/* 1 : 3.5 */
-				40, 	/* 1 : 4 */
-				45,	/* 1 : 4.5 */
-				50, 	/* 1 : 5 */
-				55, 	/* 1 : 5.5 */
-				60, 	/* 1 : 6 */
-				65, 	/* 1 : 6.5 */
-				70, 	/* 1 : 7 */
-				75, 	/* 1 : 7.5 */
-				80, 	/* 1 : 8 */
-				100};	/* 1 : 10 */
-#else
 u32 dove_sar2cpu_clk[] = { 0, 0, 0, 0, 0, /* 0->4 are reserved */
 			   1000000, 933000, 933000,
 			   800000, 800000, 800000,
@@ -103,7 +63,6 @@ u32 dove_sar_cpu2ddr_ratio[] = {10, 	/* 1:1 */
 				0, 	/* Reserved */
 				80, 	/* 1:8 */
 				100};	/* 1:10 */
-#endif
 
 enum dove_cpufreq_range {
 	DOVE_CPUFREQ_DDR 	= 0,
