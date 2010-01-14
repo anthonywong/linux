@@ -15,7 +15,14 @@ if MISC_DEVICES
 
 config ANDROID_PMEM
 	bool "Android pmem allocator"
+	depends on ARCH_MSM
 	default y
+	help
+	  Select this to enable the Android physical memory allocator.
+	  This device is needed by some multi-media device drivers,
+	  typically those on Qualcomm MSM SOCs.  Despite the name, this
+	  driver isn't specific to the Android platform and is needed for
+	  any kernel running on these devices.
 
 config ANDROID_PMEM_DEBUG
 	bool "Android pmem debug"
