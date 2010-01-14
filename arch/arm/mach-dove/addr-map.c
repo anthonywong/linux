@@ -125,13 +125,11 @@ void __init dove_setup_cpu_mbus(void)
 		setup_cpu_win(5, DOVE_BOOTROM_PHYS_BASE, DOVE_BOOTROM_SIZE,
 			      TARGET_BOOTROM, ATTR_DEV_SPI0_ROM, -1);
 
-#ifndef CONFIG_DOVE_REV_Z0
 	/*
 	 * Setup the Window to the PMU Scratch Pad space
 	 */
 	setup_cpu_win(6, DOVE_SCRATCHPAD_PHYS_BASE, DOVE_SCRATCHPAD_SIZE,
 		      TARGET_SCRATCHPAD, ATTR_SCRATCHPAD, -1);
-#endif
 
 	/*
 	 * Setup MBUS dram target info.
