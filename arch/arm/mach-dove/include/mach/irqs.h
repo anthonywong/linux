@@ -71,21 +71,10 @@
 #define IRQ_DOVE_LCD1		46
 #define IRQ_DOVE_LCD0		47
 #define IRQ_DOVE_GPU		48
-#ifdef	CONFIG_DOVE_REV_Z0
-#define IRQ_DOVE_VMETA_DMA0	50
-#define IRQ_DOVE_VMETA_DMA1	51
-#define IRQ_DOVE_VMETA_DMA2	52
-#define IRQ_DOVE_VMETA_SEM2	53
-#define IRQ_DOVE_VMETA_SEM1	54
-#define IRQ_DOVE_VMETA_SEM0	55
-#elif	CONFIG_DOVE_REV_Y0
 #define IRQ_DOVE_PERFORM_MNTR	49
 #define IRQ_DOVE_VMETA_DMA1	51
 #define IRQ_DOVE_SSP_TIMER	54
 #define IRQ_DOVE_SSP		55
-#else
-#error "chip revision not defined"
-#endif
 #define IRQ_DOVE_MC_L2_ERR	56
 #define IRQ_DOVE_CRYPTO_ERR	59
 #define IRQ_DOVE_GPIO_24_31	60
