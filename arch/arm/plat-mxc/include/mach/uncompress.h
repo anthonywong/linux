@@ -68,7 +68,9 @@ static void putc(int ch)
 	UART(TXR) = ch;
 }
 
-#define flush() do { } while (0)
+static inline void flush(void)
+{
+}
 
 /*
  * nothing to do
