@@ -892,9 +892,7 @@ void __init dove_uart3_init(void)
  ****************************************************************************/
 static struct orion_spi_info dove_spi0_data = {
 	.tclk		= 0,
-#ifndef CONFIG_DOVE_REV_Z0
 	.optional_div	= 1,
-#endif
 };
 
 static struct resource dove_spi0_resources[] = {
@@ -930,10 +928,7 @@ void __init dove_spi0_init(int use_interrupt)
  ****************************************************************************/
 static struct orion_spi_info dove_spi1_data = {
 	.tclk		= 0,
-#ifndef CONFIG_DOVE_REV_Z0
 	.optional_div	= 1,
-#endif
-
 };
 
 static struct resource dove_spi1_resources[] = {
@@ -1080,7 +1075,7 @@ void __init dove_i2c_exp_init(int nr)
 		dove_i2c_exp_port0_data.hw_adapter = &dove_i2c;
 		platform_device_register(&dove_i2c_exp_port0);
 	}
-#ifndef CONFIG_DOVE_REV_Z0
+
 	if (nr == 1) {
 		dove_i2c_exp_port1_data.hw_adapter = &dove_i2c;
 		platform_device_register(&dove_i2c_exp_port1);
@@ -1089,7 +1084,6 @@ void __init dove_i2c_exp_init(int nr)
 		dove_i2c_exp_port2_data.hw_adapter = &dove_i2c;
 		platform_device_register(&dove_i2c_exp_port2);
 	}
-#endif
 #endif
 }
 /*****************************************************************************
@@ -1354,7 +1348,6 @@ void __init dove_gpu_init(void)
 }
 
 
-#ifndef CONFIG_DOVE_REV_Z0
 /*****************************************************************************
  * SSP
  ****************************************************************************/
@@ -1411,7 +1404,6 @@ void __init dove_ssp_init(struct dove_ssp_platform_data *pdata)
 	dove_ssp_pdev.dev.platform_data = pdata;
 	platform_device_register(&dove_ssp_pdev);
 }
-#endif
 
 
 /*****************************************************************************
@@ -1768,11 +1760,7 @@ void __init dove_config_arbitration(void)
 	u32 sc_dec;
 
 	sc_dec = readl(DOVE_MC_VIRT_BASE + 0x280);
-	printk("PLiao: DOVE_MC @ 0x280 is %08X\n", sc_dec);
-	#ifdef CONFIG_DOVE_REV_Z0
-	sc_dec &= 0xfffff0ff;
-	sc_dec |= 0x00000e00;
-	#endif
+	printk("DOVE_MC @ 0x280 is %08X\n", sc_dec);
 	#ifdef CONFIG_DOVE_REV_Y0
 	sc_dec &= 0xfff0ffff;
 	sc_dec |= 0x000e0000;
@@ -1803,9 +1791,6 @@ void __init dove_config_arbitration(void)
         printk("PLiao: DOVE_MC @ 0x510 is %08X\n", sc_dec);
 	
 	sc_dec &= 0xf0f0f0f0;
-#ifdef CONFIG_DOVE_REV_Z0
-	sc_dec |= 0x010e0101;
-#endif
 #ifdef CONFIG_DOVE_REV_Y0
 	sc_dec |= 0x01010101;
 #endif

@@ -120,12 +120,7 @@ extern "C" {
 #define MV_XOR_MAX_CHAN         	4 /* total channels for all units together */
 #define MV_XOR_MAX_CHAN_PER_UNIT       	2 /* channels for units */
 #define MV_SATA_MAX_CHAN	 	1
-
-#ifdef CONFIG_DOVE_REV_Z0 
-#define MV_TWSI_MAX_CHAN		1
-#else
 #define MV_TWSI_MAX_CHAN		3
-#endif /* CONFIG_DOVE_REV_Z0 */
 
 /* channel ranges for twsi units */
 #define MV_TWSI_UNIT_SOC_MIN_CHANNEL		0

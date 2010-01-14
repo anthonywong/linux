@@ -201,7 +201,6 @@ static void dove_clocks_set_vmeta_clock(u32 divider)
 	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 21, 21, 0);
 }
 
-#ifndef CONFIG_DOVE_REV_Z0
 static void dove_clocks_set_lcd_clock(u32 divider)
 {
 	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0068, 10, 10, 1);
@@ -211,7 +210,6 @@ static void dove_clocks_set_lcd_clock(u32 divider)
 	udelay(1);
 	dove_clocks_set_bits(DOVE_SB_REGS_VIRT_BASE + 0x000D0064, 28, 28, 0);
 }
-#endif
 
 static void dove_clocks_set_axi_clock(u32 divider)
 {
@@ -267,7 +265,6 @@ static int vmeta_set_clock(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-#ifndef CONFIG_DOVE_REV_Z0
  int lcd_set_clock(struct clk *clk, unsigned long rate)
 {
 	u32 divider;
@@ -278,20 +275,16 @@ static int vmeta_set_clock(struct clk *clk, unsigned long rate)
 	dove_clocks_set_lcd_clock(divider);
 	return 0;
 }
-#endif
+
 static void __lcd_clk_enable(struct clk *clk)
 {
-#ifndef CONFIG_DOVE_REV_Z0
 	dove_clocks_set_lcd_clock(1);
-#endif
 	return;
 }
 
 static void __lcd_clk_disable(struct clk *clk)
 {
-#ifndef CONFIG_DOVE_REV_Z0
 	dove_clocks_set_lcd_clock(0);
-#endif
 	return;
 }
 
