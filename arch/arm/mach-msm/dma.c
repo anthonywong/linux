@@ -61,6 +61,7 @@ void msm_dmov_stop_cmd(unsigned id, struct msm_dmov_cmd *cmd, int graceful)
 {
 	writel((graceful << 31), DMOV_FLUSH0(id));
 }
+EXPORT_SYMBOL(msm_dmov_stop_cmd);
 
 static void timer_func(unsigned long func_paramter)
 {
@@ -285,7 +286,6 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 			channel_active &= ~(1U << id);
 		PRINT_FLOW("msm_datamover_irq_handler id %d, status %x\n", id, ch_status);
 	}
-
 	if (!channel_active) {
 		disable_irq_nosync(INT_ADM_AARM);
 		clk_ctl = CLK_TO_BE_DIS;
