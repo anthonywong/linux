@@ -42,6 +42,36 @@ struct msm_acpu_clock_platform_data
 	int (*acpu_set_vdd) (int mvolts);
 };
 
+struct msm_panel_common_pdata {
+	int gpio;
+	int (*backlight_level)(int level);
+	int (*pmic_backlight)(int level);
+	int (*panel_num)(void);
+	void (*panel_config_gpio)(int);
+	int *gpio_num;
+};
+
+struct lcdc_platform_data {
+	int (*lcdc_gpio_config)(int on);
+};
+
+struct tvenc_platform_data {
+	int (*pm_vid_en)(int on);
+};
+
+struct mddi_platform_data {
+	void (*mddi_power_save)(int on);
+	int (*mddi_sel_clk)(u32 *clk_rate);
+};
+
+struct msm_fb_platform_data {
+	int (*detect_client)(const char *name);
+};
+
+struct msm_i2c_platform_data {
+	int clk_freq;
+};
+
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 
 void __init msm_add_devices(void);
