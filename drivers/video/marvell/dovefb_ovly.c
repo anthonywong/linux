@@ -848,30 +848,22 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 	x |= ((pix_fmt & ~0x1000) >> 1) << 20;
 
 	/*
-	 * 0. check YUV or RGB format,
-	 * 1. enable on yuv2rgb conversion
-	 * 2. UV or RB swap or Panel output data swap
+	 * configure video format into HW.
+	 * HW default use UYVY as YUV422Packed format
+	 *            use YUV as planar format
 	 */
-#if 0
-	if ((dfli->pix_fmt >= 10)) {
+	if ((pix_fmt & 0x1000)) {	/* UYVY. */
 		x |= 0x00000002;
-		x |= ((dfli->pix_fmt & 0x1000) ? 0x4:0x0);
-		x |= (dfli->pix_fmt & 1)	<< 3;
-		x |= (dfli->info->panel_rbswap & 1)	<< 4;
-#else
-	if ((pix_fmt & 0x1000) || (pix_fmt == 10) || (pix_fmt == 11)) {
-		x |= 0x00000002;
-		if (!(pix_fmt & 0x1000)) {
-			x |= 1 << 2;    /* Y and U/V is swapped */
-			x |= (pix_fmt & 1) << 3;
-			x |= (dfli->info->panel_rbswap) << 4;
-		}
-	} else if (pix_fmt >= 12) {
-		x |= 0x00000002;
-		x |= ((pix_fmt & 1) ^ 1) << 3;     /* U and V is swapped?*/
-		x |= dfli->info->panel_rbswap << 4;
-#endif
-	} else {
+	} else if ((pix_fmt == 10) || (pix_fmt == 11)) { /* YUYV, YVYU */
+		x |= 1				<< 1;
+		x |= 1				<< 2;
+		x |= (pix_fmt & 1) 		<< 3;
+		x |= (dfli->info->panel_rbswap) << 4;
+	} else if (pix_fmt >= 12) {	/* YUV Planar */
+		x |= 1				<< 1;
+		x |= ((pix_fmt & 1) ^ 1)	<< 3;
+		x |= dfli->info->panel_rbswap	<< 4;
+	} else {	/* RGB, BGR format */
 		x |= ((pix_fmt & 1)^(dfli->info->panel_rbswap)) << 4;
 	}
 
@@ -979,6 +971,11 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 	if (pix_fmt < 0)
 		return pix_fmt;
 	dfli->pix_fmt = pix_fmt;
+
+	/*
+	 * Set RGB bit field info.
+	 */
+	dovefb_set_pix_fmt(var, pix_fmt);
 
 	/*
 	 * Set additional mode info.
