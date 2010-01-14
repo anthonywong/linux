@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/android_pmem.h>
 #include <linux/bootmem.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
@@ -63,6 +64,8 @@
 #define MSM_PMEM_GPU0_BASE	(MSM_GPU_PHYS_BASE + MSM_GPU_PHYS_SIZE)
 #define MSM_PMEM_GPU0_SIZE	(MSM_SMI_SIZE - MSM_FB_SIZE - MSM_GPU_PHYS_SIZE)
 
+#define PMEM_KERNEL_EBI1_SIZE	0x200000
+
 static struct resource smc91x_resources[] = {
 	[0] = {
 		.flags  = IORESOURCE_MEM,
@@ -79,10 +82,90 @@ static struct platform_device smc91x_device = {
 	.resource       = smc91x_resources,
 };
 
+static struct android_pmem_platform_data android_pmem_kernel_ebi1_pdata = {
+	.name = PMEM_KERNEL_EBI1_DATA_NAME,
+	/* if no allocator_type, defaults to PMEM_ALLOCATORTYPE_BITMAP,
+	 * the only valid choice at this time. The board structure is
+	 * set to all zeros by the C runtime initialization and that is now
+	 * the enum value of PMEM_ALLOCATORTYPE_BITMAP, now forced to 0 in
+	 * include/linux/android_pmem.h.
+	 */
+	.cached = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_pdata = {
+	.name = "pmem",
+	.size = MSM_PMEM_MDP_SIZE,
+	.allocator_type = PMEM_ALLOCATORTYPE_BUDDYBESTFIT,
+	.cached = 1,
+};
+
+static struct android_pmem_platform_data android_pmem_adsp_pdata = {
+	.name = "pmem_adsp",
+	.size = MSM_PMEM_ADSP_SIZE,
+	.allocator_type = PMEM_ALLOCATORTYPE_BUDDYBESTFIT,
+	.cached = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_gpu0_pdata = {
+	.name = "pmem_gpu0",
+	.start = MSM_PMEM_GPU0_BASE,
+	.size = MSM_PMEM_GPU0_SIZE,
+	.allocator_type = PMEM_ALLOCATORTYPE_BUDDYBESTFIT,
+	.cached = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_gpu1_pdata = {
+	.name = "pmem_gpu1",
+	.allocator_type = PMEM_ALLOCATORTYPE_BUDDYBESTFIT,
+	.cached = 0,
+};
+
+static struct android_pmem_platform_data android_pmem_camera_pdata = {
+	.name = "pmem_camera",
+	.size = MSM_PMEM_CAMERA_SIZE,
+	.allocator_type = PMEM_ALLOCATORTYPE_ALLORNOTHING,
+	.cached = 1,
+};
+
+static struct platform_device android_pmem_device = {
+	.name = "android_pmem",
+	.id = 0,
+	.dev = { .platform_data = &android_pmem_pdata },
+};
+
+static struct platform_device android_pmem_adsp_device = {
+	.name = "android_pmem",
+	.id = 1,
+	.dev = { .platform_data = &android_pmem_adsp_pdata },
+};
+
+static struct platform_device android_pmem_gpu0_device = {
+	.name = "android_pmem",
+	.id = 2,
+	.dev = { .platform_data = &android_pmem_gpu0_pdata },
+};
+
+static struct platform_device android_pmem_gpu1_device = {
+	.name = "android_pmem",
+	.id = 3,
+	.dev = { .platform_data = &android_pmem_gpu1_pdata },
+};
+
+static struct platform_device android_pmem_kernel_ebi1_device = {
+	.name = "android_pmem",
+	.id = 5,
+	.dev = { .platform_data = &android_pmem_kernel_ebi1_pdata },
+};
 
 static struct platform_device *devices[] __initdata = {
 	&smc91x_device,
 	&msm_device_smd,
+	&android_pmem_kernel_ebi1_device,
+	&android_pmem_device,
+	&android_pmem_adsp_device,
+	&android_pmem_gpu0_device,
+	&android_pmem_gpu1_device,
 	&msm_device_dmov,
 	&msm_device_nand,
 #if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
@@ -442,6 +525,47 @@ static void __init qsd8x50_init(void)
 #endif
 }
 
+static void __init qsd8x50_allocate_memory_regions(void)
+{
+	void *addr;
+	unsigned long size;
+
+	size = PMEM_KERNEL_EBI1_SIZE;
+	addr = alloc_bootmem_aligned(size, 0x100000);
+	android_pmem_kernel_ebi1_pdata.start = __pa(addr);
+	android_pmem_kernel_ebi1_pdata.size = size;
+	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
+	       "for pmem kernel ebi1 arena\n", size, addr, __pa(addr));
+
+	size = MSM_PMEM_CAMERA_SIZE;
+	addr = alloc_bootmem(size);
+	android_pmem_camera_pdata.start = __pa(addr);
+	android_pmem_camera_pdata.size = size;
+	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
+		"for camera pmem\n", size, addr, __pa(addr));
+
+	size = MSM_PMEM_MDP_SIZE;
+	addr = alloc_bootmem(size);
+	android_pmem_pdata.start = __pa(addr);
+	android_pmem_pdata.size = size;
+	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
+	       "for pmem\n", size, addr, __pa(addr));
+
+	size = MSM_PMEM_ADSP_SIZE;
+	addr = alloc_bootmem(size);
+	android_pmem_adsp_pdata.start = __pa(addr);
+	android_pmem_adsp_pdata.size = size;
+	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
+	       "for adsp pmem\n", size, addr, __pa(addr));
+
+	size = MSM_PMEM_GPU1_SIZE;
+	addr = alloc_bootmem_aligned(size, 0x100000);
+	android_pmem_gpu1_pdata.start = __pa(addr);
+	android_pmem_gpu1_pdata.size = size;
+	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
+	       "for gpu1 pmem\n", size, addr, __pa(addr));
+
+}
 
 static void __init qsd8x50_map_io(void)
 {
