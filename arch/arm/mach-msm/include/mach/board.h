@@ -44,7 +44,7 @@ struct msm_acpu_clock_platform_data
 
 struct msm_panel_common_pdata {
 	int gpio;
-	int (*backlight_level)(int level);
+	int (*backlight_level)(int level, int max, int min);
 	int (*pmic_backlight)(int level);
 	int (*panel_num)(void);
 	void (*panel_config_gpio)(int);
