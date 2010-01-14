@@ -66,6 +66,7 @@ struct mddi_platform_data {
 
 struct msm_fb_platform_data {
 	int (*detect_client)(const char *name);
+	int mddi_prescan;
 };
 
 struct msm_i2c_platform_data {
