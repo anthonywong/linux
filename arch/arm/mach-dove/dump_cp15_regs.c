@@ -87,10 +87,8 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	asm volatile("mrc p15, 0, %0, c1, c0, 0": "=r"(value));
 	p += sprintf(p, "Control : 0x%08x\n", value);
 #if defined(CONFIG_CPU_V6) || defined(CONFIG_DOVE_DEBUGGER_MODE_V6)
-#ifndef CONFIG_DOVE_REV_Z0	
 	p += sprintf(p, "    L2\t\t: %s\n", (value & (1 << 26)) ?
 		     "Enabled" : "Disabled");
-#endif
 #endif
 	asm volatile("mrc p15, 0, %0, c1, c0, 1": "=r"(value));
 	p += sprintf(p, "Auxiliary Control : 0x%08x\n", value);
@@ -156,10 +154,6 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 	p += sprintf(p, "    L2 Cache Way 7-4 \t: %s\n", (value & (1 << 21)) ?
 		     "Enabled" : "Disabled");
 		
-#ifdef CONFIG_DOVE_REV_Z0
-	p += sprintf(p, "    L2\t\t: %s\n", (value & (1 << 22)) ?
-		     "Enabled" : "Disabled");
-#endif
 	p += sprintf(p, "    L2 ECC\t: %s\n", (value & (1 << 23)) ?
 		     "Enabled" : "Disabled");
 
