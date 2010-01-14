@@ -130,7 +130,7 @@ sr_enter_poll:
 
 /***************************************************************
  * mvPmuSramFlushCaches: Flush all dirty lines to DRAM
- * Uses R0, R5
+ * Uses R0-R1
  * Inputs:
  *    None
  * Outputs:
@@ -144,15 +144,23 @@ ENTRY(mvPmuSramFlushCaches)
 	mcr	p15, 0, r0, c7, c14, 0		@ D cache clean+invalidate
 	mcr     p15, 0, r0, c7, c5, 6           @ flush BTAC/BTB
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
-#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
-	tst	r5, #0x04000000			@ check if L2 is enabled
-#else
-	mrc     p15, 0, r5, c1, c0, 1           @ read Aux CR
-	tst     r5, #0x2
-#endif
-	beq	sbe_skip_l2_clean
+
+	mrc 	p15, 1, r1, c15, c12, 0
+	mov	r1, r1, lsr #16
+	and	r1, r1, #0xF
+	cmp	r1, #0x3			@ 0x2 for V6 and 0x3 for V7
+	beq	check_l2_v7
+	mrc 	p15, 0, r1, c1, c0, 0		@ Read CP15 - CR
+	tst	r1, #0x04000000			@ check if L2 is enabled in V6
+	beq	skip_l2_clean
+	b	do_l2_clean
+check_l2_v7:
+	mrc     p15, 0, r1, c1, c0, 1           @ read Aux CR
+	tst     r1, #0x2			@ check if L2 is enabled in V7
+	beq	skip_l2_clean
+do_l2_clean:
 	mcr 	p15, 1, r0, c7, c11, 0		@ clean all L2 cache
-sbe_skip_l2_clean:
+skip_l2_clean:
 	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
 	mcr	p15, 0, r0, c7, c10, 5		@ data memory barrier
 	mov	pc, lr
@@ -183,13 +191,17 @@ ENTRY(mvPmuSramInvalidateCaches)
  *    None
  **************************************************************/
 ENTRY(mvPmuSramWfi)
-#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
+	mrc 	p15, 1, r0, c15, c12, 0
+	mov	r0, r0, lsr #16
+	and	r0, r0, #0xF
+	cmp	r0, #0x3			@ 0x2 for V6 and 0x3 for V7
+	beq	wfi_v7
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 4
-#else
+	mov	pc, lr
+wfi_v7:
 	dsb
 	wfi
-#endif
 	mov	pc, lr
 
 /***************************************************************
@@ -386,16 +398,22 @@ ddr_fs_sr_loop:
 
 	/*
 	 * Enter WFI
-	 */
+	 */	
+	mrc 	p15, 1, r0, c15, c12, 0
+	mov	r0, r0, lsr #16
+	and	r0, r0, #0xF
+	cmp	r0, #0x3			@ 0x2 for V6 and 0x3 for V7
+	beq	ddr_fs_wfi_v7
 	cmp     r11, #0
-#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 	movne	r0, #0
 	mcrne	p15, 0, r0, c7, c0, 4
-#else
+	b	ddr_fs_wfi_done
+ddr_fs_wfi_v7:
+	cmp     r11, #0
 	itt	ne
 	dsb
 	wfi
-#endif
+ddr_fs_wfi_done:
 
 	/*
 	 * Exit DDR self refresh mode if active
@@ -500,7 +518,6 @@ ENTRY(mvPmuSramDeepIdleEnterFunc)
 	 * Save the physical address of the resume SP
 	 */
 	mov	r4, r0				@ suspend mode needed later
-	mov	r5, r2				@ CR needed later for L2
 	mov	r0, sp
 	ldr	r1, die_vtp
 	adr	lr, sb_pc_v2p_res
@@ -662,7 +679,6 @@ ENTRY(mvPmuSramStandbyEnterFunc)
 	 * Save the physical address of the resume SP
 	 */
 	mov	r4, r0				@ suspend mode needed later
-	mov	r5, r2				@ CR needed later for L2
 	mov	r0, sp
 	ldr	r1, sbe_vtp
 	adr	lr, sbe_pc_v2p_res
