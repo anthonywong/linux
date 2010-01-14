@@ -556,6 +556,11 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	dfli->pix_fmt = pix_fmt;
 
 	/*
+	 * Set RGB bit field info.
+	 */
+	dovefb_set_pix_fmt(var, pix_fmt);
+
+	/*
 	 * Set additional mode info.
 	 */
 	if (pix_fmt == PIX_FMT_PSEUDOCOLOR)
