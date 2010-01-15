@@ -521,40 +521,42 @@ static void __init qsd8x50_allocate_memory_regions(void)
 	void *addr;
 	unsigned long size;
 
-	size = PMEM_KERNEL_EBI1_SIZE;
-	addr = alloc_bootmem_aligned(size, 0x100000);
-	android_pmem_kernel_ebi1_pdata.start = __pa(addr);
-	android_pmem_kernel_ebi1_pdata.size = size;
-	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
-	       "for pmem kernel ebi1 arena\n", size, addr, __pa(addr));
+	size = pmem_kernel_ebi1_size;
+	if (size) {
+		addr = alloc_bootmem_aligned(size, 0x100000);
+		android_pmem_kernel_ebi1_pdata.start = __pa(addr);
+		android_pmem_kernel_ebi1_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for kernel"
+			" ebi1 pmem arena\n", size, addr, __pa(addr));
+	}
 
-	size = MSM_PMEM_CAMERA_SIZE;
-	addr = alloc_bootmem(size);
-	android_pmem_camera_pdata.start = __pa(addr);
-	android_pmem_camera_pdata.size = size;
-	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
-		"for camera pmem\n", size, addr, __pa(addr));
+	size = pmem_mdp_size;
+	if (size) {
+		addr = alloc_bootmem(size);
+		android_pmem_pdata.start = __pa(addr);
+		android_pmem_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for mdp "
+			"pmem arena\n", size, addr, __pa(addr));
+	}
 
-	size = MSM_PMEM_MDP_SIZE;
-	addr = alloc_bootmem(size);
-	android_pmem_pdata.start = __pa(addr);
-	android_pmem_pdata.size = size;
-	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
-	       "for pmem\n", size, addr, __pa(addr));
+	size = pmem_adsp_size;
+	if (size) {
+		addr = alloc_bootmem(size);
+		android_pmem_adsp_pdata.start = __pa(addr);
+		android_pmem_adsp_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for adsp "
+			"pmem arena\n", size, addr, __pa(addr));
+	}
 
-	size = MSM_PMEM_ADSP_SIZE;
-	addr = alloc_bootmem(size);
-	android_pmem_adsp_pdata.start = __pa(addr);
-	android_pmem_adsp_pdata.size = size;
-	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
-	       "for adsp pmem\n", size, addr, __pa(addr));
+	size = pmem_gpu1_size;
+	if (size) {
+		addr = alloc_bootmem(size);
+		android_pmem_gpu1_pdata.start = __pa(addr);
+		android_pmem_gpu1_pdata.size = size;
+		pr_info("allocating %lu bytes at %p (%lx physical) for gpu1 "
+			"pmem arena\n", size, addr, __pa(addr));
+	}
 
-	size = MSM_PMEM_GPU1_SIZE;
-	addr = alloc_bootmem_aligned(size, 0x100000);
-	android_pmem_gpu1_pdata.start = __pa(addr);
-	android_pmem_gpu1_pdata.size = size;
-	printk(KERN_INFO "allocating %lu bytes at %p (%lx physical)"
-	       "for gpu1 pmem\n", size, addr, __pa(addr));
 
 }
 
