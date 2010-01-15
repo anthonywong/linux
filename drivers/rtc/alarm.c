@@ -22,6 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/sysdev.h>
 #include <linux/wakelock.h>
+#include <linux/sched.h>
 
 #define ANDROID_ALARM_PRINT_ERRORS (1U << 0)
 #define ANDROID_ALARM_PRINT_INIT_STATUS (1U << 1)

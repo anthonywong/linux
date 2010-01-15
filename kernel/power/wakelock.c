@@ -332,7 +332,7 @@ static int power_suspend_late(struct platform_device *pdev, pm_message_t state)
 
 static struct platform_driver power_driver = {
 	.driver.name = "power",
-	.suspend_late = power_suspend_late,
+	.suspend = power_suspend_late,
 };
 static struct platform_device power_device = {
 	.name = "power",
