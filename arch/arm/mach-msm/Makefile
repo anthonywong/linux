@@ -15,8 +15,12 @@ obj-y += pmic.o
 obj-y += internal_power_rail.o
 
 obj-$(CONFIG_ARCH_MSM_ARM11) += acpuclock.o
-obj-$(CONFIG_ARCH_MSM_SCORPION) += acpuclock-8x50.o
 obj-$(CONFIG_MSM_VIC) += irq-vic.o
+
+ifdef CONFIG_ARCH_QSD8X50
+      obj-$(CONFIG_MSM_SOC_REV_NONE) += acpuclock-8x50.o
+      obj-$(CONFIG_MSM_SOC_REV_A) += acpuclock-8x50a.o
+endif
 
 obj-$(CONFIG_MSM_CPU_AVS) += avs.o avs_hw.o
 obj-$(CONFIG_CPU_V6) += idle-v6.o
