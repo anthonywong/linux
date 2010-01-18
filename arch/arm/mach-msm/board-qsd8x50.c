@@ -24,6 +24,8 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
+#include <asm/io.h>
+#include <asm/setup.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -64,7 +66,7 @@
 #define MSM_PMEM_GPU0_BASE	(MSM_GPU_PHYS_BASE + MSM_GPU_PHYS_SIZE)
 #define MSM_PMEM_GPU0_SIZE	(MSM_SMI_SIZE - MSM_FB_SIZE - MSM_GPU_PHYS_SIZE)
 
-#define PMEM_KERNEL_EBI1_SIZE	0x200000
+#define PMEM_KERNEL_EBI1_SIZE	(CONFIG_PMEM_KERNEL_SIZE * 1024 * 1024)
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -149,20 +151,237 @@ static struct platform_device android_pmem_kernel_ebi1_device = {
 	.dev = { .platform_data = &android_pmem_kernel_ebi1_pdata },
 };
 
-static struct platform_device *devices[] __initdata = {
-	&smc91x_device,
-	&msm_device_smd,
-	&android_pmem_kernel_ebi1_device,
-	&android_pmem_device,
-	&android_pmem_adsp_device,
-	&android_pmem_gpu0_device,
-	&android_pmem_gpu1_device,
-	&msm_device_dmov,
-	&msm_device_nand,
-#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
-	&msm_device_uart3,
-#endif
+static struct resource msm_fb_resources[] = {
+	{
+		.flags  = IORESOURCE_DMA,
+	}
 };
+
+static int msm_fb_detect_panel(const char *name)
+{
+	int ret = -EPERM;
+
+	if (machine_is_qsd8x50_ffa()) {
+		if (!strncmp(name, "mddi_toshiba_wvga_pt", 20))
+			ret = 0;
+		else
+			ret = -ENODEV;
+	} else if (machine_is_qsd8x50_surf() && !strcmp(name, "lcdc_external"))
+		ret = 0;
+	else if (machine_is_qsd8x50_grapefruit()) {
+		if (!strcmp(name, "lcdc_grapefruit_vga"))
+			ret = 0;
+		else
+			ret = -ENODEV;
+	} else if (machine_is_qsd8x50_st1()) {
+		if (!strcmp(name, "lcdc_st1_wxga"))
+			ret = 0;
+		else
+			ret = -ENODEV;
+	}
+
+	return ret;
+}
+
+static struct msm_fb_platform_data msm_fb_pdata = {
+	.detect_client = msm_fb_detect_panel,
+};
+
+static struct platform_device msm_fb_device = {
+	.name   = "msm_fb",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_fb_resources),
+	.resource       = msm_fb_resources,
+	.dev    = {
+		.platform_data = &msm_fb_pdata,
+	}
+};
+
+static int mddi_toshiba_pmic_bl(int level)
+{
+	int ret = -EPERM;
+
+	if (machine_is_qsd8x50_ffa()) {
+		ret = pmic_set_led_intensity(LED_LCD, level);
+
+		if (ret)
+			printk(KERN_WARNING "%s: can't set lcd backlight!\n",
+						__func__);
+	}
+
+	return ret;
+}
+
+static struct msm_panel_common_pdata mddi_toshiba_pdata = {
+	.pmic_backlight = mddi_toshiba_pmic_bl,
+};
+
+static struct platform_device mddi_toshiba_device = {
+	.name   = "mddi_toshiba",
+	.id     = 0,
+	.dev    = {
+		.platform_data = &mddi_toshiba_pdata,
+	}
+};
+
+static void msm_fb_vreg_config(const char *name, int on)
+{
+	struct vreg *vreg;
+	int ret = 0;
+
+	vreg = vreg_get(NULL, name);
+	if (IS_ERR(vreg)) {
+		printk(KERN_ERR "%s: vreg_get(%s) failed (%ld)\n",
+		__func__, name, PTR_ERR(vreg));
+		return;
+	}
+
+	ret = (on) ? vreg_enable(vreg) : vreg_disable(vreg);
+	if (ret)
+		printk(KERN_ERR "%s: %s(%s) failed!\n",
+			__func__, (on) ? "vreg_enable" : "vreg_disable", name);
+}
+
+#define MDDI_RST_OUT_GPIO 100
+
+static int mddi_power_save_on;
+static void msm_fb_mddi_power_save(int on)
+{
+	int flag_on = !!on;
+	int ret;
+
+
+	if (mddi_power_save_on == flag_on)
+		return;
+
+	mddi_power_save_on = flag_on;
+
+	if (!flag_on && machine_is_qsd8x50_ffa()) {
+		gpio_set_value(MDDI_RST_OUT_GPIO, 0);
+		mdelay(1);
+	}
+
+	ret = pmic_lp_mode_control(flag_on ? OFF_CMD : ON_CMD,
+		PM_VREG_LP_MSME2_ID);
+	if (ret)
+		printk(KERN_ERR "%s: pmic_lp_mode_control failed!\n", __func__);
+
+	msm_fb_vreg_config("gp5", flag_on);
+	msm_fb_vreg_config("boost", flag_on);
+
+	if (flag_on && machine_is_qsd8x50_ffa()) {
+		gpio_set_value(MDDI_RST_OUT_GPIO, 0);
+		mdelay(1);
+		gpio_set_value(MDDI_RST_OUT_GPIO, 1);
+		gpio_set_value(MDDI_RST_OUT_GPIO, 1);
+		mdelay(1);
+	}
+}
+
+static int msm_fb_mddi_sel_clk(u32 *clk_rate)
+{
+	*clk_rate *= 2;
+	return 0;
+}
+
+static struct mddi_platform_data mddi_pdata = {
+	.mddi_power_save = msm_fb_mddi_power_save,
+	.mddi_sel_clk = msm_fb_mddi_sel_clk,
+};
+
+static int msm_fb_lcdc_gpio_config(int on)
+{
+
+	if (machine_is_qsd8x50_grapefruit()) {
+		if (on) {
+			gpio_set_value(32, 1);
+			mdelay(100);
+			gpio_set_value(20, 1);
+			mdelay(100);
+			gpio_set_value(61, 1);
+			gpio_set_value(29, 1);
+			gpio_set_value(82, 1);
+		} else {
+			gpio_set_value(29, 0);
+			gpio_set_value(82, 0);
+			gpio_set_value(61, 0);
+			mdelay(200);
+			gpio_set_value(20, 0);
+			mdelay(100);
+			gpio_set_value(32, 0);
+		}
+	} else if (machine_is_qsd8x50_st1()) {
+		if (on) {
+			gpio_set_value(32, 1);
+			mdelay(100);
+			gpio_set_value(20, 1);
+			gpio_set_value(17, 1);
+			gpio_set_value(19, 1);
+		} else {
+			gpio_set_value(17, 0);
+			gpio_set_value(19, 0);
+			gpio_set_value(20, 0);
+			mdelay(100);
+			gpio_set_value(32, 0);
+		}
+	}
+	return 0;
+}
+
+static struct msm_gpio msm_fb_grapefruit_gpio_config_data[] = {
+	{ GPIO_CFG(20, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl0" },
+	{ GPIO_CFG(29, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl1" },
+	{ GPIO_CFG(32, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl2" },
+	{ GPIO_CFG(61, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl3" },
+	{ GPIO_CFG(82, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl4" },
+};
+
+static struct msm_gpio msm_fb_st1_gpio_config_data[] = {
+	{ GPIO_CFG(17, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl0" },
+	{ GPIO_CFG(19, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl1" },
+	{ GPIO_CFG(20, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl2" },
+	{ GPIO_CFG(32, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA), "lcdc_bl3" },
+};
+
+static struct lcdc_platform_data lcdc_pdata = {
+	.lcdc_gpio_config = msm_fb_lcdc_gpio_config,
+};
+
+static struct msm_panel_common_pdata mdp_pdata = {
+	.gpio = 98,
+};
+
+static void __init msm_fb_add_devices(void)
+{
+	int rc;
+	msm_fb_register_device("mdp", &mdp_pdata);
+	msm_fb_register_device("pmdh", &mddi_pdata);
+	msm_fb_register_device("emdh", &mddi_pdata);
+	msm_fb_register_device("tvenc", 0);
+
+	if (machine_is_qsd8x50_grapefruit()) {
+		rc = msm_gpios_request_enable(
+			msm_fb_grapefruit_gpio_config_data,
+			ARRAY_SIZE(msm_fb_grapefruit_gpio_config_data));
+		if (rc) {
+			printk(KERN_ERR "%s: unable to init lcdc gpios\n",
+			       __func__);
+			return;
+		}
+		msm_fb_register_device("lcdc", &lcdc_pdata);
+	} else if (machine_is_qsd8x50_st1()) {
+		rc = msm_gpios_request_enable(
+			msm_fb_st1_gpio_config_data,
+			ARRAY_SIZE(msm_fb_st1_gpio_config_data));
+		if (rc) {
+			printk(KERN_ERR "%s: unable to init lcdc gpios\n",
+			       __func__);
+			return;
+		}
+		msm_fb_register_device("lcdc", &lcdc_pdata);
+	} else
+		msm_fb_register_device("lcdc", 0);
+}
 
 #define KBD_RST 35
 #define KBD_IRQ 36
@@ -234,6 +453,23 @@ static void config_gpio_table(uint32_t *table, int len)
 		}
 	}
 }
+
+static struct platform_device *devices[] __initdata = {
+	&msm_fb_device,
+	&mddi_toshiba_device,
+	&smc91x_device,
+	&msm_device_smd,
+	&msm_device_dmov,
+	&android_pmem_kernel_ebi1_device,
+	&android_pmem_device,
+	&android_pmem_adsp_device,
+	&android_pmem_gpu0_device,
+	&android_pmem_gpu1_device,
+	&msm_device_nand,
+#if !defined(CONFIG_MSM_SERIAL_DEBUGGER)
+	&msm_device_uart3,
+#endif
+};
 
 static void __init qsd8x50_init_irq(void)
 {
@@ -496,7 +732,43 @@ static void __init gp6_init(void)
 
 	if (machine_is_qsd8x50_ffa())
 		vreg_mmc = vreg;
+
 }
+
+static unsigned pmem_kernel_ebi1_size = PMEM_KERNEL_EBI1_SIZE;
+static void __init pmem_kernel_ebi1_size_setup(char **p)
+{
+	pmem_kernel_ebi1_size = memparse(*p, p);
+ }
+__early_param("pmem_kernel_ebi1_size=", pmem_kernel_ebi1_size_setup);
+
+static unsigned pmem_mdp_size = MSM_PMEM_MDP_SIZE;
+static void __init pmem_mdp_size_setup(char **p)
+{
+	pmem_mdp_size = memparse(*p, p);
+}
+__early_param("pmem_mdp_size=", pmem_mdp_size_setup);
+
+static unsigned pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
+static void __init pmem_adsp_size_setup(char **p)
+{
+	pmem_adsp_size = memparse(*p, p);
+}
+__early_param("pmem_adsp_size=", pmem_adsp_size_setup);
+
+static unsigned pmem_gpu1_size = MSM_PMEM_GPU1_SIZE;
+static void __init pmem_gpu1_size_setup(char **p)
+{
+	pmem_gpu1_size = memparse(*p, p);
+}
+__early_param("pmem_gpu1_size=", pmem_gpu1_size_setup);
+
+static unsigned audio_size = MSM_AUDIO_SIZE;
+static void __init audio_size_setup(char **p)
+{
+	audio_size = memparse(*p, p);
+}
+__early_param("audio_size=", audio_size_setup);
 
 static void __init qsd8x50_init(void)
 {
@@ -506,6 +778,7 @@ static void __init qsd8x50_init(void)
 	qsd8x50_cfg_smc91x();
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gp6_init();
+	msm_fb_add_devices();
 	msm_pm_set_platform_data(msm_pm_data);
 
 #ifdef CONFIG_SURF_FFA_GPIO_KEYPAD
@@ -557,12 +830,19 @@ static void __init qsd8x50_allocate_memory_regions(void)
 			"pmem arena\n", size, addr, __pa(addr));
 	}
 
+	size = MSM_FB_SIZE;
+	addr = (void *)MSM_FB_BASE;
+	msm_fb_resources[0].start = (unsigned long)addr;
+	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
+	pr_info("using %lu bytes of SMI at %lx physical for fb\n",
+	       size, (unsigned long)addr);
 
 }
 
 static void __init qsd8x50_map_io(void)
 {
 	msm_map_qsd8x50_io();
+	qsd8x50_allocate_memory_regions();
 	msm_clock_init(msm_clocks_8x50, msm_num_clocks_8x50);
 }
 

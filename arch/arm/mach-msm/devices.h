@@ -54,5 +54,6 @@ extern unsigned msm_num_clocks_7x30;
 extern struct clk msm_clocks_8x50[];
 extern unsigned msm_num_clocks_8x50;
 
+void __init msm_fb_register_device(char *name, void *data);
 
 #endif
