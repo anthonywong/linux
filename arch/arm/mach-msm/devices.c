@@ -276,6 +276,147 @@ int __init msm_add_sdcc(unsigned int controller, struct mmc_platform_data *plat)
 	return platform_device_register(pdev);
 }
 
+
+#if defined(CONFIG_FB_MSM_MDP40)
+#define MDP_BASE          0xA3F00000
+#define PMDH_BASE         0xAD600000
+#define EMDH_BASE         0xAD700000
+#define TVENC_BASE        0xAD400000
+#else
+#define MDP_BASE          0xAA200000
+#define PMDH_BASE         0xAA600000
+#define EMDH_BASE         0xAA700000
+#define TVENC_BASE        0xAA400000
+#endif
+
+static struct resource msm_mdp_resources[] = {
+	{
+		.name   = "mdp",
+		.start  = MDP_BASE,
+		.end    = MDP_BASE + 0x000F0000 - 1,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct resource msm_mddi_resources[] = {
+	{
+		.name   = "pmdh",
+		.start  = PMDH_BASE,
+		.end    = PMDH_BASE + PAGE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct resource msm_mddi_ext_resources[] = {
+	{
+		.name   = "emdh",
+		.start  = EMDH_BASE,
+		.end    = EMDH_BASE + PAGE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct resource msm_ebi2_lcd_resources[] = {
+	{
+		.name   = "base",
+		.start  = 0xa0d00000,
+		.end    = 0xa0d00000 + PAGE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "lcd01",
+		.start  = 0x98000000,
+		.end    = 0x98000000 + 0x80000 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.name   = "lcd02",
+		.start  = 0x9c000000,
+		.end    = 0x9c000000 + 0x80000 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct resource msm_tvenc_resources[] = {
+	{
+		.name   = "tvenc",
+		.start  = TVENC_BASE,
+		.end    = TVENC_BASE + PAGE_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device msm_mdp_device = {
+	.name   = "mdp",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_mdp_resources),
+	.resource       = msm_mdp_resources,
+};
+
+static struct platform_device msm_mddi_device = {
+	.name   = "mddi",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_mddi_resources),
+	.resource       = msm_mddi_resources,
+};
+
+static struct platform_device msm_mddi_ext_device = {
+	.name   = "mddi_ext",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_mddi_ext_resources),
+	.resource       = msm_mddi_ext_resources,
+};
+
+static struct platform_device msm_ebi2_lcd_device = {
+	.name   = "ebi2_lcd",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_ebi2_lcd_resources),
+	.resource       = msm_ebi2_lcd_resources,
+};
+
+static struct platform_device msm_lcdc_device = {
+	.name   = "lcdc",
+	.id     = 0,
+};
+
+static struct platform_device msm_tvenc_device = {
+	.name   = "tvenc",
+	.id     = 0,
+	.num_resources  = ARRAY_SIZE(msm_tvenc_resources),
+	.resource       = msm_tvenc_resources,
+};
+
+static void __init msm_register_device(struct platform_device *pdev, void *data)
+{
+	int ret;
+
+	pdev->dev.platform_data = data;
+
+	ret = platform_device_register(pdev);
+	if (ret)
+		dev_err(&pdev->dev,
+			  "%s: platform_device_register() failed = %d\n",
+			  __func__, ret);
+}
+
+void __init msm_fb_register_device(char *name, void *data)
+{
+	if (!strncmp(name, "mdp", 3))
+		msm_register_device(&msm_mdp_device, data);
+	else if (!strncmp(name, "pmdh", 4))
+		msm_register_device(&msm_mddi_device, data);
+	else if (!strncmp(name, "emdh", 4))
+		msm_register_device(&msm_mddi_ext_device, data);
+	else if (!strncmp(name, "ebi2", 4))
+		msm_register_device(&msm_ebi2_lcd_device, data);
+	else if (!strncmp(name, "tvenc", 5))
+		msm_register_device(&msm_tvenc_device, data);
+	else if (!strncmp(name, "lcdc", 4))
+		msm_register_device(&msm_lcdc_device, data);
+	else
+		printk(KERN_ERR "%s: unknown device! %s\n", __func__, name);
+}
+
 struct clk msm_clocks_7x01a[] = {
 	CLK_PCOM("adm_clk",	ADM_CLK,	NULL, 0),
 	CLK_PCOM("adsp_clk",	ADSP_CLK,	NULL, 0),
