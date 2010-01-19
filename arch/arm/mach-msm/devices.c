@@ -34,6 +34,8 @@
 #include <linux/mfd/pmic8058.h>
 #endif
 
+#include "proc_comm.h"
+
 static struct resource resources_uart1[] = {
 	{
 		.start	= INT_UART1,
@@ -190,6 +192,30 @@ struct platform_device msm_device_uart_dm2 = {
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 };
+
+#define GPIO_I2C_CLK 60
+#define GPIO_I2C_DAT 61
+void msm_set_i2c_mux(bool gpio, int *gpio_clk, int *gpio_dat)
+{
+	unsigned id;
+	if (gpio) {
+		id = PCOM_GPIO_CFG(GPIO_I2C_CLK, 0, GPIO_OUTPUT,
+				   GPIO_NO_PULL, GPIO_2MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+		id = PCOM_GPIO_CFG(GPIO_I2C_DAT, 0, GPIO_OUTPUT,
+				   GPIO_NO_PULL, GPIO_2MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+		*gpio_clk = GPIO_I2C_CLK;
+		*gpio_dat = GPIO_I2C_DAT;
+	} else {
+		id = PCOM_GPIO_CFG(GPIO_I2C_CLK, 1, GPIO_INPUT,
+				   GPIO_NO_PULL, GPIO_2MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+		id = PCOM_GPIO_CFG(GPIO_I2C_DAT , 1, GPIO_INPUT,
+				   GPIO_NO_PULL, GPIO_2MA);
+		msm_proc_comm(PCOM_RPC_GPIO_TLMM_CONFIG_EX, &id, 0);
+	}
+}
 
 #define MSM_I2C_SIZE          SZ_4K
 #if defined(CONFIG_ARCH_MSM7X30)
