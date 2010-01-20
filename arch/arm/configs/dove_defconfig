@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.31.5-dove-4.2.0.1
-# Mon Dec 21 13:03:04 2009
+# Mon Dec 21 13:06:04 2009
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
