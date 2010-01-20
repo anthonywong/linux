@@ -423,7 +423,6 @@ cpu_elf_name:
 __pj4_v7_proc_info:
 	.long	0x560f5810		@ Marvell PJ4 ID
 	.long	0xff0ffff0		@ Mask for ID
-	.long	0
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | \
