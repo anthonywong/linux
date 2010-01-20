@@ -309,7 +309,7 @@ static unsigned int rt5630_read_hw_reg(struct snd_soc_codec *codec, unsigned int
 	data[0] = reg;
 	if (codec->hw_write(codec->control_data, data, 1) == 1)
 	{
-		codec->hw_read(codec->control_data, 2);
+		i2c_master_recv(codec->control_data, data, 2);
 		value = (data[0] << 8) | data[1];
 //		RT5630_DEBUG("%s read reg%x = %x\n", reg, value);
 		return value;
@@ -2302,7 +2302,6 @@ static int rt5630_probe(struct platform_device *pdev)
 	ret = -ENODEV;
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
-		codec->hw_read = i2c_master_recv;
 		ret = rt5630_add_i2c_device(pdev, setup);
 	}
 
