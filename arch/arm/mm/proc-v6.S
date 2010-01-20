@@ -293,7 +293,6 @@ __v6_proc_info:
 __pj4_v6_proc_info:
 	.long	0x560f5810
 	.long	0xff0ffff0
-	.long	0
 	.long   PMD_TYPE_SECT | \
 		PMD_SECT_AP_WRITE | \
 		PMD_SECT_AP_READ | \
