@@ -280,7 +280,7 @@ MV_32 mvBoardPhyAddrGet(MV_U32 ethPortNum)
 
 	return BOARD_INFO(boardId)->pBoardMacInfo[ethPortNum].boardEthSmiAddr;
 }
-
+#if 0
 /*******************************************************************************
 * mvBoardMacSpeedGet - Get the Mac speed
 *
@@ -309,7 +309,7 @@ MV_BOARD_MAC_SPEED      mvBoardMacSpeedGet(MV_U32 ethPortNum)
 
 	return BOARD_INFO(boardId)->pBoardMacInfo[ethPortNum].boardMacSpeed;
 }
-
+#endif
 /*******************************************************************************
 * mvBoardLinkStatusIrqGet - Get the IRQ number for the link status indication
 *
