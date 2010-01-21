@@ -41,6 +41,7 @@ disclaimer.
 #include <linux/random.h>
 #include <asm/scatterlist.h>
 #include <linux/spinlock.h>
+#include <plat/mv_cesa.h>
 #include "mvCommon.h"
 #include "mvOs.h"
 #include "mvSysCesaApi.h"
@@ -1133,6 +1134,34 @@ extern int crypto_init(void);
 /*
  * our driver startup and shutdown routines
  */
+/*
+** Address decoding driver.
+*/
+
+static void mv_cesa_set_addr_dec(struct mbus_dram_target_info *dram)
+{
+	int i;
+
+	for (i = 0; i < MV_CESA_TDMA_ADDR_DEC_WIN; i++) {
+		MV_REG_WRITE(MV_CESA_TDMA_BASE_ADDR_REG(i),0);
+		MV_REG_WRITE(MV_CESA_TDMA_WIN_CTRL_REG(i),0);
+	}
+
+	for (i = 0; i < dram->num_cs; i++) {
+		struct mbus_dram_window *cs = dram->cs + i;
+		
+		MV_REG_WRITE(MV_CESA_TDMA_BASE_ADDR_REG(i),cs->base & MV_CESA_TDMA_WIN_BASE_MASK);
+	
+		MV_REG_WRITE(MV_CESA_TDMA_WIN_CTRL_REG(i),((cs->size - 1) & 0xffff0000) | 
+			     (cs->mbus_attr << MV_CESA_TDMA_WIN_ATTR_OFFSET) | 
+			     (dram->mbus_dram_target_id << MV_CESA_TDMA_WIN_TARGET_OFFSET) | 
+			     MV_CESA_TDMA_WIN_ENABLE_MASK);
+	}
+
+	return;
+}
+
+
 static int
 cesa_ocf_init(void)
 {
@@ -1160,7 +1189,7 @@ cesa_ocf_init(void)
 #endif
 
 	if( MV_OK != mvSysCesaInit(CESA_OCF_MAX_SES*5, CESA_Q_SIZE, (char *)mv_crypto_base_get(),
-			mv_crypto_phys_base_get(), NULL) ) {
+			mv_crypto_base_get(), NULL) ) {
             	printk("%s,%d: mvCesaInit Failed. \n", __FILE__, __LINE__);
 		return EINVAL;
 	}
@@ -1251,7 +1280,11 @@ void cesa_ocf_debug(void)
 
 static int cesa_ocf_probe(struct platform_device *pdev)
 {
+	struct mv_cesa_addr_dec_platform_data *pd = pdev->dev.platform_data;
+	struct mbus_dram_target_info *dram = pd ? pd->dram : NULL;
 	dprintk("%s\n", __func__);
+	if (dram)
+		mv_cesa_set_addr_dec(dram);
 	return cesa_ocf_init();
 }
 
@@ -1289,8 +1322,13 @@ static int cesa_ocf_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int cesa_ocf_resume(struct platform_device *pdev)
 {
+	struct mv_cesa_addr_dec_platform_data *pd = pdev->dev.platform_data;
+	struct mbus_dram_target_info *dram = pd ? pd->dram : NULL;
 	dprintk("%s\n", __func__);
+	if (dram)
+		mv_cesa_set_addr_dec(dram);
 
+	
 	/* clear interrupts */
 	MV_REG_WRITE(MV_CESA_ISR_CAUSE_REG, 0);
 
