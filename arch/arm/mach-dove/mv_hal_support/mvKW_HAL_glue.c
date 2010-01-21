@@ -479,7 +479,7 @@ MV_U32 mvCtrlUsbMaxGet(void)
 
 MV_U32 mv_crypto_base_get(void)
 {
-	return (DOVE_CESA_VIRT_BASE + 0x10000); 
+	return (DOVE_CESA_VIRT_BASE); 
 }
 
 MV_U32 mv_crypto_phys_base_get(void)
