@@ -43,6 +43,7 @@
 #include <plat/i2s-orion.h>
 #include <plat/orion_nand.h>
 #include <plat/mv_eth.h>
+#include <plat/mv_cesa.h>
 #include <plat/time.h>
 #include <plat/mv_xor.h>
 #include <mvSysHwConfig.h>
@@ -1244,9 +1245,16 @@ void __init dove_i2s_init(int port, struct orion_i2s_platform_data *i2s_data)
 /*****************************************************************************
  * CESA
  ****************************************************************************/
+struct mv_cesa_addr_dec_platform_data dove_cesa_addr_dec_data = {
+	.dram		= &dove_mbus_dram_info,
+};
+
 static struct platform_device dove_cesa_ocf = {
 	.name           = "dove_cesa_ocf",
 	.id             = -1,
+	.dev		= {
+		.platform_data	= &dove_eth_addr_dec_data,
+	},
 };
 
 static struct platform_device dove_cesadev = {
