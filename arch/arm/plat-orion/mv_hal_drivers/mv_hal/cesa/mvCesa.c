@@ -122,7 +122,7 @@ static INLINE MV_ULONG    mvCesaSramVirtToPhys(void* pDev, MV_U8* pSramVirt)
 #ifdef MV_CESA_NO_SRAM
     return (MV_ULONG)mvOsIoVirtToPhy(NULL, pSramVirt);
 #else
-    return (MV_ULONG)pSramVirt;
+    return (MV_ULONG)pSramVirt - DOVE_CESA_VIRT_BASE + DOVE_CESA_PHYS_BASE;
 #endif /* MV_CESA_NO_SRAM */
 }
 
