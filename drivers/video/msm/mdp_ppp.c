@@ -33,9 +33,14 @@
 #include <asm/system.h>
 #include <asm/mach-types.h>
 #include <linux/semaphore.h>
+#include <linux/msm_kgsl.h>
 
 #include "mdp.h"
 #include "msm_fb.h"
+
+#define MDP_IS_IMGTYPE_BAD(x) (((x) >= MDP_IMGTYPE_LIMIT) && \
+				(((x) < MDP_IMGTYPE2_START) || \
+				 ((x) >= MDP_IMGTYPE_LIMIT2)))
 
 static uint32_t bytes_per_pixel[] = {
 	[MDP_RGB_565] = 2,
@@ -54,6 +59,16 @@ static uint32_t bytes_per_pixel[] = {
 
 extern uint32 mdp_plv[];
 extern struct semaphore mdp_ppp_mutex;
+
+uint32_t mdp_get_bytes_per_pixel(uint32_t format)
+{
+	uint32_t bpp = 0;
+	if (format < ARRAY_SIZE(bytes_per_pixel))
+		bpp = bytes_per_pixel[format];
+
+	BUG_ON(!bpp);
+	return bpp;
+}
 
 static uint32 mdp_conv_matx_rgb2yuv(uint32 input_pixel,
 				    uint16 *matrix_and_bias_vector,
@@ -518,7 +533,6 @@ static void mdp_ppp_setbg(MDPIBUF *iBuf)
 	((format == MDP_Y_CBCR_H2V2 || format == MDP_Y_CRCB_H2V2) ?  2 :\
 	(format == MDP_Y_CBCR_H2V1 || format == MDP_Y_CRCB_H2V1) ?  1 : 1)
 
-#ifdef CONFIG_ANDROID_PMEM
 static void get_len(struct mdp_img *img, struct mdp_rect *rect, uint32_t bpp,
 			uint32_t *len0, uint32_t *len1)
 {
@@ -532,6 +546,7 @@ static void get_len(struct mdp_img *img, struct mdp_rect *rect, uint32_t bpp,
 static void flush_imgs(struct mdp_blit_req *req, int src_bpp, int dst_bpp,
 			struct file *p_src_file, struct file *p_dst_file)
 {
+#ifdef CONFIG_ANDROID_PMEM
 	uint32_t src0_len, src1_len, dst0_len, dst1_len;
 
 	/* flush src images to memory before dma to mdp */
@@ -551,11 +566,8 @@ static void flush_imgs(struct mdp_blit_req *req, int src_bpp, int dst_bpp,
 	if (IS_PSEUDOPLNR(req->dst.format))
 		flush_pmem_file(p_dst_file,
 			req->dst.offset + dst0_len, dst1_len);
-}
-#else
-static void flush_imgs(struct mdp_blit_req *req, int src_bpp, int dst_bpp,
-			struct file *p_src_file, struct file *p_dst_file) { }
 #endif
+}
 
 static void mdp_start_ppp(struct msm_fb_data_type *mfd, MDPIBUF *iBuf,
 struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
@@ -1119,10 +1131,6 @@ struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
 	mdp_pipe_kickoff(MDP_PPP_TERM, mfd);
 }
 
-#define MDP_IS_IMGTYPE_BAD(x) (((x) >= MDP_IMGTYPE_LIMIT) && \
-				(((x) < MDP_IMGTYPE2_START) || \
-				 ((x) >= MDP_IMGTYPE_LIMIT2)))
-
 static int mdp_ppp_verify_req(struct mdp_blit_req *req)
 {
 	u32 src_width, src_height, dst_width, dst_height;
@@ -1198,15 +1206,24 @@ static int mdp_ppp_verify_req(struct mdp_blit_req *req)
 	return 0;
 }
 
+/**
+ * get_gem_img() - retrieve drm obj's start address and size
+ * @img:	contains drm file descriptor and gem handle
+ * @start:	repository of starting address of drm obj allocated memory
+ * @len:	repository of size of drm obj alloacted memory
+ *
+ **/
+int get_gem_img(struct mdp_img *img, unsigned long *start, unsigned long *len)
+{
+	return kgsl_gem_obj_addr(img->memory_id, (int)img->priv, start, len);
+}
+
 int get_img(struct mdp_img *img, struct fb_info *info, unsigned long *start,
 	    unsigned long *len, struct file **pp_file)
 {
 	int put_needed, ret = 0;
 	struct file *file;
-#ifdef CONFIG_ANDROID_PMEM
 	unsigned long vstart;
-#endif
-
 #ifdef CONFIG_ANDROID_PMEM
 	if (!get_pmem_file(img->memory_id, start, &vstart, len, pp_file))
 		return 0;
@@ -1241,13 +1258,25 @@ int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req,
 		req->dst.format =  mfd->fb_imgType;
 	if (req->src.format == MDP_FB_FORMAT)
 		req->src.format = mfd->fb_imgType;
-	get_img(&req->src, info, &src_start, &src_len, &p_src_file);
+
+	if (req->flags & MDP_BLIT_SRC_GEM) {
+		if (get_gem_img(&req->src, &src_start, &src_len) < 0)
+			return -1;
+	} else {
+		get_img(&req->src, info, &src_start, &src_len, &p_src_file);
+	}
 	if (src_len == 0) {
 		printk(KERN_ERR "mdp_ppp: could not retrieve image from "
 		       "memory\n");
 		return -1;
 	}
-	get_img(&req->dst, info, &dst_start, &dst_len, &p_dst_file);
+
+	if (req->flags & MDP_BLIT_DST_GEM) {
+		if (get_gem_img(&req->dst, &dst_start, &dst_len) < 0)
+			return -1;
+	} else {
+		get_img(&req->dst, info, &dst_start, &dst_len, &p_dst_file);
+	}
 	if (dst_len == 0) {
 		printk(KERN_ERR "mdp_ppp: could not retrieve image from "
 		       "memory\n");
@@ -1300,6 +1329,7 @@ int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req,
 		iBuf.mdpImg.mdpOp |= MDPOP_ALPHAB;
 		iBuf.mdpImg.alpha = req->alpha;
 	}
+
 	/* rotation check */
 	if (req->flags & MDP_FLIP_LR)
 		iBuf.mdpImg.mdpOp |= MDPOP_LR;
@@ -1309,6 +1339,14 @@ int mdp_ppp_blit(struct fb_info *info, struct mdp_blit_req *req,
 		iBuf.mdpImg.mdpOp |= MDPOP_ROT90;
 	if (req->flags & MDP_DITHER)
 		iBuf.mdpImg.mdpOp |= MDPOP_DITHER;
+
+	if (req->flags & MDP_BLEND_FG_PREMULT) {
+#ifdef CONFIG_FB_MSM_MDP31
+		iBuf.mdpImg.mdpOp |= MDPOP_FG_PM_ALPHA;
+#else
+		return -EINVAL;
+#endif
+	}
 
 	if (req->flags & MDP_DEINTERLACE) {
 #ifdef CONFIG_FB_MSM_MDP31
