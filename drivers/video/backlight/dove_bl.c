@@ -22,54 +22,93 @@
 #include <video/dovefbreg.h>
 #include <mach/dove_bl.h>
 
-extern void dovefb_config_lcd_power(unsigned int reg_offset, int on);
-extern void dovefb_config_backlight_power(unsigned int reg_offset, int on);
+#define DOVEBL_BL_DIV	     0x146	/* 100Hz */
 
 struct dove_backlight {
 	int powermode;          /* blacklight */
 	int lcd_powermode;      /* lcd panel */
 	int current_intensity;
+
 	struct clk *clk;
-	void *reg_base;
+	void *lcdpwr_reg;
+	void *blpwr_reg;
+	void *btn_reg;
 	struct device *dev;
 	struct dovebl_platform_data platform_data;
+
+	unsigned long lcd_mask;		/* mask */
+	unsigned long lcd_on;		/* value to enable lcd power */
+	unsigned long lcd_off;		/* value to disable lcd power */
+
+	unsigned long blpwr_mask;	/* mask */
+	unsigned long blpwr_on;		/* value to enable bl power */
+	unsigned long blpwr_off;	/* value to disable bl power */
+
+	unsigned long btn_mask;	/* mask */
+	unsigned long btn_level;	/* how many level can be configured. */
+	unsigned long btn_min;	/* min value */
+	unsigned long btn_max;	/* max value */
+	unsigned long btn_inc;	/* increment */
+
 };
 
+void dovebl_config_reg(unsigned long *reg, unsigned long mask, unsigned long value)
+{
+	unsigned int x;
+	volatile unsigned long* addr;
 
-#define DOVEBL_BL_DIV	     0x146	/* 100Hz */
+	addr = reg;
+	x = *addr;
+	x &= ~(mask);	/* clear */
+	x |= value;
+	*addr = x;
+}
 
 static int dovebl_update_status(struct backlight_device *dev)
 {
 	struct dove_backlight *bl = dev_get_drvdata(&dev->dev);
-	u32 reg;
-	u32 bl_val;
 	u32 brightness = dev->props.brightness;
-	u32 bl_div = DOVEBL_BL_DIV;
 
 	if ((dev->props.power != FB_BLANK_UNBLANK) ||
 		(dev->props.fb_blank != FB_BLANK_UNBLANK) ||
 		(bl->powermode == FB_BLANK_POWERDOWN)) {
 		brightness = 0;
-		bl_div = 0;
-		bl_val = 0;
 	} else {
 		/*
 		 * brightness = 0 is 1 in the duty cycle in order not to
-		 * fully shutdown the backlight.
+		 * fully shutdown the backlight. framework check max
+		 * automatically.
 		 */
-		bl_val = ((brightness+1) << 28) | (bl_div << 16);
+		if (bl->btn_min > brightness) {
+			brightness = bl->btn_min;
+			printk(KERN_WARNING "brightness level is too small, "
+				"use min value\n");
+		}
 	}
 	
 	if (bl->current_intensity != brightness) {
-		reg = readl(bl->reg_base + LCD_CFG_GRA_PITCH);
-		reg &= 0xFFFF;
-		writel(reg | bl_val, bl->reg_base + LCD_CFG_GRA_PITCH);
+		dovebl_config_reg(bl->btn_reg,
+			bl->btn_mask,
+			(bl->btn_inc*brightness*0x10000000)); 
 		bl->current_intensity = brightness;
+
+		if (brightness != 0) {
+			/* Set backlight power on. */
+			dovebl_config_reg(bl->blpwr_reg,
+			    bl->blpwr_mask,
+			    bl->blpwr_on);
+			printk( KERN_INFO "backlight power on\n");
+		} else {
+			/* Set backlight power down. */
+			dovebl_config_reg(bl->blpwr_reg,
+			    bl->blpwr_mask,
+			    bl->blpwr_off);
+			printk( KERN_INFO "backlight power down\n");
+		}
 	}
 
 	return 0;
 }
-
 
 static int dovebl_get_brightness(struct backlight_device *dev)
 {
@@ -126,27 +165,24 @@ static int dove_lcd_set_power(struct lcd_device *ld, int power)
 
 	switch (power) {
 	case FB_BLANK_UNBLANK:          /* 0 */
-		/* Set backlight power on. */
-		dovefb_config_backlight_power(0, 1);
-
 		/* Set LCD panel power on. */
-		dovefb_config_lcd_power(0, 1);
+		dovebl_config_reg(bl->lcdpwr_reg, bl->lcd_mask, bl->lcd_on);
+		printk(KERN_INFO "panel power on(FB_BLANK_UNBLANK)\n");
 		break;
 	case FB_BLANK_POWERDOWN:        /* 4 */
-		/* Set backlight power down. */
-		dovefb_config_backlight_power(0, 0);
-
 		/* Set LCD panel power down. */
-		dovefb_config_lcd_power(0, 0);
+		dovebl_config_reg(bl->lcdpwr_reg, bl->lcd_mask, bl->lcd_off);
+		printk(KERN_INFO "panel power down(FB_BLANK_POWERDOWN)\n");
 		break;
 	case FB_BLANK_NORMAL:
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
-		/* Set backlight power down. */
-		dovefb_config_backlight_power(0, 0);
+		/* Set LCD panel power down. */
+		dovebl_config_reg(bl->lcdpwr_reg,
+			bl->lcd_mask,
+			bl->lcd_off);
 
-		/* Set LCD panel power on. */
-		dovefb_config_lcd_power(0, 1);
+		printk(KERN_INFO "panel power down(FB_BLANK_NORMAL)\n");
 		break;
 
 	default:
@@ -184,15 +220,51 @@ static int dovebl_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	bl->reg_base = ioremap_nocache(res->start, res->end - res->start);
-	if (bl->reg_base == NULL) {
+	/* Get lcd power control reg. */
+	if (0 == dbm->lcd_mapped) 
+		bl->lcdpwr_reg = ioremap_nocache(dbm->lcd_start,
+			dbm->lcd_end - dbm->lcd_start);
+	else
+		bl->lcdpwr_reg = (void *)dbm->lcd_start;
+
+	if (bl->lcdpwr_reg == NULL) {
+		printk(KERN_ERR "Can't map lcd power control reg\n");
 		kfree(bl);
 		return -ENOMEM;
 	}
+	bl->lcdpwr_reg += dbm->lcd_offset;
+
+	/* Get backlight power control reg. */
+	if (0 == dbm->blpwr_mapped) 
+		bl->blpwr_reg = ioremap_nocache(dbm->blpwr_start,
+			dbm->blpwr_end - dbm->blpwr_start);
+	else
+		bl->blpwr_reg = (void*)dbm->blpwr_start;
+		
+	if (bl->blpwr_reg == NULL) {
+		kfree(bl);
+		return -ENOMEM;
+	}
+	bl->blpwr_reg += dbm->blpwr_offset;
+
+	/* Get brightness control reg. */
+	if (0 == dbm->btn_mapped) 
+		bl->btn_reg = ioremap_nocache(dbm->btn_start,
+			dbm->btn_end - dbm->btn_start);
+	else
+		bl->btn_reg = (void*)dbm->btn_start;
+	
+	if (bl->btn_reg == NULL) {
+		kfree(bl);
+		return -ENOMEM;
+	}
+	bl->btn_reg += dbm->btn_offset;
 
 	dev = backlight_device_register("dove-bl", &pdev->dev, bl, &dovebl_ops);
 	if (IS_ERR(dev)) {
-		iounmap(bl->reg_base);
+		iounmap(bl->btn_reg);
+		iounmap(bl->blpwr_reg);
+		iounmap(bl->lcdpwr_reg);
 		kfree(bl);
 		return PTR_ERR(dev);
 	}
@@ -209,15 +281,42 @@ static int dovebl_probe(struct platform_device *pdev)
 	bl->platform_data = *dbm;
 	bl->dev = &pdev->dev;
 
+        bl->lcd_mask	= dbm->lcd_mask;
+	bl->lcd_on	= dbm->lcd_on;
+        bl->lcd_off	= dbm->lcd_off;
+
+	bl->blpwr_mask	= dbm->blpwr_mask;
+	bl->blpwr_on	= dbm->blpwr_on;
+	bl->blpwr_off	= dbm->blpwr_off;
+
+	bl->btn_mask	= dbm->btn_mask;
+	bl->btn_level	= dbm->btn_level;
+	bl->btn_min	= dbm->btn_min;
+	bl->btn_max	= dbm->btn_max;
+	bl->btn_inc	= dbm->btn_inc;
+
 	platform_set_drvdata(pdev, dev);
 
 	/* Get LCD clock information. */
-	bl->clk = clk_get(&pdev->dev, "LCD");
+	bl->clk = clk_get(&pdev->dev, "LCDCLK");
 
 	dev->props.fb_blank = FB_BLANK_UNBLANK;
-	dev->props.max_brightness = dbm->max_brightness;
+	dev->props.max_brightness = dbm->btn_max;
 	dev->props.brightness = dbm->default_intensity;
+
+	/* set default PWN to 100Hz. */
+	dovebl_config_reg(bl->btn_reg,
+			0x0FFF0000,
+			(DOVEBL_BL_DIV << 16)); 
+
+	printk(KERN_INFO "Dove Backlight Driver start power on sequence.\n");
+	/* power on backlight and set default brightness */
 	dovebl_update_status(dev);
+
+	/* power on LCD panel. */
+	printk(KERN_INFO "first time to"
+		"panel power on(FB_BLANK_UNBLANK)\n");
+	dovebl_config_reg(bl->lcdpwr_reg, bl->lcd_mask, bl->lcd_on);
 
 	printk(KERN_INFO "Dove Backlight Driver Initialized.\n");
 	return 0;
