@@ -157,11 +157,7 @@ static void orion_usb_phy_v2_setup(struct usb_hcd *hcd)
 	reg |= 1 << 2;
 
 	reg &= ~(0xf << 4);
-#ifdef CONFIG_DOVE_REV_Z0
-	reg |= 7 << 4; /* SQ_THRESH */
-#else
 	reg |= 0xc << 4; /* SQ_THRESH */ 
-#endif
 	reg &= ~(3 << 15); /* REG_SQ_LENGTH */
 	reg |= 1 << 15;
 	reg &= ~(1 << 21); /* CDR_FASTLOCK_EN */
