@@ -334,12 +334,15 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 #endif
 
 #ifndef CONFIG_DOVE_REV_Z0
-#ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
-	set_external_lcd_clock(axi_div, is_ext);
-#else
-	if (0 == init_ext_divider) {
-		init_ext_divider = 1;
-		set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+	if (lcd_accurate_clock) {
+		is_ext = 1;
+		set_external_lcd_clock(axi_div, is_ext);
+	} else {
+		if (0 == init_ext_divider) {
+			init_ext_divider = 1;
+			printk(KERN_ERR "fix to (2G/%d) without half divider.\n", (2000000000/dmi->sclk_clock));
+			set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+		}
 	}
 #endif
 #endif
@@ -492,7 +495,18 @@ static void set_dumb_panel_control(struct fb_info *fi, int gpio_only)
 	x |= dmi->gpio_output_data << 20;
 	x |= dmi->gpio_output_mask << 12;
 	if (!gpio_only) {
-		x |= (dfli->is_blanked ? 0x7 : dmi->panel_rgb_type) << 28;
+		if (dfli->is_blanked &&
+			(dmi->panel_rgb_type == DUMB24_RGB888_0))
+			x |= 0x7 << 28;
+		else
+			/*
+			 * When dumb interface isn't under 24bit
+			 * It might be under SPI or GPIO. If set
+			 * to 0x7 will force LCD_D[23:0] output
+			 * blank color and damage GPIO and SPI
+			 * behavior.
+			 */
+			x |= dmi->panel_rgb_type << 28;
 		x |= dmi->panel_rgb_reverse_lanes ? 0x00000080 : 0;
 		x |= dmi->invert_composite_blank ? 0x00000040 : 0;
 		x |= (fi->var.sync & FB_SYNC_COMP_HIGH_ACT) ? 0x00000020 : 0;
@@ -684,12 +698,48 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	return 0;
 }
 
+static int dovefb_pwr_off_sram(struct dovefb_layer_info *dfli)
+{
+	unsigned int x;
+
+	if (dfli) {
+		x = readl(dfli->reg_base + LCD_SPU_SRAM_PARA1);
+		x |=	CFG_PDWN256x32_MASK |
+			CFG_PDWN256x24_MASK |
+			CFG_PDWN256x8_MASK;
+		writel(x, dfli->reg_base + LCD_SPU_SRAM_PARA1);
+	}
+
+	return 0;
+}
+
+static int dovefb_pwr_on_sram(struct dovefb_layer_info *dfli)
+{
+	unsigned int x;
+
+	if (dfli) {
+		x = readl(dfli->reg_base + LCD_SPU_SRAM_PARA1);
+		x &=	~(CFG_PDWN256x32_MASK |
+			CFG_PDWN256x24_MASK |
+			CFG_PDWN256x8_MASK);
+		writel(x, dfli->reg_base + LCD_SPU_SRAM_PARA1);
+	}
+
+	return 0;
+}
+
 static int dovefb_blank(int blank, struct fb_info *fi)
 {
 	struct dovefb_layer_info *dfli = fi->par;
 
 	dfli->is_blanked = (blank == FB_BLANK_UNBLANK) ? 0 : 1;
 	set_dumb_panel_control(fi, 0);
+
+	if (blank == FB_BLANK_UNBLANK) {
+		dovefb_pwr_on_sram(dfli);
+	} else {
+		dovefb_pwr_off_sram(dfli);
+	}
 
 	return 0;
 }
