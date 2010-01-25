@@ -12,11 +12,6 @@ choice
 	prompt "Dove SoC Silicon Revision"
 	default DOVE_REV_Y0
 
-config DOVE_REV_Z0
-	bool "Dove Revision Z0"
-	help
-	  This enables support for Dove Z0 silicon
-
 config DOVE_REV_Y0
 	bool "Dove Revision Y0"
 	help
@@ -32,23 +27,6 @@ config MACH_DOVE_RD_AVNG
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell RD-MV88F6781 Avengers Mobile Internet Device Reference design
 	  platform.
-
-config MACH_DOVE_RD_AVNG_Z0
-	bool "Marvell RD-MV88F6781 Avengers Reference design platform"
-	select I2C_BOARDINFO
-	depends on DOVE_REV_Z0
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell RD-MV88F6781 Avengers Mobile Internet Device Reference design
-	  platform.
-
-config MACH_DOVE_RD_AVNG_NB_Z0
-	bool "Marvell RD-MV88F6781 Avengers Net Book Reference design platform"
-	select I2C_BOARDINFO
-	depends on DOVE_REV_Z0
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell RD-MV88F6781 Aveners Net Book Reference design platform.
 
 config MV_INCLUDE_MPP_SYSFS
         bool "Avengers MPP sysfs Support"
@@ -68,14 +46,6 @@ config MACH_DOVE_DB
 	bool "Marvell DB-MV88F6781 Development Board"
 	select I2C_BOARDINFO
 	depends on DOVE_REV_Y0
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell DB-MV88F6781 Development Board.
-
-config MACH_DOVE_DB_Z0
-	bool "Marvell DB-MV88F6781 Z0 Development Board"
-	select I2C_BOARDINFO
-	depends on DOVE_REV_Z0
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell DB-MV88F6781 Development Board.
