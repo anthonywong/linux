@@ -59,8 +59,6 @@ static int dovefb_fill_edid(struct fb_info *fi,
 static int wait_for_vsync(struct dovefb_layer_info *dfli);
 static void dovefb_set_defaults(struct dovefb_layer_info *dfli);
 
-#ifndef CONFIG_DOVE_REV_Z0
-
 #define AXI_BASE_CLK	(2000000000ll)	/* 2000MHz */
 
 static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
@@ -253,8 +251,6 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 	*axi_div = best_axi_div;
 	return;
 }
-#endif /* ifdef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK */
-#endif /* CONFIG_DOVE_REV_Z0 */
 
 
 /*
@@ -333,7 +329,6 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	}
 #endif
 
-#ifndef CONFIG_DOVE_REV_Z0
 	if (lcd_accurate_clock) {
 		is_ext = 1;
 		set_external_lcd_clock(axi_div, is_ext);
@@ -344,8 +339,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 			set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
 		}
 	}
-#endif
-#endif
+
 	/*
 	 * Set setting to reg.
 	 */
