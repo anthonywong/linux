@@ -344,8 +344,8 @@ static struct resource dcon_res[] = {
 };
 
 static struct dovedcon_mach_info dcon_data = {
-	.port_a = 0,
-	.port_b = 0,
+	.port_a = 1,
+	.port_b = 1,
 };
 
 static struct platform_device dcon_platform_device = {
@@ -374,49 +374,6 @@ static struct platform_device backlight_platform_device = {
 	.num_resources	= ARRAY_SIZE(backlight_res),
 	.resource	= backlight_res,
 };
-
-void dovefb_config_lcd_power(unsigned int reg_offset, int on)
-{
-		unsigned int x;
-		volatile unsigned int* addr;
-
-		addr = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0);
-		/*
-		 * LCD Power Control through dedicated pins.
-	 	 * Suppose MPP has been set to right mode.
-		 * We just set the value directly.
-		 */
-		x = *addr;
-		x &= ~(0x1 << 11);
-		x |= (on << 11);
-		*addr = x;
-}
-EXPORT_SYMBOL(dovefb_config_lcd_power);
-
-void dovefb_config_backlight_power(unsigned int reg_offset, int on)
-{
-	if (reg_offset) {
-		/*
-		 * BL Power Control through bit of register.
-		 */
-	} else {
-		unsigned int x;
-		volatile unsigned int* addr;
-
-		addr = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0);
-		/*
-		 * BL Power Control through dedicated pins.
-	 	 * Suppose MPP has been set to right mode.
-		 * We just set the value directly.
-		 */
-		x = *addr;
-		x &= ~(0x1 << 17);
-		x |= (on << 17);
-		*addr = x;
-	}
-
-}
-EXPORT_SYMBOL(dovefb_config_backlight_power);
 
 #endif /* CONFIG_FB_DOVE_DCON */
 
@@ -486,8 +443,16 @@ int clcd_platform_init(struct dovefb_mach_info *lcd0_dmi_data,
 #endif
 
 #ifdef CONFIG_FB_DOVE_DCON
-	if (lcd0_enable || lcd1_enable)
+	if (lcd0_enable || lcd1_enable) {
+		if (lcd0_enable)
+			dcon_data.port_a = 1;
+		if (lcd1_enable)
+			dcon_data.port_b = 1;
+#ifdef CONFIG_FB_DOVE_CLCD_DCONB_BYPASS0
+		dcon_data.port_b = 1;
+#endif
 		platform_device_register(&dcon_platform_device);
+	}
 #endif
 
 #ifdef CONFIG_BACKLIGHT_DOVE
