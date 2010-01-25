@@ -265,25 +265,133 @@ static int vmeta_set_clock(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
+{
+	u32	reg;
+	u32	old_clock_div, old_half_div;
+
+	/* disable preemption, the gen conf regs might be accessed by other
+	** drivers.
+	*/
+	preempt_disable();
+
+	/*
+	 * If current setting is right, just return.
+	 */
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
+	old_clock_div = (reg & (0x3F << 10)) >> 10;
+	old_half_div = (reg & (1 << 16)) >> 16;
+
+	if (clock_div == old_clock_div && is_half_div == old_half_div) {
+		preempt_enable();
+		return;
+	}
+
+	/* Clear LCD_Clk_Enable (Enable LCD Clock).			*/
+	reg &= ~(1 << 17);
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
+
+	/* Set LCD_CLK_DIV_SEL in LCD TWSI and CPU Configuration 1	*/
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
+	reg &= ~(1 << 9);
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
+
+	/* Configure division factor (N = LCD_EXT_DIV[5:0], N<32) in 	*/
+	/* Config 1 Register.						*/
+	reg &= ~(0x3F << 10);
+	reg |= (clock_div << 10);
+
+	/* Set LCD_Half_integer_divider = 1 in LCD TWSI and CPU Config 1*/
+	if (is_half_div)
+		reg |= (1 << 16);
+	else
+		reg &= ~(1 << 16);
+
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
+
+	/* Set LCD_Ext_Clk_Div_Load in LCD TWSI and CPU Config 2.	*/
+	reg = readl(DOVE_GLOBAL_CONFIG_2);
+	reg |= (1 << 24);
+	writel(reg, DOVE_GLOBAL_CONFIG_2);
+
+	preempt_enable();
+
+	/* Insert S/W delay of at least 200 nsec.			*/
+	udelay(1);
+
+	preempt_disable();
+	/* Clear LCD_Ext_Clk_Div_Load.					*/
+	reg = readl(DOVE_GLOBAL_CONFIG_2);
+	reg &= ~(1 << 24);
+	writel(reg, DOVE_GLOBAL_CONFIG_2);
+
+	/* Set LCD_Clk_Enable (Enable LCD Clock).			*/
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
+	reg |= (1 << 17);
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
+	preempt_enable();
+
+	return;
+}
+
+static unsigned long lcd_get_clock(struct clk *clk)
+{
+	u32 c;
+	u32 reg;
+	u32 old_clock_div, old_half_div;
+	u32 pll_src;
+
+	pll_src = 2000000000;
+
+	/* disable preemption, the gen conf regs might be accessed by other
+	** drivers.
+	*/
+	preempt_disable();
+
+	/*
+	 * If current setting is right, just return.
+	 */
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
+	old_clock_div = (reg & (0x3F << 10)) >> 10;
+	old_half_div = (reg & (1 << 16)) >> 16;
+
+	preempt_enable();
+
+	c = (pll_src*2)/(old_clock_div*2+ old_half_div*1);
+
+	return c;
+}
+
  int lcd_set_clock(struct clk *clk, unsigned long rate)
 {
-	u32 divider;
+	u32	clock_div, half_div;
 
-	divider = dove_clocks_divide(2000, rate/1000000);
-	printk(KERN_INFO "Setting LCD clock to %lu (divider: %u)\n",
-		 rate, divider);
-	dove_clocks_set_lcd_clock(divider);
+	clock_div = 2000000000/rate;
+	half_div = ((2000000000%rate) - rate/2) ? 1:0;
+
+	printk(KERN_INFO "set external divider to %d.%d\n", clock_div, half_div ? 5:0 );
+	set_external_lcd_clock(clock_div, half_div);
 	return 0;
 }
 
 static void __lcd_clk_enable(struct clk *clk)
 {
+	u32	reg;
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
+	reg |= (1 << 17);
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
+
+	/* We keep original PLL output 2G clock. */
 	dove_clocks_set_lcd_clock(1);
 	return;
 }
 
 static void __lcd_clk_disable(struct clk *clk)
 {
+	u32	reg;
+	reg = readl(DOVE_GLOBAL_CONFIG_1);
+	reg &= ~(1 << 17);
+	writel(reg, DOVE_GLOBAL_CONFIG_1);
 	dove_clocks_set_lcd_clock(0);
 	return;
 }
@@ -421,6 +529,24 @@ static ssize_t dove_clocks_vmeta_store(struct kobject *kobj,
 	return n;
 }
 
+static ssize_t dove_clocks_lcd_show(struct kobject *kobj,
+				   struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", lcd_get_clock(NULL));
+}
+
+static ssize_t dove_clocks_lcd_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t n)
+{
+	unsigned long value;
+
+	if (sscanf(buf, "%lu", &value) != 1)
+		return -EINVAL;
+	lcd_set_clock(NULL, value);
+	return n;
+}
+
 static struct kobj_attribute dove_clocks_axi_attr =
 	__ATTR(axi, 0644, dove_clocks_axi_show, dove_clocks_axi_store);
 
@@ -429,6 +555,9 @@ static struct kobj_attribute dove_clocks_gpu_attr =
 
 static struct kobj_attribute dove_clocks_vmeta_attr =
 	__ATTR(vmeta, 0644, dove_clocks_vmeta_show, dove_clocks_vmeta_store);
+
+static struct kobj_attribute dove_clocks_lcd_attr =
+	__ATTR(lcd, 0644, dove_clocks_lcd_show, dove_clocks_lcd_store);
 
 static int __init dove_upstream_clocks_sysfs_setup(void)
 {
@@ -443,6 +572,9 @@ static int __init dove_upstream_clocks_sysfs_setup(void)
 	if (sysfs_create_file(&dove_clocks_sysfs.dev.kobj,
 			&dove_clocks_vmeta_attr.attr))
 		printk(KERN_ERR "%s: sysfs_create_file failed!", __func__);
+	if (sysfs_create_file(&dove_clocks_sysfs.dev.kobj,
+			&dove_clocks_lcd_attr.attr))
+		printk(KERN_ERR "%s: sysfs_create_file lcd clock failed!", __func__);
 
 	return 0;
 }
