@@ -29,7 +29,6 @@
 #include "ctrlEnv/sys/mvCpuIfRegs.h"
 #include "common.h"
 #include "mpp.h"
-#include <asm/cpu-single.h>
 #include "twsi.h"
 #define CONFIG_PMU_PROC
 
