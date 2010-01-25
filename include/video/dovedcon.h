@@ -13,6 +13,25 @@
 #ifndef _DOVEDCON_H_
 #define	_DOVEDCON_H_
 
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/errno.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <linux/tty.h>
+#include <linux/slab.h>
+#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+#include <linux/init.h>
+#include <linux/ioport.h>
+#include <linux/types.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
+#include <linux/clk.h>
+#include <linux/fb.h>
+#include <linux/notifier.h>
+#include <linux/device.h>
+
 #define _PA_LCD0_BYPASS	(0x00)
 #define _PA_OLPC_DCON	(0x01)		/* display lcd0. */
 #define _PA_DUAL_VIEW	(0x10)
@@ -32,7 +51,12 @@ struct dovedcon_mach_info {
 struct dovedcon_info {
 	void			*reg_base;
 	struct clk		*clk;
+	struct notifier_block fb_notif;
+	unsigned int port_a;
+	unsigned int port_b;
 };
+
+#define to_dcon_device(obj) container_of(obj, struct dovedcon_info, dev)
 
 /* Register map */
 #define DCON_CTRL0			0x000
