@@ -49,6 +49,7 @@ static void *dcon_regbase;
 static int config_dcon(unsigned int settings)
 {
 	writel(settings, dcon_regbase+DCON_CTRL0);
+	return 0;
 }
 
 static int config_porta(unsigned int settings)
@@ -85,7 +86,6 @@ static int config_portb(unsigned int settings)
  */
 static long display_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct display_settings config;
 	switch (cmd) {
 	case FBIO_SET_DISPLAY_MODE:
 		/* configure display mode. */
