@@ -46,6 +46,7 @@
 #include "pdma/mvPdma.h"
 #include <ctrlEnv/mvCtrlEnvRegs.h>
 #include <audio/mvAudioRegs.h>
+#include "gpp/mvGppRegs.h"
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
 extern int mvmpp_sys_init(void);
@@ -168,8 +169,33 @@ static struct dovefb_mach_info dove_rd_avng_lcd1_vid_dmi = {
  ****************************************************************************/
 static struct dovebl_platform_data dove_rd_avng_backlight_data = {
 	.default_intensity = 0xa,
-	.max_brightness = 0xe,
 	.gpio_pm_control = 1,
+
+	.lcd_start = DOVE_SB_REGS_VIRT_BASE,	/* lcd power control reg base. */
+	.lcd_end = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0),	/* end of reg map. */
+	.lcd_offset = GPP_DATA_OUT_REG(0),	/* register offset */
+	.lcd_mapped = 1,		/* va = 0, pa = 1 */
+	.lcd_mask = 0x800,		/* mask, bit[11] */
+	.lcd_on = 0x800,		/* value to enable lcd power */
+	.lcd_off = 0x0,			/* value to disable lcd power */
+
+	.blpwr_start = DOVE_SB_REGS_VIRT_BASE, /* bl pwr ctrl reg base. */
+	.blpwr_end = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0),	/* end of reg map. */
+	.blpwr_offset = GPP_DATA_OUT_REG(0),	/* register offset */
+	.blpwr_mapped = 1,		/* pa = 0, va = 1 */
+	.blpwr_mask = 0x20000,		/* mask, bit[17] */
+	.blpwr_on = 0x20000,		/* value to enable bl power */
+	.blpwr_off = 0x0,		/* value to disable bl power */
+
+	.btn_start = DOVE_LCD1_PHYS_BASE, /* brightness control reg base. */
+	.btn_end = DOVE_LCD1_PHYS_BASE+0x1C8,	/* end of reg map. */
+	.btn_offset = LCD_CFG_GRA_PITCH,	/* register offset */
+	.btn_mapped = 0,		/* pa = 0, va = 1 */
+	.btn_mask = 0xF0000000,	/* mask */
+	.btn_level = 15,	/* how many level can be configured. */
+	.btn_min = 0x1,	/* min value */
+	.btn_max = 0xF,	/* max value */
+	.btn_inc = 0x1,	/* increment */
 };
 
 void __init dove_rd_avng_clcd_init(void) {
