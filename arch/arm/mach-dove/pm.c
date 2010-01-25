@@ -489,6 +489,24 @@ int pmu_proc_write(struct file *file, const char *buffer,unsigned long count,
 		goto done;
 	}
 
+	str = "lcd ";
+	if(!strncmp(buffer+len, str,strlen(str))) {
+		len += strlen(str);
+		str = "off";
+		if(!strncmp(buffer+len, str,strlen(str))) {
+			len += strlen(str);
+			printk("HW doesn't support LCD power OFF.\n");
+			goto done;
+		}
+		str = "on";
+		if(!strncmp(buffer+len, str,strlen(str))) {
+			len += strlen(str);
+			printk("HW doesn't support LCD power ON.\n");
+			goto done;
+		}
+		goto done;
+	}
+
 	str = "wlan ";
 	if(!strncmp(buffer+len, str,strlen(str))) {
 		len += strlen(str);
