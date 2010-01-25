@@ -1172,11 +1172,7 @@ static int dovefb_ovly_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	if (start == info->fix.mmio_start)
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	else
-#if defined(CONFIG_DOVE_REV_Z0)
-		vma->vm_page_prot |= L_PTE_CACHEABLE | L_PTE_BUFFERABLE;
-#else
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-#endif
 
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
