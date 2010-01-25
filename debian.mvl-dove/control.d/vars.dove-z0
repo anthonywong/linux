@@ -1,9 +1,0 @@
-arch="armel"
-supported="dove"
-desc="dove-based systems"
-target="Marvell, dove, z0 boards"
-bootloader=""
-provides=""
-section_image="universe/admin"
-do_debug="Yes"
-
