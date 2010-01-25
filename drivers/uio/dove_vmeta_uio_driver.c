@@ -72,7 +72,7 @@ static int vmeta_mmap(struct uio_info *info, struct vm_area_struct *vma)
 
 	vma->vm_flags |= VM_IO | VM_RESERVED;
 
-#if defined(CONFIG_ARCH_DOVE) && !defined(CONFIG_DOVE_REV_Z0)
+#if defined(CONFIG_ARCH_DOVE)
 	if(mi == VMETA_CONTROL_REGISTER_MAP)
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 	else if(mi == VMETA_DMA_BUFFER_MAP)
