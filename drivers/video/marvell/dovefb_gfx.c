@@ -1178,6 +1178,8 @@ int dovefb_gfx_suspend(struct dovefb_layer_info *dfli, pm_message_t mesg)
 
 	printk(KERN_INFO "dovefb_gfx_suspend(): state = %d.\n", mesg.event);
 
+	init_ext_divider = 0;
+
 	if (mesg.event & PM_EVENT_SLEEP) {
 		fb_set_suspend(fi, 1);
 		dovefb_blank(FB_BLANK_POWERDOWN, fi);
