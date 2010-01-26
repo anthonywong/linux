@@ -163,8 +163,6 @@ cfg80211
 cfi_cmdset_0001
 cfi_cmdset_0002
 cfi_cmdset_0020
-cfi_probe
-cfi_util
 ch
 ch341
 cicada
@@ -256,7 +254,6 @@ docprobe
 drbd
 ds1621
 ds1682
-ds1wm
 ds2482
 ds2490
 ds2760_battery
@@ -380,7 +377,6 @@ gcm
 generic
 generic_bl
 generic_serial
-gen_probe
 g_ether
 gf128mul
 gf2k
@@ -392,6 +388,7 @@ gl518sm
 gl520sm
 gl620a
 gluebi
+gps_gpiodrv
 grip
 grip_mp
 g_serial
@@ -485,7 +482,6 @@ i2400m-sdio
 i2400m-usb
 i2c-algo-bit
 i2c-algo-pca
-i2c-designware
 i2c-imx
 i2c-ocores
 i2c-parport
@@ -504,7 +500,6 @@ ifb
 iforce
 ili9320
 imm
-imx_nfc
 imx_sim
 inexio
 inftl
@@ -559,6 +554,11 @@ ipt_NETMAP
 ipt_REDIRECT
 ipt_REJECT
 ipt_ULOG
+ipu_csi_enc
+ipu_prp_enc
+ipu_prp_vf_sdc
+ipu_prp_vf_sdc_bg
+ipu_still
 ip_vs
 ip_vs_dh
 ip_vs_ftp
@@ -737,6 +737,7 @@ mdc800
 mdio-bitbang
 memain
 metronomefb
+mfd-core
 michael_mic
 microtek
 mimio
@@ -774,6 +775,8 @@ mtd_subpagetest
 mtd_torturetest
 mtouch
 multipath
+mxc_v4l2_capture
+mxc_v4l2_output
 mxc_w1
 mxl5005s
 mxl5007t
@@ -898,6 +901,7 @@ osdblk
 osst
 oti6858
 output
+ov3640_camera
 ov772x
 oxu210hp-hcd
 p54common
@@ -1102,7 +1106,6 @@ ses
 sha1_generic
 sha256_generic
 sha512_generic
-sh_mobile_ceu_camera
 si21xx
 sidewinder
 siemens_mpi
@@ -1231,7 +1234,6 @@ ti_usb_3410_5052
 tle62x0
 tmdc
 tmiofb
-tmio_mmc
 tmp401
 touchit213
 touchright
@@ -1316,7 +1318,6 @@ veth
 vgg2432a4
 vhci-hcd
 videobuf-core
-videobuf-dma-contig
 videobuf-dvb
 videobuf-vmalloc
 videodev
@@ -1329,6 +1330,7 @@ vt1211
 w1_bq27000
 w1_ds2431
 w1_ds2433
+w1_ds2438
 w1_ds2760
 w1_smem
 w1_therm
@@ -1355,6 +1357,7 @@ wl12xx
 wl3501_cs
 wlp
 wm8350
+wm8350_bl
 wm8350-i2c
 wm8350_power
 wm8350-regulator
