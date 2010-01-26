@@ -439,7 +439,6 @@ static const struct xenbus_device_id netback_ids[] = {
 
 static struct xenbus_driver netback = {
 	.name = "vif",
-	.owner = THIS_MODULE,
 	.ids = netback_ids,
 	.probe = netback_probe,
 	.remove = netback_remove,
@@ -450,5 +449,6 @@ static struct xenbus_driver netback = {
 
 void netif_xenbus_init(void)
 {
-	xenbus_register_backend(&netback);
+	if (xenbus_register_backend(&netback))
+		BUG();
 }
