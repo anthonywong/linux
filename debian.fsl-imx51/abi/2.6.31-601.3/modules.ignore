@@ -1,9 +1,0 @@
-cfi_probe
-cfi_util
-ds1wm
-gen_probe
-i2c-designware
-imx_nfc
-sh_mobile_ceu_camera
-tmio_mmc
-videobuf-dma-contig
