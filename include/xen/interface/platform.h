@@ -355,6 +355,14 @@ struct xenpf_mem_hotadd
     uint32_t flags;
 };
 
+#define XENPF_get_cpu_freq        ('N' << 24)
+struct xenpf_get_cpu_freq {
+    /* IN variables */
+    uint32_t vcpu;
+    /* OUT variables */
+    uint32_t freq; /* in kHz */
+};
+
 struct xen_platform_op {
     uint32_t cmd;
     uint32_t interface_version; /* XENPF_INTERFACE_VERSION */
@@ -374,6 +382,7 @@ struct xen_platform_op {
         struct xenpf_cpu_ol            cpu_ol;
         struct xenpf_cpu_hotadd        cpu_add;
         struct xenpf_mem_hotadd        mem_add;
+        struct xenpf_get_cpu_freq      get_cpu_freq;
         uint8_t                        pad[128];
     } u;
 };
