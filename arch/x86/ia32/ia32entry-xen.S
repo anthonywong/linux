@@ -20,18 +20,15 @@
 #define AUDIT_ARCH_I386		(EM_386|__AUDIT_ARCH_LE)
 #define __AUDIT_ARCH_LE	   0x40000000
 
-#ifndef CONFIG_AUDITSYSCALL
-#define sysexit_audit int_ret_from_sys_call
-#define sysretl_audit int_ret_from_sys_call
-#endif
-
 #define IA32_NR_syscalls ((ia32_syscall_end - ia32_sys_call_table)/8)
 
 	.macro IA32_ARG_FIXUP noebp=0
 	movl	%edi,%r8d
 	.if \noebp
+	jmp	ia32_common
 	.else
 	movl	%ebp,%r9d
+ia32_common:
 	.endif
 	xchg	%ecx,%esi
 	movl	%ebx,%edi
@@ -39,12 +36,12 @@
 	.endm 
 
 	/* clobbers %eax */	
-	.macro  CLEAR_RREGS _r9=rax
+	.macro  CLEAR_RREGS offset=0, _r9=rax
 	xorl 	%eax,%eax
-	movq	%rax,R11(%rsp)
-	movq	%rax,R10(%rsp)
-	movq	%\_r9,R9(%rsp)
-	movq	%rax,R8(%rsp)
+	movq	%rax,\offset+R11(%rsp)
+	movq	%rax,\offset+R10(%rsp)
+	movq	%\_r9,\offset+R9(%rsp)
+	movq	%rax,\offset+R8(%rsp)
 	.endm
 
 	/*
@@ -144,17 +141,7 @@ ENTRY(ia32_sysenter_target)
 	jnz  sysenter_tracesys
 	cmpl	$(IA32_NR_syscalls-1),%eax
 	ja	ia32_badsys
-sysenter_do_call:
-	IA32_ARG_FIXUP
-sysenter_dispatch:
-	call	*ia32_sys_call_table(,%rax,8)
-	movq	%rax,RAX-ARGOFFSET(%rsp)
-	GET_THREAD_INFO(%r10)
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	testl	$_TIF_ALLWORK_MASK,TI_flags(%r10)
-	jnz	sysexit_audit
-	jmp int_ret_from_sys_call
+	jmp	ia32_do_call
 
 #ifdef CONFIG_AUDITSYSCALL
 	.macro auditsys_entry_common
@@ -175,31 +162,10 @@ sysenter_dispatch:
 	movl RDI-ARGOFFSET(%rsp),%r8d	/* reload 5th syscall arg */
 	.endm
 
-	.macro auditsys_exit exit,ebpsave=RBP
-	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),TI_flags(%r10)
-	jnz int_ret_from_sys_call
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	movl %eax,%esi		/* second arg, syscall return value */
-	cmpl $0,%eax		/* is it < 0? */
-	setl %al		/* 1 if so, 0 if not */
-	movzbl %al,%edi		/* zero-extend that into %edi */
-	inc %edi /* first arg, 0->1(AUDITSC_SUCCESS), 1->2(AUDITSC_FAILURE) */
-	call audit_syscall_exit
-	movl \ebpsave-ARGOFFSET(%rsp),%ebp /* reload user register value */
-	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	TRACE_IRQS_OFF
-	jmp int_with_check
-	.endm
-
 sysenter_auditsys:
 	auditsys_entry_common
 	movl %ebp,%r9d			/* reload 6th syscall arg */
-	jmp sysenter_dispatch
-
-sysexit_audit:
-	auditsys_exit sysexit_from_sys_call
+	jmp ia32_dispatch
 #endif
 
 sysenter_tracesys:
@@ -216,7 +182,7 @@ sysenter_tracesys:
 	RESTORE_REST
 	cmpl	$(IA32_NR_syscalls-1),%eax
 	ja	int_ret_from_sys_call /* sysenter_tracesys has set RAX(%rsp) */
-	jmp	sysenter_do_call
+	jmp	ia32_do_call
 	CFI_ENDPROC
 ENDPROC(ia32_sysenter_target)
 
@@ -272,24 +238,13 @@ ENTRY(ia32_cstar_target)
 	ja  ia32_badsys
 cstar_do_call:
 	IA32_ARG_FIXUP 1
-cstar_dispatch:
-	call *ia32_sys_call_table(,%rax,8)
-	movq %rax,RAX-ARGOFFSET(%rsp)
-	GET_THREAD_INFO(%r10)
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	testl $_TIF_ALLWORK_MASK,TI_flags(%r10)
-	jnz sysretl_audit
-	jmp int_ret_from_sys_call
 	
 #ifdef CONFIG_AUDITSYSCALL
 cstar_auditsys:
 	movl %r9d,R9-ARGOFFSET(%rsp)	/* register to be clobbered by call */
 	auditsys_entry_common
 	movl R9-ARGOFFSET(%rsp),%r9d	/* reload 6th syscall arg */
-	jmp cstar_dispatch
-
-sysretl_audit:
-	auditsys_exit sysretl_from_sys_call, RCX /* user %ebp in RCX slot */
+	jmp ia32_dispatch
 #endif
 
 cstar_tracesys:
@@ -299,7 +254,7 @@ cstar_tracesys:
 #endif
 	xchgl %r9d,%ebp
 	SAVE_REST
-	CLEAR_RREGS r9
+	CLEAR_RREGS 0, r9
 	movq $-ENOSYS,RAX(%rsp)	/* ptrace can change this for a bad syscall */
 	movq %rsp,%rdi        /* &pt_regs -> arg1 */
 	call syscall_trace_enter
@@ -367,9 +322,11 @@ ENTRY(ia32_syscall)
 	ja ia32_badsys
 ia32_do_call:
 	IA32_ARG_FIXUP
+ia32_dispatch:
 	call *ia32_sys_call_table(,%rax,8) # xxx: rip relative
 ia32_sysret:
 	movq %rax,RAX-ARGOFFSET(%rsp)
+	CLEAR_RREGS -ARGOFFSET
 	jmp int_ret_from_sys_call 
 
 ia32_tracesys:			 
@@ -387,8 +344,8 @@ END(ia32_syscall)
 
 ia32_badsys:
 	movq $0,ORIG_RAX-ARGOFFSET(%rsp)
-	movq $-ENOSYS,RAX-ARGOFFSET(%rsp)
-	jmp int_ret_from_sys_call
+	movq $-ENOSYS,%rax
+	jmp ia32_sysret
 
 quiet_ni_syscall:
 	movq $-ENOSYS,%rax
@@ -482,7 +439,7 @@ ia32_sys_call_table:
 	.quad sys_mkdir
 	.quad sys_rmdir		/* 40 */
 	.quad sys_dup
-	.quad sys32_pipe
+	.quad sys_pipe
 	.quad compat_sys_times
 	.quad quiet_ni_syscall			/* old prof syscall holder */
 	.quad sys_brk		/* 45 */
@@ -776,5 +733,5 @@ ia32_sys_call_table:
 	.quad compat_sys_preadv
 	.quad compat_sys_pwritev
 	.quad compat_sys_rt_tgsigqueueinfo	/* 335 */
-	.quad sys_perf_counter_open
+	.quad sys_perf_event_open
 ia32_syscall_end:
