@@ -57,6 +57,7 @@ EXPORT_SYMBOL(machine_restart);
 EXPORT_SYMBOL(machine_halt);
 EXPORT_SYMBOL(machine_power_off);
 
+#ifdef CONFIG_PM_SLEEP
 static void pre_suspend(void)
 {
 	HYPERVISOR_shared_info = (shared_info_t *)empty_zero_page;
@@ -113,6 +114,7 @@ static void post_suspend(int suspend_cancelled)
 	HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
 		virt_to_mfn(pfn_to_mfn_frame_list_list);
 }
+#endif
 
 #else /* !(defined(__i386__) || defined(__x86_64__)) */
 
@@ -131,6 +133,7 @@ static void post_suspend(int suspend_cancelled)
 
 #endif
 
+#ifdef CONFIG_PM_SLEEP
 struct suspend {
 	int fast_suspend;
 	void (*resume_notifier)(int);
@@ -224,7 +227,8 @@ int __xen_suspend(int fast_suspend, void (*resume_notifier)(int))
 
 	if (fast_suspend) {
 		xenbus_suspend();
-		err = stop_machine_run(take_machine_down, &suspend, 0);
+		err = stop_machine(take_machine_down, &suspend,
+				   &cpumask_of_cpu(0));
 		if (err < 0)
 			xenbus_suspend_cancel();
 	} else {
@@ -247,3 +251,4 @@ int __xen_suspend(int fast_suspend, void (*resume_notifier)(int))
 
 	return 0;
 }
+#endif

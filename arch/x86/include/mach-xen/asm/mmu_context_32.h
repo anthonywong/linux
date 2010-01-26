@@ -1,32 +1,6 @@
 #ifndef __I386_SCHED_H
 #define __I386_SCHED_H
 
-#include <asm/desc.h>
-#include <asm/atomic.h>
-#include <asm/pgalloc.h>
-#include <asm/tlbflush.h>
-
-void arch_exit_mmap(struct mm_struct *mm);
-void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm);
-
-void mm_pin(struct mm_struct *mm);
-void mm_unpin(struct mm_struct *mm);
-void mm_pin_all(void);
-
-static inline void xen_activate_mm(struct mm_struct *prev,
-				   struct mm_struct *next)
-{
-	if (!PagePinned(virt_to_page(next->pgd)))
-		mm_pin(next);
-}
-
-/*
- * Used for LDT copy/destruction.
- */
-int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
-void destroy_context(struct mm_struct *mm);
-
-
 static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 {
 #if 0 /* XEN: no lazy tlb */
@@ -106,11 +80,5 @@ static inline void switch_mm(struct mm_struct *prev,
 
 #define deactivate_mm(tsk, mm)			\
 	asm("movl %0,%%gs": :"r" (0));
-
-#define activate_mm(prev, next)			\
-do {						\
-	xen_activate_mm(prev, next);		\
-	switch_mm((prev), (next), NULL);	\
-} while (0)
 
 #endif

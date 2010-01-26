@@ -38,6 +38,8 @@
 # define UNLOCK_LOCK_PREFIX
 #endif
 
+#ifdef TICKET_SHIFT
+
 int xen_spinlock_init(unsigned int cpu);
 void xen_spinlock_cleanup(unsigned int cpu);
 int xen_spin_wait(raw_spinlock_t *, unsigned int token);
@@ -64,14 +66,14 @@ void xen_spin_kick(raw_spinlock_t *, unsigned int token);
  * much between them in performance though, especially as locks are out of line.
  */
 #if TICKET_SHIFT == 8
-#define __raw_spin_lock_preamble \
+#define __ticket_spin_lock_preamble \
 	asm(LOCK_PREFIX "xaddw %w0, %2\n\t" \
 	    "cmpb %h0, %b0\n\t" \
 	    "sete %1" \
 	    : "=&Q" (token), "=qm" (free), "+m" (lock->slock) \
 	    : "0" (0x0100) \
 	    : "memory", "cc")
-#define __raw_spin_lock_body \
+#define __ticket_spin_lock_body \
 	asm("1:\t" \
 	    "cmpb %h0, %b0\n\t" \
 	    "je 2f\n\t" \
@@ -87,7 +89,7 @@ void xen_spin_kick(raw_spinlock_t *, unsigned int token);
 	    : "memory", "cc")
 
 
-static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp, new;
 
@@ -106,7 +108,7 @@ static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 {
 	unsigned int token;
 	unsigned char kick;
@@ -122,7 +124,7 @@ static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 		xen_spin_kick(lock, token);
 }
 #elif TICKET_SHIFT == 16
-#define __raw_spin_lock_preamble \
+#define __ticket_spin_lock_preamble \
 	do { \
 		unsigned int tmp; \
 		asm(LOCK_PREFIX "xaddl %0, %2\n\t" \
@@ -134,7 +136,7 @@ static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 		    : "0" (0x00010000) \
 		    : "memory", "cc"); \
 	} while (0)
-#define __raw_spin_lock_body \
+#define __ticket_spin_lock_body \
 	do { \
 		unsigned int tmp; \
 		asm("shldl $16, %0, %2\n" \
@@ -153,7 +155,7 @@ static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 		    : "memory", "cc"); \
 	} while (0)
 
-static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 {
 	int tmp;
 	int new;
@@ -175,7 +177,7 @@ static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	return tmp;
 }
 
-static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 {
 	unsigned int token, tmp;
 	bool kick;
@@ -193,59 +195,172 @@ static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
 }
 #endif
 
-static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
+static inline int __ticket_spin_is_locked(raw_spinlock_t *lock)
 {
 	int tmp = ACCESS_ONCE(lock->slock);
 
 	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & ((1 << TICKET_SHIFT) - 1));
 }
 
-static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
+static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
 {
 	int tmp = ACCESS_ONCE(lock->slock);
 
 	return (((tmp >> TICKET_SHIFT) - tmp) & ((1 << TICKET_SHIFT) - 1)) > 1;
 }
 
-static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
+static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 {
 	unsigned int token, count;
 	bool free;
 
-	__raw_spin_lock_preamble;
+	__ticket_spin_lock_preamble;
 	if (likely(free))
 		return;
 	token = xen_spin_adjust(lock, token);
 	do {
 		count = 1 << 10;
-		__raw_spin_lock_body;
+		__ticket_spin_lock_body;
 	} while (unlikely(!count) && !xen_spin_wait(lock, token));
+}
+
+static __always_inline void __ticket_spin_lock_flags(raw_spinlock_t *lock,
+						     unsigned long flags)
+{
+	unsigned int token, count;
+	bool free;
+
+	__ticket_spin_lock_preamble;
+	if (likely(free))
+		return;
+	token = xen_spin_adjust(lock, token);
+	do {
+		count = 1 << 10;
+		__ticket_spin_lock_body;
+	} while (unlikely(!count) && !xen_spin_wait_flags(lock, &token, flags));
+}
+
+#undef __ticket_spin_lock_preamble
+#undef __ticket_spin_lock_body
+
+#define __raw_spin(n) __ticket_spin_##n
+
+#else /* TICKET_SHIFT */
+
+static inline int xen_spinlock_init(unsigned int cpu) { return 0; }
+static inline void xen_spinlock_cleanup(unsigned int cpu) {}
+
+/*
+ * Define virtualization-friendly old-style lock byte lock, for use in
+ * pv_lock_ops if desired.
+ *
+ * This differs from the pre-2.6.24 spinlock by always using xchgb
+ * rather than decb to take the lock; this allows it to use a
+ * zero-initialized lock structure.  It also maintains a 1-byte
+ * contention counter, so that we can implement
+ * __byte_spin_is_contended.
+ */
+struct __byte_spinlock {
+	s8 lock;
+#if NR_CPUS < 256
+	s8 spinners;
+#else
+#error NR_CPUS >= 256 support not implemented
+#endif
+};
+
+static inline int __byte_spin_is_locked(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	return bl->lock != 0;
+}
+
+static inline int __byte_spin_is_contended(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	return bl->spinners != 0;
+}
+
+static inline void __byte_spin_lock(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	s8 val = 1;
+
+	asm("1: xchgb %1, %0\n"
+	    "   test %1,%1\n"
+	    "   jz 3f\n"
+	    "   " LOCK_PREFIX "incb %2\n"
+	    "2: rep;nop\n"
+	    "   cmpb $1, %0\n"
+	    "   je 2b\n"
+	    "   " LOCK_PREFIX "decb %2\n"
+	    "   jmp 1b\n"
+	    "3:"
+	    : "+m" (bl->lock), "+q" (val), "+m" (bl->spinners): : "memory");
+}
+
+#define __byte_spin_lock_flags(lock, flags) __byte_spin_lock(lock)
+
+static inline int __byte_spin_trylock(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	u8 old = 1;
+
+	asm("xchgb %1,%0"
+	    : "+m" (bl->lock), "+q" (old) : : "memory");
+
+	return old == 0;
+}
+
+static inline void __byte_spin_unlock(raw_spinlock_t *lock)
+{
+	struct __byte_spinlock *bl = (struct __byte_spinlock *)lock;
+	smp_wmb();
+	bl->lock = 0;
+}
+
+#define __raw_spin(n) __byte_spin_##n
+
+#endif /* TICKET_SHIFT */
+
+static inline int __raw_spin_is_locked(raw_spinlock_t *lock)
+{
+	return __raw_spin(is_locked)(lock);
+}
+
+static inline int __raw_spin_is_contended(raw_spinlock_t *lock)
+{
+	return __raw_spin(is_contended)(lock);
+}
+
+static __always_inline void __raw_spin_lock(raw_spinlock_t *lock)
+{
+	__raw_spin(lock)(lock);
+}
+
+static __always_inline int __raw_spin_trylock(raw_spinlock_t *lock)
+{
+	return __raw_spin(trylock)(lock);
+}
+
+static __always_inline void __raw_spin_unlock(raw_spinlock_t *lock)
+{
+	__raw_spin(unlock)(lock);
 }
 
 static __always_inline void __raw_spin_lock_flags(raw_spinlock_t *lock,
 						  unsigned long flags)
 {
-	unsigned int token, count;
-	bool free;
-
-	__raw_spin_lock_preamble;
-	if (likely(free))
-		return;
-	token = xen_spin_adjust(lock, token);
-	do {
-		count = 1 << 10;
-		__raw_spin_lock_body;
-	} while (unlikely(!count) && !xen_spin_wait_flags(lock, &token, flags));
+	__raw_spin(lock_flags)(lock, flags);
 }
+
+#undef __raw_spin
 
 static inline void __raw_spin_unlock_wait(raw_spinlock_t *lock)
 {
 	while (__raw_spin_is_locked(lock))
 		cpu_relax();
 }
-
-#undef __raw_spin_lock_preamble
-#undef __raw_spin_lock_body
 
 /*
  * Read-write spinlocks, allowing multiple readers

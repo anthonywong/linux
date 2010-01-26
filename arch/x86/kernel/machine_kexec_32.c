@@ -130,6 +130,8 @@ void machine_kexec_setup_load_arg(xen_kexec_image_t *xki, struct kimage *image)
 	xki->page_list[PA_PTE_0] = __ma(kexec_pte0);
 	xki->page_list[PA_PTE_1] = __ma(kexec_pte1);
 
+	if (image->type == KEXEC_TYPE_DEFAULT)
+		xki->page_list[PA_SWAP_PAGE] = page_to_phys(image->swap_page);
 }
 
 int __init machine_kexec_setup_resources(struct resource *hypervisor,

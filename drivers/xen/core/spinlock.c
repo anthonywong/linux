@@ -12,6 +12,8 @@
 #include <linux/module.h>
 #include <xen/evtchn.h>
 
+#ifdef TICKET_SHIFT
+
 extern irqreturn_t smp_reschedule_interrupt(int, void *);
 
 static DEFINE_PER_CPU(int, spinlock_irq) = -1;
@@ -73,9 +75,9 @@ int xen_spin_wait(raw_spinlock_t *lock, unsigned int token)
 	/* announce we're spinning */
 	spinning.ticket = token;
 	spinning.lock = lock;
-	spinning.prev = __get_cpu_var(spinning);
+	spinning.prev = x86_read_percpu(spinning);
 	smp_wmb();
-	__get_cpu_var(spinning) = &spinning;
+	x86_write_percpu(spinning, &spinning);
 
 	/* clear pending */
 	xen_clear_irq_pending(irq);
@@ -102,7 +104,7 @@ int xen_spin_wait(raw_spinlock_t *lock, unsigned int token)
 	kstat_this_cpu.irqs[irq] += !rc;
 
 	/* announce we're done */
-	__get_cpu_var(spinning) = spinning.prev;
+	x86_write_percpu(spinning, spinning.prev);
 	rm_lock = &__get_cpu_var(spinning_rm_lock);
 	raw_local_irq_save(flags);
 	__raw_write_lock(rm_lock);
@@ -116,7 +118,7 @@ unsigned int xen_spin_adjust(raw_spinlock_t *lock, unsigned int token)
 {
 	struct spinning *spinning;
 
-	for (spinning = __get_cpu_var(spinning); spinning; spinning = spinning->prev)
+	for (spinning = x86_read_percpu(spinning); spinning; spinning = spinning->prev)
 		if (spinning->lock == lock) {
 			unsigned int ticket = spinning->ticket;
 
@@ -143,9 +145,9 @@ int xen_spin_wait_flags(raw_spinlock_t *lock, unsigned int *ptok,
 	/* announce we're spinning */
 	spinning.ticket = *ptok >> TICKET_SHIFT;
 	spinning.lock = lock;
-	spinning.prev = __get_cpu_var(spinning);
+	spinning.prev = x86_read_percpu(spinning);
 	smp_wmb();
-	__get_cpu_var(spinning) = &spinning;
+	x86_write_percpu(spinning, &spinning);
 
 	for (nested = spinning.prev; nested; nested = nested->prev)
 		if (nested->lock == lock)
@@ -184,7 +186,7 @@ int xen_spin_wait_flags(raw_spinlock_t *lock, unsigned int *ptok,
 		kstat_incr_irqs_this_cpu(irq, irq_to_desc(irq));
 
 	/* announce we're done */
-	__get_cpu_var(spinning) = spinning.prev;
+	x86_write_percpu(spinning, spinning.prev);
 	rm_lock = &__get_cpu_var(spinning_rm_lock);
 	__raw_write_lock(rm_lock);
 	__raw_write_unlock(rm_lock);
@@ -226,3 +228,5 @@ void xen_spin_kick(raw_spinlock_t *lock, unsigned int token)
 	}
 }
 EXPORT_SYMBOL(xen_spin_kick);
+
+#endif /* TICKET_SHIFT */

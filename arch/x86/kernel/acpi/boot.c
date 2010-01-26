@@ -1299,6 +1299,7 @@ static int __init force_acpi_ht(const struct dmi_system_id *d)
 	return 0;
 }
 
+#ifndef CONFIG_XEN
 /*
  * Force ignoring BIOS IRQ0 pin2 override
  */
@@ -1316,6 +1317,7 @@ static int __init dmi_ignore_irq0_timer_override(const struct dmi_system_id *d)
 	}
 	return 0;
 }
+#endif
 
 /*
  * If your system is blacklisted here, but you find that acpi=force
@@ -1479,6 +1481,7 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	{}
 };
 
+#ifndef CONFIG_XEN
 /* second table for DMI checks that should run after early-quirks */
 static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
 	/*
@@ -1525,6 +1528,7 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
 	 },
 	{}
 };
+#endif
 
 /*
  * acpi_boot_table_init() and acpi_boot_init()
@@ -1609,8 +1613,10 @@ int __init early_acpi_boot_init(void)
 
 int __init acpi_boot_init(void)
 {
+#ifndef CONFIG_XEN
 	/* those are executed after early-quirks are executed */
 	dmi_check_system(acpi_dmi_table_late);
+#endif
 
 	/*
 	 * If acpi_disabled, bail out

@@ -9,6 +9,10 @@ typedef union {
 	unsigned int slock;
 	struct {
 /*
+ * Xen versions prior to 3.2.x have a race condition with HYPERVISOR_poll().
+ */
+#if CONFIG_XEN_COMPAT >= 0x030200
+/*
  * On Xen we support a single level of interrupt re-enabling per lock. Hence
  * we can have twice as many outstanding tickets. Thus the cut-off for using
  * byte register pairs must be at half the number of CPUs.
@@ -19,6 +23,7 @@ typedef union {
 #else
 # define TICKET_SHIFT 16
 		u16 cur, seq;
+#endif
 #endif
 	};
 } raw_spinlock_t;
