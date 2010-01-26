@@ -83,3 +83,7 @@ obj-$(CONFIG_TROUT_BATTCHG) += htc_battery.o
 obj-$(CONFIG_HTC_PWRSINK) += htc_pwrsink.o
 obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
 obj-$(CONFIG_PMIC8058) += pmic8058-gpio.o pmic8058-mpp.o
+
+obj-$(CONFIG_DEBUG_FS) += pmic_debugfs.o
+obj-$(CONFIG_QSD_AUDIO) += qdsp6/
+
