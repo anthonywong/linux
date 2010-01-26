@@ -17,6 +17,7 @@
 #include <xen/xencons.h>
 #include <xen/cpu_hotplug.h>
 #include <xen/interface/vcpu.h>
+#include "../../base/base.h"
 
 #if defined(__i386__) || defined(__x86_64__)
 #include <asm/pci_x86.h>
@@ -145,47 +146,28 @@ struct suspend {
 static int take_machine_down(void *_suspend)
 {
 	struct suspend *suspend = _suspend;
-	int suspend_cancelled, err;
-	extern void time_resume(void);
+	int suspend_cancelled;
 
-	if (suspend->fast_suspend) {
-		BUG_ON(!irqs_disabled());
-	} else {
-		BUG_ON(irqs_disabled());
-
-		for (;;) {
-			err = smp_suspend();
-			if (err)
-				return err;
-
-			xenbus_suspend();
-			preempt_disable();
-
-			if (num_online_cpus() == 1)
-				break;
-
-			preempt_enable();
-			xenbus_suspend_cancel();
-		}
-
-		local_irq_disable();
-	}
+	BUG_ON(!irqs_disabled());
 
 	mm_pin_all();
-	gnttab_suspend();
-	pre_suspend();
-
-	/*
-	 * This hypercall returns 1 if suspend was cancelled or the domain was
-	 * merely checkpointed, and 0 if it is resuming in a new domain.
-	 */
-	suspend_cancelled = HYPERVISOR_suspend(virt_to_mfn(xen_start_info));
-
-	suspend->resume_notifier(suspend_cancelled);
-	post_suspend(suspend_cancelled);
-	gnttab_resume();
+	suspend_cancelled = sysdev_suspend(PMSG_SUSPEND);
 	if (!suspend_cancelled) {
-		irq_resume();
+		pre_suspend();
+
+		/*
+		 * This hypercall returns 1 if suspend was cancelled or the domain was
+		 * merely checkpointed, and 0 if it is resuming in a new domain.
+		 */
+		suspend_cancelled = HYPERVISOR_suspend(virt_to_mfn(xen_start_info));
+	} else
+		BUG_ON(suspend_cancelled > 0);
+	suspend->resume_notifier(suspend_cancelled);
+	if (suspend_cancelled >= 0) {
+		post_suspend(suspend_cancelled);
+		sysdev_resume();
+	}
+	if (!suspend_cancelled) {
 #ifdef __x86_64__
 		/*
 		 * Older versions of Xen do not save/restore the user %cr3.
@@ -197,10 +179,6 @@ static int take_machine_down(void *_suspend)
 				current->active_mm->pgd)));
 #endif
 	}
-	time_resume();
-
-	if (!suspend->fast_suspend)
-		local_irq_enable();
 
 	return suspend_cancelled;
 }
@@ -208,7 +186,13 @@ static int take_machine_down(void *_suspend)
 int __xen_suspend(int fast_suspend, void (*resume_notifier)(int))
 {
 	int err, suspend_cancelled;
+	const char *what;
 	struct suspend suspend;
+
+#define _check(fn, args...) ({ \
+	what = #fn; \
+	err = (fn)(args); \
+})
 
 	BUG_ON(smp_processor_id() != 0);
 	BUG_ON(in_interrupt());
@@ -225,41 +209,91 @@ int __xen_suspend(int fast_suspend, void (*resume_notifier)(int))
 	if (num_possible_cpus() == 1)
 		fast_suspend = 0;
 
-	if (fast_suspend) {
-		err = stop_machine_create();
-		if (err)
-			return err;
+	if (fast_suspend && _check(stop_machine_create)) {
+		printk(KERN_ERR "%s() failed: %d\n", what, err);
+		return err;
 	}
 
 	suspend.fast_suspend = fast_suspend;
 	suspend.resume_notifier = resume_notifier;
 
+	if (_check(dpm_suspend_start, PMSG_SUSPEND)) {
+		if (fast_suspend)
+			stop_machine_destroy();
+		printk(KERN_ERR "%s() failed: %d\n", what, err);
+		return err;
+	}
+
 	if (fast_suspend) {
 		xenbus_suspend();
+
+		if (_check(dpm_suspend_noirq, PMSG_SUSPEND)) {
+			xenbus_suspend_cancel();
+			dpm_resume_end(PMSG_RESUME);
+			stop_machine_destroy();
+			printk(KERN_ERR "%s() failed: %d\n", what, err);
+			return err;
+		}
+
 		err = stop_machine(take_machine_down, &suspend,
 				   &cpumask_of_cpu(0));
 		if (err < 0)
 			xenbus_suspend_cancel();
 	} else {
+		BUG_ON(irqs_disabled());
+
+		for (;;) {
+			xenbus_suspend();
+
+			if (!_check(dpm_suspend_noirq, PMSG_SUSPEND)
+			    && _check(smp_suspend))
+				dpm_resume_noirq(PMSG_RESUME);
+			if (err) {
+				xenbus_suspend_cancel();
+				dpm_resume_end(PMSG_RESUME);
+				printk(KERN_ERR "%s() failed: %d\n",
+				       what, err);
+				return err;
+			}
+
+			preempt_disable();
+
+			if (num_online_cpus() == 1)
+				break;
+
+			preempt_enable();
+
+			dpm_resume_noirq(PMSG_RESUME);
+
+			xenbus_suspend_cancel();
+		}
+
+		local_irq_disable();
 		err = take_machine_down(&suspend);
+		local_irq_enable();
 	}
 
-	if (err < 0)
-		return err;
+	dpm_resume_noirq(PMSG_RESUME);
 
-	suspend_cancelled = err;
-	if (!suspend_cancelled) {
-		xencons_resume();
-		xenbus_resume();
-	} else {
-		xenbus_suspend_cancel();
+	if (err >= 0) {
+		suspend_cancelled = err;
+		if (!suspend_cancelled) {
+			xencons_resume();
+			xenbus_resume();
+		} else {
+			xenbus_suspend_cancel();
+			err = 0;
+		}
+
+		if (!fast_suspend)
+			smp_resume();
 	}
 
-	if (!fast_suspend)
-		smp_resume();
-	else
+	dpm_resume_end(PMSG_RESUME);
+
+	if (fast_suspend)
 		stop_machine_destroy();
 
-	return 0;
+	return err;
 }
 #endif

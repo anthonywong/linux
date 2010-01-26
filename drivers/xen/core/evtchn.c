@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
+#include <linux/sysdev.h>
 #include <linux/ftrace.h>
 #include <linux/version.h>
 #include <asm/atomic.h>
@@ -1109,10 +1110,21 @@ static void restore_cpu_ipis(unsigned int cpu)
 	}
 }
 
-void irq_resume(void)
+static int evtchn_resume(struct sys_device *dev)
 {
 	unsigned int cpu, irq, evtchn;
 	struct irq_cfg *cfg;
+	struct evtchn_status status;
+
+	/* Avoid doing anything in the 'suspend cancelled' case. */
+	status.dom = DOMID_SELF;
+	status.port = evtchn_from_irq(percpu_read(virq_to_irq[VIRQ_TIMER]));
+	if (HYPERVISOR_event_channel_op(EVTCHNOP_status, &status))
+		BUG();
+	if (status.status == EVTCHNSTAT_virq
+	    && status.vcpu == smp_processor_id()
+	    && status.u.virq == VIRQ_TIMER)
+		return 0;
 
 	init_evtchn_cpu_bindings();
 
@@ -1148,7 +1160,32 @@ void irq_resume(void)
 		restore_cpu_ipis(cpu);
 	}
 
+	return 0;
 }
+
+static struct sysdev_class evtchn_sysclass = {
+	.name		= "evtchn",
+	.resume		= evtchn_resume,
+};
+
+static struct sys_device device_evtchn = {
+	.id		= 0,
+	.cls		= &evtchn_sysclass,
+};
+
+static int __init evtchn_register(void)
+{
+	int err;
+
+	if (is_initial_xendomain())
+		return 0;
+
+	err = sysdev_class_register(&evtchn_sysclass);
+	if (!err)
+		err = sysdev_register(&device_evtchn);
+	return err;
+}
+core_initcall(evtchn_register);
 #endif
 
 int __init arch_early_irq_init(void)
