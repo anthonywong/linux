@@ -14,8 +14,6 @@
 
 #ifdef TICKET_SHIFT
 
-extern irqreturn_t smp_reschedule_interrupt(int, void *);
-
 static DEFINE_PER_CPU(int, spinlock_irq) = -1;
 static char spinlock_name[NR_CPUS][15];
 
