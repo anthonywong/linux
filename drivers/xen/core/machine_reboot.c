@@ -85,6 +85,8 @@ static void post_suspend(int suspend_cancelled)
 #ifdef CONFIG_SMP
 		cpu_initialized_map = cpu_online_map;
 #endif
+		for_each_possible_cpu(i)
+			setup_runstate_area(i);
 	}
 
 	shinfo_mfn = xen_start_info->shared_info >> PAGE_SHIFT;
