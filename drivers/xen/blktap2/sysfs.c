@@ -150,7 +150,7 @@ blktap_sysfs_pause_device(struct class_device *dev,
 	err = blktap_device_pause(tap);
 	if (!err) {
 		class_device_remove_file(dev, &class_device_attr_pause);
-		class_device_create_file(dev, &class_device_attr_resume);
+		err = class_device_create_file(dev, &class_device_attr_resume);
 	}
 
 out:
@@ -182,7 +182,7 @@ blktap_sysfs_resume_device(struct class_device *dev,
 	err = blktap_device_resume(tap);
 	if (!err) {
 		class_device_remove_file(dev, &class_device_attr_resume);
-		class_device_create_file(dev, &class_device_attr_pause);
+		err = class_device_create_file(dev, &class_device_attr_pause);
 	}
 
 out:
@@ -292,6 +292,7 @@ blktap_sysfs_create(struct blktap *tap)
 {
 	struct blktap_ring *ring;
 	struct class_device *dev;
+	int err, state = 0;
 
 	if (!class)
 		return -ENODEV;
@@ -310,12 +311,27 @@ blktap_sysfs_create(struct blktap *tap)
 	atomic_set(&ring->sysfs_refcnt, 0);
 	set_bit(BLKTAP_SYSFS, &tap->dev_inuse);
 
-	class_device_create_file(dev, &class_device_attr_name);
-	class_device_create_file(dev, &class_device_attr_remove);
-	class_device_create_file(dev, &class_device_attr_pause);
-	class_device_create_file(dev, &class_device_attr_debug);
+	err = class_device_create_file(dev, &class_device_attr_name);
+	if (!err) {
+		++state;
+		err = class_device_create_file(dev, &class_device_attr_remove);
+	}
+	if (!err) {
+		++state;
+		err = class_device_create_file(dev, &class_device_attr_pause);
+	}
+	if (!err) {
+		++state;
+		err = class_device_create_file(dev, &class_device_attr_debug);
+	}
 
-	return 0;
+	switch (state * !!err) {
+	case 3: class_device_remove_file(dev, &class_device_attr_pause);
+	case 2: class_device_remove_file(dev, &class_device_attr_remove);
+	case 1: class_device_remove_file(dev, &class_device_attr_name);
+	}
+
+	return err;
 }
 
 int
@@ -409,6 +425,7 @@ int __init
 blktap_sysfs_init(void)
 {
 	struct class *cls;
+	int err;
 
 	if (class)
 		return -EEXIST;
@@ -417,9 +434,16 @@ blktap_sysfs_init(void)
 	if (IS_ERR(cls))
 		return PTR_ERR(cls);
 
-	class_create_file(cls, &class_attr_verbosity);
-	class_create_file(cls, &class_attr_devices);
+	err = class_create_file(cls, &class_attr_verbosity);
+	if (!err) {
+		err = class_create_file(cls, &class_attr_devices);
+		if (err)
+			class_remove_file(cls, &class_attr_verbosity);
+	}
+	if (!err)
+		class = cls;
+	else
+		class_destroy(cls);
 
-	class = cls;
-	return 0;
+	return err;
 }

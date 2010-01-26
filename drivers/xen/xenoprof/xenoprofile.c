@@ -194,8 +194,7 @@ done:
 		oprofile_add_domain_switch(COORDINATOR_DOMAIN);
 }
 
-static irqreturn_t 
-xenoprof_ovf_interrupt(int irq, void * dev_id, struct pt_regs * regs)
+static irqreturn_t xenoprof_ovf_interrupt(int irq, void *dev_id)
 {
 	struct xenoprof_buf * buf;
 	static unsigned long flag;

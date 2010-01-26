@@ -510,6 +510,7 @@ static void gnttab_page_free(struct page *page, unsigned int order)
 	BUG_ON(order);
 	ClearPageForeign(page);
 	gnttab_reset_grant_page(page);
+	ClearPageReserved(page);
 	put_page(page);
 }
 
@@ -587,6 +588,8 @@ int gnttab_copy_grant_page(grant_ref_t ref, struct page **pagep)
 	new_page->mapping = page->mapping;
 	new_page->index = page->index;
 	set_bit(PG_foreign, &new_page->flags);
+	if (PageReserved(page))
+		SetPageReserved(new_page);
 	*pagep = new_page;
 
 	SetPageForeign(page, gnttab_page_free);
