@@ -97,7 +97,6 @@ struct blk_shadow {
 struct blkfront_info
 {
 	struct xenbus_device *xbdev;
-	dev_t dev;
  	struct gendisk *gd;
 	int vdevice;
 	blkif_vdev_t handle;

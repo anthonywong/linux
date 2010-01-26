@@ -288,6 +288,7 @@ struct gnttab_map_grant_ref {
     grant_handle_t handle;
     uint64_t dev_bus_addr;
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_map_grant_ref);
 typedef struct gnttab_map_grant_ref gnttab_map_grant_ref_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_map_grant_ref_t);
 
@@ -311,6 +312,7 @@ struct gnttab_unmap_grant_ref {
     /* OUT parameters. */
     int16_t  status;              /* GNTST_* */
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_unmap_grant_ref);
 typedef struct gnttab_unmap_grant_ref gnttab_unmap_grant_ref_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_unmap_grant_ref_t);
 
@@ -332,6 +334,7 @@ struct gnttab_setup_table {
     int16_t  status;              /* GNTST_* */
     XEN_GUEST_HANDLE(ulong) frame_list;
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_setup_table);
 typedef struct gnttab_setup_table gnttab_setup_table_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_setup_table_t);
 
@@ -346,6 +349,7 @@ struct gnttab_dump_table {
     /* OUT parameters. */
     int16_t status;               /* GNTST_* */
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_dump_table);
 typedef struct gnttab_dump_table gnttab_dump_table_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_dump_table_t);
 
@@ -366,6 +370,7 @@ struct gnttab_transfer {
     /* OUT parameters. */
     int16_t       status;
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_transfer);
 typedef struct gnttab_transfer gnttab_transfer_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_transfer_t);
 
@@ -411,6 +416,7 @@ typedef struct gnttab_copy {
     /* OUT parameters. */
     int16_t       status;
 } gnttab_copy_t;
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_copy);
 DEFINE_XEN_GUEST_HANDLE(gnttab_copy_t);
 
 /*
@@ -429,6 +435,7 @@ struct gnttab_query_size {
     uint32_t max_nr_frames;
     int16_t  status;              /* GNTST_* */
 };
+DEFINE_GUEST_HANDLE_STRUCT(gnttab_query_size);
 typedef struct gnttab_query_size gnttab_query_size_t;
 DEFINE_XEN_GUEST_HANDLE(gnttab_query_size_t);
 
