@@ -27,14 +27,13 @@ static inline void enter_lazy_tlb(struct mm_struct *mm, struct task_struct *tsk)
 static inline void __prepare_arch_switch(void)
 {
 	/*
-	 * Save away %fs and %gs. No need to save %es and %ds, as those
-	 * are always kernel segments while inside the kernel. Must
-	 * happen before reload of cr3/ldt (i.e., not in __switch_to).
+	 * Save away %fs. No need to save %gs, as it was saved on the
+	 * stack on entry.  No need to save %es and %ds, as those are
+	 * always kernel segments while inside the kernel.
 	 */
-	asm volatile ( "mov %%fs,%0 ; mov %%gs,%1"
-		: "=m" (current->thread.fs),
-		  "=m" (current->thread.gs));
-	asm volatile ( "movl %0,%%fs ; movl %0,%%gs"
+	asm volatile ( "mov %%fs,%0"
+		: "=m" (current->thread.fs));
+	asm volatile ( "movl %0,%%fs"
 		: : "r" (0) );
 }
 
@@ -89,14 +88,14 @@ static inline void switch_mm(struct mm_struct *prev,
 			 * tlb flush IPI delivery. We must reload %cr3.
 			 */
 			load_cr3(next->pgd);
-			load_LDT_nolock(&next->context, cpu);
+			load_LDT_nolock(&next->context);
 		}
 	}
 #endif
 }
 
-#define deactivate_mm(tsk, mm) \
-	asm("movl %0,%%fs ; movl %0,%%gs": :"r" (0))
+#define deactivate_mm(tsk, mm)			\
+	asm("movl %0,%%fs": :"r" (0));
 
 static inline void activate_mm(struct mm_struct *prev, struct mm_struct *next)
 {

@@ -35,7 +35,7 @@
 #include <xen/evtchn.h>
 #include <linux/delay.h>
 
-static kmem_cache_t *blkif_cachep;
+static struct kmem_cache *blkif_cachep;
 
 blkif_t *tap_alloc_blkif(domid_t domid)
 {

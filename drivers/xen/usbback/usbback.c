@@ -540,9 +540,10 @@ struct set_interface_request {
 	struct work_struct work;
 };
 
-static void usbbk_set_interface_work(void *data)
+static void usbbk_set_interface_work(struct work_struct *arg)
 {
-	struct set_interface_request *req = (struct set_interface_request *) data;
+	struct set_interface_request *req
+		= container_of(arg, struct set_interface_request, work);
 	pending_req_t *pending_req = req->pending_req;
 	struct usb_device *udev = req->pending_req->stub->udev;
 
@@ -570,7 +571,7 @@ static int usbbk_set_interface(pending_req_t *pending_req, int interface, int al
 	req->pending_req = pending_req;
 	req->interface = interface;
 	req->alternate = alternate;
-	INIT_WORK(&req->work, usbbk_set_interface_work, req);
+	INIT_WORK(&req->work, usbbk_set_interface_work);
 	usb_get_dev(udev);
 	schedule_work(&req->work);
 	return 0;
@@ -582,9 +583,10 @@ struct clear_halt_request {
 	struct work_struct work;
 };
 
-static void usbbk_clear_halt_work(void *data)
+static void usbbk_clear_halt_work(struct work_struct *arg)
 {
-	struct clear_halt_request *req = (struct clear_halt_request *) data;
+	struct clear_halt_request *req
+		= container_of(arg, struct clear_halt_request, work);
 	pending_req_t *pending_req = req->pending_req;
 	struct usb_device *udev = req->pending_req->stub->udev;
 	int ret;
@@ -610,7 +612,7 @@ static int usbbk_clear_halt(pending_req_t *pending_req, int pipe)
 		return -ENOMEM;
 	req->pending_req = pending_req;
 	req->pipe = pipe;
-	INIT_WORK(&req->work, usbbk_clear_halt_work, req);
+	INIT_WORK(&req->work, usbbk_clear_halt_work);
 
 	usb_get_dev(udev);
 	schedule_work(&req->work);
@@ -623,9 +625,10 @@ struct port_reset_request {
 	struct work_struct work;
 };
 
-static void usbbk_port_reset_work(void *data)
+static void usbbk_port_reset_work(struct work_struct *arg)
 {
-	struct port_reset_request *req = (struct port_reset_request *) data;
+	struct port_reset_request *req
+		= container_of(arg, struct port_reset_request, work);
 	pending_req_t *pending_req = req->pending_req;
 	struct usb_device *udev = pending_req->stub->udev;
 	int ret, ret_lock;
@@ -654,7 +657,7 @@ static int usbbk_port_reset(pending_req_t *pending_req)
 		return -ENOMEM;
 
 	req->pending_req = pending_req;
-	INIT_WORK(&req->work, usbbk_port_reset_work, req);
+	INIT_WORK(&req->work, usbbk_port_reset_work);
 
 	usb_get_dev(udev);
 	schedule_work(&req->work);

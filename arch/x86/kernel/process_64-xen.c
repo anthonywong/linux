@@ -119,29 +119,23 @@ void exit_idle(void)
 static void poll_idle (void)
 {
 	local_irq_enable();
-
-	asm volatile(
-		"2:"
-		"testl %0,%1;"
-		"rep; nop;"
-		"je 2b;"
-		: :
-		"i" (_TIF_NEED_RESCHED),
-		"m" (current_thread_info()->flags));
+	cpu_relax();
 }
 
 static void xen_idle(void)
 {
+	current_thread_info()->status &= ~TS_POLLING;
+	/*
+	 * TS_POLLING-cleared state must be visible before we
+	 * test NEED_RESCHED:
+	 */
+	smp_mb();
 	local_irq_disable();
-
-	if (need_resched())
-		local_irq_enable();
-	else {
-		current_thread_info()->status &= ~TS_POLLING;
-		smp_mb__after_clear_bit();
+	if (!need_resched())
 		safe_halt();
-		current_thread_info()->status |= TS_POLLING;
-	}
+	else
+		local_irq_enable();
+	current_thread_info()->status |= TS_POLLING;
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -181,6 +175,12 @@ void cpu_idle (void)
 			idle = xen_idle; /* no alternatives */
 			if (cpu_is_offline(smp_processor_id()))
 				play_dead();
+			/*
+			 * Idle routines should keep interrupts disabled
+			 * from here on, until they go to idle.
+			 * Otherwise, idle callbacks can misfire.
+			 */
+			local_irq_disable();
 			enter_idle();
 			idle();
 			/* In many cases the interrupt that ended idle

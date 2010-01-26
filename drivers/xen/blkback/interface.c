@@ -35,7 +35,7 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
-static kmem_cache_t *blkif_cachep;
+static struct kmem_cache *blkif_cachep;
 
 blkif_t *blkif_alloc(domid_t domid)
 {
