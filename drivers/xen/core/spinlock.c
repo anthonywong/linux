@@ -38,6 +38,8 @@ int __cpuinit xen_spinlock_init(unsigned int cpu)
 	};
 	int rc;
 
+	setup_runstate_area(cpu);
+
 	rc = bind_ipi_to_irqaction(SPIN_UNLOCK_VECTOR,
 				   cpu,
 				   &spinlock_action);

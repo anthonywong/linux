@@ -39,6 +39,11 @@ typedef union {
 # error NR_CPUS >= 256 not implemented
 #endif
 #endif
+#if CONFIG_NR_CPUS <= 256
+		u8 owner;
+#else
+		u16 owner;
+#endif
 	};
 } raw_spinlock_t;
 
