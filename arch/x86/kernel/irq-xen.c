@@ -288,12 +288,14 @@ void smp_generic_interrupt(struct pt_regs *regs)
 #endif
 
 #ifdef CONFIG_HOTPLUG_CPU
+#include <xen/evtchn.h>
 /* A cpu has been removed from cpu_online_mask.  Reset irq affinities. */
 void fixup_irqs(void)
 {
 	unsigned int irq;
 	static int warned;
 	struct irq_desc *desc;
+	static DECLARE_BITMAP(irqs_used, NR_IRQS);
 
 	for_each_irq_desc(irq, desc) {
 		int break_affinity = 0;
@@ -314,6 +316,9 @@ void fixup_irqs(void)
 			spin_unlock(&desc->lock);
 			continue;
 		}
+
+		if (cpumask_test_cpu(smp_processor_id(), affinity))
+			__set_bit(irq, irqs_used);
 
 		if (cpumask_any_and(affinity, cpu_online_mask) >= nr_cpu_ids) {
 			break_affinity = 1;
@@ -339,9 +344,27 @@ void fixup_irqs(void)
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
 
-	/* That doesn't seem sufficient.  Give it 1ms. */
-	local_irq_enable();
+	/*
+	 * We can remove mdelay() and then send spuriuous interrupts to
+	 * new cpu targets for all the irqs that were handled previously by
+	 * this cpu. While it works, I have seen spurious interrupt messages
+	 * (nothing wrong but still...).
+	 *
+	 * So for now, retain mdelay(1) and check the IRR and then send those
+	 * interrupts to new targets as this cpu is already offlined...
+	 */
 	mdelay(1);
-	local_irq_disable();
+
+	for_each_irq_desc(irq, desc) {
+		if (!__test_and_clear_bit(irq, irqs_used))
+			continue;
+
+		if (xen_test_irq_pending(irq)) {
+			spin_lock(&desc->lock);
+			if (desc->chip->retrigger)
+				desc->chip->retrigger(irq);
+			spin_unlock(&desc->lock);
+		}
+	}
 }
 #endif
