@@ -24,6 +24,20 @@ typedef union {
 # define TICKET_SHIFT 16
 		u16 cur, seq;
 #endif
+#else
+/*
+ * This differs from the pre-2.6.24 spinlock by always using xchgb
+ * rather than decb to take the lock; this allows it to use a
+ * zero-initialized lock structure.  It also maintains a 1-byte
+ * contention counter, so that we can implement
+ * __byte_spin_is_contended.
+ */
+		u8 lock;
+#if CONFIG_NR_CPUS < 256
+		u8 spinners;
+#else
+# error NR_CPUS >= 256 not implemented
+#endif
 #endif
 	};
 } raw_spinlock_t;
