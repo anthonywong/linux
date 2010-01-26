@@ -619,6 +619,9 @@ void balloon_update_driver_allowance(long delta)
 	bs.driver_pages += delta;
 	balloon_unlock(flags);
 }
+EXPORT_SYMBOL_GPL(balloon_update_driver_allowance);
+
+#if defined(CONFIG_XEN_BACKEND) || defined(CONFIG_XEN_BACKEND_MODULE)
 
 #ifdef CONFIG_XEN
 static int dealloc_pte_fn(
@@ -727,6 +730,7 @@ struct page **alloc_empty_pages_and_pagevec(int nr_pages)
 	pagevec = NULL;
 	goto out;
 }
+EXPORT_SYMBOL_GPL(alloc_empty_pages_and_pagevec);
 
 void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages)
 {
@@ -747,6 +751,9 @@ void free_empty_pages_and_pagevec(struct page **pagevec, int nr_pages)
 
 	schedule_work(&balloon_worker);
 }
+EXPORT_SYMBOL_GPL(free_empty_pages_and_pagevec);
+
+#endif /* CONFIG_XEN_BACKEND */
 
 void balloon_release_driver_page(struct page *page)
 {
@@ -760,10 +767,6 @@ void balloon_release_driver_page(struct page *page)
 
 	schedule_work(&balloon_worker);
 }
-
-EXPORT_SYMBOL_GPL(balloon_update_driver_allowance);
-EXPORT_SYMBOL_GPL(alloc_empty_pages_and_pagevec);
-EXPORT_SYMBOL_GPL(free_empty_pages_and_pagevec);
 EXPORT_SYMBOL_GPL(balloon_release_driver_page);
 
 MODULE_LICENSE("Dual BSD/GPL");

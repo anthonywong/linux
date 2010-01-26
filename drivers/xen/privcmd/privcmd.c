@@ -33,6 +33,9 @@
 static struct proc_dir_entry *privcmd_intf;
 static struct proc_dir_entry *capabilities_intf;
 
+#ifndef CONFIG_XEN_PRIVILEGED_GUEST
+#define HAVE_ARCH_PRIVCMD_MMAP
+#endif
 #ifndef HAVE_ARCH_PRIVCMD_MMAP
 static int enforce_singleshot_mapping_fn(pte_t *pte, struct page *pmd_page,
 					 unsigned long addr, void *data)
@@ -57,12 +60,14 @@ static long privcmd_ioctl(struct file *file,
 {
 	long ret;
 	void __user *udata = (void __user *) data;
+#ifdef CONFIG_XEN_PRIVILEGED_GUEST
 	unsigned long i, addr, nr, nr_pages;
 	int paged_out;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	LIST_HEAD(pagelist);
 	struct list_head *l, *l2;
+#endif
 
 	switch (cmd) {
 	case IOCTL_PRIVCMD_HYPERCALL: {
@@ -86,6 +91,8 @@ static long privcmd_ioctl(struct file *file,
 #endif
 	}
 	break;
+
+#ifdef CONFIG_XEN_PRIVILEGED_GUEST
 
 	case IOCTL_PRIVCMD_MMAP: {
 #define MMAP_NR_PER_PAGE \
@@ -391,6 +398,8 @@ static long privcmd_ioctl(struct file *file,
 	}
 	break;
 
+#endif /* CONFIG_XEN_PRIVILEGED_GUEST */
+
 	default:
 		ret = -EINVAL;
 		break;
@@ -426,7 +435,9 @@ static int privcmd_mmap(struct file * file, struct vm_area_struct * vma)
 
 static const struct file_operations privcmd_file_ops = {
 	.unlocked_ioctl = privcmd_ioctl,
+#ifdef CONFIG_XEN_PRIVILEGED_GUEST
 	.mmap = privcmd_mmap,
+#endif
 };
 
 static int capabilities_read(char *page, char **start, off_t off,
