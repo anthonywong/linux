@@ -330,7 +330,6 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 #endif
 
 	if (lcd_accurate_clock) {
-		is_ext = 1;
 		set_external_lcd_clock(axi_div, is_ext);
 	} else {
 		if (0 == init_ext_divider) {
@@ -484,7 +483,7 @@ static void set_dumb_panel_control(struct fb_info *fi, int gpio_only)
 	if (gpio_only)
 		mask |= ~(0xffff << 12);
 	x_bk = readl(dfli->reg_base + LCD_SPU_DUMB_CTRL) & mask;
-	x = x_bk & mask;
+	x = dfli->is_blanked ? 0x0:0x1;
 
 	x |= dmi->gpio_output_data << 20;
 	x |= dmi->gpio_output_mask << 12;
