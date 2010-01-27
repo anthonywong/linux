@@ -169,14 +169,14 @@ static int __init pm_disable_setup(char *__unused)
 
 __setup("pm_disable", pm_disable_setup);
 
-int cpufreq_enable = 0;
-static int __init cpufreq_enable_setup(char *__unused)
+int cpufreq_disable = 0;
+static int __init cpufreq_disable_setup(char *__unused)
 {
-     cpufreq_enable = 1;
+     cpufreq_disable = 1;
      return 1;
 }
 
-__setup("cpufreq_enable", cpufreq_enable_setup);
+__setup("cpufreq_disable", cpufreq_disable_setup);
 
 int dvs_enable = 0;
 static int __init dvs_enable_setup(char *__unused)
