@@ -292,11 +292,11 @@ static struct cpufreq_driver dove_freq_driver = {
         .attr           = dove_freq_attr,
 };
 
-extern int cpufreq_enable;
+extern int cpufreq_disable;
 
 static int __init dove_cpufreq_init(void)
 {
-	if (!cpufreq_enable)
+	if (cpufreq_disable)
 		return 0;
 
         return cpufreq_register_driver(&dove_freq_driver);
@@ -304,7 +304,7 @@ static int __init dove_cpufreq_init(void)
 
 static void __exit dove_cpufreq_exit(void)
 {
-	if (!cpufreq_enable)
+	if (cpufreq_disable)
 		return;
 
         cpufreq_unregister_driver(&dove_freq_driver);
