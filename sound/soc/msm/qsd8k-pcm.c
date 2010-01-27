@@ -594,7 +594,7 @@ static int qsd_pcm_remove(struct platform_device *devptr)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(devptr);
 	snd_soc_free_pcms(socdev);
-	kfree(socdev->codec);
+	kfree(socdev->card->codec);
 	platform_set_drvdata(devptr, NULL);
 	return 0;
 }
