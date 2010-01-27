@@ -113,6 +113,10 @@ obj-$(CONFIG_PS3_FLASH)		+= ps3flash.o
 obj-$(CONFIG_JS_RTC)		+= js-rtc.o
 js-rtc-y = rtc.o
 
+obj-$(CONFIG_MSM_Q6VDEC)	+= msm_q6vdec.o
+obj-$(CONFIG_Q6_VENC)           += msm_q6venc.o
+obj-$(CONFIG_MSM_KGSL)          += msm_kgsl/
+
 # Files generated that shall be removed upon make clean
 clean-files := consolemap_deftbl.c defkeymap.c
 
