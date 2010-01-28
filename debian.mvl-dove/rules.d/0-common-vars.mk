@@ -88,6 +88,17 @@ bin_pkg_name=linux-image-$(abi_release)
 dbg_pkg_name=linux-image-debug-$(abi_release)
 hdrs_pkg_name=linux-headers-$(abi_release)
 #
+# The generation of content in the doc package depends on both 'AUTOBUILD=' and
+# 'do_doc_package_content=true'. There are usually build errors during the development
+# cycle, so its OK to leave 'do_doc_package_content=false' until those build
+# failures get sorted out. Finally, the doc package doesn't really need to be built
+# for developer testing (its kind of slow), so only do it if on a buildd.
+do_doc_package=true
+ifeq ($(wildcard /CurrentlyBuilding),)
+do_doc_package_content=false
+endif
+doc_pkg_name=$(src_pkg_name)-doc
+#
 # Support parallel=<n> in DEB_BUILD_OPTIONS (see #209008)
 #
 # These 2 environment variables set the -j value of the kernel build. For example,
