@@ -18,7 +18,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-
+#include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
 
