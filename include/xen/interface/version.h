@@ -36,6 +36,9 @@
 /* arg == xen_extraversion_t. */
 #define XENVER_extraversion 1
 typedef char xen_extraversion_t[16];
+struct xen_extraversion {
+    xen_extraversion_t extraversion;
+};
 #define XEN_EXTRAVERSION_LEN (sizeof(xen_extraversion_t))
 
 /* arg == xen_compile_info_t. */
@@ -50,10 +53,16 @@ typedef struct xen_compile_info xen_compile_info_t;
 
 #define XENVER_capabilities 3
 typedef char xen_capabilities_info_t[1024];
+struct xen_capabilities_info {
+    xen_capabilities_info_t info;
+};
 #define XEN_CAPABILITIES_INFO_LEN (sizeof(xen_capabilities_info_t))
 
 #define XENVER_changeset 4
 typedef char xen_changeset_info_t[64];
+struct xen_changeset_info {
+    xen_changeset_info_t info;
+};
 #define XEN_CHANGESET_INFO_LEN (sizeof(xen_changeset_info_t))
 
 #define XENVER_platform_parameters 5

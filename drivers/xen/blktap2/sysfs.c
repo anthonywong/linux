@@ -334,6 +334,22 @@ blktap_sysfs_create(struct blktap *tap)
 	return err;
 }
 
+static void
+_blktap_sysfs_destroy(struct device *_dev)
+{
+	struct class_device *dev = _dev->???;
+	struct blktap *tap = dev->class_data;
+
+	class_device_remove_file(dev, &class_device_attr_name);
+	class_device_remove_file(dev, &class_device_attr_remove);
+	class_device_remove_file(dev, &class_device_attr_pause);
+	class_device_remove_file(dev, &class_device_attr_resume);
+	class_device_remove_file(dev, &class_device_attr_debug);
+	class_device_unregister(dev);
+
+	clear_bit(BLKTAP_SYSFS, &tap->dev_inuse);
+}
+
 int
 blktap_sysfs_destroy(struct blktap *tap)
 {
@@ -350,17 +366,7 @@ blktap_sysfs_destroy(struct blktap *tap)
 				     !atomic_read(&tap->ring.sysfs_refcnt)))
 		return -EAGAIN;
 
-	/* XXX: is it safe to remove the class from a sysfs attribute? */
-	class_device_remove_file(dev, &class_device_attr_name);
-	class_device_remove_file(dev, &class_device_attr_remove);
-	class_device_remove_file(dev, &class_device_attr_pause);
-	class_device_remove_file(dev, &class_device_attr_resume);
-	class_device_remove_file(dev, &class_device_attr_debug);
-	class_device_destroy(class, ring->devno);
-
-	clear_bit(BLKTAP_SYSFS, &tap->dev_inuse);
-
-	return 0;
+	return device_schedule_callback(dev->???, _blktap_sysfs_destroy);
 }
 
 static ssize_t

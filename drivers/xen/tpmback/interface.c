@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <xen/balloon.h>
 #include <xen/gnttab.h>
 
@@ -163,7 +164,7 @@ void tpmif_disconnect_complete(tpmif_t *tpmif)
 int __init tpmif_interface_init(void)
 {
 	tpmif_cachep = kmem_cache_create("tpmif_cache", sizeof (tpmif_t),
-					 0, 0, NULL, NULL);
+					 0, 0, NULL);
 	return tpmif_cachep ? 0 : -ENOMEM;
 }
 

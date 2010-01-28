@@ -298,7 +298,7 @@ xlbd_release_minors(struct xlbd_major_info *mi, unsigned int minor,
 static int
 xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 {
-	request_queue_t *rq;
+	struct request_queue *rq;
 
 	rq = blk_init_queue(do_blkif_request, &blkif_io_lock);
 	if (rq == NULL)
