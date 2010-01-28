@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/bin/bash 
 . debian/debian.env
 
 # Script to merge all configs and run 'make silentoldconfig' on it to wade out bad juju.
@@ -22,7 +21,6 @@ esac
 kerneldir="`pwd`"
 confdir="$kerneldir/${DEBIAN}/config"
 archs="armel"
-kernarch="arm"
 family='ubuntu'
 bindir="`pwd`/${DEBIAN}/scripts/misc"
 common_conf="$confdir/config.common.$family"
@@ -34,9 +32,19 @@ if [ "$mode" = "genconfig" ]; then
 	test -d CONFIGS || mkdir CONFIGS
 fi
 
-test -d build || mkdir build
-
 for arch in $archs; do
+	rm -rf build
+	mkdir build
+
+	# Map debian archs to kernel archs
+	case "$arch" in
+		amd64)	kernarch="x86_64"	;;
+		lpia)   kernarch="x86" 		;;
+		sparc)	kernarch="sparc64"	;;
+		armel)	kernarch="arm"		;;
+		*)	kernarch="$arch"	;;
+	esac
+
 	echo ""
 	echo "***************************************"
 	echo "* Processing $arch ($kernarch) ... "
@@ -101,6 +109,7 @@ for arch in $archs; do
 done
 
 rm -f $common_conf
+rm -rf build
 
 # Now run splitconfig.pl on all the config.common.<arch> copied to
 # $tmpdir
