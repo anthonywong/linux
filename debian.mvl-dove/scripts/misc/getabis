@@ -1,5 +1,7 @@
 #!/bin/bash
 
+. debian/debian.env
+
 if [ "$#" != "2" ]; then
 	echo "Usage: $0 <release> <revision>" 1>&2
 	exit 1
@@ -69,8 +71,6 @@ echo $abi > $abidir/abiname
 # NOTE: The flavours are hardcoded, because they may have changed from the
 # current build.
 
-repo_list=("http://ports.ubuntu.com/pool/main/l/linux-mvl-dove")
-
-getall armel dove
+. $DEBIAN/etc/getabis
 
 rmdir $tmpdir
