@@ -84,9 +84,8 @@ stampdir	:= $(CURDIR)/debian/stamps
 # are places that you'll find linux-image hard coded, but I guess thats OK since the
 # assumption that the binary package always starts with linux-image will never change.
 #
-bin_base_pkg_name=linux-image
-bin_pkg_name=$(bin_base_pkg_name)-$(abi_release)
-dbg_pkg_name=$(bin_base_pkg_name)-debug-$(abi_release)
+bin_pkg_name=linux-image-$(abi_release)
+dbg_pkg_name=linux-image-debug-$(abi_release)
 hdrs_pkg_name=linux-headers-$(abi_release)
 #
 # Support parallel=<n> in DEB_BUILD_OPTIONS (see #209008)
