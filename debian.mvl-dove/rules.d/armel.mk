@@ -8,3 +8,5 @@ kernel_file	= arch/$(build_arch)/boot/zImage
 install_file	= vmlinuz
 no_dumpfile     = true
 loader		= grub
+
+do_doc_package	= false
