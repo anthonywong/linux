@@ -1,4 +1,5 @@
-#!/bin/bash 
+#!/bin/bash
+
 . debian/debian.env
 
 # Script to merge all configs and run 'make silentoldconfig' on it to wade out bad juju.
