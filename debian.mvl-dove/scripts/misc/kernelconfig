@@ -21,8 +21,10 @@ case "$mode" in
 esac
 kerneldir="`pwd`"
 confdir="$kerneldir/${DEBIAN}/config"
-archs="armel"
-family='ubuntu'
+variant="$2"
+
+. $DEBIAN/etc/kernelconfig
+
 bindir="`pwd`/${DEBIAN}/scripts/misc"
 common_conf="$confdir/config.common.$family"
 tmpdir=`mktemp -d`
