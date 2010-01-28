@@ -635,7 +635,7 @@ static int network_open(struct net_device *dev)
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx)){
 			netfront_accelerator_call_stop_napi_irq(np, dev);
 
-			netif_rx_schedule(dev, &np->napi);
+			netif_rx_schedule(&np->napi);
 		}
 	}
 	spin_unlock_bh(&np->rx_lock);
@@ -707,7 +707,7 @@ static void rx_refill_timeout(unsigned long data)
 
 	netfront_accelerator_call_stop_napi_irq(np, dev);
 
-	netif_rx_schedule(dev, &np->napi);
+	netif_rx_schedule(&np->napi);
 }
 
 static void network_alloc_rx_buffers(struct net_device *dev)
@@ -1064,8 +1064,7 @@ static irqreturn_t netif_int(int irq, void *dev_id)
 		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx)) {
 			netfront_accelerator_call_stop_napi_irq(np, dev);
 
-			netif_rx_schedule(dev, &np->napi);
-			dev->last_rx = jiffies;
+			netif_rx_schedule(&np->napi);
 		}
 	}
 
@@ -1481,7 +1480,6 @@ err:
 
 		/* Pass it up. */
 		netif_receive_skb(skb);
-		dev->last_rx = jiffies;
 	}
 
 	/* If we get a callback with very few responses, reduce fill target. */
@@ -1523,7 +1521,7 @@ err:
 		}
 
 		if (!more_to_do && !accel_more_to_do)
-			__netif_rx_complete(dev, napi);
+			__netif_rx_complete(napi);
 
 		local_irq_restore(flags);
 	}
@@ -2024,6 +2022,18 @@ static void network_set_multicast_list(struct net_device *dev)
 {
 }
 
+static const struct net_device_ops xennet_netdev_ops = {
+	.ndo_uninit             = netif_uninit,
+	.ndo_open               = network_open,
+	.ndo_stop               = network_close,
+	.ndo_start_xmit         = network_start_xmit,
+	.ndo_set_multicast_list = network_set_multicast_list,
+	.ndo_set_mac_address    = xennet_set_mac_address,
+	.ndo_validate_addr      = eth_validate_addr,
+	.ndo_change_mtu	        = xennet_change_mtu,
+	.ndo_get_stats          = network_get_stats,
+};
+
 static struct net_device * __devinit create_netdev(struct xenbus_device *dev)
 {
 	int i, err = 0;
@@ -2080,15 +2090,8 @@ static struct net_device * __devinit create_netdev(struct xenbus_device *dev)
 		goto exit_free_tx;
 	}
 
-	netdev->open            = network_open;
-	netdev->hard_start_xmit = network_start_xmit;
-	netdev->stop            = network_close;
-	netdev->get_stats       = network_get_stats;
+	netdev->netdev_ops	= &xennet_netdev_ops;
 	netif_napi_add(netdev, &np->napi, netif_poll, 64);
-	netdev->set_multicast_list = network_set_multicast_list;
-	netdev->uninit          = netif_uninit;
-	netdev->set_mac_address	= xennet_set_mac_address;
-	netdev->change_mtu	= xennet_change_mtu;
 	netdev->features        = NETIF_F_IP_CSUM;
 
 	SET_ETHTOOL_OPS(netdev, &network_ethtool_ops);
@@ -2119,7 +2122,7 @@ inetdev_notify(struct notifier_block *this, unsigned long event, void *ptr)
 	struct net_device *dev = ifa->ifa_dev->dev;
 
 	/* UP event and is it one of our devices? */
-	if (event == NETDEV_UP && dev->open == network_open)
+	if (event == NETDEV_UP && dev->netdev_ops->ndo_open == network_open)
 		send_fake_arp(dev);
 
 	return NOTIFY_DONE;
