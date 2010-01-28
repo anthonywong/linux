@@ -12,8 +12,6 @@ abi=$(echo $revision | awk -F. '{print $1}')
 verabi=$ver-$abi
 verfull=$ver-$revision
 
-repo_fsl="http://ports.ubuntu.com/pool/main/l/linux-mvl-dove"
-
 WGET="wget --quiet -c"
 
 abidir="`pwd`/debian/abi/$verfull"
@@ -36,7 +34,7 @@ getall() {
 		echo -n "Fetching $sub..."
 		filename=linux-image-${verabi}-${sub}_${verfull}_${arch}.deb
 		cd $tmpdir
-		for r in $repo_fsl
+		for r in "${repo_list[@]}"
 		do
 			if ! [ -f $filename ]; then
 				$WGET $r/$filename
@@ -70,6 +68,8 @@ echo $abi > $abidir/abiname
 
 # NOTE: The flavours are hardcoded, because they may have changed from the
 # current build.
+
+repo_list=("http://ports.ubuntu.com/pool/main/l/linux-mvl-dove")
 
 getall armel dove
 
