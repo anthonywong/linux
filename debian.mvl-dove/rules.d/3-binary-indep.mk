@@ -3,7 +3,6 @@ build-indep:
 docpkg = $(doc_pkg_name)
 docdir = $(CURDIR)/debian/$(docpkg)/usr/share/doc/$(docpkg)
 install-doc:
-ifeq ($(do_doc_package),true)
 	dh_testdir
 	dh_testroot
 	dh_clean -k -p$(docpkg)
@@ -23,12 +22,10 @@ endif
 	cp -a Documentation/* $(docdir)
 	rm -rf $(docdir)/DocBook
 	find $(docdir) -name .gitignore | xargs rm -f
-endif
 
 srcpkg = $(src_pkg_name)-source-$(release)
 srcdir = $(CURDIR)/debian/$(srcpkg)/usr/src/$(srcpkg)
 install-source:
-ifeq ($(do_source_package),true)
 	dh_testdir
 	dh_testroot
 	dh_clean -k -p$(srcpkg)
@@ -42,8 +39,14 @@ ifeq ($(do_linux_source_content),true)
 		$(srcdir).tar.bz2
 	rm -rf $(srcdir)
 endif
-endif
 
-install-indep: install-doc install-source
+install-indep-deps = 
+ifeq ($(do_doc_package),true)
+install-indep-deps += install-doc
+endif
+ifeq ($(do_source_package),true)
+install-indep-deps += install-doc
+endif
+install-indep: $(install-indep-deps)
 
 binary-indep: install-indep
