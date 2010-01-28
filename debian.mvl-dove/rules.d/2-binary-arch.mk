@@ -227,7 +227,7 @@ install-arch-headers:
 binary-arch-headers: install-arch-headers
 	dh_testdir
 	dh_testroot
-ifeq ($(do_libc_dev),true)
+ifeq ($(do_libc_dev_package),true)
 	dh_installchangelogs -plinux-libc-dev
 	dh_installdocs -plinux-libc-dev
 	dh_compress -plinux-libc-dev
