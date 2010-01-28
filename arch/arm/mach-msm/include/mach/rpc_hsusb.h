@@ -22,6 +22,8 @@
 #define __ASM_ARCH_MSM_RPC_HSUSB_H
 
 #include <mach/msm_rpcrouter.h>
+#include <mach/msm_otg.h>
+#include <mach/msm_hsusb.h>
 
 int msm_hsusb_rpc_connect(void);
 int msm_hsusb_phy_reset(void);
@@ -42,4 +44,19 @@ int msm_chg_usb_i_is_not_available(void);
 int msm_chg_usb_charger_disconnected(void);
 int msm_chg_rpc_close(void);
 
+#ifdef CONFIG_USB_GADGET_MSM_72K
+int hsusb_chg_init(int connect);
+void hsusb_chg_vbus_draw(unsigned mA);
+void hsusb_chg_connected(enum chg_type chgtype);
+#endif
+
+int msm_fsusb_rpc_init(struct msm_otg_ops *ops);
+int msm_fsusb_init_phy(void);
+int msm_fsusb_reset_phy(void);
+int msm_fsusb_suspend_phy(void);
+int msm_fsusb_resume_phy(void);
+int msm_fsusb_rpc_close(void);
+int msm_fsusb_remote_dev_disconnected(void);
+int msm_fsusb_set_remote_wakeup(void);
+void msm_fsusb_rpc_deinit(void);
 #endif
