@@ -56,9 +56,11 @@ clean: debian/control
 	# Install the copyright information.
 	cp $(DEBIAN)/copyright debian/copyright
 
-	rm -rf $(DEBIAN)/control.stub $(DEBIAN)/d-i/kernel-versions
-	rm -rf $(DEBIAN)/*-di debian/kernel-image* debian/linux-*
-	rm -rf debian/*-di debian/*-di.* debian/d-i*
+distclean: clean
+	rm -rf debian.master/control debian.master/control.stub \
+		debian.master/d-i/kernel-versions debian/changelog \
+		debian/control debian/control.stub debian/copyright \
+		debian/debian.env
 
 # Builds the image, arch headers and debug packages
 include $(DEBIAN)/rules.d/2-binary-arch.mk
