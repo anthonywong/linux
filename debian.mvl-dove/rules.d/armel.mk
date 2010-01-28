@@ -10,3 +10,4 @@ no_dumpfile     = true
 loader		= grub
 
 do_doc_package	= false
+do_source_package	= false
