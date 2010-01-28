@@ -28,6 +28,8 @@
 #ifndef _MSM_KGSL_H
 #define _MSM_KGSL_H
 
+#include <linux/kernel.h>
+
 /*context flags */
 #define KGSL_CONTEXT_SAVE_GMEM		1
 #define KGSL_CONTEXT_NO_GMEM_ALLOC	2
@@ -297,12 +299,7 @@ struct kgsl_drawctxt_set_bin_base_offset {
 int kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
 			unsigned long *len);
 #else
-int kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
-			unsigned long *len)
-{
-	printk(KERN_ERR "%s: MSM_KGSL_DRM not configured \n", __func__);
-	return -1;
-}
-
+#define kgsl_gem_obj_addr(...) 0
+#endif
 #endif
 #endif /* _MSM_KGSL_H */
