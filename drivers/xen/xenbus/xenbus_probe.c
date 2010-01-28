@@ -91,6 +91,11 @@ static int xenbus_probe_frontend(const char *type, const char *name);
 
 static void xenbus_dev_shutdown(struct device *_dev);
 
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+static int xenbus_dev_suspend(struct device *dev, pm_message_t state);
+static int xenbus_dev_resume(struct device *dev);
+#endif
+
 /* If something in array of ids matches this device, return it. */
 static const struct xenbus_device_id *
 match_device(const struct xenbus_device_id *arr, struct xenbus_device *dev)
@@ -226,6 +231,10 @@ static struct xen_bus_type xenbus_frontend = {
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,29)
 		.dev_attrs = xenbus_dev_attrs,
+#endif
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+		.suspend   = xenbus_dev_suspend,
+		.resume    = xenbus_dev_resume,
 #endif
 	},
 #if defined(CONFIG_XEN) || defined(MODULE)
@@ -763,6 +772,9 @@ void xenbus_dev_changed(const char *node, struct xen_bus_type *bus)
 
 	kfree(root);
 }
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+EXPORT_SYMBOL_GPL(xenbus_dev_changed);
+#endif
 
 static void frontend_changed(struct xenbus_watch *watch,
 			     const char **vec, unsigned int len)
@@ -778,7 +790,11 @@ static struct xenbus_watch fe_watch = {
 	.callback = frontend_changed,
 };
 
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+static int xenbus_dev_suspend(struct device *dev, pm_message_t state)
+#else
 static int suspend_dev(struct device *dev, void *data)
+#endif
 {
 	int err = 0;
 	struct xenbus_driver *drv;
@@ -791,13 +807,18 @@ static int suspend_dev(struct device *dev, void *data)
 	drv = to_xenbus_driver(dev->driver);
 	xdev = container_of(dev, struct xenbus_device, dev);
 	if (drv->suspend)
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+		err = drv->suspend(xdev, state);
+#else
 		err = drv->suspend(xdev);
+#endif
 	if (err)
 		printk(KERN_WARNING
 		       "xenbus: suspend %s failed: %i\n", dev_name(dev), err);
 	return 0;
 }
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 static int suspend_cancel_dev(struct device *dev, void *data)
 {
 	int err = 0;
@@ -818,8 +839,13 @@ static int suspend_cancel_dev(struct device *dev, void *data)
 		       dev_name(dev), err);
 	return 0;
 }
+#endif
 
+#if !defined(CONFIG_XEN) && !defined(MODULE)
+static int xenbus_dev_resume(struct device *dev)
+#else
 static int resume_dev(struct device *dev, void *data)
+#endif
 {
 	int err;
 	struct xenbus_driver *drv;
@@ -864,6 +890,7 @@ static int resume_dev(struct device *dev, void *data)
 	return 0;
 }
 
+#if defined(CONFIG_XEN) || defined(MODULE)
 void xenbus_suspend(void)
 {
 	DPRINTK("");
@@ -893,6 +920,7 @@ void xenbus_suspend_cancel(void)
 	xenbus_backend_resume(suspend_cancel_dev);
 }
 EXPORT_SYMBOL_GPL(xenbus_suspend_cancel);
+#endif
 
 /* A flag to determine if xenstored is 'ready' (i.e. has started) */
 atomic_t xenbus_xsd_state = ATOMIC_INIT(XENBUS_XSD_UNCOMMITTED);

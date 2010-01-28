@@ -224,7 +224,7 @@ static void scsiback_cmd_done(struct request *req, int uptodate)
 	int errors;
 
 	sense_buffer = req->sense;
-	resid        = req->data_len;
+	resid        = blk_rq_bytes(req);
 	errors       = req->errors;
 
 	if (errors != 0) {
@@ -339,21 +339,6 @@ fail_flush:
 	return -ENOMEM;
 }
 
-/* quoted scsi_lib.c/scsi_merge_bio */
-static int scsiback_merge_bio(struct request *rq, struct bio *bio)
-{
-	struct request_queue *q = rq->q;
-
-	bio->bi_flags &= ~(1 << BIO_SEG_VALID);
-	if (rq_data_dir(rq) == WRITE)
-		bio->bi_rw |= (1 << BIO_RW);
-
-	blk_queue_bounce(q, &bio);
-
-	return blk_rq_append_bio(q, rq, bio);
-}
-
-
 /* quoted scsi_lib.c/scsi_bi_endio */
 static void scsiback_bi_endio(struct bio *bio, int error)
 {
@@ -363,29 +348,28 @@ static void scsiback_bi_endio(struct bio *bio, int error)
 
 
 /* quoted scsi_lib.c/scsi_req_map_sg . */
-static int request_map_sg(struct request *rq, pending_req_t *pending_req, unsigned int count)
+static struct bio *request_map_sg(pending_req_t *pending_req)
 {
-	struct request_queue *q = rq->q;
-	int nr_pages;
-	unsigned int nsegs = count;
-	unsigned int data_len = 0, len, bytes, off;
+	struct request_queue *q = pending_req->sdev->request_queue;
+	unsigned int nsegs = (unsigned int)pending_req->nr_segments;
+	unsigned int i, len, bytes, off, nr_pages, nr_vecs = 0;
 	struct scatterlist *sg;
 	struct page *page;
-	struct bio *bio = NULL;
-	int i, err, nr_vecs = 0;
+	struct bio *bio = NULL, *bio_first = NULL, *bio_last = NULL;
+	int err;
 
 	for_each_sg (pending_req->sgl, sg, nsegs, i) {
 		page = sg_page(sg);
 		off = sg->offset;
 		len = sg->length;
-		data_len += len;
 
 		nr_pages = (len + off + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		while (len > 0) {
 			bytes = min_t(unsigned int, len, PAGE_SIZE - off);
 
 			if (!bio) {
-				nr_vecs = min_t(int, BIO_MAX_PAGES, nr_pages);
+				nr_vecs = min_t(unsigned int, BIO_MAX_PAGES,
+					 	nr_pages);
 				nr_pages -= nr_vecs;
 				bio = bio_alloc(GFP_KERNEL, nr_vecs);
 				if (!bio) {
@@ -393,6 +377,11 @@ static int request_map_sg(struct request *rq, pending_req_t *pending_req, unsign
 					goto free_bios;
 				}
 				bio->bi_end_io = scsiback_bi_endio;
+				if (bio_last)
+					bio_last->bi_next = bio;
+				else
+					bio_first = bio;
+				bio_last = bio;
 			}
 
 			if (bio_add_pc_page(q, bio, page, bytes, off) !=
@@ -403,11 +392,9 @@ static int request_map_sg(struct request *rq, pending_req_t *pending_req, unsign
 			}
 
 			if (bio->bi_vcnt >= nr_vecs) {
-				err = scsiback_merge_bio(rq, bio);
-				if (err) {
-					bio_endio(bio, 0);
-					goto free_bios;
-				}
+				bio->bi_flags &= ~(1 << BIO_SEG_VALID);
+				if (pending_req->sc_data_direction == WRITE)
+					bio->bi_rw |= (1 << BIO_RW);
 				bio = NULL;
 			}
 
@@ -417,21 +404,15 @@ static int request_map_sg(struct request *rq, pending_req_t *pending_req, unsign
 		}
 	}
 
-	rq->buffer   = rq->data = NULL;
-	rq->data_len = data_len;
-
-	return 0;
+	return bio_first;
 
 free_bios:
-	while ((bio = rq->bio) != NULL) {
-		rq->bio = bio->bi_next;
-		/*
-		 * call endio instead of bio_put incase it was bounced
-		 */
-		bio_endio(bio, 0);
+	while ((bio = bio_first) != NULL) {
+		bio_first = bio->bi_next;
+		bio_put(bio);
 	}
 
-	return err;
+	return ERR_PTR(err);
 }
 
 
@@ -439,7 +420,6 @@ void scsiback_cmd_exec(pending_req_t *pending_req)
 {
 	int cmd_len  = (int)pending_req->cmd_len;
 	int data_dir = (int)pending_req->sc_data_direction;
-	unsigned int nr_segments = (unsigned int)pending_req->nr_segments;
 	unsigned int timeout;
 	struct request *rq;
 	int write;
@@ -453,7 +433,30 @@ void scsiback_cmd_exec(pending_req_t *pending_req)
 		timeout = VSCSIIF_TIMEOUT;
 
 	write = (data_dir == DMA_TO_DEVICE);
-	rq = blk_get_request(pending_req->sdev->request_queue, write, GFP_KERNEL);
+	if (pending_req->nr_segments) {
+		struct bio *bio = request_map_sg(pending_req);
+
+		if (IS_ERR(bio)) {
+			printk(KERN_ERR "scsiback: SG Request Map Error\n");
+			return;
+		}
+
+		rq = blk_make_request(pending_req->sdev->request_queue, bio,
+				      GFP_KERNEL);
+		if (IS_ERR(rq)) {
+			printk(KERN_ERR "scsiback: Make Request Error\n");
+			return;
+		}
+
+		rq->buffer = NULL;
+	} else {
+		rq = blk_get_request(pending_req->sdev->request_queue, write,
+				     GFP_KERNEL);
+		if (unlikely(!rq)) {
+			printk(KERN_ERR "scsiback: Get Request Error\n");
+			return;
+		}
+	}
 
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
 	rq->cmd_len = cmd_len;
@@ -467,14 +470,6 @@ void scsiback_cmd_exec(pending_req_t *pending_req)
 	rq->retries   = 0;
 	rq->timeout   = timeout;
 	rq->end_io_data = pending_req;
-
-	if (nr_segments) {
-
-		if (request_map_sg(rq, pending_req, nr_segments)) {
-			printk(KERN_ERR "scsiback: SG Request Map Error\n");
-			return;
-		}
-	}
 
 	scsiback_get(pending_req->info);
 	blk_execute_rq_nowait(rq->q, NULL, rq, 1, scsiback_cmd_done);
