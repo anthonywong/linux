@@ -25,6 +25,25 @@ endif
 	find $(docdir) -name .gitignore | xargs rm -f
 endif
 
-install-indep: install-doc
+srcpkg = $(src_pkg_name)-source-$(release)
+srcdir = $(CURDIR)/debian/$(srcpkg)/usr/src/$(srcpkg)
+install-source:
+ifeq ($(do_source_package),true)
+	dh_testdir
+	dh_testroot
+	dh_clean -k -p$(srcpkg)
+
+	install -d $(srcdir)
+ifeq ($(do_linux_source_content),true)
+	find . -path './debian' -prune -o -path './$(DEBIAN)' -prune -o \
+		-path './.*' -prune -o -print | \
+		cpio -pd --preserve-modification-time $(srcdir)
+	(cd $(srcdir)/..; tar cf - $(srcpkg)) | bzip2 -9c > \
+		$(srcdir).tar.bz2
+	rm -rf $(srcdir)
+endif
+endif
+
+install-indep: install-doc install-source
 
 binary-indep: install-indep

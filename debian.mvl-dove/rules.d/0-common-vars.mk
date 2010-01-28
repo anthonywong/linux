@@ -98,7 +98,16 @@ ifeq ($(wildcard /CurrentlyBuilding),)
 do_doc_package_content=false
 endif
 doc_pkg_name=$(src_pkg_name)-doc
+
 #
+# Similarly with the linux-source package, you need not build it as a developer. Its
+# somewhat I/O intensive and utterly useless.
+#
+do_source_package=true
+ifneq ($(wildcard /CurrentlyBuilding),)
+do_linux_source_content=true
+endif
+
 # Support parallel=<n> in DEB_BUILD_OPTIONS (see #209008)
 #
 # These 2 environment variables set the -j value of the kernel build. For example,
