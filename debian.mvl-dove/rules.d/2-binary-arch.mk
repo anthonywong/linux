@@ -215,7 +215,7 @@ install-arch-headers:
 
 	rm -rf $(headers_tmp)
 
-binary-arch-headers: install-arch-headers 
+binary-arch-headers: install-arch-headers
 	dh_testdir
 	dh_testroot
 ifeq ($(do_libc_dev),true)
