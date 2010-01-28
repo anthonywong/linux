@@ -306,46 +306,16 @@ endif
 $(stampdir)/stamp-flavours:
 	@echo $(flavours) > $@
 
-common_hdrpkg = $(hdrs_pkg_name)
-common_hdrdir = $(CURDIR)/debian/$(common_hdrpkg)/usr/src/$(common_hdrpkg)
-common-headers:
-	dh_testdir
-	dh_testroot
-	dh_clean -k -p$(common_hdrpkg)
-
-	install -d $(common_hdrdir)
-	find . -path './debian' -prune -o -path './$(DEBIAN)' -prune \
-	  -o -path './scripts/*' -prune -o -type f \
-	  \( -name 'Makefile*' -o -name 'Kconfig*' -o -name 'Kbuild*' -o \
-	     -name '*.sh' -o -name '*.pl' -o -name '*.lds' \) \
-	  -print | cpio -pd --preserve-modification-time $(common_hdrdir)
-	cp -a drivers/media/dvb/dvb-core/*.h $(common_hdrdir)/drivers/media/dvb/dvb-core
-	cp -a drivers/media/video/*.h $(common_hdrdir)/drivers/media/video
-	cp -a drivers/media/dvb/frontends/*.h $(common_hdrdir)/drivers/media/dvb/frontends
-	cp -a scripts include $(common_hdrdir)
-	(find arch -name include -type d -print | \
-		xargs -n1 -i: find : -type f) | \
-		cpio -pd --preserve-modification-time $(common_hdrdir)
-
-binary-common-headers: common-headers
-	dh_testdir
-	dh_testroot
-	dh_installchangelogs -p$(common_hdrpkg)
-	dh_installdocs -p$(common_hdrpkg)
-	dh_compress -p$(common_hdrpkg)
-	dh_fixperms -p$(common_hdrpkg)
-	dh_installdeb -p$(common_hdrpkg)
-	dh_gencontrol -p$(common_hdrpkg)
-	dh_md5sums -p$(common_hdrpkg)
-	dh_builddeb -p$(common_hdrpkg)
-
 binary-debs: $(stampdir)/stamp-flavours $(addprefix binary-,$(flavours)) \
-		binary-arch-headers binary-common-headers
+		binary-arch-headers
 
 build-arch:  $(addprefix build-,$(flavours))
 
 binary-arch-deps = binary-debs
 ifeq ($(AUTOBUILD),)
 binary-arch-deps += binary-udebs
+endif
+ifneq ($(do_common_headers_indep),true)
+binary-arch-deps += binary-headers
 endif
 binary-arch: $(binary-arch-deps)
