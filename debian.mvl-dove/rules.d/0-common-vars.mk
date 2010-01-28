@@ -71,7 +71,7 @@ endif
 # committing changes to the top level Makefile
 SUBLEVEL	:= $(shell echo $(release) | awk -F. '{print $$3}')
 
-arch		:= armel
+arch		:= $(shell dpkg-architecture -qDEB_HOST_ARCH)
 abidir		:= $(CURDIR)/$(DEBIAN)/abi/$(release)-$(revision)/$(arch)
 prev_abidir	:= $(CURDIR)/$(DEBIAN)/abi/$(release)-$(prev_revision)/$(arch)
 commonconfdir	:= $(CURDIR)/$(DEBIAN)/config
