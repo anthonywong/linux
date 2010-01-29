@@ -433,6 +433,8 @@ config SGI_MBCS
 
 source "drivers/serial/Kconfig"
 
+source "drivers/char/diag/Kconfig"
+
 config UNIX98_PTYS
 	bool "Unix98 PTY support" if EMBEDDED
 	default y
