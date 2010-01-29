@@ -99,11 +99,6 @@ void kgsl_gpu_mem_flush(void)
 /* TODO:
  * Add vsync wait */
 
-static int kgsl_library_name(struct drm_device *dev, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "yamato");
-}
-
 static int kgsl_drm_load(struct drm_device *dev, unsigned long flags)
 {
 	return 0;
@@ -350,7 +345,6 @@ kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
 	mutex_lock(&dev->struct_mutex);
 	priv = obj->driver_private;
 
-	*start = priv->pmem_phys;
 	/* We can only use the MDP for PMEM regions */
 
 	if (priv->phys && TYPE_IS_PMEM(priv->type)) {
@@ -767,7 +761,7 @@ int msm_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	struct drm_file *priv = filp->private_data;
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_gem_mm *mm = dev->mm_private;
-	struct drm_map *map = NULL;
+	struct drm_local_map *map = NULL;
 	struct drm_gem_object *obj;
 	struct drm_hash_item *hash;
 	struct drm_kgsl_gem_object *gpriv;
