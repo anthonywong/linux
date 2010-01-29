@@ -1330,7 +1330,40 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		goto fail_free_irq;
 	}
 
-	return add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
+	if (mtd_has_partitions()) {
+		struct mtd_partition	*parts = NULL;
+		int			i, nr_parts = 0;
+
+		if (mtd_has_cmdlinepart()) {
+			static const char *part_probes[]
+					= { "cmdlinepart", NULL, };
+			mtd->name = "dove-nand";
+			nr_parts = parse_mtd_partitions(mtd,
+					part_probes, &parts, 0);
+		}
+
+		if (nr_parts <= 0 && pdata && pdata->parts) {
+			parts = pdata->parts;
+			nr_parts = pdata->nr_parts;
+		}
+
+		if (nr_parts > 0) {
+			for (i = 0; i < nr_parts; i++) {
+				DEBUG(MTD_DEBUG_LEVEL2, "partitions[%d] = "
+					"{.name = %s, .offset = 0x%llx, "
+						".size = 0x%llx (%lldKiB) }\n",
+					i, parts[i].name,
+					(long long)parts[i].offset,
+					(long long)parts[i].size,
+					(long long)(parts[i].size >> 10));
+			}
+			return add_mtd_partitions(mtd, parts, nr_parts);
+		}
+	} else if (pdata && pdata->nr_parts)
+		dev_warn(&info->pdev->dev, "ignoring %d default partitions on %s\n",
+				pdata->nr_parts, info->pdev->name);
+
+	return add_mtd_device(mtd) == 1 ? -ENODEV : 0;
 
 fail_free_irq:
 	free_irq(IRQ_NAND, info);
