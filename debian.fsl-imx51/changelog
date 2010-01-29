@@ -1,8 +1,8 @@
-linux-fsl-imx51 (2.6.31-108.20) karmic-security; urgency=low
+linux-fsl-imx51 (2.6.31-108.21) karmic-security; urgency=low
 
   [ Leann Ogasawara ]
 
-  * Bump upload to .20 due to packaging blunder
+  * Bump upload to .21 due to packaging blunder
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 28 Jan 2010 16:30:00 -0800
 
