@@ -185,6 +185,7 @@ static int sync_page(void *word)
 	if (mapping && mapping->a_ops && mapping->a_ops->sync_page)
 		mapping->a_ops->sync_page(page);
 	io_schedule();
+
 	return 0;
 }
 
@@ -491,12 +492,6 @@ struct page *__page_cache_alloc(gfp_t gfp)
 EXPORT_SYMBOL(__page_cache_alloc);
 #endif
 
-static int __sleep_on_page_lock(void *word)
-{
-	io_schedule();
-	return 0;
-}
-
 /*
  * In order to wait for pages to become available there must be
  * waitqueues associated with pages. By using a hash table of
@@ -547,6 +542,22 @@ void add_page_wait_queue(struct page *page, wait_queue_t *waiter)
 }
 EXPORT_SYMBOL_GPL(add_page_wait_queue);
 
+/*
+ * If PageWaiters was found to be set at unlock time, __wake_page_waiters
+ * should be called to actually perform the wakeup of waiters.
+ */
+static void __wake_page_waiters(struct page *page)
+{
+	ClearPageWaiters(page);
+	/*
+	 * The smp_mb() is necessary to enforce ordering between the clear_bit
+	 * and the read of the waitqueue (to avoid SMP races with a parallel
+	 * __wait_on_page_locked()).
+	 */
+	smp_mb__after_clear_bit();
+	wake_up_page(page, PG_locked);
+}
+
 /**
  * unlock_page - unlock a locked page
  * @page: the page
@@ -563,8 +574,8 @@ void unlock_page(struct page *page)
 {
 	VM_BUG_ON(!PageLocked(page));
 	clear_bit_unlock(PG_locked, &page->flags);
-	smp_mb__after_clear_bit();
-	wake_up_page(page, PG_locked);
+	if (unlikely(PageWaiters(page)))
+		__wake_page_waiters(page);
 }
 EXPORT_SYMBOL(unlock_page);
 
@@ -596,21 +607,58 @@ EXPORT_SYMBOL(end_page_writeback);
  */
 void __lock_page(struct page *page)
 {
+	wait_queue_head_t *wq = page_waitqueue(page);
 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
 
-	__wait_on_bit_lock(page_waitqueue(page), &wait, sync_page,
-							TASK_UNINTERRUPTIBLE);
+	do {
+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		SetPageWaiters(page);
+		if (likely(PageLocked(page)))
+			sync_page(page);
+	} while (!trylock_page(page));
+	finish_wait(wq, &wait.wait);
 }
 EXPORT_SYMBOL(__lock_page);
 
 int __lock_page_killable(struct page *page)
 {
+	wait_queue_head_t *wq = page_waitqueue(page);
 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+	int err = 0;
 
-	return __wait_on_bit_lock(page_waitqueue(page), &wait,
-					sync_page_killable, TASK_KILLABLE);
+	do {
+		prepare_to_wait(wq, &wait.wait, TASK_KILLABLE);
+		SetPageWaiters(page);
+		if (likely(PageLocked(page))) {
+			err = sync_page_killable(page);
+			if (err)
+				break;
+		}
+	} while (!trylock_page(page));
+	finish_wait(wq, &wait.wait);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(__lock_page_killable);
+
+void  __wait_on_page_locked(struct page *page)
+{
+	wait_queue_head_t *wq = page_waitqueue(page);
+	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+
+	do {
+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		SetPageWaiters(page);
+		if (likely(PageLocked(page)))
+			sync_page(page);
+	} while (PageLocked(page));
+	finish_wait(wq, &wait.wait);
+
+	/* Clean up a potentially dangling PG_waiters */
+	if (unlikely(PageWaiters(page)))
+		__wake_page_waiters(page);
+}
+EXPORT_SYMBOL(__wait_on_page_locked);
 
 /**
  * __lock_page_nosync - get a lock on the page, without calling sync_page()
@@ -619,11 +667,18 @@ EXPORT_SYMBOL_GPL(__lock_page_killable);
  * Variant of lock_page that does not require the caller to hold a reference
  * on the page's mapping.
  */
-void __lock_page_nosync(struct page *page)
+void  __lock_page_nosync(struct page *page)
 {
+	wait_queue_head_t *wq = page_waitqueue(page);
 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
-	__wait_on_bit_lock(page_waitqueue(page), &wait, __sleep_on_page_lock,
-							TASK_UNINTERRUPTIBLE);
+
+	do {
+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		SetPageWaiters(page);
+		if (likely(PageLocked(page)))
+			io_schedule();
+	} while (!trylock_page(page));
+	finish_wait(wq, &wait.wait);
 }
 
 /**
