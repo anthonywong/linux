@@ -1195,16 +1195,20 @@ static struct platform_driver dovefb_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
+#ifdef CONFIG_SPI_MV
 extern int __devinit mv_spi_init(void);
+#endif
 static int __devinit dovefb_init(void)
 {
 	int rc;
 	rc = platform_driver_register(&dovefb_driver);
 	if (rc)
 		return rc;
-
+#ifdef CONFIG_SPI_MV
 	return mv_spi_init();
+#else
+	return rc;
+#endif
 }
 
 late_initcall(dovefb_init);
