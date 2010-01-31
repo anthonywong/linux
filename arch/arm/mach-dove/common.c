@@ -1247,7 +1247,7 @@ static struct platform_device dove_cesa_ocf = {
 	.name           = "dove_cesa_ocf",
 	.id             = -1,
 	.dev		= {
-		.platform_data	= &dove_eth_addr_dec_data,
+		.platform_data	= &dove_cesa_addr_dec_data,
 	},
 };
 
