@@ -1339,6 +1339,7 @@ void __init setup_arch(char **cmdline_p)
 		conswitchp = &vga_con;
 #endif
 #endif
+    xencons_early_setup();
 #endif /* CONFIG_XEN */
 	x86_init.oem.banner();
 
