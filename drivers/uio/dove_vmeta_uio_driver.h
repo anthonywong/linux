@@ -42,5 +42,9 @@ struct vmeta_xv_frame {
 #define UIO_VMETA_XV_QUERY_VIDEO		_IOR(IOP_MAGIC, 6, struct vmeta_xv_frame)	// used for vo xv interface to query a video frame that from vmeta
 #define UIO_VMETA_XV_FREE_VIDEO          _IOW(IOP_MAGIC, 7, struct vmeta_xv_frame)	// used for vo xv interface to free a video frame
 #define UIO_VMETA_XV_INIT_QUEUE		_IO(IOP_MAGIC, 8)
+#define UIO_VMETA_POWER_ON		_IO(IOP_MAGIC, 9)
+#define UIO_VMETA_POWER_OFF		_IO(IOP_MAGIC, 10)
+#define UIO_VMETA_SUSPEND_CHECK		_IOR(IOP_MAGIC, 11, int)
+#define UIO_VMETA_SUSPEND_READY		_IO(IOP_MAGIC, 12)
 
 #endif
