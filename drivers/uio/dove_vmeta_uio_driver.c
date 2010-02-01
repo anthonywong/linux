@@ -6,12 +6,16 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
+#include <linux/notifier.h>
+#include <linux/suspend.h>
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 
+#include "mvOs.h"
+#include "pmu/mvPmuRegs.h"
 #include "dove_vmeta_uio_driver.h"
 
 /* local control  */
@@ -29,10 +33,89 @@ struct vmeta_xv_data {
 struct vmeta_uio_data {
 	struct uio_info		uio_info;
 };
+static struct vmeta_uio_data *vmeta_uio_priv_data;
 
 #ifndef CONFIG_MEM_FOR_MULTIPROCESS
 static atomic_t vmeta_available = ATOMIC_INIT(1);
-#endif
+#else /* CONFIG_MEM_FOR_MULTIPROCESS */
+static atomic_t vmeta_available = ATOMIC_INIT(0);
+#endif /* CONFIG_MEM_FOR_MULTIPROCESS */
+
+static atomic_t vmeta_pm_suspend_available = ATOMIC_INIT(0);
+struct mutex vmeta_pm_suspend_check;
+
+static int vmeta_pm_event(struct notifier_block *notifier, unsigned long val, void *v)
+{
+	/* Hibernation and suspend events */
+	// PM_HIBERNATION_PREPARE	0x0001 /* Going to hibernate */
+	// PM_POST_HIBERNATION	0x0002 /* Hibernation finished */
+	// PM_SUSPEND_PREPARE	0x0003 /* Going to suspend the system */
+	// PM_POST_SUSPEND		0x0004 /* Suspend finished */
+	// PM_RESTORE_PREPARE	0x0005 /* Going to restore a saved image */
+	// PM_POST_RESTORE		0x0006 /* Restore failed */
+
+	uio_event_notify(&vmeta_uio_priv_data->uio_info);
+
+	switch(val) {
+		case PM_SUSPEND_PREPARE:
+			atomic_set(&vmeta_pm_suspend_available, 1);
+#ifndef CONFIG_MEM_FOR_MULTIPROCESS
+			if(vmeta_available.counter == 0)
+#else /* CONFIG_MEM_FOR_MULTIPROCESS */
+			if(vmeta_available.counter >= 1)
+#endif /* CONFIG_MEM_FOR_MULTIPROCESS */
+				mutex_lock(&vmeta_pm_suspend_check);
+			break;
+		case PM_POST_SUSPEND:
+			atomic_set(&vmeta_pm_suspend_available, 0);
+			if(!mutex_is_locked(&vmeta_pm_suspend_check))
+				mutex_lock(&vmeta_pm_suspend_check);	// lock as default
+			break;
+	};
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block vmeta_pm_notifier = {
+	.notifier_call = vmeta_pm_event,
+	.priority = -5,
+};
+
+static void vmeta_power_on(void)
+{
+	unsigned int reg;
+
+	/* power on */
+	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
+	reg &= ~PMU_PWR_VPU_PWR_DWN_MASK;
+	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
+	/* un-reset unit */
+	reg = MV_REG_READ(PMU_SW_RST_CTRL_REG);
+	reg |= PMU_SW_RST_VIDEO_MASK;
+	MV_REG_WRITE(PMU_SW_RST_CTRL_REG, reg);
+	/* disable isolators */
+	reg = MV_REG_READ(PMU_ISO_CTRL_REG);
+	reg |= PMU_ISO_VIDEO_MASK;
+	MV_REG_WRITE(PMU_ISO_CTRL_REG, reg);
+}
+
+static void vmeta_power_off(void)
+{
+	unsigned int reg;
+
+	/* enable isolators */
+	reg = MV_REG_READ(PMU_ISO_CTRL_REG);
+	reg &= ~PMU_ISO_VIDEO_MASK;
+	MV_REG_WRITE(PMU_ISO_CTRL_REG, reg);
+	/* reset unit */
+	reg = MV_REG_READ(PMU_SW_RST_CTRL_REG);
+	reg &= ~PMU_SW_RST_VIDEO_MASK;
+	MV_REG_WRITE(PMU_SW_RST_CTRL_REG, reg);
+	/* power off */
+	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
+	reg |= PMU_PWR_VPU_PWR_DWN_MASK;
+	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
+}
 
 static int vmeta_open(struct uio_info *info, struct inode *inode)
 {
@@ -41,7 +124,11 @@ static int vmeta_open(struct uio_info *info, struct inode *inode)
 		atomic_inc(&vmeta_available);
 		return -EBUSY;	/* already open */
 	}
-#endif
+	vmeta_power_on();
+#else /* CONFIG_MEM_FOR_MULTIPROCESS */
+	if (atomic_add_return(1, &vmeta_available) == 1)
+		vmeta_power_on();
+#endif /* CONFIG_MEM_FOR_MULTIPROCESS */
 	return 0;
 }
 
@@ -49,7 +136,11 @@ static int vmeta_release(struct uio_info *info, struct inode *inode)
 {
 #ifndef CONFIG_MEM_FOR_MULTIPROCESS
 	atomic_inc(&vmeta_available); /* release the device */
-#endif
+	vmeta_power_off();
+#else /* CONFIG_MEM_FOR_MULTIPROCESS */
+	if (atomic_dec_and_test(&vmeta_available))
+		vmeta_power_off();
+#endif /* CONFIG_MEM_FOR_MULTIPROCESS */
 	return 0;
 }
 
@@ -193,6 +284,24 @@ static int vmeta_ioctl(struct uio_info *info, unsigned int cmd, unsigned long ar
 			mutex_unlock(&xv_data->lock);
 			}
 			break;
+		case UIO_VMETA_POWER_OFF:
+			vmeta_power_off();
+			break;
+		case UIO_VMETA_POWER_ON:
+			vmeta_power_on();
+			break;
+		case UIO_VMETA_SUSPEND_CHECK: {
+			int vmeta_suspend_check = 0;
+
+			if(vmeta_pm_suspend_available.counter)
+				vmeta_suspend_check = 1;
+			__copy_to_user((int __user*)arg, &vmeta_suspend_check, sizeof(int));
+			}
+			break;
+		case UIO_VMETA_SUSPEND_READY:
+			if(mutex_is_locked(&vmeta_pm_suspend_check))
+				mutex_unlock(&vmeta_pm_suspend_check);
+			break;
 		default:
 			break;
 	}
@@ -225,7 +334,8 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 		printk(KERN_ERR "vdec_prvdec_probe: "
 				"Failed to allocate memory.\n");
 		return -ENOMEM;
-	}
+	} else
+		vmeta_uio_priv_data = vd;
 
 	/* Get internal registers memory. */
 	id = VMETA_CONTROL_REGISTER_MAP;
@@ -341,6 +451,14 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 	// disable interrupt at initial time
 	disable_irq(vd->uio_info.irq);
 
+	// power off the vmeta as default
+	vmeta_power_off();
+
+	// register a pm notifier
+	register_pm_notifier(&vmeta_pm_notifier);
+	mutex_init(&vmeta_pm_suspend_check);
+	if(!mutex_is_locked(&vmeta_pm_suspend_check))
+		mutex_lock(&vmeta_pm_suspend_check);	// lock as default
 
 	printk(KERN_INFO "VMETA UIO driver registered successfully.\n");
 	return 0;
@@ -376,6 +494,12 @@ static int dove_vmeta_remove(struct platform_device *pdev)
 
 	kfree(vd->uio_info.priv);
 	kfree(vd);
+	vmeta_uio_priv_data = NULL;
+
+	// unregister pm notifier
+	unregister_pm_notifier(&vmeta_pm_notifier);
+	if(mutex_is_locked(&vmeta_pm_suspend_check))
+		mutex_unlock(&vmeta_pm_suspend_check);
 
 	return 0;
 } 
