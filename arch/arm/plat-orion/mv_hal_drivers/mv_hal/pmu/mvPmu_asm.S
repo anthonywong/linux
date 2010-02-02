@@ -566,6 +566,14 @@ die_leave_ddr_active:
 	str	r2, [r0]
 
 	/*
+	 * Reset Debugger
+	 */
+	ldr	r0, die_general_cfg_reg
+	ldr	r1, [r0]
+	bic	r1, r1, #0x2
+	str	r1, [r0]
+
+	/*
 	 * Relocate the Internal Registers Window to h/w default
 	 */
 	ldr	r1, die_irb_reg
@@ -584,6 +592,8 @@ die_term_ctrl_addr:
 	.word (PMU_SP_TERM_OFF_CTRL_ADDR)
 die_term_mask_addr:
 	.word (PMU_SP_TERM_OFF_MASK_ADDR)
+die_general_cfg_reg:
+	.word (DOVE_SB_REGS_VIRT_BASE + 0xE802C)
 
 
 /***************************************************************
@@ -600,6 +610,14 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 	ldr	r1, dix_irbd_reg
 	mov	r0, #DOVE_SB_REGS_PHYS_BASE
 	str	r0, [r1]
+
+	/*
+	 * UNReset Debugger
+	 */
+	ldr	r0, dix_general_cfg_reg
+	ldr	r1, [r0]
+	orr	r1, r1, #0x2
+	str	r1, [r0]
 
 	/*
 	* DDR Sync workaround
@@ -660,6 +678,8 @@ dix_term_mask_addr:
 	.word (PMU_SP_TERM_OFF_MASK_ADDR_PHYS)
 dix_ddr_sync_reg:
 	.word (0xF1800240)
+dix_general_cfg_reg:
+	.word (DOVE_SB_REGS_PHYS_BASE + 0xE802C)
 
 
 /***************************************************************
