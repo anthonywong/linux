@@ -80,6 +80,7 @@
 
 #define MSM_PMEM_GPU1_SIZE	0x800000
 #define MSM_FB_SIZE             0x500000
+#define MSM_FB_SIZE_ST15	0x800000
 #define MSM_AUDIO_SIZE		0x80000
 #define MSM_GPU_PHYS_SIZE 	SZ_2M
 
@@ -822,7 +823,8 @@ static int msm_fb_detect_panel(const char *name)
 		else
 			ret = -ENODEV;
 	} else if (machine_is_qsd8x50a_st1_5()) {
-		if (!strcmp(name, "lcdc_st15"))
+		if (!strcmp(name, "lcdc_st15") ||
+		    !strcmp(name, "hdmi_sii9022"))
 			ret = 0;
 		else
 			ret = -ENODEV;
@@ -1101,6 +1103,46 @@ static struct mddi_platform_data mddi_pdata = {
 	.mddi_sel_clk = msm_fb_mddi_sel_clk,
 };
 
+static struct vreg *vreg_msme2;
+static int __init st15_hdmi_vreg_init(void)
+{
+	int rc;
+
+	vreg_msme2 = vreg_get(NULL, "msme2");
+
+	if (IS_ERR(vreg_msme2)) {
+		pr_err("%s: msme2 vreg get failed (%ld)\n",
+		       __func__, PTR_ERR(vreg_msme2));
+		return -EINVAL;
+	}
+
+	rc = vreg_set_level(vreg_msme2, 1200);
+	if (rc) {
+		pr_err("%s: vreg msme2 set level failed (%d)\n",
+		       __func__, rc);
+		return rc;
+	}
+	return 0;
+}
+
+static int st15_hdmi_power(int on)
+{
+	int rc;
+
+	if (on)
+		rc = vreg_enable(vreg_msme2);
+	else
+		rc = vreg_disable(vreg_msme2);
+
+	if (rc) {
+		pr_err("%s: msme2 vreg %s failed (%d)\n",
+		       __func__, on ? "enable" : "disable", rc);
+		return rc;
+	}
+
+	return 0;
+}
+
 static int msm_fb_lcdc_gpio_config(int on)
 {
 
@@ -1144,6 +1186,7 @@ static int msm_fb_lcdc_gpio_config(int on)
 			gpio_set_value(22, 0);
 			gpio_set_value(32, 1);
 			gpio_set_value(155, 1);
+			st15_hdmi_power(1);
 			gpio_set_value(22, 1);
 
 		} else {
@@ -1153,6 +1196,7 @@ static int msm_fb_lcdc_gpio_config(int on)
 			gpio_set_value(22, 0);
 			gpio_set_value(32, 0);
 			gpio_set_value(155, 0);
+			st15_hdmi_power(0);
 		}
 	}
 	return 0;
@@ -1219,6 +1263,9 @@ static void __init msm_fb_add_devices(void)
 		}
 		msm_fb_register_device("lcdc", &lcdc_pdata);
 	} else if (machine_is_qsd8x50a_st1_5()) {
+		rc = st15_hdmi_vreg_init();
+		if (rc)
+			return;
 		rc = msm_gpios_request_enable(
 			msm_fb_st15_gpio_config_data,
 			ARRAY_SIZE(msm_fb_st15_gpio_config_data));
@@ -1984,6 +2031,9 @@ static struct i2c_board_info msm_i2c_st1_5_info[] __initdata = {
 	},
 	{
 		I2C_BOARD_INFO("tps65023", 0x48),
+	},
+	{
+		I2C_BOARD_INFO("sii9022", 0x72 >> 1),
 	},
 };
 
@@ -3012,7 +3062,10 @@ static void __init qsd8x50_allocate_memory_regions(void)
 			"pmem arena\n", size, addr, __pa(addr));
 	}
 
-	size = MSM_FB_SIZE;
+	if (machine_is_qsd8x50a_st1_5())
+		size = MSM_FB_SIZE_ST15;
+	else
+		size = MSM_FB_SIZE;
 	addr = (void *)MSM_FB_BASE;
 	msm_fb_resources[0].start = (unsigned long)addr;
 	msm_fb_resources[0].end = msm_fb_resources[0].start + size - 1;
