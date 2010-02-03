@@ -206,7 +206,7 @@ static int __init hdmi_sii_init(void)
 	pinfo.type = HDMI_PANEL;
 	pinfo.pdest = DISPLAY_1;
 	pinfo.wait_cycle = 0;
-	pinfo.bpp = 18;
+	pinfo.bpp = 24;
 	pinfo.fb_num = 2;
 	pinfo.clk_rate = 74250000;
 
