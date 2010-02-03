@@ -2,7 +2,7 @@
 *                                                                             *
 * License Agreement                                                           *
 *                                                                             *
-* Copyright (c) 2006 Analog Devices Inc.  									                  *
+* Copyright (c) 2006 Analog Devices Inc.                                      *
 * All rights reserved.                                                        *
 *                                                                             *
 * This source code is intended for the recipient only under the guidelines of *
@@ -15,7 +15,7 @@
 * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING     *
 * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER         *
 * DEALINGS IN THE SOFTWARE.                                                   *
-*                                                                             *	
+*                                                                             *
 *                                                                             *
 * This software is intended for use with the AD9889A and derivative parts only*
 *																		                                          *
@@ -24,133 +24,131 @@
 /******************************************************************************
 *                                                                             *
 * THIS IS A READ-ONLY SOURCE FILE. DO NOT EDIT IT DIRECTLY.                   *
-* Author: Matthew McCarn (matthew.mccarn@analog.com)			                    *
-* Date: May 16, 2006							                                            *
+* Author: Matthew McCarn (matthew.mccarn@analog.com)                          *
+* Date: May 16, 2006                                                          *
 *                                                                             *
 ******************************************************************************/
-#include "type_def.h"
-#include "ad9889_macros.h"
+
 #ifndef _RAPTOR_SETUP_H_
 #define _RAPTOR_SETUP_H_
 
-
-
+#include "type_def.h"
+#include "ad9889_macros.h"
 
 enum mytiming
 {
-    AD9889_480i,
-    AD9889_720_480p,
-    AD9889_720p,
-    AD9889_1080i,
-    AD9889_640_480p,
+	AD9889_480i,
+	AD9889_720_480p,
+	AD9889_720p,
+	AD9889_1080i,
+	AD9889_640_480p,
 };
 
 typedef enum mytiming Timing;
 
 enum mycolorspace
 {
-    RGB,
-    YCbCr601,
-    YCbCr709,
+	RGB,
+	YCbCr601,
+	YCbCr709,
 };
 
 typedef enum mycolorspace Colorspace;
 
 enum myrange
 {
-    AD9889_0_255,
-    AD9889_16_235,
+	AD9889_0_255,
+	AD9889_16_235,
 };
 
 typedef enum myrange Range;
 
 enum myaspectratio
 {
-     _4x3,
-     _16x9,
+	_4x3,
+	_16x9,
 };
 
 typedef enum myaspectratio AspectRatio;
 
 enum mysamplingfrequency
 {
-   _32k,
-   _44k,
-   _48k,
-   _88k,
-   _96k,
-   _176k,
-   _192k,
+	_32k,
+	_44k,
+	_48k,
+	_88k,
+	_96k,
+	_176k,
+	_192k,
 };
 
 typedef enum mysamplingfrequency SamplingFrequency;
 
 enum myaudioinputmode
 {
-    SPDIF,
-    I2S,
-    I2S_LEFT,
-    I2S_RIGHT,
+	SPDIF,
+	I2S,
+	I2S_LEFT,
+	I2S_RIGHT,
 };
 
 typedef enum myaudioinputmode AudioInputMode;
 
 struct aviinfoframe
 {
-  DEPLINT active_format;
-  DEPLINT bar_info;
-  DEPLINT scan_info;
-  DEPLINT colorimetry;
-  DEPLINT non_unif_pic_scaling;
-  DEPLINT active_fmt_asp_rat;
-  DEPLINT active_line_start;
-  DEPLINT active_line_end;
-  DEPLINT active_pixel_start;
-  DEPLINT active_pixel_end;
+	DEPLINT	active_format;
+	DEPLINT	bar_info;
+	DEPLINT	scan_info;
+	DEPLINT	colorimetry;
+	DEPLINT	non_unif_pic_scaling;
+	DEPLINT	active_fmt_asp_rat;
+	DEPLINT	active_line_start;
+	DEPLINT	active_line_end;
+	DEPLINT	active_pixel_start;
+	DEPLINT	active_pixel_end;
 };
 
 typedef struct aviinfoframe * AVIInfoframe;
 
 struct audioinfoframe
 {
-  DEPLINT down_mix_inh;
-  DEPLINT level_shift;
+	DEPLINT	down_mix_inh;
+	DEPLINT	level_shift;
 };
 
 typedef struct audioinfoframe * AudioInfoframe;
 
 struct spdpacket
 {
-  BYTE *spd_byte_1to25;
+	BYTE	*spd_byte_1to25;
 };
 
 typedef struct spdpacket * SPDPacket;
 
 struct mpegpacket
 {
-BYTE *mpeg_byte_0to3;
-DEPLINT frame_repeat;
-DEPLINT frame_indicator;
+	BYTE	*mpeg_byte_0to3;
+	DEPLINT	frame_repeat;
+	DEPLINT	frame_indicator;
 };
 
 typedef struct mpegpacket * MPEGPacket;
 
 struct acppacket
 {
-  DEPLINT acp_type;
-  DEPLINT acp_byte_1;
-
+	DEPLINT	acp_type;
+	DEPLINT	acp_byte_1;
 };
 
 typedef struct acppacket * ACPPacket;
 
 struct isrcpacket
 {
-  DEPLINT isrc_continued;
-  DEPLINT isrc_valid;
-  DEPLINT isrc_status;
-  BYTE *isrc_1;
-  BYTE *isrc_2;
+	DEPLINT	isrc_continued;
+	DEPLINT	isrc_valid;
+	DEPLINT	isrc_status;
+	BYTE	*isrc_1;
+	BYTE	*isrc_2;
 };
 
 typedef struct isrcpacket * ISRCPacket;
@@ -162,18 +160,18 @@ void hdmi_or_dvi(void);
 DEPLINT handle_edid_interrupt(void);
 void handle_bksv_ready_interrupt(void);
 void handle_hpd_interrupt(void);
-void enable_hdcp(void (*compare_bksvs)(BYTE *, DEPLINT,BYTE *));
+void enable_hdcp(void);
 void disable_hdcp(void);
 BOOL get_hdcp_status(void);
+void set_hdcp_status(BOOL);
+BOOL get_hdcp_hdcp_requested(void);
+void set_hdcp_hdcp_requested(BOOL);
+BOOL get_hdcp_hdcp_enabled(void);
+void set_hdcp_hdcp_enabled(BOOL);
 BOOL get_hdmi_status(void);
+void compare_bksvs(void);
+
 //since a polling function is needed
-extern BOOL hdcp_status;
-extern BOOL hdcp_enabled;
-extern BOOL hdcp_requested;
-extern BYTE bksv[BKSV_MAX];
-extern BYTE hdcp_bstatus[2];
-extern DEPLINT total_bksvs;
-extern void (*compare_bksvs_ptr)(BYTE *bksvs, DEPLINT bksv_count,BYTE *hdcp_bstatus);
 
 void initialize_ad9889_i2c(DEPLINT (*)(DEPLINT, DEPLINT, BYTE *, DEPLINT), DEPLINT (*)(DEPLINT, DEPLINT, BYTE *, DEPLINT));
 void initialize_error_callback(void (*error_function)(int));
@@ -181,7 +179,7 @@ void initialize_error_callback(void (*error_function)(int));
 extern void (*error_callback_function)(int);
 extern DEPLINT (*i2c_write_bytes)(DEPLINT dev_addr_in, DEPLINT reg_addr_in, BYTE *data_in, DEPLINT count_in);
 extern DEPLINT (*i2c_read_bytes)(DEPLINT dev_addr_in, DEPLINT reg_addr_in, BYTE *data_out, DEPLINT count_in);
-extern BYTE bstatus[2];
+
 BOOL is_repeater(void);
 BOOL edid_reading_complete(void);
 void set_EDID_ready(BOOL value);
