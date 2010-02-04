@@ -69,6 +69,10 @@ module_param(use_hal_giga, uint, 0);
 MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
 #endif
 
+static unsigned int standby_fix = 1;
+module_param(standby_fix, uint, 0);
+MODULE_PARM_DESC(standby_fix, "if 1 then CKE and MRESET are connected to MPP4 and MPP6");
+
 extern unsigned int useHalDrivers;
 extern char *useNandHal;
 
@@ -686,12 +690,21 @@ static int __init dove_db_pm_init(void)
 	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;		/* STANDBY => 0: I/O off, 1: I/O on */
 	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;		/* power on push button */	
-	if (rev >= DOVE_REV_X0) /* For X0 and higher Power Good indication is not needed */
-		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CKE_OVRID;	/* CKE controlled by Dove */
+	if (rev >= DOVE_REV_X0) { /* For X0 and higher Power Good indication is not needed */
+		if (standby_fix)
+			pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CKE_OVRID;	/* CKE controlled by Dove */
+		else
+			pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
+	}
 	else
 		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
+
 	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;		/* DEEP-IdLE => 0: CPU off, 1: CPU on */
-	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_MRESET_OVRID;		/* M_RESET is pulled up - always HI */
+
+	if ((rev >= DOVE_REV_X0) && (standby_fix)) /* For boards with X0 we use MPP6 as MRESET */
+		pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_MRESET_OVRID;		/* M_RESET is pulled up - always HI */
+	else
+		pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;			/* Standby Led - inverted */
 	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC;			/* CPU power good  - not used */
