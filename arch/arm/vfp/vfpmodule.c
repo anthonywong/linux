@@ -155,11 +155,24 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 		return;
 	}
 
-	/*
-	 * Update the FPSCR with the additional exception flags.
-	 * Comparison instructions always return at least one of
-	 * these flags set.
-	 */
+
+        /*
+         * If any of the status flags are set, update the FPSCR.
+         * Comparison instructions always return at least one of
+         * these flags set.
+         */
+        /*
+           ARM spec does not define that H/W have to clear all condition
+           flags when bouncing a floating-point compare instruction. The
+           new support code only ORR the result flags on top of the
+           original flags without clearing any flags. This does not make
+           any sense to me, because clearing flags is also part of the
+           compare result. So we clear these bits here to make it PASS
+        */
+
+        if (exceptions & (FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V))
+                fpscr &= ~(FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V);
+
 	fpscr |= exceptions;
 
 	fmxr(FPSCR, fpscr);
