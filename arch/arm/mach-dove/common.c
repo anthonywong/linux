@@ -72,20 +72,6 @@ static unsigned int dove_gpu_memory_start;
 
 unsigned int __initdata vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
 
-static int __init vmeta_size_setup(char *str)
-{
-	get_option(&str, &vmeta_size);
-
-	if (!vmeta_size)
-		return 1;
-
-	vmeta_size <<= 20;
-
-	return 1;
-}
-__setup("vmeta_size=", vmeta_size_setup);
-
-
 /* used for memory allocation for the GPU graphics engine */
 #ifdef CONFIG_DOVE_GPU
 #define DOVE_GPU_MEM_SIZE (CONFIG_DOVE_GPU_MEM_SIZE << 20)
@@ -108,6 +94,7 @@ static int __init gpu_size_setup(char *str)
 }
 __setup("gpu_size=", gpu_size_setup);
 
+unsigned int __initdata pvt_size = 0;
 
 char *useNandHal = NULL;
 static int __init useNandHal_setup(char *s)
