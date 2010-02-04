@@ -42,7 +42,20 @@ static atomic_t vmeta_available = ATOMIC_INIT(0);
 #endif /* CONFIG_MEM_FOR_MULTIPROCESS */
 
 static atomic_t vmeta_pm_suspend_available = ATOMIC_INIT(0);
+static atomic_t vmeta_pm_suspend_successful = ATOMIC_INIT(0);
+static atomic_t vmeta_pm_suspend_watch_dog_trig = ATOMIC_INIT(0);
 struct mutex vmeta_pm_suspend_check;
+struct timer_list vmeta_pm_watch_dog;
+
+static void vmeta_pm_watch_dog_timer(unsigned long data)
+{
+	if(vmeta_pm_suspend_successful.counter == 0) {
+		if(mutex_is_locked(&vmeta_pm_suspend_check)) {
+			mutex_unlock(&vmeta_pm_suspend_check);
+			atomic_set(&vmeta_pm_suspend_watch_dog_trig, 1);
+		}
+	}
+}
 
 static int vmeta_pm_event(struct notifier_block *notifier, unsigned long val, void *v)
 {
@@ -60,11 +73,25 @@ static int vmeta_pm_event(struct notifier_block *notifier, unsigned long val, vo
 		case PM_SUSPEND_PREPARE:
 			atomic_set(&vmeta_pm_suspend_available, 1);
 #ifndef CONFIG_MEM_FOR_MULTIPROCESS
-			if(vmeta_available.counter == 0)
+			if(vmeta_available.counter == 0) {
 #else /* CONFIG_MEM_FOR_MULTIPROCESS */
-			if(vmeta_available.counter >= 1)
+			if(vmeta_available.counter >= 1) {
 #endif /* CONFIG_MEM_FOR_MULTIPROCESS */
+				init_timer(&vmeta_pm_watch_dog);
+				vmeta_pm_watch_dog.function = vmeta_pm_watch_dog_timer;
+				mod_timer(&vmeta_pm_watch_dog, jiffies + HZ);
+
+				atomic_set(&vmeta_pm_suspend_successful, 0);
 				mutex_lock(&vmeta_pm_suspend_check);
+				if(vmeta_pm_suspend_watch_dog_trig.counter == 1) {
+					atomic_set(&vmeta_pm_suspend_watch_dog_trig, 0);
+					if(!mutex_is_locked(&vmeta_pm_suspend_check))
+						mutex_lock(&vmeta_pm_suspend_check);	// lock as default
+
+					return NOTIFY_BAD;
+				} else
+					atomic_set(&vmeta_pm_suspend_successful, 1);
+			}
 			break;
 		case PM_POST_SUSPEND:
 			atomic_set(&vmeta_pm_suspend_available, 0);
@@ -295,7 +322,7 @@ static int vmeta_ioctl(struct uio_info *info, unsigned int cmd, unsigned long ar
 
 			if(vmeta_pm_suspend_available.counter)
 				vmeta_suspend_check = 1;
-			__copy_to_user((int __user*)arg, &vmeta_suspend_check, sizeof(int));
+				__copy_to_user((int __user*)arg, &vmeta_suspend_check, sizeof(int));
 			}
 			break;
 		case UIO_VMETA_SUSPEND_READY:
