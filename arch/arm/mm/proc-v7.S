@@ -225,6 +225,11 @@ cpu_v7_name:
  *	- cache type register is implemented
  */
 __v7_setup:
+#ifdef CONFIG_DOVE_REV_Y0
+	mrc p15, 1, r0, c15, c1, 0
+	orr r0, r0, #(1<<15)
+	mcr p15, 1, r0, c15, c1, 0
+#endif
 #ifdef CONFIG_SMP
 	mrc	p15, 0, r0, c1, c0, 1
 	tst	r0, #(1 << 6)			@ SMP/nAMP mode enabled?
