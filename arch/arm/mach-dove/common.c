@@ -160,7 +160,7 @@ static int __init noL2_setup(char *__unused)
 
 __setup("noL2", noL2_setup);
 
-int pm_disable = 0;
+int pm_disable = 1;
 static int __init pm_disable_setup(char *__unused)
 {
      pm_disable = 1;
@@ -168,6 +168,15 @@ static int __init pm_disable_setup(char *__unused)
 }
 
 __setup("pm_disable", pm_disable_setup);
+
+static int __init pm_enable_setup(char *__unused)
+{
+     pm_disable = 0;
+     return 1;
+}
+
+__setup("pm_enable", pm_enable_setup);
+
 
 int cpufreq_disable = 0;
 static int __init cpufreq_disable_setup(char *__unused)
