@@ -1,3 +1,11 @@
+linux (2.6.24-27.65netbook01) netbook-common; urgency=low
+
+  [Leann Ogasawara]
+
+  * Rebase onto Ubuntu-2.6.24-27.65 security release
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 04 Feb 2010 15:03:51 -0800
+
 linux (2.6.24-25.62netbook02) netbook-common; urgency=low
 
   [Steve Conklin]
