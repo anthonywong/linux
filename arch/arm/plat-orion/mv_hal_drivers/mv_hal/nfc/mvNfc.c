@@ -1022,10 +1022,10 @@ MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo,
 				{
 
 					cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-					cmdb[0] |= NFC_CB0_DBC_MASK;
 					cmdb[1] |= ((descInfo[i].pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
 					cmdb[2] |= (descInfo[i].pageAddr >> (32 - NFC_LP_PG_OFFS));
 				}
+				cmdb[0] |= NFC_CB0_DBC_MASK;
 				cmdb[0] |= NFC_CB0_CMD_TYPE_WRITE;	
 			
 				/* Check for extended syntax */
@@ -1483,11 +1483,11 @@ MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pa
 			else
 			{
 				cmdb[0] |= ((NFC_LP_READ_ADDR_LEN << NFC_CB0_ADDR_CYC_OFFS) & NFC_CB0_ADDR_CYC_MASK);
-				cmdb[0] |= NFC_CB0_DBC_MASK;
 				cmdb[1] |= ((columnOffs << NFC_LP_COL_OFFS) & NFC_LP_COL_MASK);
 				cmdb[1] |= ((pageAddr << NFC_LP_PG_OFFS) & NFC_LP_PG_MASK);
 				cmdb[2] |= (pageAddr >> (32 - NFC_LP_PG_OFFS));
 			}
+			cmdb[0] |= NFC_CB0_DBC_MASK;
 			cmdb[0] |= NFC_CB0_CMD_TYPE_WRITE;	
 			
 			/* Check for extended syntax */
