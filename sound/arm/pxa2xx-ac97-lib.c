@@ -91,6 +91,9 @@ unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 {
 	unsigned short val = -1;
 	volatile u32 *reg_addr;
+#ifdef CONFIG_ARCH_DOVE
+	u16 dummy_read_timeout=0;
+#endif
 
 	mutex_lock(&car_mutex);
 
@@ -116,10 +119,14 @@ unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 		goto out;
 	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1) <= 0 &&
 	    !((GSR | gsr_bits) & GSR_SDONE)) {
+#ifndef CONFIG_ARCH_DOVE	    
 		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n",
 				__func__, reg, GSR | gsr_bits);
 		val = -1;
 		goto out;
+#else
+		dummy_read_timeout=1;
+#endif		
 	}
 
 	/* valid data now */
@@ -128,6 +135,16 @@ unsigned short pxa2xx_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	val = *reg_addr;
 	/* but we've just started another cycle... */
 	wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1);
+
+#ifdef CONFIG_ARCH_DOVE
+	if (val==0xffff && dummy_read_timeout)
+	{
+	//The controller times out the read operation if the codec fails to respond in 4 AC97_SYNC frames. 
+        //In this case, the second read operation return a time-out data vaule of 0x0000_FFFF
+		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n",
+			__func__, reg, GSR | gsr_bits);
+	}
+#endif
 
 out:	mutex_unlock(&car_mutex);
 	return val;
