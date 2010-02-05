@@ -11,11 +11,10 @@
 #include <linux/io.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
+#include <linux/clk.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 
-#include "mvOs.h"
-#include "pmu/mvPmuRegs.h"
 #include "dove_vmeta_uio_driver.h"
 
 /* local control  */
@@ -32,6 +31,7 @@ struct vmeta_xv_data {
 
 struct vmeta_uio_data {
 	struct uio_info		uio_info;
+	struct clk		*vmeta_clk;
 };
 static struct vmeta_uio_data *vmeta_uio_priv_data;
 
@@ -108,42 +108,6 @@ static struct notifier_block vmeta_pm_notifier = {
 	.priority = -5,
 };
 
-static void vmeta_power_on(void)
-{
-	unsigned int reg;
-
-	/* power on */
-	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
-	reg &= ~PMU_PWR_VPU_PWR_DWN_MASK;
-	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
-	/* un-reset unit */
-	reg = MV_REG_READ(PMU_SW_RST_CTRL_REG);
-	reg |= PMU_SW_RST_VIDEO_MASK;
-	MV_REG_WRITE(PMU_SW_RST_CTRL_REG, reg);
-	/* disable isolators */
-	reg = MV_REG_READ(PMU_ISO_CTRL_REG);
-	reg |= PMU_ISO_VIDEO_MASK;
-	MV_REG_WRITE(PMU_ISO_CTRL_REG, reg);
-}
-
-static void vmeta_power_off(void)
-{
-	unsigned int reg;
-
-	/* enable isolators */
-	reg = MV_REG_READ(PMU_ISO_CTRL_REG);
-	reg &= ~PMU_ISO_VIDEO_MASK;
-	MV_REG_WRITE(PMU_ISO_CTRL_REG, reg);
-	/* reset unit */
-	reg = MV_REG_READ(PMU_SW_RST_CTRL_REG);
-	reg &= ~PMU_SW_RST_VIDEO_MASK;
-	MV_REG_WRITE(PMU_SW_RST_CTRL_REG, reg);
-	/* power off */
-	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
-	reg |= PMU_PWR_VPU_PWR_DWN_MASK;
-	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
-}
-
 static int vmeta_open(struct uio_info *info, struct inode *inode)
 {
 #ifndef CONFIG_MEM_FOR_MULTIPROCESS
@@ -151,10 +115,10 @@ static int vmeta_open(struct uio_info *info, struct inode *inode)
 		atomic_inc(&vmeta_available);
 		return -EBUSY;	/* already open */
 	}
-	vmeta_power_on();
+	clk_enable(vmeta_uio_priv_data->vmeta_clk);
 #else /* CONFIG_MEM_FOR_MULTIPROCESS */
 	if (atomic_add_return(1, &vmeta_available) == 1)
-		vmeta_power_on();
+		clk_enable(vmeta_uio_priv_data->vmeta_clk);
 #endif /* CONFIG_MEM_FOR_MULTIPROCESS */
 	return 0;
 }
@@ -163,10 +127,10 @@ static int vmeta_release(struct uio_info *info, struct inode *inode)
 {
 #ifndef CONFIG_MEM_FOR_MULTIPROCESS
 	atomic_inc(&vmeta_available); /* release the device */
-	vmeta_power_off();
+	clk_disable(vmeta_uio_priv_data->vmeta_clk);
 #else /* CONFIG_MEM_FOR_MULTIPROCESS */
 	if (atomic_dec_and_test(&vmeta_available))
-		vmeta_power_off();
+		clk_disable(vmeta_uio_priv_data->vmeta_clk);
 #endif /* CONFIG_MEM_FOR_MULTIPROCESS */
 	return 0;
 }
@@ -312,10 +276,10 @@ static int vmeta_ioctl(struct uio_info *info, unsigned int cmd, unsigned long ar
 			}
 			break;
 		case UIO_VMETA_POWER_OFF:
-			vmeta_power_off();
+			clk_disable(vmeta_uio_priv_data->vmeta_clk);
 			break;
 		case UIO_VMETA_POWER_ON:
-			vmeta_power_on();
+			clk_enable(vmeta_uio_priv_data->vmeta_clk);
 			break;
 		case UIO_VMETA_SUSPEND_CHECK: {
 			int vmeta_suspend_check = 0;
@@ -475,11 +439,15 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 		goto uio_register_fail;
 	}
 
+	// get vmeta clk control interface
+	vd->vmeta_clk = clk_get(NULL, "vmeta");
+
 	// disable interrupt at initial time
 	disable_irq(vd->uio_info.irq);
 
 	// power off the vmeta as default
-	vmeta_power_off();
+	clk_enable(vd->vmeta_clk);
+	clk_disable(vd->vmeta_clk);
 
 	// register a pm notifier
 	register_pm_notifier(&vmeta_pm_notifier);
