@@ -22,6 +22,8 @@
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 #include <audio/mvAudioRegs.h>
 #include "clock.h"
+#include "mvOs.h"
+#include "pmu/mvPmuRegs.h"
 
 /* downstream clocks*/
 void ds_clks_disable_all(int include_pci0, int include_pci1)
@@ -241,6 +243,42 @@ static int gpu_set_clock(struct clk *clk, unsigned long rate)
 	       rate, divider);
 	dove_clocks_set_gpu_clock(divider);
 	return 0;
+}
+
+static void vmeta_clk_enable(struct clk *clk)
+{
+	unsigned int reg;
+
+	/* power on */
+	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
+	reg &= ~PMU_PWR_VPU_PWR_DWN_MASK;
+	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
+	/* un-reset unit */
+	reg = MV_REG_READ(PMU_SW_RST_CTRL_REG);
+	reg |= PMU_SW_RST_VIDEO_MASK;
+	MV_REG_WRITE(PMU_SW_RST_CTRL_REG, reg);
+	/* disable isolators */
+	reg = MV_REG_READ(PMU_ISO_CTRL_REG);
+	reg |= PMU_ISO_VIDEO_MASK;
+	MV_REG_WRITE(PMU_ISO_CTRL_REG, reg);
+}
+
+static void vmeta_clk_disable(struct clk *clk)
+{
+	unsigned int reg;
+
+	/* enable isolators */
+	reg = MV_REG_READ(PMU_ISO_CTRL_REG);
+	reg &= ~PMU_ISO_VIDEO_MASK;
+	MV_REG_WRITE(PMU_ISO_CTRL_REG, reg);
+	/* reset unit */
+	reg = MV_REG_READ(PMU_SW_RST_CTRL_REG);
+	reg &= ~PMU_SW_RST_VIDEO_MASK;
+	MV_REG_WRITE(PMU_SW_RST_CTRL_REG, reg);
+	/* power off */
+	reg = MV_REG_READ(PMU_PWR_SUPLY_CTRL_REG);
+	reg |= PMU_PWR_VPU_PWR_DWN_MASK;
+	MV_REG_WRITE(PMU_PWR_SUPLY_CTRL_REG, reg);
 }
 
 static unsigned long vmeta_get_clock(struct clk *clk)
@@ -584,6 +622,13 @@ const struct clkops gpu_clk_ops = {
 	.setrate	= gpu_set_clock,
 };
 
+const struct clkops vpu_clk_ops = {
+	.enable		= vmeta_clk_enable,
+	.disable	= vmeta_clk_disable,
+	.getrate	= vmeta_get_clock,
+	.setrate	= vmeta_set_clock,
+};
+
 const struct clkops axi_clk_ops = {
 	.getrate	= axi_get_clock,
 	.setrate	= axi_set_clock,
@@ -778,6 +823,10 @@ static struct clk clk_gpu = {
 	.ops	= &gpu_clk_ops,
 };
 
+static struct clk clk_vpu = {
+	.ops	= &vpu_clk_ops,
+};
+
 static struct clk clk_axi = {
 	.ops	= &axi_clk_ops,
 };
@@ -819,6 +868,7 @@ static struct clk_lookup dove_clocks[] = {
 	INIT_CK(NULL, "GCCLK", &clk_gpu),
 	INIT_CK(NULL, "AXICLK", &clk_axi),
 	INIT_CK(NULL, "LCDCLK", &clk_lcd),
+	INIT_CK(NULL, "vmeta", &clk_vpu),
 	INIT_CK(NULL, "ssp", &clk_ssp),
 };
 
