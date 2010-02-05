@@ -2437,8 +2437,8 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 	if (!is_kernel_memtype) {
 		pmem[id].dev.minor = id;
 		pmem[id].dev.fops = &pmem_fops;
-		printk(KERN_INFO "%s: %d init\n",
-			pdata->name, pdata->cached);
+		printk(KERN_INFO "pmem: Initializing %s (user-space) as %s\n",
+			pdata->name, pdata->cached ? "cached" : "non-cached");
 
 		if (misc_register(&pmem[id].dev)) {
 			printk(KERN_ALERT "Unable to register pmem driver!\n");
@@ -2446,20 +2446,25 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 		}
 	} else { /* kernel region, no user accessible device */
 		pmem[id].dev.minor = -1;
+		printk(KERN_INFO "pmem: Initializing %s (in-kernel)\n",
+				pdata->name);
 	}
 
-	if (pmem[id].cached)
-		pmem[id].vbase = ioremap_cached(pmem[id].base, pmem[id].size);
+	if (!is_kernel_memtype) {
+		if (pmem[id].cached)
+			pmem[id].vbase = ioremap_cached(pmem[id].base,
+			pmem[id].size);
 #ifdef ioremap_ext_buffered
-	else if (pmem[id].buffered)
-		pmem[id].vbase = ioremap_ext_buffered(pmem[id].base,
-					pmem[id].size);
+		else if (pmem[id].buffered)
+			pmem[id].vbase = ioremap_ext_buffered(pmem[id].base,
+						pmem[id].size);
 #endif
-	else
-		pmem[id].vbase = ioremap(pmem[id].base, pmem[id].size);
+		else
+			pmem[id].vbase = ioremap(pmem[id].base, pmem[id].size);
 
-	if (pmem[id].vbase == 0)
-		goto error_cant_remap;
+		if (pmem[id].vbase == 0)
+			goto error_cant_remap;
+	}
 
 	pmem[id].garbage_pfn = page_to_pfn(alloc_page(GFP_KERNEL));
 
