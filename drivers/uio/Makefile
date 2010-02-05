@@ -7,5 +7,3 @@ obj-$(CONFIG_UIO_SMX)	+= uio_smx.o
 obj-$(CONFIG_UIO_AEC)	+= uio_aec.o
 obj-$(CONFIG_UIO_SERCOS3)	+= uio_sercos3.o
 obj-$(CONFIG_UIO_PCI_GENERIC)	+= uio_pci_generic.o
-
-include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
