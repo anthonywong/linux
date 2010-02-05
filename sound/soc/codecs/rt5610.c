@@ -262,23 +262,23 @@ static int rt5610_vpcm_state_put(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new rt5610_snd_controls[] = {
-SOC_DOUBLE("Speaker Playback Volume", 	RT5610_SPK_OUT_VOL, 8, 0, 31, 1),	
-SOC_DOUBLE("Speaker Playback Switch", 	RT5610_SPK_OUT_VOL, 15, 7, 1, 1),
-SOC_DOUBLE("Headphone Playback Volume", RT5610_HP_OUT_VOL, 8, 0, 31, 1),
-SOC_DOUBLE("Headphone Playback Switch", RT5610_HP_OUT_VOL,15, 7, 1, 1),
+SOC_DOUBLE("SPKOUT Playback Volume", 	RT5610_SPK_OUT_VOL, 8, 0, 31, 1),	
+SOC_DOUBLE("SPKOUT Playback Switch", 	RT5610_SPK_OUT_VOL, 15, 7, 1, 1),
+SOC_DOUBLE("HPOUT Playback Volume", RT5610_HP_OUT_VOL, 8, 0, 31, 1),
+SOC_DOUBLE("HPOUT Playback Switch", RT5610_HP_OUT_VOL,15, 7, 1, 1),
 //SOC_SINGLE("Mono Playback Volume", 		RT5610_PHONEIN_MONO_OUT_VOL, 0, 31, 1),
 //SOC_SINGLE("Mono Playback Switch", 		RT5610_PHONEIN_MONO_OUT_VOL, 7, 1, 1),
 SOC_DOUBLE("PCM Playback Volume", 		RT5610_STEREO_DAC_VOL, 8, 0, 31, 1),
 SOC_DOUBLE("PCM Playback Switch", 		RT5610_STEREO_DAC_VOL,15, 7, 1, 1),
 //SOC_DOUBLE("Line In Volume", 			RT5610_LINE_IN_VOL, 8, 0, 31, 1),
-SOC_SINGLE("Mic 1 Volume", 				RT5610_MIC_VOL, 8, 31, 1),
+SOC_SINGLE("Mic Playback Volume", 				RT5610_MIC_VOL, 8, 31, 1),
 //SOC_SINGLE("Mic 2 Volume", 				RT5610_MIC_VOL, 0, 31, 1),
-SOC_ENUM("Mic 1 Boost", 				rt5610_enum[5]),
+//SOC_ENUM("Mic 1 Boost", 				rt5610_enum[5]),
 //SOC_ENUM("Mic 2 Boost", 				rt5610_enum[6]),
-SOC_ENUM_EXT("Speaker Amp Type",			rt5610_enum[7], snd_soc_get_enum_double, rt5610_amp_sel_put),
+//SOC_ENUM_EXT("Speaker Amp Type",			rt5610_enum[7], snd_soc_get_enum_double, rt5610_amp_sel_put),
 //SOC_SINGLE("Phone In Volume", 			RT5610_PHONEIN_MONO_OUT_VOL, 8, 31, 1),
-SOC_DOUBLE("Capture Volume", 			RT5610_ADC_REC_GAIN, 7, 0, 31, 0),
-SOC_SINGLE_EXT("Voice PCM Switch", HPL_MIXER, 15, 1, 1, snd_soc_get_volsw, rt5610_vpcm_state_put),
+SOC_DOUBLE("PCM Capture Volume", 			RT5610_ADC_REC_GAIN, 7, 0, 31, 0),
+//SOC_SINGLE_EXT("Voice PCM Switch", HPL_MIXER, 15, 1, 1, snd_soc_get_volsw, rt5610_vpcm_state_put),
 };
 
 
