@@ -41,6 +41,10 @@
 #define DRM_KGSL_GEM_BIND_GPU 0x06
 #define DRM_KGSL_GEM_UNBIND_GPU 0x07
 
+#define DRM_KGSL_GEM_GET_BUFINFO 0x08
+#define DRM_KGSL_GEM_SET_BUFCOUNT 0x09
+#define DRM_KGSL_GEM_SET_ACTIVE 0x0A
+
 #define DRM_IOCTL_KGSL_GEM_CREATE \
 DRM_IOWR(DRM_COMMAND_BASE + DRM_KGSL_GEM_CREATE, struct drm_kgsl_gem_create)
 
@@ -67,6 +71,21 @@ DRM_IOWR(DRM_COMMAND_BASE + DRM_KGSL_GEM_BIND_GPU, struct drm_kgsl_gem_bind_gpu)
 #define DRM_IOCTL_KGSL_GEM_UNBIND_GPU \
 DRM_IOWR(DRM_COMMAND_BASE + DRM_KGSL_GEM_UNBIND_GPU, \
 struct drm_kgsl_gem_bind_gpu)
+
+#define DRM_IOCTL_KGSL_GEM_GET_BUFINFO \
+DRM_IOWR(DRM_COMMAND_BASE + DRM_KGSL_GEM_GET_BUFINFO, \
+	 struct drm_kgsl_gem_bufinfo)
+
+#define DRM_IOCTL_KGSL_GEM_SET_BUFCOUNT \
+DRM_IOWR(DRM_COMMAND_BASE + DRM_KGSL_GEM_SET_BUFCOUNT, \
+	 struct drm_kgsl_gem_bufcount)
+
+#define DRM_IOCTL_KGSL_GEM_SET_ACTIVE \
+DRM_IOWR(DRM_COMMAND_BASE + DRM_KGSL_GEM_SET_ACTIVE, \
+	 struct drm_kgsl_gem_active)
+
+/* Maximum number of sub buffers per GEM object */
+#define DRM_KGSL_GEM_MAX_BUFFERS 2
 
 /* Memory types - these define the source and caching policies
    of the GEM memory chunk */
@@ -127,6 +146,24 @@ struct drm_kgsl_gem_alloc {
 struct drm_kgsl_gem_bind_gpu {
 	uint32_t handle;
 	uint32_t gpuptr;
+};
+
+struct drm_kgsl_gem_bufinfo {
+	uint32_t handle;
+	uint32_t count;
+	uint32_t active;
+	uint32_t offset[DRM_KGSL_GEM_MAX_BUFFERS];
+	uint32_t gpuaddr[DRM_KGSL_GEM_MAX_BUFFERS];
+};
+
+struct drm_kgsl_gem_bufcount {
+	uint32_t handle;
+	uint32_t bufcount;
+};
+
+struct drm_kgsl_gem_active {
+	uint32_t handle;
+	uint32_t active;
 };
 
 #endif
