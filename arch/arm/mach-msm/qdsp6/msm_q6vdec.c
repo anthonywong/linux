@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
+#include <linux/wakelock.h>
 
 #include <linux/android_pmem.h>
 #include <linux/msm_q6vdec.h>
@@ -41,11 +42,7 @@
 #define DALDEVICEID_VDEC_DEVICE		0x02000026
 #define DALDEVICEID_VDEC_PORTNAME	"DAL_AQ_VID"
 
-#define VDEC_INTERFACE_MAJOR_MINOR_VERSION_2	0x00020000
-#define VDEC_INTERFACE_MAJOR_MINOR_VERSION_3	0x00030000
-
-#define VDEC_INTERFACE_VERSION_2	0x00000002
-#define VDEC_INTERFACE_VERSION_3	0x00000003
+#define VDEC_INTERFACE_VERSION		0x00020000
 
 #define MAJOR_MASK			0xFFFF0000
 #define MINOR_MASK			0x0000FFFF
@@ -61,6 +58,7 @@
 #define TRACE(fmt, x...)		do { } while (0)
 #endif
 
+#define MAX_SUPPORTED_INSTANCES 2
 
 enum {
 	VDEC_DALRPC_INITIALIZE = DAL_OP_FIRST_DEVICE_API,
@@ -74,20 +72,6 @@ enum {
 };
 
 enum {
-	VDEC_DALRPC_INITIALIZE_V3 = DAL_OP_FIRST_DEVICE_API,
-	VDEC_DALRPC_GETINTERNALBUFREQ_V3,
-	VDEC_DALRPC_GETPROPERTY_V3,
-	VDEC_DALRPC_SETPROPERTY_V3,
-	VDEC_DALRPC_SETBUFFERS_V3,
-	VDEC_DALRPC_FREEBUFFERS_V3,
-	VDEC_DALRPC_QUEUE_V3,
-	VDEC_DALRPC_SIGEOFSTREAM_V3,
-	VDEC_DALRPC_FLUSH_V3,
-	VDEC_DALRPC_REUSEFRAMEBUFFER_V3,
-	VDEC_DALRPC_GETDECATTRIBUTES_V3,
-};
-
-enum {
 	VDEC_ASYNCMSG_DECODE_DONE = 0xdec0de00,
 	VDEC_ASYNCMSG_REUSE_FRAME,
 };
@@ -96,11 +80,6 @@ struct vdec_init_cfg {
 	u32			decode_done_evt;
 	u32			reuse_frame_evt;
 	struct vdec_config	cfg;
-};
-struct vdec_init_cfg_v3 {
-	u32			decode_done_evt;
-	u32			reuse_frame_evt;
-	struct vdec_config_v3	cfg;
 };
 
 struct vdec_buffer_status {
@@ -139,8 +118,6 @@ struct vdec_data {
 	int			mem_initialized;
 	int			running;
 	int			close_decode;
-	int                     major_version;
-	int                     minor_version;
 };
 
 static struct class *driver_class;
@@ -148,6 +125,31 @@ static dev_t vdec_device_no;
 static struct cdev vdec_cdev;
 static int ref_cnt;
 static DEFINE_MUTEX(vdec_ref_lock);
+
+static DEFINE_MUTEX(idlecount_lock);
+static int idlecount;
+static struct wake_lock wakelock;
+static struct wake_lock idlelock;
+
+static void prevent_sleep(void)
+{
+	mutex_lock(&idlecount_lock);
+	if (++idlecount == 1) {
+		wake_lock(&idlelock);
+		wake_lock(&wakelock);
+	}
+	mutex_unlock(&idlecount_lock);
+}
+
+static void allow_sleep(void)
+{
+	mutex_lock(&idlecount_lock);
+	if (--idlecount == 0) {
+		wake_unlock(&idlelock);
+		wake_unlock(&wakelock);
+	}
+	mutex_unlock(&idlecount_lock);
+}
 
 static inline int vdec_check_version(u32 client, u32 server)
 {
@@ -237,7 +239,7 @@ static struct vdec_mem_list *vdec_get_mem_from_list(struct vdec_data *vd,
 
 }
 
-static int vdec_initialize(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
+static int vdec_initialize(struct vdec_data *vd, void *argp)
 {
 	struct vdec_config_sps vdec_cfg_sps;
 	struct vdec_init_cfg vi_cfg;
@@ -281,7 +283,7 @@ static int vdec_initialize(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
 	      vi_cfg.cfg.vc1_rowbase, vi_cfg.cfg.h264_startcode_detect,
 	      vi_cfg.cfg.h264_nal_len_size, vi_cfg.cfg.postproc_flag,
 	      vi_cfg.cfg.fruc_enable);
-	ret = dal_call_f13(vd->vdec_handle, cmd_idx,
+	ret = dal_call_f13(vd->vdec_handle, VDEC_DALRPC_INITIALIZE,
 			   &vi_cfg, sizeof(vi_cfg),
 			   header, vdec_cfg_sps.seq.len,
 			   &vdec_buf_req, sizeof(vdec_buf_req));
@@ -298,89 +300,7 @@ static int vdec_initialize(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
 	return ret;
 }
 
-static int vdec_initialize_v3(struct vdec_data *vd, void *argp,
-				uint32_t cmd_idx)
-{
-	struct vdec_config_sps_v3 vdec_cfg_sps;
-	unsigned long vstart, phys_addr, len;
-	struct file *fp = 0;
-	struct {
-		uint32_t size;
-		struct vdec_init_cfg_v3 vi_cfg;;
-		uint32_t osize;
-	} rpc;
-	struct {
-		uint32_t result;
-		uint32_t size;
-		struct vdec_buf_req_v3 buf_req;
-	} rpc_res;
-	int ret = 0;
-
-	ret = copy_from_user(&vdec_cfg_sps,
-			     &((struct vdec_init_v3 *)argp)->sps_cfg,
-			     sizeof(vdec_cfg_sps));
-
-	if (ret) {
-		pr_err("%s: copy_from_user failed\n", __func__);
-		return ret;
-	}
-
-
-	if (vdec_cfg_sps.seq_fd < 0) {
-		phys_addr = 0;
-		vdec_cfg_sps.cfg.seq_hdr.offset = 0;
-		vdec_cfg_sps.cfg.seq_hdr.size = 0;
-	} else {
-		ret = get_pmem_file(vdec_cfg_sps.seq_fd, &phys_addr, &vstart,
-			    &len, &fp);
-		if (ret) {
-			pr_err("%s: get_pmem_fd failed\n", __func__);
-			return ret;
-		}
-		if ((vdec_cfg_sps.cfg.seq_hdr.offset +
-			    vdec_cfg_sps.cfg.seq_hdr.size) > len) {
-			pr_err("%s: invalid sequence header offset!\n",
-					 __func__);
-			ret = -EINVAL;
-			goto err_bad_offset_initialize;
-		}
-	}
-
-	rpc.vi_cfg.decode_done_evt = VDEC_ASYNCMSG_DECODE_DONE;
-	rpc.vi_cfg.reuse_frame_evt = VDEC_ASYNCMSG_REUSE_FRAME;
-	memcpy(&rpc.vi_cfg.cfg, &vdec_cfg_sps.cfg,
-		sizeof(struct vdec_config_v3));
-	rpc.vi_cfg.cfg.seq_hdr.offset += phys_addr;
-	rpc.size = sizeof(struct vdec_init_cfg_v3);
-	rpc.osize = sizeof(struct vdec_buf_req_v3);
-
-	TRACE("vi_cfg: handle=%p fourcc=0x%x w=%d h=%d order=%d notify_en=%d "
-	      "vc1_rb=%d h264_sd=%d h264_nls=%d pp_flag=%d fruc_en=%d\n",
-	      vd->vdec_handle, vi_cfg.cfg.fourcc, vi_cfg.cfg.width,
-	      vi_cfg.cfg.height, vi_cfg.cfg.order, vi_cfg.cfg.notify_enable,
-	      vi_cfg.cfg.vc1_rowbase, vi_cfg.cfg.h264_startcode_detect,
-	      vi_cfg.cfg.h264_nal_len_size, vi_cfg.cfg.postproc_flag,
-	      vi_cfg.cfg.fruc_enable);
-
-	ret = dal_call(vd->vdec_handle, cmd_idx, 8,
-		       &rpc, sizeof(rpc), &rpc_res, sizeof(rpc_res));
-	if (ret < 4) {
-		pr_err("%s: remote function failed (%d)\n", __func__, ret);
-		ret = -EIO;
-		goto err_bad_offset_initialize;
-	} else
-		ret = copy_to_user(((struct vdec_init_v3 *)argp)->buf_req,
-				   &rpc_res.buf_req,
-				   sizeof(struct vdec_buf_req_v3));
-
-	vd->close_decode = 0;
-err_bad_offset_initialize:
-	if (fp)
-		put_pmem_file(fp);
-	return ret;
-}
-
-static int vdec_setbuffers(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
+static int vdec_setbuffers(struct vdec_data *vd, void *argp)
 {
 	struct vdec_buffer vmem;
 	struct vdec_mem_list *l;
@@ -438,7 +358,7 @@ static int vdec_setbuffers(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
 	memcpy(&rpc.buf, &vmem.buf, sizeof(struct vdec_buf_info));
 
 
-	ret = dal_call(vd->vdec_handle, cmd_idx, 5,
+	ret = dal_call(vd->vdec_handle, VDEC_DALRPC_SETBUFFERS, 5,
 		       &rpc, sizeof(rpc), &res, sizeof(res));
 
 	if (ret < 4) {
@@ -462,90 +382,7 @@ err_get_pmem_file:
 	return ret;
 }
 
-static int vdec_setbuffers_v3(struct vdec_data *vd, void *argp,
-				uint32_t cmd_idx)
-{
-	struct vdec_buffer_v3 vmem;
-	struct vdec_mem_list *l;
-	unsigned long vstart;
-	unsigned long flags;
-	struct {
-		uint32_t size;
-		struct vdec_buf_info_v3 buf;
-	} rpc;
-	uint32_t res;
-
-	int ret = 0;
-
-	vd->mem_initialized = 0;
-
-	ret = copy_from_user(&vmem, argp, sizeof(vmem));
-	if (ret) {
-		pr_err("%s: copy_from_user failed\n", __func__);
-		return ret;
-	}
-
-	l = kzalloc(sizeof(struct vdec_mem_list), GFP_KERNEL);
-	if (!l) {
-		pr_err("%s: kzalloc failed!\n", __func__);
-		return -ENOMEM;
-	}
-
-	l->mem.id = vmem.pmem_id;
-	l->mem.buf_type = vmem.buf.buf_type;
-
-	ret = get_pmem_file(l->mem.id, &l->mem.phys_addr, &vstart,
-			    &l->mem.len, &l->mem.file);
-	if (ret) {
-		pr_err("%s: get_pmem_fd failed\n", __func__);
-		goto err_get_pmem_file;
-	}
-
-	TRACE("pmem_id=%d (phys=0x%08lx len=0x%lx) buftype=%d num_buf=%d "
-	      "islast=%d src_id=%d offset=0x%08x size=0x%x\n",
-	      vmem.pmem_id, l->mem.phys_addr, l->mem.len,
-	      vmem.buf.buf_type, vmem.buf.num_buf, vmem.buf.islast,
-	      vmem.buf.region.src_id, vmem.buf.region.offset,
-	      vmem.buf.region.size);
-
-	/* input buffers */
-	if ((vmem.buf.region.offset + vmem.buf.region.size) > l->mem.len) {
-		pr_err("%s: invalid input buffer offset!\n", __func__);
-		ret = -EINVAL;
-		goto err_bad_offset;
-
-	}
-	vmem.buf.region.offset += l->mem.phys_addr;
-
-	rpc.size = sizeof(vmem.buf);
-	memcpy(&rpc.buf, &vmem.buf, sizeof(struct vdec_buf_info_v3));
-
-
-	ret = dal_call(vd->vdec_handle, cmd_idx, 5,
-		       &rpc, sizeof(rpc), &res, sizeof(res));
-
-	if (ret < 4) {
-		pr_err("%s: remote function failed (%d)\n", __func__, ret);
-		ret = -EIO;
-		goto err_dal_call;
-	}
-
-	spin_lock_irqsave(&vd->vdec_mem_list_lock, flags);
-	list_add(&l->list, &vd->vdec_mem_list_head);
-	spin_unlock_irqrestore(&vd->vdec_mem_list_lock, flags);
-
-	vd->mem_initialized = 1;
-	return ret;
-
-err_dal_call:
-err_bad_offset:
-	put_pmem_file(l->mem.file);
-err_get_pmem_file:
-	kfree(l);
-	return ret;
-}
-
-static int vdec_queue(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
+static int vdec_queue(struct vdec_data *vd, void *argp)
 {
 	struct {
 		uint32_t size;
@@ -601,7 +438,7 @@ static int vdec_queue(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
 
 	/* complete the writes to the buffer */
 	wmb();
-	ret = dal_call(vd->vdec_handle, cmd_idx, 8,
+	ret = dal_call(vd->vdec_handle, VDEC_DALRPC_QUEUE, 8,
 		       &rpc, sizeof(rpc), &rpc_res, sizeof(rpc_res));
 	if (ret < 4) {
 		pr_err("%s: remote function failed (%d)\n", __func__, ret);
@@ -610,8 +447,7 @@ static int vdec_queue(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
 	return ret;
 }
 
-static int vdec_reuse_framebuffer(struct vdec_data *vd, void *argp,
-					uint32_t cmd_idx)
+static int vdec_reuse_framebuffer(struct vdec_data *vd, void *argp)
 {
 	u32 buf_id;
 	int ret = 0;
@@ -622,7 +458,7 @@ static int vdec_reuse_framebuffer(struct vdec_data *vd, void *argp,
 		return ret;
 	}
 
-	ret = dal_call_f0(vd->vdec_handle, cmd_idx,
+	ret = dal_call_f0(vd->vdec_handle, VDEC_DALRPC_REUSEFRAMEBUFFER,
 			  buf_id);
 	if (ret)
 		pr_err("%s: remote function failed (%d)\n", __func__, ret);
@@ -630,7 +466,7 @@ static int vdec_reuse_framebuffer(struct vdec_data *vd, void *argp,
 	return ret;
 }
 
-static int vdec_flush(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
+static int vdec_flush(struct vdec_data *vd, void *argp)
 {
 	u32 flush_type;
 	int ret = 0;
@@ -642,7 +478,7 @@ static int vdec_flush(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
 	}
 
 	TRACE("flush_type=%d\n", flush_type);
-	ret = dal_call_f0(vd->vdec_handle, cmd_idx, flush_type);
+	ret = dal_call_f0(vd->vdec_handle, VDEC_DALRPC_FLUSH, flush_type);
 	if (ret) {
 		pr_err("%s: remote function failed (%d)\n", __func__, ret);
 		return ret;
@@ -671,8 +507,7 @@ static int vdec_close(struct vdec_data *vd, void *argp)
 
 	return ret;
 }
-static int vdec_getdecattributes(struct vdec_data *vd, void *argp,
-					uint32_t cmd_idx)
+static int vdec_getdecattributes(struct vdec_data *vd, void *argp)
 {
 	struct {
 		uint32_t status;
@@ -683,7 +518,7 @@ static int vdec_getdecattributes(struct vdec_data *vd, void *argp,
 	int ret = 0;
 	inp = sizeof(struct vdec_dec_attributes);
 
-	ret = dal_call(vd->vdec_handle, cmd_idx, 9,
+	ret = dal_call(vd->vdec_handle, VDEC_DALRPC_GETDECATTRIBUTES, 9,
 		       &inp, sizeof(inp), &rpc, sizeof(rpc));
 	if (ret < 4 || rpc.size != sizeof(struct vdec_dec_attributes)) {
 		pr_err("%s: remote function failed (%d)\n", __func__, ret);
@@ -694,32 +529,8 @@ static int vdec_getdecattributes(struct vdec_data *vd, void *argp,
 				 &rpc.dec_attr, sizeof(rpc.dec_attr));
 	return ret;
 }
-static int vdec_getdecattributes_v3(struct vdec_data *vd, void *argp,
-					uint32_t cmd_idx)
-{
-	struct {
-		uint32_t status;
-		uint32_t size;
-		struct vdec_dec_attributes_v3 dec_attr;
-	} rpc;
-	uint32_t inp;
-	int ret = 0;
-	inp = sizeof(struct vdec_dec_attributes_v3);
 
-	ret = dal_call(vd->vdec_handle, cmd_idx, 9,
-		       &inp, sizeof(inp), &rpc, sizeof(rpc));
-	if (ret < 4 || rpc.size != sizeof(struct vdec_dec_attributes_v3)) {
-		pr_err("%s: remote function failed (%d)\n", __func__, ret);
-		ret = -EIO;
-	} else
-		ret =
-		    copy_to_user(((struct vdec_dec_attributes_v3 *)argp),
-				 &rpc.dec_attr, sizeof(rpc.dec_attr));
-	return ret;
-}
-
-static int vdec_freebuffers(struct vdec_data *vd, void *argp,
-				uint32_t cmd_idx)
+static int vdec_freebuffers(struct vdec_data *vd, void *argp)
 {
 	struct vdec_buffer vmem;
 	struct vdec_mem_list *l;
@@ -760,128 +571,28 @@ static int vdec_freebuffers(struct vdec_data *vd, void *argp,
 	rpc.size = sizeof(vmem.buf);
 	memcpy(&rpc.buf, &vmem.buf, sizeof(struct vdec_buf_info));
 
-	ret = dal_call(vd->vdec_handle, cmd_idx, 5,
+	ret = dal_call(vd->vdec_handle, VDEC_DALRPC_FREEBUFFERS, 5,
 		       &rpc, sizeof(rpc), &res, sizeof(res));
 	if (ret < 4)
 		pr_err("%s: remote function failed (%d)\n", __func__, ret);
 	return ret;
 }
-static int vdec_freebuffers_v3(struct vdec_data *vd, void *argp,
-				uint32_t cmd_idx)
-{
-	struct vdec_buffer_v3 vmem;
-	struct vdec_mem_list *l;
-	struct {
-		uint32_t size;
-		struct vdec_buf_info_v3 buf;
-	} rpc;
-	uint32_t res;
 
+static int vdec_getversion(struct vdec_data *vd, void *argp)
+{
+	struct vdec_version ver_info;
 	int ret = 0;
 
-	if (!vd->mem_initialized) {
-		pr_err("%s: memory is not being initialized!\n", __func__);
-		return -EPERM;
-	}
+	ver_info.major = VDEC_GET_MAJOR_VERSION(VDEC_INTERFACE_VERSION);
+	ver_info.minor = VDEC_GET_MINOR_VERSION(VDEC_INTERFACE_VERSION);
 
-	ret = copy_from_user(&vmem, argp, sizeof(vmem));
-	if (ret) {
-		pr_err("%s: copy_from_user failed\n", __func__);
-		return ret;
-	}
-
-	l = vdec_get_mem_from_list(vd, vmem.pmem_id, vmem.buf.buf_type);
-
-	if (NULL == l) {
-		pr_err("%s: not able to find the buffer from list\n", __func__);
-		return -EPERM;
-	}
-
-	/* input buffers */
-	if ((vmem.buf.region.offset + vmem.buf.region.size) > l->mem.len) {
-		pr_err("%s: invalid input buffer offset!\n", __func__);
-		return -EINVAL;
-	}
-	vmem.buf.region.offset += l->mem.phys_addr;
-
-	rpc.size = sizeof(vmem.buf);
-	memcpy(&rpc.buf, &vmem.buf, sizeof(struct vdec_buf_info_v3));
-
-	ret = dal_call(vd->vdec_handle, cmd_idx, 5,
-			&rpc, sizeof(rpc), &res, sizeof(res));
-	if (ret < 4)
-		pr_err("%s: remote function failed (%d)\n", __func__, ret);
+	ret = copy_to_user(((struct vdec_version *)argp),
+				&ver_info, sizeof(ver_info));
 
 	return ret;
-}
-static int vdec_getinternalbufreq(struct vdec_data *vd, void *argp,
-					uint32_t cmd_idx)
-{
-	int ret = 0, oalen = 0;
-	u32 num_internal_buf;
-	struct vdec_intbuf_desc int_desc;
-	struct vdec_buf_desc *internal_buf_req;
 
-	ret = copy_from_user(&num_internal_buf,
-			     &((struct vdec_intbuf_req *)
-			     argp)->num_internal_buf,
-			     sizeof(u32));
-	if (ret) {
-		pr_err("%s: copy_from_user failed\n", __func__);
-		return ret;
-	}
-	oalen = num_internal_buf*sizeof(struct vdec_buf_desc);
-	internal_buf_req = kmalloc(oalen, GFP_KERNEL);
-	if (!internal_buf_req) {
-		pr_err("%s: kmalloc failed\n", __func__);
-		return -ENOMEM;
-	}
-
-	ret = dal_call_f14(vd->vdec_handle,
-			   cmd_idx,
-			   &num_internal_buf,
-			   sizeof(u32),
-			   &int_desc.num_actual_internal_buf,
-			   sizeof(u32),
-			   internal_buf_req, oalen,
-			   &int_desc.internal_buf_req_length);
-
-	if (ret)
-		pr_err("%s: remote function failed (%d)\n", __func__, ret);
-	else {
-		ret =
-		    copy_to_user(((struct vdec_intbuf_req *)
-				 argp)->internal_buf_req,
-				 internal_buf_req,
-				 int_desc.internal_buf_req_length);
-		if (ret) {
-			pr_err("%s: copy_to_user failed\n", __func__);
-			goto fail_getinternalbufreq;
-		}
-		ret =
-		    copy_to_user(
-				((struct vdec_intbuf_req *)argp)->buf_desc,
-				 &int_desc, sizeof(struct vdec_intbuf_desc));
-		if (ret) {
-			pr_err("%s: copy_to_user failed\n", __func__);
-			goto fail_getinternalbufreq;
-		}
-	}
-fail_getinternalbufreq:
-	kfree(internal_buf_req);
-
-	return ret;
 }
-static int vdec_getproperty(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
-{
-	pr_err("%s: not implemented \n", __func__);
-	return -EINVAL;
-}
-static int vdec_setproperty(struct vdec_data *vd, void *argp, uint32_t cmd_idx)
-{
-	pr_err("%s: not implemented \n", __func__);
-	return -EINVAL;
-}
+
 static long vdec_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct vdec_data *vd = file->private_data;
@@ -893,76 +604,33 @@ static long vdec_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case VDEC_IOCTL_INITIALIZE:
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = vdec_initialize(vd, argp, VDEC_DALRPC_INITIALIZE);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
+		ret = vdec_initialize(vd, argp);
 		break;
 
 	case VDEC_IOCTL_SETBUFFERS:
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = vdec_setbuffers(vd, argp, VDEC_DALRPC_SETBUFFERS);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
+		ret = vdec_setbuffers(vd, argp);
 		break;
 
 	case VDEC_IOCTL_QUEUE:
 		TRACE("VDEC_IOCTL_QUEUE (pid=%d tid=%d)\n",
 		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = vdec_queue(vd, argp, VDEC_DALRPC_QUEUE);
-		else if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_queue(vd, argp, VDEC_DALRPC_QUEUE_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-
+		ret = vdec_queue(vd, argp);
 		break;
 
 	case VDEC_IOCTL_REUSEFRAMEBUFFER:
 		TRACE("VDEC_IOCTL_REUSEFRAMEBUFFER (pid=%d tid=%d)\n",
 		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = vdec_reuse_framebuffer(vd, argp,
-					 VDEC_DALRPC_REUSEFRAMEBUFFER);
-		else if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_reuse_framebuffer(vd, argp,
-					 VDEC_DALRPC_REUSEFRAMEBUFFER_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
+		ret = vdec_reuse_framebuffer(vd, argp);
 		break;
 
 	case VDEC_IOCTL_FLUSH:
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = vdec_flush(vd, argp, VDEC_DALRPC_FLUSH);
-		else if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_flush(vd, argp, VDEC_DALRPC_FLUSH_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
+		ret = vdec_flush(vd, argp);
 		break;
 
 	case VDEC_IOCTL_EOS:
 		TRACE("VDEC_IOCTL_EOS (pid=%d tid=%d)\n",
 		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = dal_call_f0(vd->vdec_handle,
-					 VDEC_DALRPC_SIGEOFSTREAM, 0);
-		else if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = dal_call_f0(vd->vdec_handle,
-					 VDEC_DALRPC_SIGEOFSTREAM_V3, 0);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
+		ret = dal_call_f0(vd->vdec_handle, VDEC_DALRPC_SIGEOFSTREAM, 0);
 		if (ret)
 			pr_err("%s: remote function failed (%d)\n",
 			       __func__, ret);
@@ -988,108 +656,30 @@ static long vdec_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VDEC_IOCTL_GETDECATTRIBUTES:
 		TRACE("VDEC_IOCTL_GETDECATTRIBUTES (pid=%d tid=%d)\n",
 		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = vdec_getdecattributes(vd, argp,
-					 VDEC_DALRPC_GETDECATTRIBUTES);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
+		ret = vdec_getdecattributes(vd, argp);
+
+		if (ret)
+			pr_err("%s: remote function failed (%d)\n",
+			       __func__, ret);
 		break;
 
 	case VDEC_IOCTL_FREEBUFFERS:
 		TRACE("VDEC_IOCTL_FREEBUFFERS (pid=%d tid=%d)\n",
 		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_2)
-			ret = vdec_freebuffers(vd, argp,
-					 VDEC_DALRPC_FREEBUFFERS);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-		break;
+		ret = vdec_freebuffers(vd, argp);
 
-	case VDEC_IOCTL_GETINTERNALBUFREQ:
-		TRACE("VDEC_IOCTL_GETINTERNALBUFREQ (pid=%d tid=%d)\n",
-		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_getinternalbufreq(vd, argp,
-					 VDEC_DALRPC_GETINTERNALBUFREQ_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-
+		if (ret)
+			pr_err("%s: remote function failed (%d)\n",
+			       __func__, ret);
 		break;
-
-	case VDEC_IOCTL_GETPROPERTY:
-		TRACE("VDEC_IOCTL_GETPROPERTY (pid=%d tid=%d)\n",
-		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_getproperty(vd, argp,
-					 VDEC_DALRPC_GETPROPERTY_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-		break;
-
-	case VDEC_IOCTL_SETPROPERTY:
-		TRACE("VDEC_IOCTL_SETPROPERTY (pid=%d tid=%d)\n",
-		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_setproperty(vd, argp,
-					 VDEC_DALRPC_SETPROPERTY_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-
-		break;
-
-	case VDEC_IOCTL_INITIALIZE_V3:
-		TRACE("VDEC_IOCTL_INITIALIZE_V3 (pid=%d tid=%d)\n",
-		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_initialize_v3(vd, argp,
-					 VDEC_DALRPC_INITIALIZE_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-		break;
-	case VDEC_IOCTL_SETBUFFERS_V3:
-		TRACE("VDEC_IOCTL_SETBUFFERS_V3 (pid=%d tid=%d)\n",
-		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_setbuffers_v3(vd, argp,
-					 VDEC_DALRPC_SETBUFFERS_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-		break;
-	case VDEC_IOCTL_FREEBUFFERS_V3:
-		TRACE("VDEC_IOCTL_FREEBUFFERS_V3 (pid=%d tid=%d)\n",
+	case VDEC_IOCTL_GETVERSION:
+		TRACE("VDEC_IOCTL_GETVERSION (pid=%d tid=%d)\n",
 			current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_freebuffers_v3(vd, argp,
-					VDEC_DALRPC_FREEBUFFERS_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
-		break;
-	case VDEC_IOCTL_GETDECATTRIBUTES_V3:
-		TRACE("VDEC_IOCTL_GETDECATTRIBUTES_V3 (pid=%d tid=%d)\n",
-		      current->group_leader->pid, current->pid);
-		if (vd->major_version == VDEC_INTERFACE_VERSION_3)
-			ret = vdec_getdecattributes_v3(vd, argp,
-					 VDEC_DALRPC_GETDECATTRIBUTES_V3);
-		else {
-			pr_err("%s: not supported \n", __func__);
-			ret = -EINVAL;
-		}
+		ret = vdec_getversion(vd, argp);
+
+		if (ret)
+			pr_err("%s: remote function failed (%d)\n",
+				__func__, ret);
 		break;
 	default:
 		pr_err("%s: invalid ioctl!\n", __func__);
@@ -1109,23 +699,16 @@ static void vdec_dcdone_handler(struct vdec_data *vd, void *frame,
 	struct vdec_msg msg;
 	struct vdec_mem_list *l;
 	unsigned long flags;
-	int found = 0, copy_size = 0;
+	int found = 0;
 
-	if (vd->major_version == VDEC_INTERFACE_VERSION_3 &&
-	   vd->minor_version >= 0x00000001)
-		copy_size = sizeof(struct vdec_frame_info);
-	else
-		copy_size = sizeof(struct vdec_frame_info) - (2 * sizeof(u32))
-			     - (sizeof(struct vdec_stridetype));
-
-	if (frame_size < copy_size) {
+	if (frame_size < sizeof(struct vdec_frame_info)) {
 		pr_warning("%s: msg size mismatch %d != %d\n", __func__,
-			   frame_size, copy_size);
+			   frame_size, sizeof(struct vdec_frame_info));
 		return;
 	}
 
 	memcpy(&msg.vfr_info, (struct vdec_frame_info *)frame,
-	       copy_size);
+	       sizeof(struct vdec_frame_info));
 
 	if (msg.vfr_info.status == VDEC_FRAME_DECODE_OK) {
 		spin_lock_irqsave(&vd->vdec_mem_list_lock, flags);
@@ -1206,8 +789,8 @@ static int vdec_open(struct inode *inode, struct file *file)
 
 	pr_info("q6vdec_open()\n");
 	mutex_lock(&vdec_ref_lock);
-	if (ref_cnt > 0) {
-		pr_err("%s: Instance alredy running\n", __func__);
+	if (ref_cnt >= MAX_SUPPORTED_INSTANCES) {
+		pr_err("%s: Max allowed instances exceeded \n", __func__);
 		mutex_unlock(&vdec_ref_lock);
 		return -EBUSY;
 	}
@@ -1256,20 +839,16 @@ static int vdec_open(struct inode *inode, struct file *file)
 		pr_err("%s: failed to get version \n", __func__);
 		goto vdec_open_err_handle_version;
 	}
-	vd->minor_version = VDEC_GET_MINOR_VERSION(version_info.version);
+
 	TRACE("q6vdec_open() interface version 0x%x\n", version_info.version);
-	if (!vdec_check_version(VDEC_INTERFACE_MAJOR_MINOR_VERSION_2,
-			version_info.version))
-		vd->major_version = VDEC_INTERFACE_VERSION_2;
-	else if (!vdec_check_version(VDEC_INTERFACE_MAJOR_MINOR_VERSION_3,
-			version_info.version))
-		vd->major_version = VDEC_INTERFACE_VERSION_3;
-	else {
+	if (vdec_check_version(VDEC_INTERFACE_VERSION,
+			version_info.version)) {
 		pr_err("%s: driver version mismatch !\n", __func__);
 		goto vdec_open_err_handle_version;
 	}
 
 	vd->running = 1;
+	prevent_sleep();
 
 	return 0;
 vdec_open_err_handle_version:
@@ -1327,6 +906,7 @@ static int vdec_release(struct inode *inode, struct file *file)
 	mutex_unlock(&vdec_ref_lock);
 
 	kfree(vd);
+	allow_sleep();
 	return 0;
 }
 
@@ -1341,6 +921,9 @@ static int __init vdec_init(void)
 {
 	struct device *class_dev;
 	int rc = 0;
+
+	wake_lock_init(&idlelock, WAKE_LOCK_IDLE, "vdec_idle");
+	wake_lock_init(&wakelock, WAKE_LOCK_SUSPEND, "vdec_suspend");
 
 	rc = alloc_chrdev_region(&vdec_device_no, 0, 1, "vdec");
 	if (rc < 0) {
