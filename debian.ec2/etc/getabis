@@ -1,0 +1,9 @@
+repo_list=(
+	"http://archive.ubuntu.com/ubuntu/pool/main/l/linux-ec2"
+	"http://ports.ubuntu.com/ubuntu-ports/pool/main/l/linux-ec2"
+	"http://archive.ubuntu.com/ubuntu/pool/universe/l/linux-ec2"
+	"http://ports.ubuntu.com/ubuntu-ports/pool/universe/l/linux-ec2"
+)
+
+getall amd64 ec2
+getall i386 ec2
