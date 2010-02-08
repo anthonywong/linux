@@ -445,10 +445,6 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 	// disable interrupt at initial time
 	disable_irq(vd->uio_info.irq);
 
-	// power off the vmeta as default
-	clk_enable(vd->vmeta_clk);
-	clk_disable(vd->vmeta_clk);
-
 	// register a pm notifier
 	register_pm_notifier(&vmeta_pm_notifier);
 	mutex_init(&vmeta_pm_suspend_check);
