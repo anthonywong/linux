@@ -1972,6 +1972,7 @@ EXPORT_SYMBOL vmlinux 0x2d9d9224	scsi_report_device_reset
 EXPORT_SYMBOL vmlinux 0x2d9df833	scsi_print_command
 EXPORT_SYMBOL vmlinux 0x2dd53790	mii_nway_restart
 EXPORT_SYMBOL vmlinux 0x2dfa9905	__mxc_ioremap
+EXPORT_SYMBOL vmlinux 0x2dfff0bd	ipu_request_disp_sem
 EXPORT_SYMBOL vmlinux 0x2e01a0dd	ipv6_skip_exthdr
 EXPORT_SYMBOL vmlinux 0x2e0a8c1e	add_to_page_cache_locked
 EXPORT_SYMBOL vmlinux 0x2e12961d	inode_add_bytes
@@ -1995,7 +1996,6 @@ EXPORT_SYMBOL vmlinux 0x30123eb5	icmpv6_statistics
 EXPORT_SYMBOL vmlinux 0x3018039c	tcp_disconnect
 EXPORT_SYMBOL vmlinux 0x30355fe7	jbd2_journal_init_dev
 EXPORT_SYMBOL vmlinux 0x306d5de3	ppp_register_net_channel
-EXPORT_SYMBOL vmlinux 0x3071dc66	ipu_init_channel
 EXPORT_SYMBOL vmlinux 0x307211b6	dquot_claim_space
 EXPORT_SYMBOL vmlinux 0x309f40f1	dmam_free_noncoherent
 EXPORT_SYMBOL vmlinux 0x30c33fcd	tcp_poll
@@ -2448,6 +2448,7 @@ EXPORT_SYMBOL vmlinux 0x5373f9de	__napi_complete
 EXPORT_SYMBOL vmlinux 0x538383c0	unregister_inet6addr_notifier
 EXPORT_SYMBOL vmlinux 0x5383a3b1	clk_get_parent
 EXPORT_SYMBOL vmlinux 0x53840dad	__tracepoint_kmem_cache_alloc
+EXPORT_SYMBOL vmlinux 0x538736e5	ipu_disp_ok4change
 EXPORT_SYMBOL vmlinux 0x53bf7203	proto_unregister
 EXPORT_SYMBOL vmlinux 0x53c0767c	sk_chk_filter
 EXPORT_SYMBOL vmlinux 0x53d1f2f0	snd_component_add
@@ -2703,6 +2704,7 @@ EXPORT_SYMBOL vmlinux 0x66da4437	snd_pcm_lib_preallocate_free_for_all
 EXPORT_SYMBOL vmlinux 0x67053080	current_kernel_time
 EXPORT_SYMBOL vmlinux 0x675a5e69	tcp_initialize_rcv_mss
 EXPORT_SYMBOL vmlinux 0x67a5d6b5	dquot_transfer
+EXPORT_SYMBOL vmlinux 0x67aba834	ipu_init_channel
 EXPORT_SYMBOL vmlinux 0x67b27ec1	tty_std_termios
 EXPORT_SYMBOL vmlinux 0x67be1d3d	cpu_active_mask
 EXPORT_SYMBOL vmlinux 0x67c2fa54	__copy_to_user
@@ -3080,6 +3082,7 @@ EXPORT_SYMBOL vmlinux 0x84b183ae	strncmp
 EXPORT_SYMBOL vmlinux 0x84c3bb7e	blk_run_queue
 EXPORT_SYMBOL vmlinux 0x84d11e66	tty_shutdown
 EXPORT_SYMBOL vmlinux 0x850b78a8	cdev_alloc
+EXPORT_SYMBOL vmlinux 0x854d091c	ipu_release_disp_sem
 EXPORT_SYMBOL vmlinux 0x85516b49	pipe_to_file
 EXPORT_SYMBOL vmlinux 0x85670f1d	rtnl_is_locked
 EXPORT_SYMBOL vmlinux 0x8573f132	usb_host_wakeup_irq
