@@ -286,16 +286,32 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 	/*
 	 * Read the common registers.
 	 */
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cccr)
+		memcpy(&card->cccr, host->embedded_sdio_data.cccr, sizeof(struct sdio_cccr));
+	else {
+#endif
 	err = sdio_read_cccr(card);
 	if (err)
 		goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
 
 	/*
 	 * Read the common CIS tuples.
 	 */
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (host->embedded_sdio_data.cis)
+		memcpy(&card->cis, host->embedded_sdio_data.cis, sizeof(struct sdio_cis));
+	else {
+#endif
 	err = sdio_read_common_cis(card);
 	if (err)
 		goto remove;
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	}
+#endif
 
 	if (oldcard) {
 		int same = (card->cis.vendor == oldcard->cis.vendor &&
@@ -527,6 +543,9 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 		funcs = host->embedded_sdio_data.num_funcs;
 #endif
 
+#if 0
+	/* The following code has been moved into mmc_sdio_init_card func. */
+
 	/*
 	 * Allocate card structure.
 	 */
@@ -620,6 +639,7 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	if (err)
 		goto remove;
 
+#endif
 	/*
 	 * Initialize (but don't add) all present functions.
 	 */
