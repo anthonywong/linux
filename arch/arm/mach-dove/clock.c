@@ -912,5 +912,6 @@ int __init dove_devclks_init(void)
 //	__clk_disable(&clk_usb0);
 //	__clk_disable(&clk_usb1);
 //	__clk_disable(&clk_ac97);
+	vmeta_clk_disable(&clk_vpu);
 	return 0;
 }
