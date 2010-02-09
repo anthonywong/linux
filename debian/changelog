@@ -1,3 +1,11 @@
+linux (2.6.24-27.66netbook01) netbook-common; urgency=low
+
+  [Stefan Bader]
+
+  * Rebase onto Ubuntu-2.6.24-27.66 proposed release.
+
+ -- Stefan Bader <stefan.bader@canonical.com>  Tue, 09 Feb 2010 15:13:55 +0100
+
 linux (2.6.24-27.65netbook01) netbook-common; urgency=low
 
   [Leann Ogasawara]
