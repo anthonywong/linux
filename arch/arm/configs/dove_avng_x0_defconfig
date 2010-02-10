@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.32.3-dove-5.0.0.1-rc2
-# Wed Feb  3 13:12:07 2010
+# Linux kernel version: 2.6.32.3-dove-5.0.0.1-rc3
+# Wed Feb 10 12:58:37 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -321,7 +321,7 @@ CONFIG_MRV_PTE_IN_L2=y
 # CONFIG_MV_L2_WA_ON is not set
 CONFIG_MV_L2_PREFETCH_OFF=y
 CONFIG_CPU_PJ4_PMC_ACCESS_IN_USERMODE=y
-CONFIG_DOVE_DEBUGGER_MODE_V6=y
+# CONFIG_DOVE_DEBUGGER_MODE_V6 is not set
 CONFIG_CPU_ENABLE_WRITECO=y
 CONFIG_CPU_WRITECO_CYCLE=3
 CONFIG_CPU_WA_DISABLE=y
