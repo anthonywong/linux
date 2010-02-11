@@ -16,12 +16,12 @@ OBJ_TYPE="y"
 
 shift
 while [ "$1" ]; do
-	if [ "$1" == "cond" ]; then
+	if [ "$1" = "cond" ]; then
 		shift
 		OBJ_TYPE=\$\($1\)
 		shift
 	fi
-	if [ "$1" == "opt" ]; then
+	if [ "$1" = "opt" ]; then
 		shift
 		break;
 	fi
@@ -31,7 +31,7 @@ done
 echo "" >> $OUTMAKE
 
 while [ "$1" ]; do
-	echo -e "$1" >> $OUTMAKE
+	echo "$1" >> $OUTMAKE
         shift
 done
 
