@@ -17,7 +17,7 @@ include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 # Objects list
 
-SUBMAKE=@$(srctree)/$(src)/mv_submake.sh
+SUBMAKE=@$(SHELL) $(srctree)/$(src)/mv_submake.sh
 
 COMMON_OBJS		= mvDebug.o mvCommon.o mvStack.o
 OSSERVICES_OBJS		= mvOs.o
