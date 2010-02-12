@@ -744,12 +744,13 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv4_mmu_cache_flush
 
+#ifdef CONFIG_DOVE_DEBUGGER_MODE_V6
 		.word	0x000f0000		@ ARMv6
 		.word	0x000f0000
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv6_mmu_cache_flush
-
+#endif
 		.word	0x000f0000		@ new CPU Id
 		.word	0x000f0000
 		W(b)	__armv7_mmu_cache_on
