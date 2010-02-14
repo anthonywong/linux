@@ -56,6 +56,11 @@ ENTRY(cpu_v7_proc_fin)
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x0006			@ .............ca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
+#ifdef CONFIG_CPU_PJ4
+	mrc	p15, 0, r0, c1, c0, 1
+	bic	r0, r0, #0x2
+	mcr	p15, 0, r0, c1, c0, 1		@ disable L2 cache
+#endif
 	ldmfd	sp!, {pc}
 ENDPROC(cpu_v7_proc_fin)
 
