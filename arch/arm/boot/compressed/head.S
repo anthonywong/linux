@@ -489,6 +489,7 @@ __armv7_mmu_cache_on:
 		mcr	p15, 0, r0, c1, c0, 0	@ load control register
 		mrc	p15, 0, r0, c1, c0, 0	@ and read it back
 		mov	r0, #0
+		mcr	p15, 0, r0, c8, c7, 0	@ invalidate I,D TLBs
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
 		mov	pc, r12
 
