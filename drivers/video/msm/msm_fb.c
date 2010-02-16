@@ -239,6 +239,13 @@ static int msm_fb_probe(struct platform_device *pdev)
 	mfd->panel_info.frame_count = 0;
 	mfd->bl_level = mfd->panel_info.bl_max;
 
+	if (mfd->panel_info.type == LCDC_PANEL)
+		mfd->allow_set_offset =
+		msm_fb_pdata->allow_set_offset != NULL ?
+		msm_fb_pdata->allow_set_offset() : 0;
+	else
+		mfd->allow_set_offset = 0;
+
 	rc = msm_fb_register(mfd);
 	if (rc)
 		return rc;
@@ -1195,6 +1202,55 @@ static int msm_fb_pan_display(struct fb_var_screeninfo *var,
 			return -EINVAL;
 
 		dirtyPtr = &dirty;
+	}
+
+	/* Flip */
+	/* A constant value is used to indicate that we should change the DMA
+	   output buffer instead of just panning */
+
+	if (var->reserved[0] == 0x466c6970) {
+		unsigned long length, address;
+		struct file *p_src_file;
+		struct mdp_img imgdata;
+		int bpp;
+
+		if (mfd->allow_set_offset) {
+			imgdata.memory_id = var->reserved[1];
+			imgdata.priv = var->reserved[2];
+
+			/* If there is no memory ID then we want to reset back
+			   to the original fb visibility */
+			if (var->reserved[1]) {
+				if (var->reserved[4] == MDP_BLIT_SRC_GEM) {
+					if (get_gem_img(&imgdata,
+						(unsigned long *) &address,
+						 &length) < 0) {
+						return -1;
+					}
+				} else {
+					get_img(&imgdata, info, &address,
+							&length, &p_src_file);
+				}
+				mfd->ibuf.visible_swapped = TRUE;
+			} else {
+				/* Flip back to the original address
+				   adjusted for xoffset and yoffset */
+
+				bpp = info->var.bits_per_pixel / 8;
+				address = (unsigned long) info->fix.smem_start;
+				address += info->var.xoffset * bpp +
+				info->var.yoffset * info->fix.line_length;
+
+				mfd->ibuf.visible_swapped = FALSE;
+			}
+
+			mdp_set_offset_info(info, address,
+				(var->activate == FB_ACTIVATE_VBL));
+
+			mfd->dma_fnc(mfd);
+			return 0;
+		} else
+			return -EINVAL;
 	}
 
 	down(&msm_fb_pan_sem);

@@ -199,6 +199,7 @@ typedef struct mdp_ibuf_s {
 	uint32 dma_h;
 
 	uint32 vsync_enable;
+	uint32 visible_swapped;
 } MDPIBUF;
 
 struct mdp_dma_data {
@@ -668,4 +669,14 @@ void mdp_hw_vsync_clk_disable(struct msm_fb_data_type *mfd);
 #endif
 
 void mdp_dma_s_update(struct msm_fb_data_type *mfd);
+
+/* Added to support flipping */
+void mdp_set_offset_info(struct fb_info *info, uint32 address, uint32 interval);
+
+int get_gem_img(struct mdp_img *img, unsigned long *start,
+		unsigned long *len);
+int get_img(struct mdp_img *img, struct fb_info *info,
+		unsigned long *start, unsigned long *len,
+		struct file **pp_file);
+
 #endif /* MDP_H */

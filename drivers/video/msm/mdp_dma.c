@@ -488,6 +488,28 @@ void mdp_set_dma_pan_info(struct fb_info *info, struct mdp_dirty_region *dirty,
 	up(&mfd->sem);
 }
 
+void mdp_set_offset_info(struct fb_info *info, uint32 addr, uint32 sync)
+{
+	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;
+	MDPIBUF *iBuf;
+
+	int bpp = info->var.bits_per_pixel / 8;
+
+	down(&mfd->sem);
+	iBuf = &mfd->ibuf;
+	iBuf->ibuf_width = info->var.xres_virtual;
+	iBuf->bpp = bpp;
+	iBuf->vsync_enable = sync;
+	iBuf->dma_x = 0;
+	iBuf->dma_y = 0;
+	iBuf->dma_w = info->var.xres;
+	iBuf->dma_h = info->var.yres;
+	iBuf->buf = (uint8 *) addr;
+
+	mfd->ibuf_flushed = FALSE;
+	up(&mfd->sem);
+}
+
 void mdp_dma_pan_update(struct fb_info *info)
 {
 	struct msm_fb_data_type *mfd = (struct msm_fb_data_type *)info->par;

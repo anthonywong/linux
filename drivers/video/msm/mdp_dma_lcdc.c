@@ -332,10 +332,17 @@ void mdp_lcdc_update(struct msm_fb_data_type *mfd)
 		return;
 
 	/* no need to power on cmd block since it's lcdc mode */
-	bpp = fbi->var.bits_per_pixel / 8;
-	buf = (uint8 *) fbi->fix.smem_start;
-	buf += fbi->var.xoffset * bpp +
+
+	if (!mfd->ibuf.visible_swapped) {
+		bpp = fbi->var.bits_per_pixel / 8;
+		buf = (uint8 *) fbi->fix.smem_start;
+		buf += fbi->var.xoffset * bpp +
 		fbi->var.yoffset * fbi->fix.line_length;
+	} else {
+		/* we've done something to update the pointer. */
+		bpp =  mfd->ibuf.bpp;
+		buf = mfd->ibuf.buf;
+	}
 
 	dma_base = DMA_P_BASE;
 
@@ -365,6 +372,8 @@ void mdp_lcdc_update(struct msm_fb_data_type *mfd)
 	outp32(MDP_INTR_ENABLE, mdp_intr_mask);
 #endif
 	spin_unlock_irqrestore(&mdp_spin_lock, flag);
-	wait_for_completion_killable(&mfd->dma->comp);
+
+	if (mfd->ibuf.vsync_enable)
+		wait_for_completion_killable(&mfd->dma->comp);
 	mdp_disable_irq(irq_block);
 }

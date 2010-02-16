@@ -833,8 +833,18 @@ static int msm_fb_detect_panel(const char *name)
 	return ret;
 }
 
+/* Only allow a small subset of machines to set the offset via
+   FB PAN_DISPLAY */
+
+static int msm_fb_allow_set_offset(void)
+{
+	return (machine_is_qsd8x50_st1() ||
+		machine_is_qsd8x50a_st1_5()) ? 1 : 0;
+}
+
 static struct msm_fb_platform_data msm_fb_pdata = {
 	.detect_client = msm_fb_detect_panel,
+	.allow_set_offset = msm_fb_allow_set_offset,
 };
 
 static struct platform_device msm_fb_device = {
