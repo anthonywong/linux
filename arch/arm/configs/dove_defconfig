@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.32.3-dove-5.0.0.1-rc3
-# Tue Feb  9 09:46:54 2010
+# Linux kernel version: 2.6.32.3-dove-5.0.0-rc4
+# Tue Feb 16 14:52:48 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -2316,8 +2316,8 @@ CONFIG_JFFS2_ZLIB=y
 CONFIG_JFFS2_RTIME=y
 # CONFIG_JFFS2_RUBIN is not set
 CONFIG_UBIFS_FS=y
-# CONFIG_UBIFS_FS_XATTR is not set
-# CONFIG_UBIFS_FS_ADVANCED_COMPR is not set
+CONFIG_UBIFS_FS_XATTR=y
+CONFIG_UBIFS_FS_ADVANCED_COMPR=y
 CONFIG_UBIFS_FS_LZO=y
 CONFIG_UBIFS_FS_ZLIB=y
 # CONFIG_UBIFS_FS_DEBUG is not set
