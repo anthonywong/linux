@@ -47,7 +47,7 @@
 #include <linux/mm.h>
 #include <linux/skbuff.h>
 #include <linux/random.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <cryptodev.h>
 #include <uio.h>
@@ -327,7 +327,8 @@ swcr_newsession(device_t dev, u_int32_t *sid, struct cryptoini *cri)
 						__FUNCTION__,cri->cri_klen,(cri->cri_klen + 7)/8);
 				for (i = 0; i < (cri->cri_klen + 7) / 8; i++)
 				{
-					dprintk("%s0x%x", (i % 8) ? " " : "\n    ",cri->cri_key[i]);
+					dprintk("%s0x%x", (i % 8) ? " " : "\n    ",
+							cri->cri_key[i] & 0xff);
 				}
 				dprintk("\n");
 			}
@@ -619,7 +620,7 @@ swcr_process(device_t dev, struct cryptop *crp, int hint)
 					dprintk("%s key:", __FUNCTION__);
 					for (i = 0; i < (crd->crd_klen + 7) / 8; i++)
 						dprintk("%s0x%x", (i % 8) ? " " : "\n    ",
-								crd->crd_key[i]);
+								crd->crd_key[i] & 0xff);
 					dprintk("\n");
 				}
 				error = crypto_blkcipher_setkey(
@@ -890,7 +891,7 @@ cryptosoft_exit(void)
 	swcr_id = -1;
 }
 
-module_init(cryptosoft_init);
+late_initcall(cryptosoft_init);
 module_exit(cryptosoft_exit);
 
 MODULE_LICENSE("Dual BSD/GPL");
