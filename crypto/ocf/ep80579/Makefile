@@ -73,9 +73,14 @@
 
 # Ensure The ENV_DIR environmental var is defined.
 ifndef ICP_ENV_DIR
-$(error ICP_ENV_DIR is undefined. Please set the path to your environment makefile \
-        "-> setenv ICP_ENV_DIR <path>")
-endif
+
+all:
+	echo "ICP_ENV_DIR is undefined."
+	echo "Please set the path to your environment makefile -> setenv ICP_ENV_DIR <path>")
+	exit 1
+clean:
+
+else
 
 #Add your project environment Makefile
 include $(ICP_ENV_DIR)/environment.mk
@@ -104,4 +109,8 @@ install: module
 include $(ICP_BUILDSYSTEM_PATH)/build_files/rules.mk
 ###################End of Rules inclusion#########################
 
+endif
 
+ifdef TOPDIR
+-include $(TOPDIR)/Rules.make
+endif
