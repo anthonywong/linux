@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.3-dove-5.0.0
-# Wed Feb 17 17:17:22 2010
+# Wed Feb 17 18:52:58 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -399,7 +399,8 @@ CONFIG_ZBOOT_ROM_TEXT=0x0
 CONFIG_ZBOOT_ROM_BSS=0x0
 CONFIG_CMDLINE=""
 # CONFIG_XIP_KERNEL is not set
-# CONFIG_KEXEC is not set
+CONFIG_KEXEC=y
+CONFIG_ATAGS_PROC=y
 
 #
 # CPU Power Management
