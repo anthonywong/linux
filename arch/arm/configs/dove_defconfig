@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.32.3-dove-5.0.0-rc4
-# Tue Feb 16 14:52:48 2010
+# Linux kernel version: 2.6.32.3-dove-5.0.0
+# Wed Feb 17 17:17:22 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -2614,7 +2614,7 @@ CONFIG_CRYPTO_LZO=y
 #
 # CONFIG_CRYPTO_ANSI_CPRNG is not set
 CONFIG_CRYPTO_HW=y
-# CONFIG_CRYPTO_DEV_MV_CESA is not set
+CONFIG_CRYPTO_DEV_MV_CESA=y
 # CONFIG_CRYPTO_DEV_HIFN_795X is not set
 
 #
@@ -2623,13 +2623,14 @@ CONFIG_CRYPTO_HW=y
 CONFIG_OCF_OCF=y
 # CONFIG_OCF_RANDOMHARVEST is not set
 CONFIG_OCF_CRYPTODEV=y
-CONFIG_OCF_CRYPTOSOFT=y
+# CONFIG_OCF_CRYPTOSOFT is not set
 # CONFIG_OCF_SAFE is not set
 # CONFIG_OCF_IXP4XX is not set
 # CONFIG_OCF_HIFN is not set
 # CONFIG_OCF_HIFNHIPP is not set
 # CONFIG_OCF_TALITOS is not set
 # CONFIG_OCF_EP80579 is not set
+# CONFIG_OCF_CRYPTOCTEON is not set
 # CONFIG_OCF_OCFNULL is not set
 # CONFIG_OCF_BENCH is not set
 CONFIG_BINARY_PRINTF=y

@@ -189,6 +189,17 @@ struct ocf_device {
 #define htole16(x)	cpu_to_le16(x)
 #define htobe16(x)	cpu_to_be16(x)
 
+/* older kernels don't have these */
+#if 0
+#ifndef IRQ_NONE
+#define IRQ_NONE
+#define IRQ_HANDLED
+#define irqreturn_t void
+#endif
+#ifndef IRQF_SHARED
+#define IRQF_SHARED	SA_SHIRQ
+#endif
+#endif
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
 # define strlcpy(dest,src,len) \
@@ -199,7 +210,10 @@ struct ocf_device {
 #define MAX_ERRNO	4095
 #endif
 #ifndef IS_ERR_VALUE
+#include <linux/err.h>
+#ifndef IS_ERR_VALUE
 #define IS_ERR_VALUE(x) ((unsigned long)(x) >= (unsigned long)-MAX_ERRNO)
+#endif
 #endif
 
 /*
@@ -237,6 +251,7 @@ struct ocf_device {
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24)
 
+#include <linux/mm.h>
 #include <asm/scatterlist.h>
 
 static inline void sg_set_page(struct scatterlist *sg,  struct page *page,
@@ -252,6 +267,10 @@ static inline void *sg_virt(struct scatterlist *sg)
 	return page_address(sg->page) + sg->offset;
 }
 
+#endif
+
+#ifndef late_initcall
+#define late_initcall(init) module_init(init)
 #endif
 
 #endif /* __KERNEL__ */
