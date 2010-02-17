@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.31.12
-# Wed Feb 10 00:26:50 2010
+# Tue Feb 16 10:28:31 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1178,8 +1178,12 @@ CONFIG_USB_MON=y
 # USB Host Controller Drivers
 #
 # CONFIG_USB_C67X00_HCD is not set
-# CONFIG_USB_EHCI_HCD is not set
+CONFIG_USB_EHCI_HCD=y
+CONFIG_USB_EHCI_ROOT_HUB_TT=y
+# CONFIG_USB_EHCI_TT_NEWSCHED is not set
 # CONFIG_USB_OXU210HP_HCD is not set
+CONFIG_USB_EHCI_MSM=y
+# CONFIG_USB_FS_HOST is not set
 # CONFIG_USB_ISP116X_HCD is not set
 # CONFIG_USB_ISP1760_HCD is not set
 # CONFIG_USB_SL811_HCD is not set
@@ -1245,6 +1249,7 @@ CONFIG_USB_STORAGE_CYPRESS_ATACB=y
 # CONFIG_USB_IDMOUSE is not set
 # CONFIG_USB_FTDI_ELAN is not set
 # CONFIG_USB_APPLEDISPLAY is not set
+# CONFIG_USB_SISUSBVGA is not set
 # CONFIG_USB_LD is not set
 # CONFIG_USB_TRANCEVIBRATOR is not set
 # CONFIG_USB_IOWARRIOR is not set
@@ -1256,9 +1261,10 @@ CONFIG_USB_STORAGE_CYPRESS_ATACB=y
 #
 # OTG and related infrastructure
 #
+CONFIG_USB_OTG_UTILS=y
 # CONFIG_USB_GPIO_VBUS is not set
 # CONFIG_NOP_USB_XCEIV is not set
-# CONFIG_USB_MSM_OTG_72K is not set
+CONFIG_USB_MSM_OTG_72K=y
 CONFIG_MMC=y
 # CONFIG_MMC_DEBUG is not set
 CONFIG_MMC_UNSAFE_RESUME=y
