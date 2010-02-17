@@ -65,6 +65,17 @@ static struct page *split_large_page(unsigned long address, pgprot_t prot,
                set_pte(&pbase[i], pfn_pte(addr >> PAGE_SHIFT,
                                           addr == address ? prot : ref_prot));
 	}
+
+	/*
+	 * Intel Atom errata AAH41 and AAE44 workaround.
+	 *
+	 * The real fix should be in hw or in a microcode update, but
+	 * we also probabilistically try to reduce the window of having
+	 * a large TLB mixed with 4K TLBs while instruction fetches are
+	 * going on.
+	 */
+	 __flush_tlb_all();
+
 	return base;
 } 
 
