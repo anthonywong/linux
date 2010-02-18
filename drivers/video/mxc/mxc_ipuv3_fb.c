@@ -254,9 +254,6 @@ static int mxcfb_set_par(struct fb_info *fbi)
 
 	dev_dbg(fbi->device, "Reconfiguring framebuffer\n");
 
-	if (!ipu_disp_ok4change(mxc_fbi->ipu_ch))
-		return -EBUSY;
-
 	ipu_disable_irq(mxc_fbi->ipu_ch_irq);
 	ipu_disable_channel(mxc_fbi->ipu_ch, true);
 	ipu_uninit_channel(mxc_fbi->ipu_ch);
@@ -1015,7 +1012,6 @@ static int mxcfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 static int mxcfb_blank(int blank, struct fb_info *info)
 {
 	struct mxcfb_info *mxc_fbi = (struct mxcfb_info *)info->par;
-	int old_blank = mxc_fbi->blank;
 
 	dev_dbg(info->device, "blank = %d\n", blank);
 
@@ -1029,15 +1025,11 @@ static int mxcfb_blank(int blank, struct fb_info *info)
 	case FB_BLANK_VSYNC_SUSPEND:
 	case FB_BLANK_HSYNC_SUSPEND:
 	case FB_BLANK_NORMAL:
-		if (ipu_disp_ok4change(mxc_fbi->ipu_ch)) {
-			ipu_disable_channel(mxc_fbi->ipu_ch, true);
-			ipu_uninit_channel(mxc_fbi->ipu_ch);
-		} else
-			mxc_fbi->blank = old_blank;
+		ipu_disable_channel(mxc_fbi->ipu_ch, true);
+		ipu_uninit_channel(mxc_fbi->ipu_ch);
 		break;
 	case FB_BLANK_UNBLANK:
-		if (mxcfb_set_par(info) < 0)
-			mxc_fbi->blank = old_blank;
+		mxcfb_set_par(info);
 		break;
 	}
 	return 0;
