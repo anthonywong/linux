@@ -58,8 +58,6 @@ uint32_t g_channel_init_mask;
 uint32_t g_channel_enable_mask;
 DEFINE_SPINLOCK(ipu_lock);
 struct device *g_ipu_dev;
-struct semaphore disp_dp_sem;
-struct semaphore disp_dc_sem;
 
 static struct ipu_irq_node ipu_irq_list[IPU_IRQ_COUNT];
 static const char driver_name[] = "mxc_ipu";
@@ -391,10 +389,6 @@ static int ipu_probe(struct platform_device *pdev)
 	clk_disable(g_ipu_clk);
 
 	register_ipu_device();
-
-	/* Semaphore to control display */
-	sema_init(&disp_dp_sem, 1);
-	sema_init(&disp_dc_sem, 1);
 
 	return 0;
 }
@@ -1678,60 +1672,6 @@ int32_t ipu_is_channel_busy(ipu_channel_t channel)
 	return 0;
 }
 EXPORT_SYMBOL(ipu_is_channel_busy);
-
-void ipu_request_disp_sem(ipu_channel_t channel)
-{
-	struct semaphore *sem = NULL;
-
-	if ((channel == MEM_BG_SYNC) ||
-		(channel == MEM_FG_SYNC)) {
-		sem = &disp_dp_sem;
-	} else if (channel == MEM_DC_SYNC)
-		sem = &disp_dc_sem;
-
-	if (!sem)
-		return;
-
-	down(sem);
-}
-EXPORT_SYMBOL(ipu_request_disp_sem);
-
-void ipu_release_disp_sem(ipu_channel_t channel)
-{
-	struct semaphore *sem = NULL;
-
-	if ((channel == MEM_BG_SYNC) ||
-		(channel == MEM_FG_SYNC)) {
-		sem = &disp_dp_sem;
-	} else if (channel == MEM_DC_SYNC)
-		sem = &disp_dc_sem;
-
-	if (!sem)
-		return;
-
-	up(sem);
-}
-EXPORT_SYMBOL(ipu_release_disp_sem);
-
-int32_t ipu_disp_ok4change(ipu_channel_t channel)
-{
-	struct semaphore *sem = NULL;
-
-	if ((channel == MEM_BG_SYNC) ||
-		(channel == MEM_FG_SYNC)) {
-		sem = &disp_dp_sem;
-	} else if (channel == MEM_DC_SYNC)
-		sem = &disp_dc_sem;
-
-	if (!sem)
-		return 1;
-
-	if (sem->count > 0)
-		return 1;
-	else
-		return 0;
-}
-EXPORT_SYMBOL(ipu_disp_ok4change);
 
 /*!
  * This function enables a logical channel.
