@@ -170,5 +170,13 @@ config BT_HCIVHCI
 	  Say Y here to compile support for virtual HCI devices into the
 	  kernel or say M to compile it as module (hci_vhci).
 
+config MSM_BT_POWER
+	tristate "MSM Bluetooth Power Control"
+	depends on ARCH_MSM && RFKILL
+	default m
+	help
+	  Provides a parameter to switch on/off power from PMIC
+	  to Bluetooth device.
+
 endmenu
 
