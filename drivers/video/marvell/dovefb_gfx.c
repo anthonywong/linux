@@ -342,6 +342,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 static void set_dma_control0(struct dovefb_layer_info *dfli)
 {
 	u32 x, x_bk;
+	struct fb_var_screeninfo *var = &dfli->fb_info->var;
 
 	/*
 	 * Set bit to enable graphics DMA.
@@ -384,6 +385,17 @@ static void set_dma_control0(struct dovefb_layer_info *dfli)
 	 */
 	x &= ~(1 << 12);
 	x |= ((dfli->pix_fmt & 1) ^ (dfli->info->panel_rbswap)) << 12;
+
+	/*
+	 * Enable toogle to generate interlace mode.
+	 */
+	if (FB_VMODE_INTERLACED & var->vmode) {
+		x |= CFG_GRA_FTOGGLE_MASK;
+		dfli->reserved |= 0x1;
+	} else {
+		x &= ~CFG_GRA_FTOGGLE_MASK;
+		dfli->reserved &= ~0x1;
+	}
 
 	if (x != x_bk)
 		writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL0);
@@ -431,27 +443,6 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 		atomic_set(&dfli->w_intr, 0);
 		return 0;
 	}
-
-	return 0;
-}
-
-static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
-{
-	struct dovefb_layer_info *dfli = fi->par;
-	struct fb_var_screeninfo *var = &fi->var;
-	int pixel_offset;
-	unsigned long addr;
-
-	pixel_offset = (yoffset * var->xres_virtual) + xoffset;
-	addr = dfli->fb_start_dma + (pixel_offset * (var->bits_per_pixel >> 3));
-	writel(addr, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
-}
-
-static int dovefb_pan_display(struct fb_var_screeninfo *var,
-    struct fb_info *fi)
-{
-	wait_for_vsync(fi->par);
-	set_graphics_start(fi, var->xoffset, var->yoffset);
 
 	return 0;
 }
@@ -527,10 +518,145 @@ static void set_dumb_screen_dimensions(struct fb_info *fi)
 		writel((y << 16) | x, dfli->reg_base + LCD_SPUT_V_H_TOTAL);
 }
 
+static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
+{
+	struct dovefb_layer_info *dfli = fi->par;
+	struct fb_var_screeninfo *var = &fi->var;
+	int pixel_offset0, pixel_offset1;
+	unsigned long addr0, addr1, x;
+
+	pixel_offset0 = (yoffset * var->xres_virtual) + xoffset;
+	addr0 = dfli->fb_start_dma +
+		(pixel_offset0 * (var->bits_per_pixel >> 3));
+	/*
+	 * Configure interlace mode.
+	 */
+	if ( FB_VMODE_INTERLACED & var->vmode) {
+		/*
+		 * Calc offset. (double offset).
+		 * frame0 point to odd line,
+		 * frame1 point to even line.
+		 */ 
+		pixel_offset1 = pixel_offset0 + var->xres_virtual;
+		addr1 = dfli->fb_start_dma +
+			(pixel_offset1 * (var->bits_per_pixel >> 3));
+		
+		/*
+		 * Calc Pitch. (double pitch length)
+		 */
+		x = readl(dfli->reg_base + LCD_CFG_GRA_PITCH);
+		x = (x & ~0xFFFF) | ((var->xres_virtual * var->bits_per_pixel) >> 2);
+		
+	} else {
+		/*
+		 * Calc offset.
+		 */ 
+		addr1 = addr0;
+
+		/*
+		 * Calc Pitch.
+		 */
+		x = readl(dfli->reg_base + LCD_CFG_GRA_PITCH);
+		x = (x & ~0xFFFF) | ((var->xres_virtual * var->bits_per_pixel) >> 3);
+	}
+
+	writel(addr0, dfli->reg_base + LCD_CFG_GRA_START_ADDR0);
+	writel(addr1, dfli->reg_base + LCD_CFG_GRA_START_ADDR1);
+	writel(x, dfli->reg_base + LCD_CFG_GRA_PITCH);
+}
+
+static int set_frame_timings(const struct dovefb_layer_info *dfli,
+	struct fb_var_screeninfo *var)
+{
+	struct dovefb_info *info = dfli->info;
+	unsigned int active_w, active_h;
+	unsigned int ow, oh;
+	unsigned int zoomed_w, zoomed_h;
+	unsigned int lem, rim, lom, upm, hs, vs;
+	unsigned int x;
+	int total_w, total_h;
+	unsigned int reg, reg_bk;
+
+	/*
+	 * Calc active size, zoomed size, porch.
+	 */
+	if (info->fixed_output) {
+		active_w = info->out_vmode.xres;
+		active_h = info->out_vmode.yres;
+		zoomed_w = info->out_vmode.xres;
+		zoomed_h = info->out_vmode.yres;
+		lem = info->out_vmode.left_margin;
+		rim = info->out_vmode.right_margin;
+		upm = info->out_vmode.upper_margin;
+		lom = info->out_vmode.lower_margin;
+		hs = info->out_vmode.hsync_len;
+		vs = info->out_vmode.vsync_len;
+	} else {
+		active_w = var->xres;
+		active_h = var->yres;
+		zoomed_w = var->xres;
+		zoomed_h = var->yres;
+		lem = var->left_margin;
+		rim = var->right_margin;
+		upm = var->upper_margin;
+		lom = var->lower_margin;
+		hs = var->hsync_len;
+		vs = var->vsync_len;
+	}
+	
+	/*
+	 * Calc original size.
+	 */
+	ow = var->xres;
+	oh = var->yres;
+
+	/* interlaced workaround */
+	if (FB_VMODE_INTERLACED & var->vmode) {
+		active_h /= 2;
+		zoomed_h /= 2;
+		oh /= 2;
+		var->pixclock *= 2;
+	}
+
+	/* calc total width and height.*/
+	total_w = active_w + rim + hs + lem;
+	total_h = active_h + lom + vs + upm;
+
+	/*
+	 * Apply setting to registers.
+	 */
+	writel((active_h << 16) | active_w,
+		dfli->reg_base + LCD_SPU_V_H_ACTIVE);
+
+	writel((oh << 16) | ow,
+		dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
+
+	writel((zoomed_h << 16) | zoomed_w,
+		dfli->reg_base + LCD_SPU_GZM_HPXL_VLN);
+	
+	writel((lem << 16) | rim, dfli->reg_base + LCD_SPU_H_PORCH);
+	writel((upm << 16) | lom, dfli->reg_base + LCD_SPU_V_PORCH);
+
+	reg_bk = readl(dfli->reg_base + LCD_SPUT_V_H_TOTAL);
+	reg = (total_h << 16)|total_w;
+
+	if (reg != reg_bk)
+		writel(reg, dfli->reg_base + LCD_SPUT_V_H_TOTAL);
+	/*
+	 * Configure vsync adjust logic
+	 */
+	x = readl(dfli->reg_base+LCD_SPU_ADV_REG);
+	x &= ~((0x1 << 12) | (0xfff << 20) | 0xfff);
+	writel( (0x1 << 12) |
+		(active_w+rim) << 20 |
+		(active_w+rim), dfli->reg_base+LCD_SPU_ADV_REG);
+
+	return 0;
+}
+
 static int dovefb_gfx_set_par(struct fb_info *fi)
 {
 	struct dovefb_layer_info *dfli = fi->par;
-	struct dovefb_info *info = dfli->info;
 	struct fb_var_screeninfo *var = &fi->var;
 	const struct fb_videomode *m = 0;
 	struct fb_videomode mode;
@@ -567,15 +693,9 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 		wait_for_vsync(dfli);
 
 	/*
-	 * Configure global panel parameters.
+	 * Configure frame timings.
 	 */
-	if (info->fixed_output) {
-		writel((info->out_vmode.yres << 16) | info->out_vmode.xres,
-			dfli->reg_base + LCD_SPU_V_H_ACTIVE);
-	} else {
-		writel((var->yres << 16) | var->xres,
-			dfli->reg_base + LCD_SPU_V_H_ACTIVE);
-	}
+	set_frame_timings(dfli, var);
 
 	/*
 	 * convet var to video mode
@@ -595,40 +715,10 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 	 */
 	set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
 
-	x = readl(dfli->reg_base + LCD_CFG_GRA_PITCH);
-	x = (x & ~0xFFFF) | ((var->xres_virtual * var->bits_per_pixel) >> 3);
-	writel(x, dfli->reg_base + LCD_CFG_GRA_PITCH);
-
-	writel((var->yres << 16) | (var->xres),
-		dfli->reg_base + LCD_SPU_GRA_HPXL_VLN);
-
-	if (info->fixed_output) {
-		writel((info->out_vmode.yres << 16) | info->out_vmode.xres,
-				dfli->reg_base + LCD_SPU_GZM_HPXL_VLN);
-	}
-	else
-		writel((var->yres << 16) | var->xres,
-				dfli->reg_base + LCD_SPU_GZM_HPXL_VLN);
-
 	/*
 	 * Configure dumb panel ctrl regs & timings.
 	 */
 	set_dumb_panel_control(fi, 0);
-	set_dumb_screen_dimensions(fi);
-
-	if (info->fixed_output) {
-		writel((info->out_vmode.left_margin << 16) |
-				info->out_vmode.right_margin,
-				dfli->reg_base + LCD_SPU_H_PORCH);
-		writel((info->out_vmode.upper_margin << 16) |
-				info->out_vmode.lower_margin,
-				dfli->reg_base + LCD_SPU_V_PORCH);
-	} else {
-		writel((var->left_margin << 16) | var->right_margin,
-				dfli->reg_base + LCD_SPU_H_PORCH);
-		writel((var->upper_margin << 16) | var->lower_margin,
-				dfli->reg_base + LCD_SPU_V_PORCH);
-	}
 
 	/*
 	 * Re-enable panel output.
@@ -673,6 +763,15 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 		}
 	}
 #endif
+
+	return 0;
+}
+
+static int dovefb_pan_display(struct fb_var_screeninfo *var,
+    struct fb_info *fi)
+{
+	wait_for_vsync(fi->par);
+	set_graphics_start(fi, var->xoffset, var->yoffset);
 
 	return 0;
 }
@@ -857,6 +956,27 @@ static int dovefb_fb_sync(struct fb_info *info)
  */
 int dovefb_gfx_handle_irq(u32 isr, struct dovefb_layer_info *dfli)
 {
+	if (0x1 & dfli->reserved) {
+		unsigned int vs_adj, x;
+		unsigned int active_w, h_fp;
+
+		active_w = 0xffff & readl(dfli->reg_base + LCD_SPU_V_H_ACTIVE); 
+		h_fp = 0xffff & readl(dfli->reg_base + LCD_SPU_H_PORCH); 
+
+		/* interlace mode workaround. */
+		if (GRA_FRAME_IRQ0_ENA_MASK & isr) {
+			vs_adj = active_w + h_fp;
+		} else {
+			vs_adj = (active_w/2) + h_fp;
+		}
+
+		x = readl(dfli->reg_base+LCD_SPU_ADV_REG);
+		x &= ~((0x1 << 12) | (0xfff << 20) | 0xfff);
+		x |= (0x1 << 12) | (vs_adj << 20) | vs_adj;
+		writel( x, dfli->reg_base+LCD_SPU_ADV_REG);
+	
+	}
+
 	/* wake up queue. */
 	atomic_set(&dfli->w_intr, 1);
 	wake_up(&dfli->w_intr_wq);
