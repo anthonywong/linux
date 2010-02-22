@@ -94,7 +94,7 @@ static struct spi_board_info __initdata dove_rd_spi_flash_info[] = {
  * 	Charger, address ??
  ****************************************************************************/
 static struct i2c_board_info __initdata dove_rd_i2c_devs[] = {
-	{ I2C_BOARD_INFO("i2s_i2c", 0x4A) },
+	{ I2C_BOARD_INFO("cs42l51", 0x4A) },
 	{ I2C_BOARD_INFO("bq2084_i2c", 0x0B) },		/* Battery Gauge */
 	{ I2C_BOARD_INFO("max1535_i2c", 0x09) },	/* SMBus Charger */
 };
