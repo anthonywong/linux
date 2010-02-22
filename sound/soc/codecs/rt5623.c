@@ -183,7 +183,7 @@ static unsigned int rt5623_read(struct snd_soc_codec *codec, unsigned int reg)
 	data[0] = reg;
 	if(codec->hw_write(codec->control_data, data, 1) ==1)
 	{
-		codec->hw_read(codec->control_data, data, 2);	
+		i2c_master_recv(codec->control_data, data, 2);
 		value = (data[0]<<8) | data[1];		
 //		printk("rt5623 read reg%x=%x\n",reg,value);
 		
@@ -1412,7 +1412,7 @@ pcm_err:
  *    high = 0x1b
  */
 static const struct i2c_device_id rt5623_i2c_table[] = {
-	{"i2s_i2c", 0},
+	{"rt5623", 0},
 	{}
 };
 
@@ -1463,7 +1463,7 @@ static int rt5623_i2c_remove(struct i2c_client *client)
 /*  i2c codec control layer */
 static struct i2c_driver rt5623_i2c_driver = {
 	.driver = {
-		.name = "rt5623 i2c codec",
+		.name = "rt5623",
 		.owner = THIS_MODULE,
 	},
 	.probe = rt5623_i2c_probe,
@@ -1507,11 +1507,9 @@ static int rt5623_probe(struct platform_device *pdev)
 
 	codec->hw_write = (hw_write_t)i2c_master_send;
 
-	codec->hw_read = (hw_read_t)i2c_master_recv;
-		
 	ret = i2c_add_driver(&rt5623_i2c_driver);
 	if (ret != 0)
-		printk(KERN_ERR "can't add i2c driver");
+		printk(KERN_ERR "can't add i2c rt5623 driver");
 #else
 		/* Add other interfaces here */
 #endif
