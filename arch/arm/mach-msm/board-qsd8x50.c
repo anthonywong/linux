@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1527,6 +1527,25 @@ static struct msm_gpio st1_bt_config_power_on[] = {
 		"BT PWR 2" },
 };
 
+static struct msm_gpio st1_5_bt_config_power_on[] = {
+	{ GPIO_CFG(18, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+		"BT SYSRST" },
+	{ GPIO_CFG(29, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+		"BT WAKE" },
+	{ GPIO_CFG(40, 0, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA),
+		"HOST WAKE" },
+	{ GPIO_CFG(22, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+		"BT VDD_IO" },
+	{ GPIO_CFG(43, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+		"UART1DM_RFR" },
+	{ GPIO_CFG(44, 2, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA),
+		"UART1DM_CTS" },
+	{ GPIO_CFG(45, 2, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA),
+		"UART1DM_RX" },
+	{ GPIO_CFG(46, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+		"UART1DM_TX" },
+};
+
 static struct msm_gpio wlan_config_power_off[] = {
 	{ GPIO_CFG(62, 0, GPIO_INPUT, GPIO_PULL_DOWN, GPIO_2MA),
 		"SDC2_CLK" },
@@ -1678,6 +1697,13 @@ static int bluetooth_power(int on)
 	return 0;
 }
 
+static int bluetooth_power_st_1_5(int on)
+{
+	gpio_set_value(18, on); /* SYSRST */
+	printk(KERN_DEBUG "Bluetooth power switch: %d\n", on);
+	return 0;
+}
+
 static void __attribute__((unused)) __init bt_power_init(void)
 {
 	struct vreg *vreg_bt;
@@ -1725,8 +1751,32 @@ static void __attribute__((unused)) __init bt_power_init(void)
 exit:
 	return;
 }
+
+static void __attribute__((unused)) __init bt_power_init_st_1_5(void)
+{
+	int rc;
+
+	gpio_set_value(18, 0); /* SYSRST */
+
+	rc = msm_gpios_enable(st1_5_bt_config_power_on,
+		ARRAY_SIZE(st1_5_bt_config_power_on));
+
+	if (rc < 0) {
+		printk(KERN_ERR
+			"%s: bt power on gpio config failed: %d\n",
+			__func__, rc);
+		return;
+	}
+
+	msm_bt_power_device.dev.platform_data = &bluetooth_power_st_1_5;
+
+	printk(KERN_DEBUG "Bluetooth power switch ST-1.5: initialized\n");
+
+	return;
+}
 #else
 #define bt_power_init(x) do {} while (0)
+#define bt_power_init_st_1_5(x) do {} while (0)
 #endif
 
 static struct resource kgsl_resources[] = {
@@ -2983,7 +3033,10 @@ static void __init qsd8x50_init(void)
 
 	qsd8x50_init_host();
 	qsd8x50_init_mmc();
-	bt_power_init();
+	if (machine_is_qsd8x50a_st1_5())
+		bt_power_init_st_1_5();
+	else
+		bt_power_init();
 	audio_gpio_init();
 	msm_device_i2c_init();
 #ifndef CONFIG_ST1_EXPERIMENTAL
