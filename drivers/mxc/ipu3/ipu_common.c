@@ -1788,6 +1788,7 @@ void ipu_clear_buffer_ready(ipu_channel_t channel, ipu_buffer_t type,
 	__raw_writel(0x0, IPU_GPR); /* write one to set */
 	spin_unlock_irqrestore(&ipu_lock, lock_flags);
 }
+EXPORT_SYMBOL(ipu_clear_buffer_ready);
 
 static irqreturn_t disable_chan_irq_handler(int irq, void *dev_id)
 {
