@@ -354,6 +354,8 @@ struct dovefb_layer_info {
 	 */
 	int			cur_fbid;
 	int			src_mode;
+
+	unsigned int		reserved;
 };
 
 /*
