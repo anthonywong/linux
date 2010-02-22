@@ -18,6 +18,9 @@
 
 /* ------------< LCD register >------------ */
 /* Video Frame 0&1 start address registers */
+#define	LCD_SPU_ADV_REG				0x0084
+
+/* Video Frame 0&1 start address registers */
 #define	LCD_SPU_DMA_START_ADDR_Y0		0x00C0
 #define	LCD_SPU_DMA_START_ADDR_U0		0x00C4
 #define	LCD_SPU_DMA_START_ADDR_V0		0x00C8
@@ -421,7 +424,9 @@
 #define     DMA_FRAME_IRQ1_ENA_MASK		0x40000000
 #define     DMA_FF_UNDERFLOW_ENA(ff)		(ff<<29)
 #define     DMA_FF_UNDERFLOW_ENA_MASK		0x20000000
+#define     GRA_FRAME_IRQ0_ENA(irq)		(irq<<27)
 #define     GRA_FRAME_IRQ0_ENA_MASK		0x08000000
+#define     GRA_FRAME_IRQ1_ENA(irq)		(irq<<26)
 #define     GRA_FRAME_IRQ1_ENA_MASK		0x04000000
 #define     GRA_FF_UNDERFLOW_ENA(ff)		(ff<<25)
 #define     GRA_FF_UNDERFLOW_ENA_MASK		0x02000000
