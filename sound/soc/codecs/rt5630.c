@@ -2128,8 +2128,7 @@ static int rt5630_i2c_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id rt5630_i2c_id[] = {
-//		{"rt5630", 0},
-		{"i2s_i2c",0},
+		{"rt5630", 0},
 		{}
 };
 MODULE_DEVICE_TABLE(i2c, rt5630_i2c_id);
@@ -2160,9 +2159,7 @@ static int rt5630_add_i2c_device(struct platform_device *pdev,
 #if 0
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	info.addr = setup->i2c_address;
-//	strlcpy(info.type, "rt5630", I2C_NAME_SIZE);
-	strlcpy(info.type, "i2s_i2c", I2C_NAME_SIZE);
-
+	strlcpy(info.type, "rt5630", I2C_NAME_SIZE);
 
 	adapter = i2c_get_adapter(setup->i2c_bus);
 	if (!adapter) {
