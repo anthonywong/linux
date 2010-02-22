@@ -51,23 +51,20 @@
 #define DOVE_AVNG_POWER_OFF_GPIO	(8)
 
 extern int __init pxa_init_dma_wins(struct mbus_dram_target_info *dram);
-extern int mvmpp_sys_init(void);
 
-#ifdef CONFIG_CPU_ENDIAN_BE8
-static unsigned int use_hal_giga = 1;
-#else
-/* FIXME:GE00 in BE8 mode still can't work now.
- */
 static unsigned int use_hal_giga = 0;
-#endif
-
 #ifdef CONFIG_MV643XX_ETH
 module_param(use_hal_giga, uint, 0);
 MODULE_PARM_DESC(use_hal_giga, "Use the HAL giga driver");
 #endif
 
+static unsigned int standby_fix = 1;
+module_param(standby_fix, uint, 0);
+MODULE_PARM_DESC(standby_fix, "if 1 then CKE and MRESET are connected to MPP4 and MPP6");
+
 extern unsigned int useHalDrivers;
 extern char *useNandHal;
+
 
 /*****************************************************************************
  * LCD
@@ -665,6 +662,7 @@ static void dove_rd_avng_gpio_init(u32 rev)
 	gpio_direction_input(23);	/* Interrupt from G-sensor */
 }
 
+#ifdef CONFIG_PM
 /*****************************************************************************
  * POWER MANAGEMENT
  ****************************************************************************/
@@ -684,12 +682,21 @@ static int __init dove_rd_avng_pm_init(void)
 	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;	/* STANDBY => 0: I/O off, 1: I/O on */
 	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;	/* power on push button */
-	if (rev >= DOVE_REV_X0) /* For X0 and higher Power Good indication is not needed */
-		pmuInitInfo.sigSelctor[4] = /*PMU_SIGNAL_NC*/PMU_SIGNAL_CKE_OVRID;	/* CKE controlled by Dove */
+	if (rev >= DOVE_REV_X0) { /* For X0 and higher Power Good indication is not needed */
+		if (standby_fix)
+			pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CKE_OVRID;	/* CKE controlled by Dove */
+		else
+			pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
+	}
 	else
 		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
+
 	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;	/* DEEP-IdLE => 0: CPU off, 1: CPU on */
-	pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_MRESET_OVRID;		/* M_RESET is pulled up - always HI */
+
+	if ((rev >= DOVE_REV_X0) && (standby_fix)) /* For boards with X0 we use MPP6 as MRESET */
+		pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_MRESET_OVRID;		/* M_RESET is pulled up - always HI */
+	else
+		pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;		/* Standby Led - inverted */
 	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC;		/* CPU power good  - not used */
@@ -711,7 +718,7 @@ static int __init dove_rd_avng_pm_init(void)
 	/* Initialize the PMU HAL */
 	if (mvPmuInit(&pmuInitInfo) != MV_OK)
 	{
-		printk(KERN_NOTICE "Failed to initialise the PMU!\n");
+		printk(KERN_ERR "ERROR: Failed to initialise the PMU!\n");
 		return 0;
 	}
 
@@ -725,6 +732,7 @@ static int __init dove_rd_avng_pm_init(void)
 }
 
 __initcall(dove_rd_avng_pm_init);
+#endif
 
 /*****************************************************************************
  * AC97 Interface
@@ -858,7 +866,7 @@ static void __init dove_rd_avng_init(void)
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
-	if(useHalDrivers || use_hal_giga)
+	if(use_hal_giga || useHalDrivers)
 		dove_mv_eth_init();
 	else
 #endif
