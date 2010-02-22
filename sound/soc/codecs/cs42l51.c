@@ -463,7 +463,7 @@ pcm_err:
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 
 static const struct i2c_device_id cs42l51_i2c_table[] = {
-	{"i2s_i2c", 0},
+	{"cs42l51", 0},
 	{}
 };
 
