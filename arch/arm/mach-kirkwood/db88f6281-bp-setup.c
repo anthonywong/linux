@@ -90,7 +90,7 @@ static unsigned int db88f6281_mpp_config[] __initdata = {
 };
 
 static struct i2c_board_info __initdata i2c_a2d = {
-	I2C_BOARD_INFO("i2s_i2c", 0x4A),
+	I2C_BOARD_INFO("cs42l51", 0x4A),
 };
 
 static void __init db88f6281_init(void)
