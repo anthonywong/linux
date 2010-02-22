@@ -231,7 +231,7 @@ void __init dove_rd_avng_clcd_init(void) {
  ****************************************************************************/
 static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
 	{
-		I2C_BOARD_INFO("i2s_i2c", 0x1F),
+		I2C_BOARD_INFO("rt5623", 0x1a),
 	},
 	{
 		I2C_BOARD_INFO("bma020", 0x38),	//JP
