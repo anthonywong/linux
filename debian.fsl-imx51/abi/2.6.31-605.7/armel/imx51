@@ -1944,7 +1944,6 @@ EXPORT_SYMBOL vmlinux 0x2dad7e15	sah_add_two_out_desc
 EXPORT_SYMBOL vmlinux 0x2dcb0123	schedule_delayed_work_on
 EXPORT_SYMBOL vmlinux 0x2df3fd69	d_instantiate
 EXPORT_SYMBOL vmlinux 0x2dfa9905	__mxc_ioremap
-EXPORT_SYMBOL vmlinux 0x2dfff0bd	ipu_request_disp_sem
 EXPORT_SYMBOL vmlinux 0x2e15f3ed	rfkill_set_led_trigger_name
 EXPORT_SYMBOL vmlinux 0x2e2ce9e0	sysctl_tcp_syncookies
 EXPORT_SYMBOL vmlinux 0x2e39f48e	kobject_add
@@ -2430,7 +2429,6 @@ EXPORT_SYMBOL vmlinux 0x535e092d	fsl_shw_diminish_perms
 EXPORT_SYMBOL vmlinux 0x538383c0	unregister_inet6addr_notifier
 EXPORT_SYMBOL vmlinux 0x5383a3b1	clk_get_parent
 EXPORT_SYMBOL vmlinux 0x53840dad	__tracepoint_kmem_cache_alloc
-EXPORT_SYMBOL vmlinux 0x538736e5	ipu_disp_ok4change
 EXPORT_SYMBOL vmlinux 0x53a68ac6	blk_queue_alignment_offset
 EXPORT_SYMBOL vmlinux 0x53ab6e42	framebuffer_alloc
 EXPORT_SYMBOL vmlinux 0x53c0767c	sk_chk_filter
@@ -3064,7 +3062,6 @@ EXPORT_SYMBOL vmlinux 0x84b183ae	strncmp
 EXPORT_SYMBOL vmlinux 0x84bbd45f	inet_del_protocol
 EXPORT_SYMBOL vmlinux 0x850b78a8	cdev_alloc
 EXPORT_SYMBOL vmlinux 0x85228946	snd_pcm_hw_param_last
-EXPORT_SYMBOL vmlinux 0x854d091c	ipu_release_disp_sem
 EXPORT_SYMBOL vmlinux 0x856621f5	mpage_readpages
 EXPORT_SYMBOL vmlinux 0x85670f1d	rtnl_is_locked
 EXPORT_SYMBOL vmlinux 0x857504e2	xfrm6_find_1stfragopt
@@ -3645,6 +3642,7 @@ EXPORT_SYMBOL vmlinux 0xb334fc5b	sock_no_listen
 EXPORT_SYMBOL vmlinux 0xb376d79d	radix_tree_tagged
 EXPORT_SYMBOL vmlinux 0xb3861f48	blk_queue_free_tags
 EXPORT_SYMBOL vmlinux 0xb38b6a2e	d_invalidate
+EXPORT_SYMBOL vmlinux 0xb38dc934	ipu_clear_buffer_ready
 EXPORT_SYMBOL vmlinux 0xb38f7ef8	start_tty
 EXPORT_SYMBOL vmlinux 0xb39fc396	journal_blocks_per_page
 EXPORT_SYMBOL vmlinux 0xb3a307c6	si_meminfo
