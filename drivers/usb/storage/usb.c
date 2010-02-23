@@ -257,6 +257,17 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data,
 }
 EXPORT_SYMBOL_GPL(fill_inquiry_response);
 
+#ifdef CONFIG_MACH_MX51_BABBAGE
+static int skip_ata_passthrough(struct us_data *us)
+{
+	int v = le16_to_cpu(us->pusb_dev->descriptor.idVendor);
+	int p = le16_to_cpu(us->pusb_dev->descriptor.idProduct);
+
+	/* GL830 || JMicron */
+	return (v == 0x05e3 && p == 0x0718) || (v == 0x152d && p == 0x2329);
+}
+#endif
+
 static int usb_stor_control_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
@@ -333,10 +344,7 @@ static int usb_stor_control_thread(void * __us)
 			US_DEBUG(usb_stor_show_command(us->srb));
 #ifdef CONFIG_MACH_MX51_BABBAGE
 			if ((us->srb->cmnd[0] == 0x85) &&
-			    (le16_to_cpu(us->pusb_dev->descriptor.idVendor)
-								== 0x05e3) &&
-			    (le16_to_cpu(us->pusb_dev->descriptor.idProduct)
-								== 0x0718))
+			    skip_ata_passthrough(us))
 				US_DEBUGP("Skip ATA PASS-THROUGH command\n");
 			else
 #endif
