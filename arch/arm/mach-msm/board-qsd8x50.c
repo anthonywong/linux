@@ -58,6 +58,7 @@
 #include <mach/msm_tsif.h>
 #include <mach/msm_battery.h>
 #include <mach/clk.h>
+#include <mach/tpm_st_i2c.h>
 
 #include "devices.h"
 #include "timer.h"
@@ -2064,6 +2065,35 @@ static struct msm_i2ckbd_platform_data msm_kybd_data = {
 	.hw_reset = kbd_hwreset,
 };
 
+#define TPM_ACCEPT_CMD_GPIO 85
+#define TPM_DATA_AVAIL_GPIO 84
+static struct msm_gpio tpm_gpio_config[] = {
+	{ GPIO_CFG(TPM_ACCEPT_CMD_GPIO, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+		"tpm_accept_cmd" },
+	{ GPIO_CFG(TPM_DATA_AVAIL_GPIO, 0, GPIO_INPUT, GPIO_NO_PULL, GPIO_2MA),
+		"tpm_data_avail" },
+};
+
+static void tpm_st_i2c_gpio_release(void)
+{
+	msm_gpios_disable_free(tpm_gpio_config, ARRAY_SIZE(tpm_gpio_config));
+}
+
+static int tpm_st_i2c_gpio_setup(void)
+{
+	return msm_gpios_request_enable(tpm_gpio_config,
+					ARRAY_SIZE(tpm_gpio_config));
+}
+
+static struct tpm_st_i2c_platform_data tpm_st_i2c_data = {
+	.accept_cmd_gpio = TPM_ACCEPT_CMD_GPIO,
+	.data_avail_gpio = TPM_DATA_AVAIL_GPIO,
+	.accept_cmd_irq = MSM_GPIO_TO_INT(TPM_ACCEPT_CMD_GPIO),
+	.data_avail_irq = MSM_GPIO_TO_INT(TPM_DATA_AVAIL_GPIO),
+	.gpio_setup = tpm_st_i2c_gpio_setup,
+	.gpio_release = tpm_st_i2c_gpio_release,
+};
+
 static struct i2c_board_info msm_i2c_board_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("glidesensor", 0x2A),
@@ -2119,6 +2149,10 @@ static struct i2c_board_info msm_i2c_st1_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("tps65023", 0x48),
 	},
+	{
+		I2C_BOARD_INFO("tpm_st_i2c", 0x13),
+		.platform_data = &tpm_st_i2c_data,
+	},
 };
 
 static struct i2c_board_info msm_i2c_st1_5_info[] __initdata = {
@@ -2145,6 +2179,10 @@ static struct i2c_board_info msm_i2c_st1_5_info[] __initdata = {
 	},
 	{
 		I2C_BOARD_INFO("sii9022", 0x72 >> 1),
+	},
+	{
+		I2C_BOARD_INFO("tpm_st_i2c", 0x13),
+		.platform_data = &tpm_st_i2c_data,
 	},
 };
 
