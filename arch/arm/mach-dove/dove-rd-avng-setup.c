@@ -819,6 +819,55 @@ void __init dove_battery_init(void)
 	platform_device_register_simple("battery", 0, NULL, 0);
 }
 
+#ifdef CONFIG_ANDROID_PMEM
+#include <linux/dma-mapping.h>
+#include <linux/android_pmem.h>
+void android_add_pmem(char *name, size_t size, int no_allocator, int cached)
+{
+        struct platform_device *android_pmem_device;
+        struct android_pmem_platform_data *android_pmem_pdata;
+        struct page *page;
+        unsigned long addr, tmp;
+        static int id;
+        unsigned long paddr = 0;
+
+        android_pmem_device = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
+        if(android_pmem_device == NULL)
+                return ;
+
+        android_pmem_pdata = kzalloc(sizeof(struct android_pmem_platform_data), GFP_KERNEL);
+        if(android_pmem_pdata == NULL) {
+                kfree(android_pmem_device);
+                return ;
+        }
+
+        page = alloc_pages(GFP_KERNEL, get_order(size));
+        if (page == NULL)
+                return ;
+
+        addr = (unsigned long)page_address(page);
+        paddr = virt_to_phys((void *)addr);
+        tmp = size;
+        dma_cache_maint(addr, size, DMA_FROM_DEVICE);
+        while(tmp > 0) {
+                SetPageReserved(virt_to_page(addr));
+                addr += PAGE_SIZE;
+                tmp -= PAGE_SIZE;
+        }
+        android_pmem_pdata->name = name;
+        android_pmem_pdata->start = paddr;
+        android_pmem_pdata->size = size;
+        android_pmem_pdata->no_allocator = no_allocator ;
+        android_pmem_pdata->cached = cached;
+
+        android_pmem_device->name = "android_pmem";
+        android_pmem_device->id = id++;
+        android_pmem_device->dev.platform_data = android_pmem_pdata;
+
+        platform_device_register(android_pmem_device);
+}
+#endif
+
 
 /*****************************************************************************
  * Board Init
@@ -905,6 +954,10 @@ static void __init dove_rd_avng_init(void)
 				ARRAY_SIZE(dove_rd_avng_spi_flash_info));
 #ifdef CONFIG_BATTERY_MCU
 	dove_battery_init();
+#endif
+#ifdef CONFIG_ANDROID_PMEM
+        android_add_pmem("pmem", 0x01800000UL, 1, 0);
+        android_add_pmem("pmem_adsp", 0x04000000UL, 0, 0);
 #endif
 	//mvmpp_sys_init();
 }
