@@ -735,7 +735,7 @@ static struct android_pmem_platform_data android_pmem_pdata = {
 static struct android_pmem_platform_data android_pmem_adsp_pdata = {
 	.name = "pmem_adsp",
 	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
-	.cached = 0,
+	.cached = 1,
 };
 
 #ifdef CONFIG_PMEM_GPU0
