@@ -59,16 +59,24 @@ struct iwmmxt_sigframe {
 #endif /* CONFIG_IWMMXT */
 
 #ifdef CONFIG_VFP
+
+/*
+ * Linux ARM kernel has yet to standardize the VFP ucontext format.
+ * Modify magic numbers for this special temporary implementation.
+ * Should be fixed 2.6.31+ kernel.
+ */
+#define VFP_TEMPORARY_UCONTEXT_FMT 0xBEAF0A1D
+
 #if __LINUX_ARM_ARCH__ < 6
 /* For ARM pre-v6, we use fstmiax and fldmiax.  This adds one extra
  * word after the registers, and a word of padding at the end for
  * alignment.  */
-#define VFP_MAGIC		0x56465001
-#define VFP_STORAGE_SIZE	152
+#define VFP_MAGIC		(0x56465001 ^ VFP_TEMPORARY_UCONTEXT_FMT)
 #else
-#define VFP_MAGIC		0x56465002
-#define VFP_STORAGE_SIZE	144
+#define VFP_MAGIC		(0x56465002 ^ VFP_TEMPORARY_UCONTEXT_FMT)
 #endif
+
+#define VFP_STORAGE_SIZE	sizeof(struct vfp_sigframe)
 
 struct vfp_sigframe
 {
@@ -91,7 +99,7 @@ struct aux_sigframe {
 #ifdef CONFIG_IWMMXT
 	struct iwmmxt_sigframe	iwmmxt;
 #endif
-#if 0 && defined CONFIG_VFP /* Not yet saved.  */
+#ifdef CONFIG_VFP
 	struct vfp_sigframe	vfp;
 #endif
 	/* Something that isn't a valid magic number for any coprocessor.  */
