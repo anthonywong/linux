@@ -764,6 +764,14 @@ config USB_CDC_COMPOSITE
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module.
 
+config USB_G_CHROME
+	bool "Chrome Gadget"
+	help
+	The Chrome gadget acts as bridge between the host and the diag char
+	driver and sends/receives the messages from/to diag char driver
+	to/from the host.
+
+
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.
 
