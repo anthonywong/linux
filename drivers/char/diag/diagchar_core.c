@@ -39,8 +39,8 @@ MODULE_VERSION("1.0");
 struct diagchar_dev *driver;
 /* The following variables can be specified by module options */
  /* for copy buffer */
-static unsigned int itemsize = 512; /*Size of item in the mempool */
-static unsigned int poolsize = 20; /*Number of items in the mempool */
+static unsigned int itemsize = 2048; /*Size of item in the mempool */
+static unsigned int poolsize = 10; /*Number of items in the mempool */
 /* for hdlc buffer */
 static unsigned int itemsize_hdlc = 8192; /*Size of item in the mempool */
 static unsigned int poolsize_hdlc = 8;  /*Number of items in the mempool */
@@ -48,11 +48,10 @@ static unsigned int poolsize_hdlc = 8;  /*Number of items in the mempool */
 static unsigned int itemsize_usb_struct = 20; /*Size of item in the mempool */
 static unsigned int poolsize_usb_struct = 8; /*Number of items in the mempool */
 /* This is the maximum number of user-space clients supported */
-static unsigned int max_clients = 5;
+static unsigned int max_clients = 10;
 /* Timer variables */
 static struct timer_list drain_timer;
 static int timer_in_progress;
-static spinlock_t diagchar_write_lock;
 void *buf_hdlc;
 module_param(itemsize, uint, 0);
 module_param(poolsize, uint, 0);
@@ -71,25 +70,29 @@ static uint16_t delayed_rsp_id = 1;
 
 static void drain_timer_func(unsigned long data)
 {
+	queue_work(driver->diag_wq , &(driver->diag_drain_work));
+}
+
+void diag_drain_work_fn(struct work_struct *work)
+{
 	timer_in_progress = 0;
 
-	if (spin_trylock_bh(&diagchar_write_lock)) {
-		if (buf_hdlc) {
-			driver->usb_write_ptr_svc = (struct diag_request *)
+	mutex_lock(&driver->diagchar_mutex);
+	if (buf_hdlc) {
+		driver->usb_write_ptr_svc = (struct diag_request *)
 			(diagmem_alloc(driver, sizeof(struct diag_request),
 				 POOL_TYPE_USB_STRUCT));
-			driver->usb_write_ptr_svc->buf = buf_hdlc;
-			driver->usb_write_ptr_svc->length = driver->used;
-			diag_write(driver->usb_write_ptr_svc);
-			buf_hdlc = NULL;
+		driver->usb_write_ptr_svc->buf = buf_hdlc;
+		driver->usb_write_ptr_svc->length = driver->used;
+		diag_write(driver->usb_write_ptr_svc);
+		buf_hdlc = NULL;
 #ifdef DIAG_DEBUG
-			printk(KERN_INFO "\n Number of bytes written "
+		printk(KERN_INFO "\n Number of bytes written "
 				 "from timer is %d ", driver->used);
 #endif
-			driver->used = 0;
-		}
-		spin_unlock_bh(&diagchar_write_lock);
+		driver->used = 0;
 	}
+	mutex_unlock(&driver->diagchar_mutex);
 }
 
 static int diagchar_open(struct inode *inode, struct file *file)
@@ -105,9 +108,11 @@ static int diagchar_open(struct inode *inode, struct file *file)
 
 		if (i < driver->num_clients)
 			driver->client_map[i] = current->tgid;
-		else
+		else {
+			mutex_unlock(&driver->diagchar_mutex);
+			printk(KERN_ALERT "Max client limit for DIAG driver reached\n");
 			return -ENOMEM;
-
+		}
 		driver->data_ready[i] |= MSG_MASKS_TYPE;
 		driver->data_ready[i] |= EVENT_MASKS_TYPE;
 		driver->data_ready[i] |= LOG_MASKS_TYPE;
@@ -210,8 +215,10 @@ static int diagchar_read(struct file *file, char __user *buf, size_t count,
 		if (driver->client_map[i] == current->tgid)
 			index = i;
 
-	if (index == -1)
+	if (index == -1) {
+		printk(KERN_ALERT "\n Client PID not found in table");
 		return -EINVAL;
+	}
 
 	wait_event_interruptible(driver->wait_q,
 				  driver->data_ready[index]);
@@ -340,12 +347,12 @@ static int diagchar_write(struct file *file, const char __user *buf,
 
 	err = copy_from_user(buf_copy, buf + 4, payload_size);
 	if (err) {
-		printk(KERN_INFO "diagchar : copy_from_user failed \n");
+		printk(KERN_INFO "diagchar : copy_from_user failed\n");
 		ret = -EFAULT;
 		goto fail_free_copy;
 	}
 #ifdef DIAG_DEBUG
-	printk(KERN_DEBUG "data is --> \n");
+	printk(KERN_DEBUG "data is -->\n");
 	for (i = 0; i < payload_size; i++)
 		printk(KERN_DEBUG "\t %x \t", *(((unsigned char *)buf_copy)+i));
 #endif
@@ -355,20 +362,20 @@ static int diagchar_write(struct file *file, const char __user *buf,
 	send.terminate = 1;
 #ifdef DIAG_DEBUG
 	printk(KERN_INFO "\n Already used bytes in buffer %d, and"
-	" incoming payload size is %d \n", driver->used, payload_size);
-	printk(KERN_DEBUG "hdlc encoded data is --> \n");
+	" incoming payload size is %d\n", driver->used, payload_size);
+	printk(KERN_DEBUG "hdlc encoded data is -->\n");
 	for (i = 0; i < payload_size + 8; i++) {
 		printk(KERN_DEBUG "\t %x \t", *(((unsigned char *)buf_hdlc)+i));
 		if (*(((unsigned char *)buf_hdlc)+i) != 0x7e)
 			length++;
 	}
 #endif
-	spin_lock_bh(&diagchar_write_lock);
+	mutex_lock(&driver->diagchar_mutex);
 	if (!buf_hdlc)
 		buf_hdlc = diagmem_alloc(driver, HDLC_OUT_BUF_SIZE,
 						 POOL_TYPE_HDLC);
 
-	if (HDLC_OUT_BUF_SIZE - driver->used <= payload_size + 7) {
+	if (HDLC_OUT_BUF_SIZE - driver->used <= (2*payload_size) + 3) {
 		driver->usb_write_ptr_svc = (struct diag_request *)
 			(diagmem_alloc(driver, sizeof(struct diag_request),
 				POOL_TYPE_USB_STRUCT));
@@ -383,7 +390,7 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		}
 		buf_hdlc = NULL;
 #ifdef DIAG_DEBUG
-		printk(KERN_INFO "\n size written is %d \n", driver->used);
+		printk(KERN_INFO "\n size written is %d\n", driver->used);
 #endif
 		driver->used = 0;
 		buf_hdlc = diagmem_alloc(driver, HDLC_OUT_BUF_SIZE,
@@ -395,7 +402,7 @@ static int diagchar_write(struct file *file, const char __user *buf,
 	}
 
 	enc.dest = buf_hdlc + driver->used;
-	enc.dest_last = (void *)(buf_hdlc + driver->used + payload_size + 7);
+	enc.dest_last = (void *)(buf_hdlc + driver->used + 2*payload_size + 3);
 	diag_hdlc_encode(&send, &enc);
 
 	/* This is to check if after HDLC encoding, we are still within the
@@ -417,7 +424,7 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		}
 		buf_hdlc = NULL;
 #ifdef DIAG_DEBUG
-		printk(KERN_INFO "\n size written is %d \n", driver->used);
+		printk(KERN_INFO "\n size written is %d\n", driver->used);
 #endif
 		driver->used = 0;
 		buf_hdlc = diagmem_alloc(driver, HDLC_OUT_BUF_SIZE,
@@ -428,7 +435,7 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		}
 		enc.dest = buf_hdlc + driver->used;
 		enc.dest_last = (void *)(buf_hdlc + driver->used +
-							 payload_size + 7);
+							 (2*payload_size) + 3);
 		diag_hdlc_encode(&send, &enc);
 	}
 
@@ -448,12 +455,12 @@ static int diagchar_write(struct file *file, const char __user *buf,
 		}
 		buf_hdlc = NULL;
 #ifdef DIAG_DEBUG
-		printk(KERN_INFO "\n size written is %d \n", driver->used);
+		printk(KERN_INFO "\n size written is %d\n", driver->used);
 #endif
 		driver->used = 0;
 	}
 
-	spin_unlock_bh(&diagchar_write_lock);
+	mutex_unlock(&driver->diagchar_mutex);
 	diagmem_free(driver, buf_copy, POOL_TYPE_COPY);
 	if (!timer_in_progress)	{
 		timer_in_progress = 1;
@@ -463,7 +470,7 @@ static int diagchar_write(struct file *file, const char __user *buf,
 
 fail_free_hdlc:
 	diagmem_free(driver, buf_copy, POOL_TYPE_COPY);
-	spin_unlock_bh(&diagchar_write_lock);
+	mutex_unlock(&driver->diagchar_mutex);
 	return ret;
 
 fail_free_copy:
@@ -549,9 +556,9 @@ static int __init diagchar_init(void)
 		driver->poolsize_usb_struct = poolsize_usb_struct;
 		driver->num_clients = max_clients;
 		mutex_init(&driver->diagchar_mutex);
-		spin_lock_init(&diagchar_write_lock);
 		init_waitqueue_head(&driver->wait_q);
 		diagfwd_init();
+		INIT_WORK(&(driver->diag_drain_work), diag_drain_work_fn);
 		printk(KERN_INFO "diagchar initializing ..\n");
 		driver->num = 1;
 		driver->name = ((void *)driver) + sizeof(struct diagchar_dev);
@@ -564,7 +571,7 @@ static int __init diagchar_init(void)
 			driver->major = MAJOR(dev);
 			driver->minor_start = MINOR(dev);
 		} else {
-			printk(KERN_INFO "Major number not allocated \n");
+			printk(KERN_INFO "Major number not allocated\n");
 			goto fail;
 		}
 		driver->cdev = cdev_alloc();
