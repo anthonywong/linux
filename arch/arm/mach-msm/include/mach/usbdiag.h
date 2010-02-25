@@ -1,6 +1,6 @@
 /* include/asm-arm/arch-msm/usbdiag.h
  *
- * Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
  * All source code in this file is licensed under the following license except
  * where indicated.
@@ -20,23 +20,25 @@
 
 #ifndef _DRIVERS_USB_DIAG_H_
 #define _DRIVERS_USB_DIAG_H_
-#define ENOREQ -1
+struct diag_request {
+	char *buf;
+	int length;
+	int actual;
+	int status;
+	void *context;
+};
 struct diag_operations {
 
 	int (*diag_connect)(void);
 	int (*diag_disconnect)(void);
-	int (*diag_char_write_complete)(unsigned char * , int, int);
-	int (*diag_char_read_complete)(unsigned char *, int , int);
+	int (*diag_char_write_complete)(struct diag_request *);
+	int (*diag_char_read_complete)(struct diag_request *);
 };
 
-struct diag_request {
-	char *buf;
-	int length;
-};
 int diag_open(int);
 void diag_close(void);
-int diag_read(unsigned char *, int);
-int diag_write(unsigned char *, int);
+int diag_read(struct diag_request *);
+int diag_write(struct diag_request *);
 
 int diag_usb_register(struct diag_operations *);
 int diag_usb_unregister(void);
