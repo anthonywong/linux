@@ -50,6 +50,9 @@ ENTRY(cpu_v7_proc_fin)
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x0006			@ .............ca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
+	mrc	p15, 0, r0, c1, c0, 1		@ auxiliary ctrl register
+	bic	r0, r0, #0x2			@ ..............l2en.
+	mcr	p15, 0, r0, c1, c0, 1		@ disable L2 cache
 	ldmfd	sp!, {pc}
 ENDPROC(cpu_v7_proc_fin)
 
