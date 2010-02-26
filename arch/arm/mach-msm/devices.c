@@ -1222,6 +1222,7 @@ struct clk msm_clocks_7x27[] = {
 	CLK_PCOM("usb_hs_clk",	USB_HS_CLK,	NULL, OFF),
 	CLK_PCOM("usb_hs_pclk",	USB_HS_PCLK,	NULL, OFF),
 	CLK_PCOM("usb_otg_clk",	USB_OTG_CLK,	NULL, 0),
+	CLK_PCOM("usb_phy_clk",	USB_PHY_CLK,	NULL, 0),
 	CLK_PCOM("vdc_clk",	VDC_CLK,	NULL, OFF | CLK_MIN),
 	CLK_PCOM("vfe_clk",	VFE_CLK,	NULL, OFF),
 	CLK_PCOM("vfe_mdc_clk",	VFE_MDC_CLK,	NULL, OFF),
@@ -1356,6 +1357,7 @@ struct clk msm_clocks_8x50[] = {
 	CLK_PCOM("usb_hs2_pclk",	USB_HS2_PCLK,	NULL, OFF),
 	CLK_PCOM("usb_hs3_clk",	USB_HS3_CLK,	NULL, OFF),
 	CLK_PCOM("usb_hs3_pclk",	USB_HS3_PCLK,	NULL, OFF),
+	CLK_PCOM("usb_phy_clk",	USB_PHY_CLK,	NULL, 0),
 
 #ifdef CONFIG_MSM_SOC_REV_A
 	CLK_PCOM("grp_2d_clk",	GRP_2D_CLK,	NULL, 0),
