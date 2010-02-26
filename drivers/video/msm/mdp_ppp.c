@@ -1,7 +1,7 @@
 /* drivers/video/msm/src/drv/mdp/mdp_ppp.c
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -1128,7 +1128,11 @@ struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
 		 (dest0_ystride << 16 | dest0_ystride));
 
 	flush_imgs(req, inpBpp, iBuf->bpp, p_src_file, p_dst_file);
+#ifdef CONFIG_MDP_PPP_ASYNC_OP
+	mdp_ppp_process_curr_djob();
+#else
 	mdp_pipe_kickoff(MDP_PPP_TERM, mfd);
+#endif
 }
 
 static int mdp_ppp_verify_req(struct mdp_blit_req *req)

@@ -3,7 +3,7 @@
  * Core MSM framebuffer driver.
  *
  * Copyright (C) 2007 Google Incorporated
- * Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -1422,8 +1422,7 @@ int msm_fb_resume_sw_refresher(struct msm_fb_data_type *mfd)
 	return 0;
 }
 
-void mdp_ppp_put_img(struct mdp_blit_req *req, struct file *p_src_file,
-		struct file *p_dst_file)
+void mdp_ppp_put_img(struct file *p_src_file, struct file *p_dst_file)
 {
 #ifdef CONFIG_ANDROID_PMEM
 	if (p_src_file)
@@ -1445,7 +1444,7 @@ int mdp_blit(struct fb_info *info, struct mdp_blit_req *req)
 		return 0;
 
 	ret = mdp_ppp_blit(info, req, &p_src_file, &p_dst_file);
-	mdp_ppp_put_img(req, p_src_file, p_dst_file);
+	mdp_ppp_put_img(p_src_file, p_dst_file);
 	return ret;
 }
 
@@ -1660,6 +1659,118 @@ static void msm_fb_ensure_memory_coherency_after_dma(struct fb_info *info,
 #endif
 }
 
+#ifdef CONFIG_MDP_PPP_ASYNC_OP
+void msm_fb_ensure_mem_coherency_after_dma(struct fb_info *info,
+	struct mdp_blit_req *req_list, int req_list_count)
+{
+	BUG_ON(!info);
+
+	/*
+	 * Ensure that CPU cache and other internal CPU state is
+	 * updated to reflect any change in memory modified by MDP blit
+	 * DMA.
+	 */
+	msm_fb_ensure_memory_coherency_after_dma(info,
+			req_list, req_list_count);
+}
+
+static int msmfb_async_blit(struct fb_info *info, void __user *p)
+{
+	/*
+	 * CAUTION: The names of the struct types intentionally *DON'T* match
+	 * the names of the variables declared -- they appear to be swapped.
+	 * Read the code carefully and you should see that the variable names
+	 * make sense.
+	 */
+	const int MAX_LIST_WINDOW = 16;
+	struct mdp_blit_req req_list[MAX_LIST_WINDOW];
+	struct mdp_blit_req_list req_list_header;
+
+	int count, i, req_list_count;
+
+	/* Get the count size for the total BLIT request. */
+	if (copy_from_user(&req_list_header, p, sizeof(req_list_header)))
+		return -EFAULT;
+	p += sizeof(req_list_header);
+	count = req_list_header.count;
+	while (count > 0) {
+		/*
+		 * Access the requests through a narrow window to decrease copy
+		 * overhead and make larger requests accessible to the
+		 * coherency management code.
+		 * NOTE: The window size is intended to be larger than the
+		 *       typical request size, but not require more than 2
+		 *       kbytes of stack storage.
+		 */
+		req_list_count = count;
+		if (req_list_count > MAX_LIST_WINDOW)
+			req_list_count = MAX_LIST_WINDOW;
+		if (copy_from_user(&req_list, p,
+				sizeof(struct mdp_blit_req)*req_list_count))
+			return -EFAULT;
+
+		/*
+		 * Ensure that any data CPU may have previously written to
+		 * internal state (but not yet committed to memory) is
+		 * guaranteed to be committed to memory now.
+		 */
+		msm_fb_ensure_memory_coherency_before_dma(info,
+				req_list, req_list_count);
+
+		/*
+		 * Do the blit DMA, if required -- returning early only if
+		 * there is a failure.
+		 */
+		for (i = 0; i < req_list_count; i++) {
+			if (!(req_list[i].flags & MDP_NO_BLIT)) {
+				int ret = 0;
+
+				/* create a new display job */
+				struct mdp_ppp_djob *job = mdp_ppp_new_djob();
+				if (unlikely(!job))
+					return -ENOMEM;
+
+				job->info = info;
+				memcpy(&job->req, &req_list[i],
+					sizeof(struct mdp_blit_req));
+
+				if (unlikely(job->req.src_rect.h == 0 ||
+					job->req.src_rect.w == 0)) {
+					printk(KERN_ERR "mpd_ppp: "
+						"src img of zero size!\n");
+					kfree(job);
+					return -EINVAL;
+				}
+
+				if (unlikely(job->req.dst_rect.h == 0 ||
+					job->req.dst_rect.w == 0)) {
+					kfree(job);
+					continue;
+				}
+
+				/* Do the actual blit. */
+				ret = mdp_ppp_blit(info, &job->req,
+					&job->p_src_file, &job->p_dst_file);
+
+				/*
+				 * Note that early returns don't guarantee
+				 * memory coherency.
+				 */
+				if (ret || mdp_ppp_get_ret_code()) {
+					kfree(job);
+					return ret;
+				}
+			}
+		}
+
+		/* Go to next window of requests. */
+		count -= req_list_count;
+		p += sizeof(struct mdp_blit_req)*req_list_count;
+	}
+	return 0;
+}
+#else
+
 /*
  * NOTE: The userspace issues blit operations in a sequence, the sequence
  * start with a operation marked START and ends in an operation marked
@@ -1745,6 +1856,7 @@ static int msmfb_blit(struct fb_info *info, void __user *p)
 	}
 	return 0;
 }
+#endif
 
 #ifdef CONFIG_FB_MSM_OVERLAY
 static int msmfb_overlay_get(struct fb_info *info, void __user *p)
@@ -1916,7 +2028,14 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 #endif
 	case MSMFB_BLIT:
 		down(&msm_fb_ioctl_ppp_sem);
+#ifdef CONFIG_MDP_PPP_ASYNC_OP
+		ret = msmfb_async_blit(info, argp);
+		mdp_ppp_wait(); /* Wait for all blits to be finished. */
+		if (ret)
+			return ret;
+#else
 		ret = msmfb_blit(info, argp);
+#endif
 		up(&msm_fb_ioctl_ppp_sem);
 
 		break;
@@ -1977,6 +2096,20 @@ static int msm_fb_ioctl(struct fb_info *info, unsigned int cmd,
 #endif
 
 		break;
+
+#ifdef CONFIG_MDP_PPP_ASYNC_OP
+	case MSMFB_ASYNC_BLIT:
+		down(&msm_fb_ioctl_ppp_sem);
+		ret = msmfb_async_blit(info, argp);
+		up(&msm_fb_ioctl_ppp_sem);
+		break;
+
+	case MSMFB_BLIT_FLUSH:
+		down(&msm_fb_ioctl_ppp_sem);
+		mdp_ppp_wait();
+		up(&msm_fb_ioctl_ppp_sem);
+		break;
+#endif
 
 	case MSMFB_GRP_DISP:
 #ifdef CONFIG_FB_MSM_MDP22
