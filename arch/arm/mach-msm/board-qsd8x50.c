@@ -28,6 +28,7 @@
 #include <linux/mfd/tps65023.h>
 #include <linux/bma150.h>
 #include <linux/power_supply.h>
+#include <linux/clk.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -54,13 +55,13 @@
 #include <mach/s1r72v05.h>
 #include <mach/msm_tsif.h>
 #include <mach/msm_battery.h>
+#include <mach/clk.h>
 
 #include "devices.h"
 #include "timer.h"
 #include "socinfo.h"
 #include "msm-keypad-devices.h"
 #include "pm.h"
-#include "proc_comm.h"
 #include <linux/msm_kgsl.h>
 #include <linux/smsc911x.h>
 #ifdef CONFIG_USB_ANDROID
@@ -144,6 +145,8 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
+struct clk *hs_clk;
+struct clk *phy_clk;
 #ifdef CONFIG_USB_FUNCTION
 static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
 	.nluns          = 0x02,
@@ -505,29 +508,19 @@ static int ulpi_write(void __iomem *addr, unsigned val, unsigned reg)
 	return 0;
 }
 
-#define CLKRGM_APPS_RESET_USBH      37
-#define CLKRGM_APPS_RESET_USB_PHY   34
 static void msm_hsusb_apps_reset_link(int reset)
 {
-	unsigned usb_id = CLKRGM_APPS_RESET_USBH;
-
 	if (reset)
-		msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_ASSERT,
-				&usb_id, NULL);
+		clk_reset(hs_clk, CLK_RESET_ASSERT);
 	else
-		msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_DEASSERT,
-				&usb_id, NULL);
+		clk_reset(hs_clk, CLK_RESET_DEASSERT);
 }
 
 static void msm_hsusb_apps_reset_phy(void)
 {
-	unsigned usb_phy_id = CLKRGM_APPS_RESET_USB_PHY;
-
-	msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_ASSERT,
-			&usb_phy_id, NULL);
+	clk_reset(phy_clk, CLK_RESET_ASSERT);
 	msleep(1);
-	msm_proc_comm(PCOM_CLK_REGIME_SEC_RESET_DEASSERT,
-			&usb_phy_id, NULL);
+	clk_reset(phy_clk, CLK_RESET_DEASSERT);
 }
 
 #define ULPI_VERIFY_MAX_LOOP_COUNT  3
@@ -3014,6 +3007,12 @@ __early_param("audio_size=", audio_size_setup);
 
 static void __init qsd8x50_init(void)
 {
+	hs_clk = clk_get(NULL, "usb_hs_clk");
+	if (IS_ERR(hs_clk))
+		printk(KERN_ERR "%s: hs_clk get failed!\n", __func__);
+	phy_clk = clk_get(NULL, "usb_phy_clk");
+	if (IS_ERR(phy_clk))
+		printk(KERN_ERR "%s: phy_clk get failed!\n", __func__);
 	if (socinfo_init() < 0)
 		printk(KERN_ERR "%s: socinfo_init() failed!\n",
 		       __func__);
