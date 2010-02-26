@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2008-2010, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -209,11 +209,11 @@ static void mdp_update_scale_table(int index, int16 *c0, int16 *c1,
 		val =
 		    ((MDP_SCALE_COEFF_MASK & c1[i]) << 16) |
 		    (MDP_SCALE_COEFF_MASK & c0[i]);
-		writel(val, MDP_PPP_SCALE_COEFF_LSBn(index));
+		MDP_OUTP(MDP_PPP_SCALE_COEFF_LSBn(index), val);
 		val =
 		    ((MDP_SCALE_COEFF_MASK & c3[i]) << 16) |
 		    (MDP_SCALE_COEFF_MASK & c2[i]);
-		writel(val, MDP_PPP_SCALE_COEFF_MSBn(index));
+		MDP_OUTP(MDP_PPP_SCALE_COEFF_MSBn(index), val);
 		index++;
 	}
 }
