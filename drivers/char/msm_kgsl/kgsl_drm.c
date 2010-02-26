@@ -525,8 +525,9 @@ kgsl_gem_map(struct drm_gem_object *obj)
 	int index;
 	int ret = -EINVAL;
 
-	/* At some point we will map PMEM in the GPU as well, so handle it
-	   in this function to limit the disruption on the other functions */
+#ifndef CONFIG_MMU_KGSL_MMU
+	/* If no MMU is enabled, then reuse the PMEM phsyical
+	   address as the GPU address */
 
 	if (TYPE_IS_PMEM(priv->type)) {
 		for (index = 0; index < priv->bufcount; index++)
@@ -536,7 +537,7 @@ kgsl_gem_map(struct drm_gem_object *obj)
 		return 0;
 	}
 
-#ifdef CONFIG_MSM_KGSL_MMU
+#else
 	if (priv->flags & DRM_KGSL_GEM_FLAG_MAPPED)
 		return 0;
 
