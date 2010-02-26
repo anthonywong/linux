@@ -849,9 +849,10 @@ CONFIG_DEVKMEM=y
 #
 # Non-8250 serial port support
 #
+CONFIG_SERIAL_CORE=y
 # CONFIG_SERIAL_MAX3100 is not set
 # CONFIG_SERIAL_MSM is not set
-
+CONFIG_SERIAL_MSM_HS=y
 #
 # Diag Support
 #
