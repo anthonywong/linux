@@ -120,6 +120,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 	if (pdata->rep)
 		__set_bit(EV_REP, input->evbit);
 
+	__set_bit(EV_KEY, input->evbit);
 	ddata->input = input;
 	ddata->nbuttons = pdata->nbuttons;
 
