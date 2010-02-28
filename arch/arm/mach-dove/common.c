@@ -1635,9 +1635,9 @@ void __init dove_xor1_init(void)
  * General
  ****************************************************************************/
 static struct gpio_keys_button gpio_standby_button = {
-	.code			= KEY_SUSPEND,
+	.code			= KEY_SLEEP,
 	.desc			= "standby",
-	.type			= EV_PWR,
+	.type			= EV_KEY,
 	.wakeup			= 1,
 };
 
