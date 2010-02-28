@@ -81,18 +81,6 @@ unsigned int __initdata vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
 
 unsigned int __initdata gpu_size = DOVE_GPU_MEM_SIZE;
 
-static int __init gpu_size_setup(char *str)
-{
-	get_option(&str, &gpu_size);
-
-	if (!gpu_size)
-		return 1;
-
-	gpu_size <<= 20;
-
-	return 1;
-}
-__setup("gpu_size=", gpu_size_setup);
 
 unsigned int __initdata pvt_size = 0;
 
