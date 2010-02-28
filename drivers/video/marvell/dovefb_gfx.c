@@ -247,7 +247,6 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 	return;
 }
 
-
 /*
  * The hardware clock divider has an integer and a fractional
  * stage:
@@ -320,16 +319,16 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 		}
 	}
 
-#ifndef CONFIG_DOVE_REV_Z0
-	if (lcd_accurate_clock)
+	if (lcd_accurate_clock) {
 		set_external_lcd_clock(axi_div, is_ext);
-	else {
+	} else {
 		if (0 == init_ext_divider) {
 			init_ext_divider = 1;
+			printk(KERN_ERR "fix to (2G/%d) without half divider.\n", (2000000000/dmi->sclk_clock));
 			set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
 		}
 	}
-#endif
+
 	/*
 	 * Set setting to reg.
 	 */
@@ -1293,9 +1292,8 @@ int dovefb_gfx_suspend(struct dovefb_layer_info *dfli, pm_message_t mesg)
 	printk(KERN_INFO "dovefb_gfx: save resolution: <%dx%d>\n",
 		var->xres, var->yres);
 
-#ifndef CONFIG_DOVEFB_SINGLE_DISPLAY_ACCURATE_PCLK
 	init_ext_divider = 0;
-#endif
+
 	if (mesg.event & PM_EVENT_SLEEP) {
 		fb_set_suspend(fi, 1);
 		dovefb_blank(FB_BLANK_POWERDOWN, fi);
