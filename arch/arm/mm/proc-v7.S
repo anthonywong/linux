@@ -208,6 +208,10 @@ ENDPROC(cpu_v7_set_pte_ext)
 
 cpu_v7_name:
 	.ascii	"ARMv7 Processor"
+	.align
+
+cpu_pj4_name:
+	.ascii	"Marvell PJ4 v7 Processor"
 #ifdef CONFIG_IWMMXT
 	.ascii	"-wmmx"
 #endif

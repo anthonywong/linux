@@ -159,6 +159,7 @@ cpu_pj4_name:
 	.ascii	"-wco"
 #endif
 	.ascii	"\0"
+	.size	cpu_pj4_name, . - cpu_pj4_name
 	.align
 
 	__INIT
