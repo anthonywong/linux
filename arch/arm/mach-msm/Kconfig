@@ -703,6 +703,13 @@ config MSM_VREG_SWITCH_INVERTED
 	help
 	  Reverses the enable and disable for vreg switch.
 
+config MSM_QDSP6
+	tristate "QDSP6 support"
+	depends on ARCH_QSD8X50 && ANDROID_PMEM
+	default y
+	help
+	  Enable support for qdsp6. This provides audio and video functionality.
+
 config MSM_DMA_TEST
 	tristate "MSM DMA test module"
 	default m

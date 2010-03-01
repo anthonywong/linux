@@ -49,6 +49,7 @@ obj-$(CONFIG_MSM_RPCSERVERS) += rpc_server_dog_keepalive.o
 obj-$(CONFIG_MSM_DALRPC) += dal.o
 obj-$(CONFIG_MSM_DALRPC_TEST) += dal_remotetest.o
 obj-$(CONFIG_MSM_RPCSERVER_HANDSET) += rpc_server_handset.o
+obj-$(CONFIG_MSM_QDSP6) += qdsp6/
 ifdef CONFIG_MSM_N_WAY_SMSM
 	obj-$(CONFIG_PM) += pm2.o
 else
@@ -85,5 +86,3 @@ obj-$(CONFIG_HTC_HEADSET) += htc_headset.o
 obj-$(CONFIG_PMIC8058) += pmic8058-gpio.o pmic8058-mpp.o
 
 obj-$(CONFIG_DEBUG_FS) += pmic_debugfs.o
-obj-$(CONFIG_QSD_AUDIO) += qdsp6/
-
