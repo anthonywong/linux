@@ -1415,7 +1415,11 @@ msmsdcc_probe(struct platform_device *pdev)
 	 */
 	mmc->ops = &msmsdcc_ops;
 	mmc->f_min = msmsdcc_fmin;
-	mmc->f_max = msmsdcc_fmax;
+	if ((host->pdev_id == 1) || (host->pdev_id == 2))
+		mmc->f_max = 40000000;
+	else
+		mmc->f_max = msmsdcc_fmax;
+
 	mmc->ocr_avail = plat->ocr_mask;
 	mmc->caps |= plat->mmc_bus_width;
 
