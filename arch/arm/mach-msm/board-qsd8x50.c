@@ -29,6 +29,8 @@
 #include <linux/bma150.h>
 #include <linux/power_supply.h>
 #include <linux/clk.h>
+#include <linux/gpio_keys.h>
+
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -1236,6 +1238,42 @@ static struct lcdc_platform_data lcdc_pdata = {
 static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = 98,
 };
+
+#define LID_SENSOR_GPIO		41
+
+static struct gpio_keys_button gpio_keys_buttons[] = {
+	{
+		.code           = SW_LID,
+		.gpio           = LID_SENSOR_GPIO,
+		.desc           = "Lid",
+		.active_low     = 1,
+		.type		= EV_SW,
+		.wakeup		= 1
+	},
+};
+
+static struct gpio_keys_platform_data gpio_keys_data = {
+	.buttons        = gpio_keys_buttons,
+	.nbuttons       = ARRAY_SIZE(gpio_keys_buttons),
+	.rep		= 0,
+};
+
+static struct platform_device msm_gpio_keys = {
+	.name           = "gpio-keys",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &gpio_keys_data,
+	},
+};
+
+static void __init lid_sensor_gpio_init(void)
+{
+	if (gpio_tlmm_config(GPIO_CFG(LID_SENSOR_GPIO, 0, GPIO_INPUT,
+		GPIO_PULL_UP, GPIO_6MA), GPIO_ENABLE)) {
+		pr_err("%s: gpio_tlmm_config for gpio=%d failed", __func__,
+						LID_SENSOR_GPIO);
+	}
+}
 
 static void __init msm_fb_add_devices(void)
 {
@@ -2448,6 +2486,7 @@ static struct platform_device *devices[] __initdata = {
 	&msm_camera_sensor_mt9p012_km,
 #endif
 	&msm_batt_device,
+	&msm_gpio_keys,
 };
 
 static void __init qsd8x50_init_irq(void)
@@ -3048,6 +3087,9 @@ static void __init qsd8x50_init(void)
 		bt_power_init();
 	audio_gpio_init();
 	msm_device_i2c_init();
+
+	if (machine_is_qsd8x50a_st1_5())
+		lid_sensor_gpio_init();
 #ifndef CONFIG_ST1_EXPERIMENTAL
 	msm_qsd_spi_init();
 #endif
