@@ -741,7 +741,6 @@ CONFIG_SMSC911X=y
 #
 # CONFIG_WLAN_PRE80211 is not set
 # CONFIG_WLAN_80211 is not set
-CONFIG_LIBRA_SDIOIF=y
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
@@ -852,13 +851,15 @@ CONFIG_DEVKMEM=y
 #
 # Non-8250 serial port support
 #
-CONFIG_SERIAL_CORE=y
 # CONFIG_SERIAL_MAX3100 is not set
+CONFIG_SERIAL_CORE=y
 # CONFIG_SERIAL_MSM is not set
 CONFIG_SERIAL_MSM_HS=y
+
 #
 # Diag Support
 #
+CONFIG_DIAG_CHAR=m
 CONFIG_UNIX98_PTYS=y
 # CONFIG_DEVPTS_MULTIPLE_INSTANCES is not set
 # CONFIG_LEGACY_PTYS is not set
