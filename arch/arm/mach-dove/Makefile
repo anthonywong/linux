@@ -18,4 +18,4 @@ obj-$(CONFIG_PROC_FS)		+= dump_cp15_regs.o
 include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 obj-y           += mv_hal_support/
-
+obj-m		+= gc600_driver_dove/
