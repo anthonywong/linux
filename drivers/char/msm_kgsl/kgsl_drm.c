@@ -49,7 +49,7 @@
 #else
 #define TYPE_IS_PMEM(_t) \
   (((_t) == DRM_KGSL_GEM_TYPE_EBI) || \
-   ((_t) & (DRM_KGSL_GEM_TYPE_PMEM & DRM_KGSL_GEM_PMEM_EBI)))
+   ((_t) & (DRM_KGSL_GEM_TYPE_PMEM | DRM_KGSL_GEM_PMEM_EBI)))
 #endif
 
 /* Returns true if the memory type is regular */
