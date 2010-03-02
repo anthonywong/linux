@@ -209,7 +209,6 @@ cpcihp_generic
 cpcihp_zt5550
 cpqarray
 cpu5wdt
-cpu_debug
 cpuid
 cr_bllcd
 crc32c
