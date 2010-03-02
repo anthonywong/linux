@@ -1387,6 +1387,11 @@ static struct resource msm_audio_resources[] = {
 
 };
 
+static unsigned st15_audio_gpio_on[] = {
+	/* enable headset amplifier */
+	GPIO_CFG(48, 0, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),
+};
+
 static unsigned audio_gpio_on[] = {
 	GPIO_CFG(68, 1, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),	/* PCM_DOUT */
 	GPIO_CFG(69, 1, GPIO_INPUT,  GPIO_NO_PULL, GPIO_2MA),	/* PCM_DIN */
@@ -1399,6 +1404,12 @@ static unsigned audio_gpio_on[] = {
 	GPIO_CFG(146, 2, GPIO_OUTPUT, GPIO_NO_PULL, GPIO_2MA),	/* MA_CLK_OUT */
 };
 
+void q6audio_enable_spkr_phone(int enable)
+{
+	if (machine_is_qsd8x50a_st1_5())
+		gpio_set_value(48, (enable != 0));
+}
+
 static void __init audio_gpio_init(void)
 {
 	int pin, rc;
@@ -1410,6 +1421,17 @@ static void __init audio_gpio_init(void)
 			printk(KERN_ERR
 				"%s: gpio_tlmm_config(%#x)=%d\n",
 				__func__, audio_gpio_on[pin], rc);
+			return;
+		}
+	}
+
+	if (machine_is_qsd8x50_st1()) {
+		/* enable headset amplifier */
+		rc = gpio_tlmm_config(st15_audio_gpio_on[0], GPIO_ENABLE);
+		if (rc) {
+			printk(KERN_ERR
+				"%s: gpio_tlmm_config(%#x)=%d\n",
+				__func__, st15_audio_gpio_on[0], rc);
 			return;
 		}
 	}
