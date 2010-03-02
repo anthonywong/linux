@@ -1,0 +1,288 @@
+##############################################################################
+#  
+#    Copyright (C) 2002 - 2008 by Vivante Corp.
+#  
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public Lisence as published by
+#    the Free Software Foundation; either version 2 of the license, or
+#    (at your option) any later version.
+#  
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+#    GNU General Public Lisence for more details.
+#  
+#    You should have received a copy of the GNU General Public License
+#    along with this program; if not write to the Free Software
+#    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+#  
+##############################################################################
+
+
+#
+# Common inlude file for Linux build.
+#
+
+################################################################
+# Arch.
+
+ARCH_TYPE       ?= arm
+CPU_TYPE        ?= arm920
+CPU_ARCH        ?= 0
+STATIC_LINK     ?= 0
+EGL_API_FB      ?= 0
+USE_VDK         ?= 0
+USE_PROFILER    ?= 0
+USE_SW_FB       ?= 0
+USE_3D_VG		=1
+ABI             ?= 0
+ANDROID         ?= 0
+EGL_API_ANDROID ?= 0
+EGL_API_ECLAIR  ?= 0
+ENUM_WORKAROUND ?= 0
+ENDIANNESS		?= 0
+
+################################################################
+# Toolchain.
+
+CROSS_COMPILE ?= arm-none-linux-gnueabi-
+
+CC     := $(CROSS_COMPILE)gcc
+CXX    := $(CROSS_COMPILE)g++
+AR     := $(CROSS_COMPILE)ar
+AS     := $(CROSS_COMPILE)as
+LD     := $(CROSS_COMPILE)ld
+RANLIB := $(CROSS_COMPILE)ranlib
+STRIP  := $(CROSS_COMPILE)strip
+
+################################################################
+# Make command.
+
+MAKE     = make --makefile=Makefile.linux
+DRV_MAKE = make --makefile=Kbuild
+
+################################################################
+# Resource.
+
+TOOL_DIR     ?= /home/software/Linux
+ANDROID_HOME ?=
+KERNEL_DIR   ?= $(TOOL_DIR)/kernel
+X11_ARM_DIR  ?= $(TOOL_DIR)/X11_ARM
+
+################################################################
+# Target directory.
+
+ifeq ($(DEBUG), 1)
+OBJ_DIR	?= bin_d
+else
+OBJ_DIR	?= bin_r
+endif
+
+################################################################
+# Force to use the new compiler.
+
+SC2X_NEW ?= 1
+ES11_NEW ?= 1
+
+################################################################
+# Release directory.
+
+SDK_DIR ?= $(AQROOT)/build/sdk
+VIVANTE_SDK_DIR ?= $(SDK_DIR)
+VIVANTE_SDK_INC ?= $(VIVANTE_SDK_DIR)/include
+VIVANTE_SDK_LIB ?= $(VIVANTE_SDK_DIR)/drivers
+
+################################################################
+# Force to use dma_coherent_* stuff.
+
+NO_DMA_COHERENT ?= 0
+
+################################################################
+# Set this value to 1 if you are using ARM L2 cache.
+
+ENABLE_ARM_L2_CACHE	?= 0
+
+################################################################
+# Set this value to 1 if you are using DOVE board.
+CONFIG_DOVE_GPU		?= 0
+
+###############################################################
+# Common CFLAGS.
+ifeq ($(ENUM_WORKAROUND), 1)
+    CFLAGS += -DENUM_WORKAROUND=1
+else
+    CFLAGS += -DENUM_WORKAROUND=0
+endif
+
+ifeq ($(ABI), 0)
+else
+	CFLAGS += -mabi=$(ABI)
+endif
+
+ifeq ($(ENDIANNESS), 0)
+else
+    CFLAGS += -m$(ENDIANNESS)
+endif
+
+ifeq ($(ANDROID), 1)
+ifeq ($(ARCH_TYPE), arm)
+	CFLAGS += -I$(ANDROID_HOME)/bionic/libstdc++/include -I$(ANDROID_HOME)/bionic/libc/arch-arm/include -I$(ANDROID_HOME)/bionic/libc/include -I$(ANDROID_HOME)/bionic/libc/kernel/common/ -I$(ANDROID_HOME)/bionic/libc/kernel/arch-arm -I$(ANDROID_HOME)/bionic/libm/include -I$(ANDROID_HOME)/bionic/libm/include/arch/arm -I$(ANDROID_HOME)/bionic/libthread_db/include -I$(ANDROID_HOME)/system/core/include -I$(ANDROID_HOME)/frameworks/base/include 
+	CFLAGS += -DANDROID -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ -fno-short-enums
+endif
+
+ifeq ($(ARCH_TYPE), xburst)
+	CFLAGS += -I$(ANDROID_HOME)/bionic/libstdc++/include -I$(ANDROID_HOME)/bionic/libc/arch-xburst/include -I$(ANDROID_HOME)/bionic/libc/include -I$(ANDROID_HOME)/bionic/libc/kernel/common/ -I$(ANDROID_HOME)/bionic/libc/kernel/arch-xburst -I$(ANDROID_HOME)/bionic/libm/include -I$(ANDROID_HOME)/bionic/libm/include/mips -I$(ANDROID_HOME)/bionic/libthread_db/include
+endif
+
+USE_VDK = 0
+STATIC_LINK = 1
+ifeq ($(EGL_API_ANDROID), 1)
+	CFLAGS += -DEGL_API_ANDROID
+endif
+ifeq ($(EGL_API_ECLAIR), 1)
+	CFLAGS += -I$(ANDROID_HOME)/frameworks/base/include/ui -I$(ANDROID_HOME)/hardware/libhardware/include
+	CFLAGS += -DEGL_API_ECLAIR
+endif
+endif
+
+ifeq ($(FLAREON),1)
+	CFLAGS += -Wall -DLINUX -D_REENTRANT -fno-strict-aliasing
+else
+	CFLAGS += -Wall -DLINUX -D_REENTRANT -fno-strict-aliasing
+endif
+
+ifeq ($(CPU_TYPE), 0)
+else
+	CFLAGS += -mcpu=$(CPU_TYPE)
+	AFLAGS += -mcpu=$(CPU_TYPE)
+endif
+
+ifeq ($(CPU_ARCH), 0)
+else
+	CFLAGS += -march=$(CPU_ARCH)
+	AFLAGS += -march=$(CPU_ARCH)
+endif
+
+ifeq ($(DEBUG), 1)
+	CFLAGS += -g -fPIC -O0 -DDEBUG -D_DEBUG
+else
+	CFLAGS += -O2 -fPIC -Werror
+endif
+
+ifeq ($(EGL_API_FB), 1)
+	CFLAGS += -DEGL_API_FB
+endif
+
+ifeq ($(STATIC_LINK), 1)
+	CFLAGS += -DSTATIC_LINK
+endif
+
+ifeq ($(USE_VDK), 1)
+	CFLAGS += -DUSE_VDK=1 -DUSE_SW_FB=$(USE_SW_FB)
+else
+	CFLAGS += -DUSE_VDK=0 -DUSE_SW_FB=$(USE_SW_FB)
+endif
+
+ifeq ($(USE_FB_DOUBLE_BUFFER), 1)
+	CFLAGS += -DUSE_FB_DOUBLE_BUFFER=1
+else
+	CFLAGS += -DUSE_FB_DOUBLE_BUFFER=0
+endif
+
+CXXFLAGS += -fno-short-enums
+
+################################################################################
+# Build with profiler
+ifeq ($(USE_PROFILER),1)
+CFLAGS += -DVIVANTE_PROFILER=1
+else
+CFLAGS += -DVIVANTE_PROFILER=0
+endif
+
+
+################################################################
+# Module directories.
+
+# drivers
+GAL_DIR         := $(AQROOT)/hal
+ifeq ($(ES11_NEW), 1)
+GLES11_DIR      := $(AQROOT)/driver/openGL/libGLESv11
+else
+GLES11_DIR      := $(AQROOT)/driver/openGL/es11/driver
+endif
+EGL_DIR         := $(AQROOT)/driver/openGL/egl
+GLES2X_DIR      := $(AQROOT)/driver/openGL/libGLESv2x
+ifeq ($(USE_3D_VG), 1)
+VG11_DIR        := $(AQROOT)/driver/openVG/vg11
+OVG11_DIR       := $(AQROOT)/driver/openVG/vg11/driver
+else
+VG11_DIR        := $(AQROOT)/driver/openGL/libOpenVG
+OVG11_DIR       := $(AQROOT)/driver/openGL/libOpenVG
+endif
+GFX_DIR         := $(AQROOT)/driver/gfx
+
+ifeq ($(SC2X_NEW), 1)
+SC2X_LIB_DIR    := $(GLES2X_DIR)/compiler/libGLESv2SC/entry
+else
+SC2X_LIB_DIR    := $(GLES2X_DIR)/slc/glslang/MachineIndependent/compiler
+endif
+
+# applications
+ES11_TEST_DIR   := $(AQROOT)/test/es11/Linux
+ES2X_TEST_DIR   := $(AQROOT)/test/es20
+ES2X_EXTERN_DIR := $(AQROOT)/test/es20/extern/PublicSDK
+ES20_TEST_DIR   := $(AQROOT)/sdk/samples/es20
+
+ifeq ($(USE_VDK), 0)
+TUTORIAL_DIR    := $(ES11_TEST_DIR)
+endif
+VDK_TEST_DIR    := $(AQROOT)/sdk/samples/vdk
+HAL_TEST_DIR    := $(AQROOT)/sdk
+HAL_CUSTOM_DIR	:= $(AQROOT)/test/hal/Linux/custom
+CHIPINFO_DIR    := $(AQROOT)/test/hal/common/chipinfo
+VDK_DIR         := $(AQROOT)/sdk/vdk
+
+ifeq ($(USE_VDK), 1)
+CONFORM_DIR     := $(AQROOT)/test/es11/conform
+else
+# old es11 conformce test was removed
+# $(AQROOT)/driver/openGL/es11/test/conform
+CONFORM_DIR	    := 
+endif
+
+GLBES11_DIR     := $(AQROOT)/test/es11/GLBenchmark_ES1.1v2
+GLBES20_DIR     := $(AQROOT)/test/es20/GLBenchmark2_RC2
+GLBESNAVI11_DIR := $(AQROOT)/test/es11/GLBenchmark_Navi_Beta2/es11
+GLBESNAVI20_DIR := $(AQROOT)/test/es11/GLBenchmark_Navi_Beta2/es20
+GTF_DIR         := $(AQROOT)/test/es20/conform/GTF_ES/glsl/GTF
+VGMARK_DIR      := $(AQROOT)/test/vg/common/VGMark_10_src
+VGMARK11_DIR    := $(AQROOT)/test/vg11/VGMark11/VGMark11_addendum
+VGCTS_DIR       := $(AQROOT)/test/vg/ovg_1.0.1_cts_rc10
+VGCTS11_DIR     := $(AQROOT)/test/vg/ovg_1.1_cts_rc10
+ifeq ($(USE_VDK), 1)
+MM06_DIR        := $(AQROOT)/test/es11/common/3DMarkMobile06/configuration/vdk
+else
+MM06_DIR        := $(ES11_TEST_DIR)/3DMarkMobile06
+endif
+MM07_DIR        := $(ES2X_TEST_DIR)/3DMarkMobileES2_RC_src
+MM07U_DIR       := $(ES2X_TEST_DIR)/3DMarkMobileES2_Update
+SM20_DIR        := $(AQROOT)/test/es20/SimulationMark_ES_2.0
+KANZI_DIR       := $(AQROOT)/test/es20/Kanzi_UI_demo/Kanzi_UI_src
+AB20_DIR        := $(ES2X_TEST_DIR)/Automotive
+GFX_TEST_DIR    := $(AQROOT)/test/gfx
+ES11_UNIT_DIR   := $(AQROOT)/test/es11/common/UnitTest
+ES11_EXTERN_DIR := $(AQROOT)/test/es11/extern
+VG11_UNIT_DIR   := $(AQROOT)/test/vg11/UnitTest
+VG11_EXTERN_DIR := $(AQROOT)/test/vg11/extern
+
+# third party resources
+DFB_DIR ?= $(TOOL_DIR)/dfb
+
+TEXTURE5_DIR    := $(ES2X_TEST_DIR)/texture5
+TEXTURE7_DIR    := $(ES2X_TEST_DIR)/texture7
+
+ACTINIUM_DIR    := $(ES2X_TEST_DIR)/actinium
+VVLAUNCHER_DIR  := $(ES2X_TEST_DIR)/vv_launcher
+
+
+
