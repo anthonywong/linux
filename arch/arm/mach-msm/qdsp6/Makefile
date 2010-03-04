@@ -19,6 +19,7 @@ obj-$(CONFIG_QSD_AUDIO) += msm8k_amrnb_in.o
 obj-$(CONFIG_QSD_AUDIO) += msm8k_audio_dev_ctrl.o
 obj-$(CONFIG_QSD_AUDIO) += msm8k_evrc_in.o
 obj-$(CONFIG_QSD_AUDIO) += msm8k_qcelp13k_in.o
+obj-$(CONFIG_QSD_AUDIOV2) += audiov2/
 obj-y += dal.o
 obj-y += msm_q6vdec.o
 obj-y += msm_q6venc.o
