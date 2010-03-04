@@ -26,3 +26,4 @@ obj-$(CONFIG_EP93XX_PWM)	+= ep93xx_pwm.o
 obj-$(CONFIG_C2PORT)		+= c2port/
 obj-y				+= eeprom/
 obj-y				+= cb710/
+obj-$(CONFIG_DOVE_MRVL_BMM)	+= mrvl-bmm/

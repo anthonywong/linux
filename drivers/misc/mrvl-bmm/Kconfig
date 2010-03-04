@@ -1,0 +1,13 @@
+config DOVE_MRVL_BMM
+	tristate "Marvell Buffer management module"
+	default y
+	help
+	  This driver needs to co-work with user space BMM library.
+	  The user space driver can use this driver/library to maintain it's own buffer.
+
+config DOVE_VPU_GPU_USE_BMM
+	bool "Dove VPU & GPU use BMM"
+	depends on DOVE_MRVL_BMM
+	default y
+	help
+	  Dove VPU & GPU use BMM to maintian buffer.

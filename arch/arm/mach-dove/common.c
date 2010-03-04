@@ -1276,6 +1276,20 @@ void __init dove_vmeta_init(void)
 #endif
 }
 
+#ifdef CONFIG_DOVE_VPU_GPU_USE_BMM
+unsigned int dove_vmeta_get_memory_start(void)
+{
+	return dove_vmeta_memory_start;
+}
+EXPORT_SYMBOL(dove_vmeta_get_memory_start);
+
+int dove_vmeta_get_memory_size(void)
+{
+	return vmeta_size;
+}
+EXPORT_SYMBOL(dove_vmeta_get_memory_size);
+#endif
+
 /*****************************************************************************
  * GPU
  ****************************************************************************/
@@ -1322,6 +1336,19 @@ void __init dove_gpu_init(void)
 #endif
 }
 
+#ifdef CONFIG_DOVE_VPU_GPU_USE_BMM
+unsigned int dove_gpu_get_memory_start(void)
+{
+	return dove_gpu_memory_start;
+}
+EXPORT_SYMBOL(dove_gpu_get_memory_start);
+
+int dove_gpu_get_memory_size(void)
+{
+	return gpu_size;
+}
+EXPORT_SYMBOL(dove_gpu_get_memory_size);
+#endif
 
 /*****************************************************************************
  * SSP
