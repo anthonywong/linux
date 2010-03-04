@@ -163,15 +163,6 @@ static int __init cpufreq_disable_setup(char *__unused)
 
 __setup("cpufreq_disable", cpufreq_disable_setup);
 
-int dvs_enable = 0;
-static int __init dvs_enable_setup(char *__unused)
-{
-     dvs_enable = 1;
-     return 1;
-}
-
-__setup("dvs_enable", dvs_enable_setup);
-
 
 #include "common.h"
 
