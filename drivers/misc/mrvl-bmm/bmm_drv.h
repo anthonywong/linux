@@ -44,6 +44,7 @@
 #define BMM_DMA_SYNC		(11)
 #define BMM_CONSISTENT_SYNC	(12)
 #define BMM_DUMP		(13)
+#define BMM_GET_ALLOCATED_SPACE	(14)
 
 /* ioctl arguments: memory attributes */
 #define BMM_ATTR_DEFAULT	(0)		/* cacheable bufferable */
@@ -60,9 +61,12 @@
 #define BMM_DMA_FROM_DEVICE	DMA_FROM_DEVICE		/* 2 */
 #define BMM_DMA_NONE		DMA_NONE		/* 3 */
 
-#ifdef CONFIG_DOVE_VPU_GPU_USE_BMM
+#ifdef CONFIG_DOVE_VPU_USE_BMM
 extern unsigned int dove_vmeta_get_memory_start(void);
 extern int dove_vmeta_get_memory_size(void);
+#endif
+
+#ifdef CONFIG_DOVE_GPU_USE_BMM
 extern unsigned int dove_gpu_get_memory_start(void);
 extern int dove_gpu_get_memory_size(void);
 #endif
