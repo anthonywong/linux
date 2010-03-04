@@ -269,7 +269,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	struct dovefb_info *info = dfli->info;
 	u32 axi_div, lcd_div, is_ext;
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
-
+	u32 isInterlaced = 0;
 
 	/*
 	 * Notice: The field pixclock is used by linux fb
@@ -284,6 +284,8 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 		printk(KERN_ERR "Input refresh or pixclock is wrong.\n");
 		return;
 	}
+
+	isInterlaced = (m->vmode & FB_VMODE_INTERLACED) ? 1 : 0;
 
 	/*
 	 * Using PLL/AXI clock.
@@ -301,7 +303,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 		m = &info->out_vmode;
 
 	do_div(div_result, m->pixclock);
-	needed_pixclk = (u32)div_result;
+	needed_pixclk = (u32)(isInterlaced ? (div_result/2) : div_result);
 
 	if (lcd_accurate_clock) {
 		calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
@@ -566,7 +568,7 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 }
 
 static int set_frame_timings(const struct dovefb_layer_info *dfli,
-	struct fb_var_screeninfo *var)
+	const struct fb_var_screeninfo *var)
 {
 	struct dovefb_info *info = dfli->info;
 	unsigned int active_w, active_h;
@@ -615,7 +617,6 @@ static int set_frame_timings(const struct dovefb_layer_info *dfli,
 		active_h /= 2;
 		zoomed_h /= 2;
 		oh /= 2;
-		var->pixclock *= 2;
 	}
 
 	/* calc total width and height.*/
