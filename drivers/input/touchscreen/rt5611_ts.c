@@ -15,7 +15,7 @@
 #define RT5611_TS_DEBUG(format, args...)
 
 /* #define SWAP_X */
-/*  #define SWAP_Y */
+#define SWAP_Y
 
 #define ABS(X) ((X) < 0 ? (-1 * (X)) : (X))
 static const u16 rt5611_reg_defalt_00h = 0x59b4;
