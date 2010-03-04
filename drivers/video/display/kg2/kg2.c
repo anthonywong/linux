@@ -202,7 +202,7 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 		return;
 	}
 
-	dev_info(&i2c_client_kg2->dev, "Set KG2 input timing\n");
+	dev_dbg(&i2c_client_kg2->dev, "Set KG2 input timing\n");
 
 	// Log if KG2 is accessed by two or more drivers simultaneously
 	if (bI2CBusy == true)
@@ -218,9 +218,9 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 		avcInputTiming = *timing;
 	}
 
-	dev_info(&i2c_client_kg2->dev, "Ht:%5d, Ha:%5d, Hfp:%5d, Hsw:%5d, Hsp: %d\n",
+	dev_dbg(&i2c_client_kg2->dev, "Ht:%5d, Ha:%5d, Hfp:%5d, Hsw:%5d, Hsp: %d\n",
 	         avcInputTiming.HTotal, avcInputTiming.HActive, avcInputTiming.HFrontPorch, avcInputTiming.HSyncWidth, avcInputTiming.HPolarity);
-	dev_info(&i2c_client_kg2->dev, "Vt:%5d, Va:%5d, Vfp:%5d, Vsw:%5d, Vsp: %d\n",
+	dev_dbg(&i2c_client_kg2->dev, "Vt:%5d, Va:%5d, Vfp:%5d, Vsw:%5d, Vsp: %d\n",
 	         avcInputTiming.VTotal, avcInputTiming.VActive, avcInputTiming.VFrontPorch, avcInputTiming.VSyncWidth, avcInputTiming.VPolarity);
 
 	// Calculate the values of the active window coordinates
