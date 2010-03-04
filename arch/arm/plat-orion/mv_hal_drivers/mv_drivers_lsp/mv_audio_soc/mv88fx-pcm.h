@@ -91,8 +91,8 @@ struct mv88fx_snd_machine_data {
 
 #define MV88FX_SND_MIN_PERIODS		8
 #define MV88FX_SND_MAX_PERIODS		16
-#define	MV88FX_SND_MIN_PERIOD_BYTES	0x4000
-#define	MV88FX_SND_MAX_PERIOD_BYTES	0x4000
+#define	MV88FX_SND_MIN_PERIOD_BYTES	0x100
+#define	MV88FX_SND_MAX_PERIOD_BYTES	0x1000
 
 
 /* read/write registers */
