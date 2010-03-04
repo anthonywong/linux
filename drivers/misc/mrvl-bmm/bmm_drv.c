@@ -33,7 +33,7 @@
 #include <linux/miscdevice.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
-#ifdef CONFIG_DOVE_VPU_GPU_USE_BMM
+#ifdef CONFIG_DOVE_VPU_USE_BMM
 #include <linux/io.h>
 #endif
 
@@ -62,7 +62,7 @@
 /* Switch PTE page */
 //#define BMM_HAS_PTE_PAGE
 
-static unsigned long bmm_size_mb = 64;
+static unsigned long bmm_size_mb = 8;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Li Li <lea.li@marvell.com>");
@@ -372,7 +372,6 @@ static int bmm_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long vm_len = vma->vm_end - vma->vm_start;
 	unsigned long paddr = (vma->vm_pgoff) << PAGE_SHIFT;
-	unsigned long map_flag;
 	bmm_block_t *pbmm;
 
 	UNUSED_PARAM(file);
@@ -384,22 +383,16 @@ static int bmm_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 	}
 
-#ifndef CONFIG_DOVE_VPU_GPU_USE_BMM
 	vma->vm_flags |= VM_RESERVED;	/* Don't swap */
 	vma->vm_flags |= VM_DONTEXPAND; /* Don't remap */
 	vma->vm_flags |= VM_DONTCOPY;	/* Don't fork */
-#else
-	vma->vm_flags |= VM_IO | VM_RESERVED;
-#endif
 
-	map_flag = pgprot_val(vma->vm_page_prot);
-
-	if(pbmm->attr & BMM_ATTR_NONBUFFERABLE)
-		map_flag = pgprot_noncached(map_flag);
+	if(!(pbmm->attr & BMM_ATTR_NONBUFFERABLE))
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	if(pbmm->attr & BMM_ATTR_NONCACHEABLE)
-		map_flag = pgprot_writecombine(map_flag);
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
-	if(remap_pfn_range(vma, vma->vm_start, paddr >> PAGE_SHIFT, vm_len, __pgprot(map_flag))) {
+	if(remap_pfn_range(vma, vma->vm_start, paddr >> PAGE_SHIFT, vm_len, vma->vm_page_prot)) {
 		pr_debug("bmm_mmap: EAGAIN\n");
 		return -EAGAIN;
 	}
@@ -414,6 +407,22 @@ static int bmm_mmap(struct file *file, struct vm_area_struct *vma)
 	//consistent_sync(vma->vm_start, vm_len, DMA_BIDIRECTIONAL);
 
 	return 0;
+}
+
+static unsigned long bmm_get_allocated_size(void)
+{
+	unsigned long flags;
+	unsigned long size = 0;
+	bmm_block_t *pbmm;
+
+	spin_lock_irqsave(&bmm_lock, flags);
+	list_for_each_entry(pbmm, &(bmm_used_block.list), list) {
+		if(pbmm->pid == current->tgid)
+			size += pbmm->size;
+	}
+	spin_unlock_irqrestore(&bmm_lock, flags);
+
+	return size;
 }
 
 static unsigned long bmm_get_vaddr_ex(unsigned long paddr)
@@ -770,6 +779,9 @@ static int bmm_ioctl(struct inode *inode, struct file * filp,
 	case BMM_GET_FREE_SPACE:
 		output = bmm_free_size;
 		break;
+	case BMM_GET_ALLOCATED_SPACE:
+		output = bmm_get_allocated_size();
+		break;
 	case BMM_FLUSH_CACHE:
 		output = bmm_flush_cache(input, bmm_arg);
 		break;
@@ -825,7 +837,7 @@ static struct miscdevice bmm_misc = {
 
 static int __bmm_init(void)
 {
-#ifndef CONFIG_DOVE_VPU_GPU_USE_BMM
+#ifndef CONFIG_DOVE_VPU_USE_BMM
 	struct page *page;
 	unsigned long addr, size;
 
@@ -851,16 +863,18 @@ static int __bmm_init(void)
 		size -= PAGE_SIZE;
 	}
 #else
-	unsigned int vmeta_memory_start, gpu_memory_start;
-	int vmeta_size, gpu_size;
+	unsigned int vmeta_memory_start, gpu_memory_start=0xffffffff;
+	int vmeta_size, gpu_size=0;
 
 	vmeta_memory_start = dove_vmeta_get_memory_start();
 	vmeta_size = dove_vmeta_get_memory_size();
+	printk("BMM Module Vmeta memroy start: 0x%x, size: %d\n", vmeta_memory_start, vmeta_size);
+
+#ifdef CONFIG_DOVE_GPU_USE_BMM
 	gpu_memory_start = dove_gpu_get_memory_start();
 	gpu_size = dove_gpu_get_memory_size();
-
-	printk("BMM Module Vmeta memroy start: 0x%x, size: %d\n", vmeta_memory_start, vmeta_size);
 	printk("BMM Module GPU memory start: 0x%x, size %d\n", gpu_memory_start, gpu_size);
+#endif
 
 	bmm_size = vmeta_size + gpu_size;
 	bmm_size_mb = bmm_size / 1024 / 1024;
