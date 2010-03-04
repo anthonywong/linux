@@ -814,12 +814,6 @@ static int dovefb_blank(int blank, struct fb_info *fi)
 	dfli->is_blanked = (blank == FB_BLANK_UNBLANK) ? 0 : 1;
 	set_dumb_panel_control(fi, 0);
 
-	if (blank == FB_BLANK_UNBLANK) {
-		dovefb_pwr_on_sram(dfli);
-	} else {
-		dovefb_pwr_off_sram(dfli);
-	}
-
 	return 0;
 }
 
@@ -1418,6 +1412,7 @@ int dovefb_gfx_suspend(struct dovefb_layer_info *dfli, pm_message_t mesg)
 	if (mesg.event & PM_EVENT_SLEEP) {
 		fb_set_suspend(fi, 1);
 		dovefb_blank(FB_BLANK_POWERDOWN, fi);
+		dovefb_pwr_off_sram(dfli);
 	}
 
 	return 0;
@@ -1436,6 +1431,7 @@ int dovefb_gfx_resume(struct dovefb_layer_info *dfli)
 	dovefb_set_defaults(dfli);
 	dfli->active = 1;
 
+	dovefb_pwr_on_sram(dfli);
 	if (dovefb_gfx_set_par(fi) != 0) {
 		printk(KERN_INFO "dovefb_gfx_resume(): Failed in "
 				"dovefb_gfx_set_par().\n");
