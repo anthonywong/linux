@@ -310,7 +310,7 @@ void parse_cea_block(EdidInfo e, BYTE *d,DEPLINT block_number)
 					e->cea->cea->supports_ai = get_bits(d[j+6],1,1);
 					e->cea->cea->vsdb_ext[0] = get_bits(d[j+6],6,0);
 					while((k<(get_bits(d[j],4,0)-5))&&(k<24))
-						e->cea->cea->vsdb_ext[k] = d[j+6+k];
+						e->cea->cea->vsdb_ext[k++] = d[j+6+k];
 				}
 				if((e->cea->cea->ieee_reg[1] == 0x0C03) || (e->cea->cea->ieee_reg[0] == 0x00))
 					e->cea->cea->vsdb_hdmi=TRUE;
