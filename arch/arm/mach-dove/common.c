@@ -1319,7 +1319,11 @@ static struct resource dove_gpu_resources[] = {
 };
 
 static struct platform_device dove_gpu = {
+#ifdef CONFIG_ANDROID
+	.name		= "galcore",
+#else
 	.name		= "dove_gpu",
+#endif
 	.id		= 0,
 	.num_resources  = ARRAY_SIZE(dove_gpu_resources),
 	.resource       = dove_gpu_resources,
