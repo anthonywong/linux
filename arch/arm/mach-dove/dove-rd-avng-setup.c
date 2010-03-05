@@ -62,6 +62,10 @@ static unsigned int standby_fix = 1;
 module_param(standby_fix, uint, 0);
 MODULE_PARM_DESC(standby_fix, "if 1 then CKE and MRESET are connected to MPP4 and MPP6");
 
+int dvs_enable = 1;
+module_param(dvs_enable, int, 1);
+MODULE_PARM_DESC(dvs_enable, "if 1 then enable DVS");
+
 extern unsigned int useHalDrivers;
 extern char *useNandHal;
 
