@@ -80,7 +80,7 @@ static struct cpufreq_frequency_table dove_freqs[] = {
 /*
  * Power management function: set or unset powersave mode
  */
-extern int dvs_enable;
+int global_dvs_enable = 0;
 static inline int dove_set_frequency(enum dove_cpufreq_range freq)
 {
 	unsigned long flags;
@@ -90,12 +90,12 @@ static inline int dove_set_frequency(enum dove_cpufreq_range freq)
 
         if (freq == DOVE_CPUFREQ_DDR) {
 		dprintk("Going to DDR Frequency\n");
-		if (mvPmuCpuSetOP (CPU_CLOCK_SLOW, (dvs_enable ? MV_TRUE : MV_FALSE)) != MV_OK)
+		if (mvPmuCpuSetOP (CPU_CLOCK_SLOW, (global_dvs_enable ? MV_TRUE : MV_FALSE)) != MV_OK)
 			ret = -EIO;			
 	}
         else if (freq == DOVE_CPUFREQ_HIGH) {
 		dprintk("Going to HIGH Frequency\n");
-		if (mvPmuCpuSetOP (CPU_CLOCK_TURBO, (dvs_enable ? MV_TRUE : MV_FALSE)) != MV_OK)
+		if (mvPmuCpuSetOP (CPU_CLOCK_TURBO, (global_dvs_enable ? MV_TRUE : MV_FALSE)) != MV_OK)
 			ret = -EIO;
 	}
 	else {
