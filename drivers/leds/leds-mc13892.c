@@ -16,89 +16,105 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/pmic_light.h>
+#include <linux/workqueue.h>
+
+#define LED_NAME_LEN 16
+
+struct mc13892_led {
+	char			name[LED_NAME_LEN];
+	enum lit_channel	channel;
+	int			brightness;
+	struct work_struct	work;
+	struct led_classdev	cdev;
+};
+
+static void mc13892_led_work(struct work_struct *work)
+{
+	struct mc13892_led *led = container_of(work, struct mc13892_led, work);
+
+	/* set current with medium value, in case current is too large */
+	mc13892_bklit_set_current(led->channel, LIT_CURR_12);
+	/* max duty cycle is 63, brightness needs to be divided by 4 */
+	mc13892_bklit_set_dutycycle(led->channel, led->brightness / 4);
+}
+
 
 static void mc13892_led_set(struct led_classdev *led_cdev,
 			    enum led_brightness value)
 {
-	struct platform_device *dev = to_platform_device(led_cdev->dev->parent);
-	int led_ch;
-
-	switch (dev->id) {
-	case 'r':
-		led_ch = LIT_RED;
-		break;
-	case 'g':
-		led_ch = LIT_GREEN;
-		break;
-	case 'b':
-		led_ch = LIT_BLUE;
-		break;
-	default:
-		return;
-	}
-
-	/* set current with medium value, in case current is too large */
-	mc13892_bklit_set_current(led_ch, LIT_CURR_12);
-	/* max duty cycle is 63, brightness needs to be divided by 4 */
-	mc13892_bklit_set_dutycycle(led_ch, value / 4);
-
+	struct mc13892_led *led = container_of(led_cdev,
+					struct mc13892_led, cdev);
+	led->brightness = value;
+	schedule_work(&led->work);
 }
 
 static int mc13892_led_remove(struct platform_device *dev)
 {
-	struct led_classdev *led_cdev = platform_get_drvdata(dev);
+	struct mc13892_led *led = platform_get_drvdata(dev);
 
-	led_classdev_unregister(led_cdev);
-	kfree(led_cdev->name);
-	kfree(led_cdev);
+	led_classdev_unregister(&led->cdev);
+	flush_work(&led->work);
+	kfree(led);
 
 	return 0;
 }
 
-#define LED_NAME_LEN	16
+static enum lit_channel mc13892_led_channel(int id)
+{
+	switch (id) {
+	case 'r':
+		return LIT_RED;
+	case 'g':
+		return LIT_GREEN;
+	case 'b':
+		return LIT_BLUE;
+	default:
+		return -1;
+	}
+}
 
 static int mc13892_led_probe(struct platform_device *dev)
 {
+	struct mc13892_led *led;
+	enum lit_channel chan;
 	int ret;
-	struct led_classdev *led_cdev;
-	char *name;
 
-	led_cdev = kzalloc(sizeof(struct led_classdev), GFP_KERNEL);
-	if (led_cdev == NULL) {
+	/* ensure we have space for the channel name and a NUL */
+	if (strlen(dev->name) > LED_NAME_LEN - 2) {
+		dev_err(&dev->dev, "led name is too long\n");
+		return -EINVAL;
+	}
+
+	chan = mc13892_led_channel(dev->id);
+	if (chan == -1) {
+		dev_err(&dev->dev, "invalid LED id '%d'\n", dev->id);
+		return -EINVAL;
+	}
+
+	led = kzalloc(sizeof(*led), GFP_KERNEL);
+	if (!led) {
 		dev_err(&dev->dev, "No memory for device\n");
 		return -ENOMEM;
 	}
-	name = kzalloc(LED_NAME_LEN, GFP_KERNEL);
-	if (name == NULL) {
-		dev_err(&dev->dev, "No memory for device\n");
-		ret = -ENOMEM;
-		goto exit_err;
-	}
 
-	strcpy(name, dev->name);
-	ret = strlen(dev->name);
-	if (ret > LED_NAME_LEN - 2) {
-		dev_err(&dev->dev, "led name is too long\n");
-		goto exit_err1;
-	}
-	name[ret] = dev->id;
-	name[ret + 1] = '\0';
-	led_cdev->name = name;
-	led_cdev->brightness_set = mc13892_led_set;
+	led->channel = chan;
+	led->cdev.name = led->name;
+	led->cdev.brightness_set = mc13892_led_set;
+	INIT_WORK(&led->work, mc13892_led_work);
+	snprintf(led->name, sizeof(led->name), "%s%c",
+			dev->name, (char)dev->id);
 
-	ret = led_classdev_register(&dev->dev, led_cdev);
+	ret = led_classdev_register(&dev->dev, &led->cdev);
 	if (ret < 0) {
 		dev_err(&dev->dev, "led_classdev_register failed\n");
-		goto exit_err1;
+		goto err_free;
 	}
 
-	platform_set_drvdata(dev, led_cdev);
+	platform_set_drvdata(dev, led);
 
 	return 0;
-      exit_err1:
-	kfree(led_cdev->name);
-      exit_err:
-	kfree(led_cdev);
+err_free:
+	kfree(led);
 	return ret;
 }
 
