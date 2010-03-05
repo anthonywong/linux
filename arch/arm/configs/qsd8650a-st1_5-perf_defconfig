@@ -731,6 +731,7 @@ CONFIG_SMSC911X=y
 #
 # CONFIG_WLAN_PRE80211 is not set
 # CONFIG_WLAN_80211 is not set
+CONFIG_LIBRA_SDIOIF=y
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
