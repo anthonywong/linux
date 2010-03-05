@@ -67,7 +67,8 @@ int q6voice_setup(void);
 int q6voice_teardown(void);
 int q6voice_close(struct audio_client *ac);
 
-
+struct audio_client *q6audio_open_pcm(uint32_t bufsz, uint32_t rate,
+					uint32_t channels, uint32_t flags);
 struct audio_client *q6audio_open(uint32_t bufsz, uint32_t flags);
 int q6audio_start(struct audio_client *ac, void *rpc, uint32_t len);
 
