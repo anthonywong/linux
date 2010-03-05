@@ -96,7 +96,7 @@ static struct dovefb_mach_info dove_rd_avng_lcd0_dmi = {
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 0,
 	.gpio_output_mask	= 0,
-	.ddc_i2c_adapter	= 3,
+	.ddc_i2c_adapter	= 1,
 	.invert_composite_blank	= 0,
 	.invert_pix_val_ena	= 0,
 	.invert_pixclock	= 0,
@@ -196,19 +196,19 @@ static struct dovebl_platform_data dove_rd_avng_backlight_data = {
 	.blpwr_end = DOVE_SB_REGS_VIRT_BASE+GPP_DATA_OUT_REG(0),	/* end of reg map. */
 	.blpwr_offset = GPP_DATA_OUT_REG(0),	/* register offset */
 	.blpwr_mapped = 1,		/* pa = 0, va = 1 */
-	.blpwr_mask = 0x20000,		/* mask, bit[17] */
-	.blpwr_on = 0x20000,		/* value to enable bl power */
+	.blpwr_mask = 0x2000,		/* mask, bit[13] */
+	.blpwr_on = 0x2000,		/* value to enable bl power */
 	.blpwr_off = 0x0,		/* value to disable bl power */
 
 	.btn_start = DOVE_LCD1_PHYS_BASE, /* brightness control reg base. */
 	.btn_end = DOVE_LCD1_PHYS_BASE+0x1C8,	/* end of reg map. */
 	.btn_offset = LCD_CFG_GRA_PITCH,	/* register offset */
 	.btn_mapped = 0,		/* pa = 0, va = 1 */
-	.btn_mask = 0xF0000000,	/* mask */
-	.btn_level = 15,	/* how many level can be configured. */
-	.btn_min = 0x1,	/* min value */
-	.btn_max = 0xF,	/* max value */
-	.btn_inc = 0x1,	/* increment */
+	.btn_mask = 0xF0000000,		/* mask */
+	.btn_level = 15,		/* how many level can be configured. */
+	.btn_min = 0x1,			/* min value */
+	.btn_max = 0xF,			/* max value */
+	.btn_inc = 0x1,			/* increment */
 };
 
 void __init dove_rd_avng_clcd_init(void) {
@@ -226,30 +226,20 @@ void __init dove_rd_avng_clcd_init(void) {
  * 	G-Sensor, address 0x??
  * 	MCU PIC-16F887, address 0x??
  ****************************************************************************/
-static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
+static struct i2c_board_info __initdata dove_rd_avng_i2c_bus0_devs[] = {
 	{
 		I2C_BOARD_INFO("rt5623", 0x1a),
 	},
 	{
-		I2C_BOARD_INFO("bma020", 0x38),	//JP
-		.irq = IRQ_DOVE_GPIO_16_23,	//JP
+		I2C_BOARD_INFO("bma020", 0x38),
+		.irq = IRQ_DOVE_GPIO_16_23,
 	},
 	{
-		I2C_BOARD_INFO("anx7150_i2c", 0x3B),//0x3B*2->0x76..For ANX7150
-
+		I2C_BOARD_INFO("anx7150_i2c", 0x3B),	/* 0x3B*2->0x76..For ANX7150 */
 	},
 	{
-		I2C_BOARD_INFO("kg2_i2c", 0x10),	//0x10 for KG2
-
+		I2C_BOARD_INFO("kg2_i2c", 0x10),	/* 0x10 for KG2 */
 	},
-#ifdef CONFIG_ADI9889
-	{
-		I2C_BOARD_INFO("adi9889_i2c", 0x39),
-	},
-	{
-		I2C_BOARD_INFO("adi9889_edid_i2c", 0x3F),
-	},
-#endif
 #ifdef CONFIG_CH7025_COMPOSITE
 	{
 		I2C_BOARD_INFO("ch7025_i2c",0x76),
@@ -263,6 +253,17 @@ static struct i2c_board_info __initdata dove_rd_avng_i2c_devs[] = {
 #ifdef CONFIG_BATTERY_MCU
 	{
 		I2C_BOARD_INFO("power_mcu", 0x2C),
+	},
+#endif
+};
+
+static struct i2c_board_info __initdata dove_rd_avng_i2c_bus1_devs[] = {
+#ifdef CONFIG_ADI9889
+	{
+		I2C_BOARD_INFO("adi9889_i2c", 0x39),
+	},
+	{
+		I2C_BOARD_INFO("adi9889_edid_i2c", 0x3F),
 	},
 #endif
 };
@@ -525,14 +526,14 @@ static struct dove_mpp_mode dove_rd_avng_x0_mpp_modes[] __initdata = {
 
 	{ 11, MPP_GPIO },	/* LCM_DCM */
 	{ 12, MPP_SDIO1 },	/* SD1_CDn */
-	{ 13, MPP_GPIO },	/* INT_HDMI_ADI */
+	{ 13, MPP_GPIO },	/* LCM_BL_CTRL */
 	{ 14, MPP_GPIO },	/* USB_DEV_DET */
-	{ 15, MPP_GPIO },	/* INT_HDMI_7150 */
+	{ 15, MPP_GPIO },	/* AU_IRQOUT */
 	{ 16, MPP_GPIO },	/* PMU - DDR termination control */
-	{ 17, MPP_GPIO },	/* LCM_BL_CTRL */
+	{ 17, MPP_TWSI },	/* TW_SDA Option 2 */
 
 	{ 18, MPP_LCD },	/* LCD0_PWM */
-	{ 19, MPP_GPIO },	/* AU_IRQOUT */
+	{ 19, MPP_TWSI },	/* TW_SCK Option 2 */
 	{ 20, MPP_GPIO },	/* GP_WLAN_RSTn */
 	{ 21, MPP_UART1 },	/* UA1_RTSn */
 	{ 22, MPP_UART1 },	/* UA1_CTSn */
@@ -607,17 +608,18 @@ static void dove_rd_avng_gpio_init(u32 rev)
 	orion_gpio_set_valid(11, 1);
 	if (gpio_request(11, "LCM_DCM") != 0)
 		printk(KERN_ERR "Dove: failed to setup GPIO for LCM_DCM\n");
-	gpio_direction_output(11,1);	/* Enable LCD power */
+	gpio_direction_output(11, 1);	/* Enable LCD power */
 
 	orion_gpio_set_valid(13, 1);
 	if (rev >= DOVE_REV_X0) {
-		if (gpio_request(13, "INT_HDMI_ADI") != 0)
-			printk(KERN_ERR "Dove: failed to setup GPIO for INT_HDMI_ADI\n");
+		if (gpio_request(13, "LCM_BL_CTRL") != 0)
+			printk(KERN_ERR "Dove: failed to setup GPIO for LCM_BL_CTRL\n");
+		gpio_direction_output(13, 1);	/* Enable LCD backlight */
 	} else {
 		if (gpio_request(13, "WLAN_WAKEUP_HOST") != 0)
 			printk(KERN_ERR "Dove: failed to setup GPIO for WLAN_WAKEUP_HOST\n");
+		gpio_direction_input(13);
 	}
-	gpio_direction_input(13);
 
 	orion_gpio_set_valid(14, 1);
 	if (rev >= DOVE_REV_X0) {
@@ -630,27 +632,20 @@ static void dove_rd_avng_gpio_init(u32 rev)
 		gpio_direction_output(14, 0);
 	}
 
-	orion_gpio_set_valid(15, 1);
-	if (rev >= DOVE_REV_X0) {
-		if (gpio_request(15, "INT_HDMI_7150") != 0)
-			printk(KERN_ERR "Dove: failed to setup GPIO for INT_HDMI_7150\n");
-	} else {
+	if (rev < DOVE_REV_X0) {
+		orion_gpio_set_valid(15, 1);
 		if (gpio_request(15, "BT_WAKEUP_HOST") != 0)
 			printk(KERN_ERR "Dove: failed to setup GPIO for BT_WAKEUP_HOSTn");
-	}
-	gpio_direction_input(15);
-
-	if (rev < DOVE_REV_X0) {
+		gpio_direction_input(15);
 		orion_gpio_set_valid(16, 1);
 		if (gpio_request(16, "HOST_WAKEUP_BT") != 0)
 			printk(KERN_ERR "Dove: failed to setup GPIO for HOST_WAKEUP_BT\n");
 		gpio_direction_output(16, 0);
+		orion_gpio_set_valid(17, 1);
+		if (gpio_request(17, "LCM_BL_CTRL") != 0)
+			printk(KERN_ERR "Dove: failed to setup GPIO for LCM_BL_CTRL\n");
+		gpio_direction_output(17, 1);	/* Enable LCD back light */
 	}
-
-	orion_gpio_set_valid(17, 1);
-	if (gpio_request(17, "LCM_BL_CTRL") != 0)
-		printk(KERN_ERR "Dove: failed to setup GPIO for LCM_BL_CTRL\n");
-	gpio_direction_output(17, 1);	/* Enable LCD back light */
 
 	orion_gpio_set_valid(20, 1);
 	if (gpio_request(20, "GP_WLAN_RSTn") != 0)
@@ -759,38 +754,54 @@ void __init dove_avng_ac97_init(void)
  * AC97 Touch Panel Control
  ****************************************************************************/
 
-#define DOVE_AVNG_AC97_TS_PEN_GPIO	(19)
-#define DOVE_AVNG_AC97_TS_PEN_IRQ	(DOVE_AVNG_AC97_TS_PEN_GPIO+IRQ_DOVE_GPIO_START)
-
-int __init dove_avng_ac97_ts_gpio_setup(void)
-{
-
-	orion_gpio_set_valid(DOVE_AVNG_AC97_TS_PEN_GPIO, 1);
-	if (gpio_request(DOVE_AVNG_AC97_TS_PEN_GPIO, "DOVE_AVNG_AC97_TS_PEN_IRQ") != 0)
-		pr_err("Dove: failed to setup TS IRQ GPIO\n");
-	if (gpio_direction_input(DOVE_AVNG_AC97_TS_PEN_GPIO) != 0) {
-		printk(KERN_ERR "%s failed "
-		       "to set output pin %d\n", __func__,
-		       DOVE_AVNG_AC97_TS_PEN_GPIO);
-		gpio_free(DOVE_AVNG_AC97_TS_PEN_GPIO);
-		return -1;
-	}
-	/* IRQ */
-	set_irq_chip(DOVE_AVNG_AC97_TS_PEN_IRQ, &orion_gpio_irq_chip);
-	set_irq_handler(DOVE_AVNG_AC97_TS_PEN_IRQ, handle_level_irq);
-	set_irq_type(DOVE_AVNG_AC97_TS_PEN_IRQ, IRQ_TYPE_LEVEL_HIGH);
-
-	return 0;
-}
+#define DOVE_AVNG_AC97_TS_PEN_GPIO_X0	(15)
+#define DOVE_AVNG_AC97_TS_PEN_GPIO_Y0	(19)
 
 static struct resource dove_ac97_ts_resources[] = {
 
 	[0] = {
-		.start	= DOVE_AVNG_AC97_TS_PEN_IRQ,
-		.end		= DOVE_AVNG_AC97_TS_PEN_IRQ,
+		.start	= 0,
+		.end	= 0,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
+
+int __init dove_avng_ac97_ts_gpio_setup(void)
+{
+	u32 dev, rev;
+	int pin, irq;
+
+	if (!machine_is_dove_rd_avng())
+		return 0;
+
+	dove_pcie_id(&dev, &rev);
+
+	if (rev >= DOVE_REV_X0)
+		pin = DOVE_AVNG_AC97_TS_PEN_GPIO_X0;
+	else
+		pin = DOVE_AVNG_AC97_TS_PEN_GPIO_Y0;
+	irq = pin + IRQ_DOVE_GPIO_START;
+
+	dove_ac97_ts_resources[0].start = irq;
+	dove_ac97_ts_resources[0].end = irq;
+
+	orion_gpio_set_valid(pin, 1);
+	if (gpio_request(pin, "DOVE_AVNG_AC97_TS_PEN_IRQ") != 0)
+		pr_err("Dove: failed to setup TS IRQ GPIO\n");
+	if (gpio_direction_input(pin) != 0) {
+		printk(KERN_ERR "%s failed to set output pin %d\n", __func__,
+		       pin);
+		gpio_free(pin);
+		return -1;
+	}
+	/* IRQ */
+	set_irq_chip(irq, &orion_gpio_irq_chip);
+	set_irq_handler(irq, handle_level_irq);
+	set_irq_type(irq, IRQ_TYPE_LEVEL_HIGH);
+
+	return 0;
+}
+
 static struct platform_device dove_ac97_touch = {
 	.name           = "rt5611_ts",
 	.id             = 0,
@@ -798,30 +809,32 @@ static struct platform_device dove_ac97_touch = {
 	.resource       = dove_ac97_ts_resources,
 };
 
-
-
-static struct platform_device dove_ac97_snd= {
+static struct platform_device dove_ac97_snd = {
 	.name           = "rt5611_snd",
 	.id             = 0,
 };
+
 void __init dove_ac97_dev_init(void)
 {
-	//TouchScreen
+	/* TouchScreen */
 	dove_avng_ac97_ts_gpio_setup();
 	platform_device_register(&dove_ac97_touch);
 
-	//Codec
+	/* Codec */
 	platform_device_register(&dove_ac97_snd);
-
 }
+
+#ifdef CONFIG_BATTERY_MCU
 void __init dove_battery_init(void)
 {
 	platform_device_register_simple("battery", 0, NULL, 0);
 }
+#endif
 
 #ifdef CONFIG_ANDROID_PMEM
 #include <linux/dma-mapping.h>
 #include <linux/android_pmem.h>
+
 void android_add_pmem(char *name, size_t size, int no_allocator, int cached)
 {
         struct platform_device *android_pmem_device;
@@ -902,7 +915,7 @@ static void __init dove_rd_avng_init(void)
 	pxa_init_dma_wins(&dove_mbus_dram_info);
 	pxa_init_dma(16);
 
-	if(useHalDrivers || useNandHal) {
+	if (useHalDrivers || useNandHal) {
 		if (mvPdmaHalInit(MV_PDMA_MAX_CHANNELS_NUM) != MV_OK) {
 			printk(KERN_ERR "mvPdmaHalInit() failed.\n");
 			BUG();
@@ -915,7 +928,7 @@ static void __init dove_rd_avng_init(void)
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
-	if(use_hal_giga || useHalDrivers)
+	if (use_hal_giga || useHalDrivers)
 		dove_mv_eth_init();
 	else
 #endif
@@ -937,6 +950,9 @@ static void __init dove_rd_avng_init(void)
 	dove_uart1_init();
 	dove_i2c_init();
 	dove_i2c_exp_init(0);
+	if (rev >= DOVE_REV_X0) {
+		dove_i2c_exp_init(1);
+	}
 	dove_sdhci_cam_mbus_init();
 	dove_sdio0_init();
 	dove_sdio1_init();
@@ -948,8 +964,12 @@ static void __init dove_rd_avng_init(void)
 	dove_hwmon_init();
 
 	dove_i2s_init(1, &i2s1_data);
-	i2c_register_board_info(0, dove_rd_avng_i2c_devs,
-				ARRAY_SIZE(dove_rd_avng_i2c_devs));
+	i2c_register_board_info(0, dove_rd_avng_i2c_bus0_devs,
+				ARRAY_SIZE(dove_rd_avng_i2c_bus0_devs));
+	if (rev >= DOVE_REV_X0) {
+		i2c_register_board_info(1, dove_rd_avng_i2c_bus1_devs,
+					ARRAY_SIZE(dove_rd_avng_i2c_bus1_devs));
+	}
 	spi_register_board_info(dove_rd_avng_spi_flash_info,
 				ARRAY_SIZE(dove_rd_avng_spi_flash_info));
 #ifdef CONFIG_BATTERY_MCU
@@ -959,7 +979,6 @@ static void __init dove_rd_avng_init(void)
         android_add_pmem("pmem", 0x01800000UL, 1, 0);
         android_add_pmem("pmem_adsp", 0x04000000UL, 0, 0);
 #endif
-	//mvmpp_sys_init();
 }
 
 MACHINE_START(DOVE_RD_AVNG, "Marvell MV88F6781-RD Avengers MID Board")
