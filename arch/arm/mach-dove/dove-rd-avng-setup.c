@@ -62,7 +62,7 @@ static unsigned int standby_fix = 1;
 module_param(standby_fix, uint, 0);
 MODULE_PARM_DESC(standby_fix, "if 1 then CKE and MRESET are connected to MPP4 and MPP6");
 
-int dvs_enable = 1;
+static int dvs_enable = 0;
 module_param(dvs_enable, int, 1);
 MODULE_PARM_DESC(dvs_enable, "if 1 then enable DVS");
 
@@ -665,6 +665,7 @@ static void dove_rd_avng_gpio_init(u32 rev)
 }
 
 #ifdef CONFIG_PM
+extern int global_dvs_enable;
 /*****************************************************************************
  * POWER MANAGEMENT
  ****************************************************************************/
@@ -675,6 +676,8 @@ static int __init dove_rd_avng_pm_init(void)
 
 	if (!machine_is_dove_rd_avng())
 		return 0;
+
+	global_dvs_enable = dvs_enable;
 
 	dove_pcie_id(&dev, &rev);
 
