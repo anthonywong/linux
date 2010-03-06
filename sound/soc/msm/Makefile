@@ -15,6 +15,9 @@ obj-$(CONFIG_SND_MSM7KV2_SOC) += snd-soc-msmv2.o
 snd-soc-qsd-objs := qsd8k-pcm.o
 obj-$(CONFIG_SND_QSD_SOC) += snd-soc-qsd.o
 
+snd-soc-qsdv2-objs := qsd8kv2-pcm.o
+obj-$(CONFIG_SND_QSDV2_SOC) += snd-soc-qsdv2.o
+
 # MSM Machine Support
 snd-soc-msm7k-objs := msm7201.o
 obj-$(CONFIG_SND_MSM_SOC_MSM7K) += snd-soc-msm7k.o
@@ -24,3 +27,6 @@ obj-$(CONFIG_SND_MSM_SOC_MSM7KV2) += snd-soc-msm7kv2.o
 
 snd-soc-qsd8k-objs := qsd8k.o
 obj-$(CONFIG_SND_QSD_SOC_QSD8K) += snd-soc-qsd8k.o
+
+snd-soc-qsd8kv2-objs := qsd8kv2.o
+obj-$(CONFIG_SND_QSDV2_SOC_QSD8K) += snd-soc-qsd8kv2.o

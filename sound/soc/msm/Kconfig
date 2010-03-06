@@ -13,6 +13,13 @@ config SND_QSD_SOC
 	help
 	  To add support for ALSA PCM driver for QSD8k board.
 
+config SND_QSDV2_SOC
+	tristate "SoC Audio for the QSD8x50 chip version 2"
+	depends on ARCH_QSD8X50 && SND_SOC && QSD_AUDIOV2
+	default y
+	help
+	  To add support for ALSA PCM driver for QSD8k board version 2.
+
 config SND_MSM7KV2_SOC
 	tristate "SoC Audio for the MSM7KV2 chip"
 	depends on ARCH_MSM7X30 && SND_SOC && MSM7KV2_AUDIO
@@ -30,7 +37,7 @@ config SND_MSM7KV2_DAI_SOC
 
 config SND_MSM_DAI_SOC
 	tristate "SoC CPU/CODEC DAI for the MSM chip"
-	depends on SND_MSM_SOC || SND_QSD_SOC
+	depends on SND_MSM_SOC || SND_QSD_SOC || SND_QSDV2_SOC
 	default y
 	help
 	 To add support for ALSA PCM driver for MSM board.
@@ -48,6 +55,13 @@ config SND_QSD_SOC_QSD8K
 	default y
 	help
 	 To add support for SoC audio on qsd8k.
+
+config SND_QSDV2_SOC_QSD8K
+	tristate "SoC Audio support for QSD8K version 2"
+	depends on SND_QSDV2_SOC
+	default y
+	help
+	 To add support for SoC audio on qsd8k version 2.
 
 config SND_MSM_SOC_MSM7KV2
 	tristate "SoC Audio support for MSM7KV2"
