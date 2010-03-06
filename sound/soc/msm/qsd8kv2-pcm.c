@@ -148,7 +148,7 @@ static int qsd_pcm_playback_prepare(struct snd_pcm_substream *substream)
 
 	prtd->dsp_handle = q6audio_open_pcm(prtd->pcm_count,
 					prtd->out_sample_rate,
-					prtd->mode_channel_mode,
+					prtd->out_channel_mode,
 					AUDIO_FLAG_WRITE);
 	if (!prtd->dsp_handle)
 		return -EAGAIN;
@@ -401,8 +401,6 @@ static int qsd_pcm_capture_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct qsd_audio *prtd = runtime->private_data;
-	struct adsp_audio_standard_format *fmt;
-	struct adsp_open_command rpc;
 	int rc = 0;
 	unsigned long expiry = 0;
 

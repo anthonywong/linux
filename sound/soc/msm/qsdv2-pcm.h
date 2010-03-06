@@ -42,6 +42,8 @@ extern void register_cb(void *);
 #define PLAYBACK_STREAMS	4
 #define CAPTURE_STREAMS		1
 
+#define ADSP_AUDIO_IOCTL_CMD_STREAM_EOS			0x0108b150
+
 struct audio_locks {
 	struct mutex lock;
 	struct mutex mixer_lock;
