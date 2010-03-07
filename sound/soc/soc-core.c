@@ -275,6 +275,7 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	mutex_unlock(&pcm_mutex);
 	return 0;
 
+#if 0
 machine_err:
 	if (machine->ops && machine->ops->shutdown)
 		machine->ops->shutdown(substream);
@@ -286,6 +287,11 @@ codec_dai_err:
 platform_err:
 	if (cpu_dai->ops->shutdown)
 		cpu_dai->ops->shutdown(substream, cpu_dai);
+#else
+machine_err:
+codec_dai_err:
+platform_err:
+#endif
 out:
 	mutex_unlock(&pcm_mutex);
 	return ret;
