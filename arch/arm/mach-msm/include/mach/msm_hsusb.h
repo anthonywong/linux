@@ -99,6 +99,8 @@ struct msm_hsusb_platform_data {
 
 	int (*phy_reset)(void __iomem *addr);
 
+	int *phy_init_seq;
+
 	unsigned int core_clk;
 
 	int vreg5v_required;
