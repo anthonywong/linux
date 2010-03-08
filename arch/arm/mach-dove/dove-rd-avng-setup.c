@@ -764,10 +764,10 @@ void __init dove_avng_ac97_init(void)
  * AC97 Touch Panel Control
  ****************************************************************************/
 
-#define DOVE_AVNG_AC97_TS_PEN_GPIO_X0	(15)
-#define DOVE_AVNG_AC97_TS_PEN_GPIO_Y0	(19)
+#define DOVE_AVNG_AC97_CODEC_GPIO_X0	(15)
+#define DOVE_AVNG_AC97_CODEC_GPIO_Y0	(19)
 
-static struct resource dove_ac97_ts_resources[] = {
+static struct resource dove_ac97_codec_resources[] = {
 
 	[0] = {
 		.start	= 0,
@@ -787,17 +787,17 @@ int __init dove_avng_ac97_ts_gpio_setup(void)
 	dove_pcie_id(&dev, &rev);
 
 	if (rev >= DOVE_REV_X0)
-		pin = DOVE_AVNG_AC97_TS_PEN_GPIO_X0;
+		pin = DOVE_AVNG_AC97_CODEC_GPIO_X0;
 	else
-		pin = DOVE_AVNG_AC97_TS_PEN_GPIO_Y0;
+		pin = DOVE_AVNG_AC97_CODEC_GPIO_Y0;
 	irq = pin + IRQ_DOVE_GPIO_START;
 
-	dove_ac97_ts_resources[0].start = irq;
-	dove_ac97_ts_resources[0].end = irq;
+	dove_ac97_codec_resources[0].start = irq;
+	dove_ac97_codec_resources[0].end = irq;
 
 	orion_gpio_set_valid(pin, 1);
-	if (gpio_request(pin, "DOVE_AVNG_AC97_TS_PEN_IRQ") != 0)
-		pr_err("Dove: failed to setup TS IRQ GPIO\n");
+	if (gpio_request(pin, "DOVE_AVNG_AC97_CODEC_IRQ") != 0)
+		pr_err("Dove: failed to setup AC97 CODEC IRQ GPIO\n");
 	if (gpio_direction_input(pin) != 0) {
 		printk(KERN_ERR "%s failed to set output pin %d\n", __func__,
 		       pin);
@@ -816,12 +816,14 @@ static struct platform_device dove_ac97_touch = {
 	.name           = "rt5611_ts",
 	.id             = 0,
 	.num_resources  = 1,
-	.resource       = dove_ac97_ts_resources,
+	.resource       = dove_ac97_codec_resources,
 };
 
 static struct platform_device dove_ac97_snd = {
 	.name           = "rt5611_snd",
 	.id             = 0,
+	.num_resources  = 1,
+	.resource       = dove_ac97_codec_resources,
 };
 
 void __init dove_ac97_dev_init(void)

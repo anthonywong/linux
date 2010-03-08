@@ -36,6 +36,11 @@
 	
 static struct snd_soc_codec *codec;
 bool rt5610_codec_resumed=0;
+bool spk_enable=0;
+bool hs_det=0;
+unsigned int  hs_irq;
+struct work_struct hsdet_event_work;
+struct workqueue_struct *hsdet_workq;
 
 /* codec private data */
 struct rt5610_priv {
@@ -1038,6 +1043,8 @@ static int rt5610_set_bias_level(struct snd_soc_codec *codec,
 {
 	switch (level) {
 		case SND_SOC_BIAS_ON:
+			rt5610_write_mask(codec, 0x50, GPIO_3, GPIO_3); //enable sticky
+			rt5610_write_mask(codec, 0x52, GPIO_3, GPIO_3); //set as wake up	
 		case SND_SOC_BIAS_PREPARE:
 			break;
 		case SND_SOC_BIAS_STANDBY:
@@ -1151,10 +1158,11 @@ int spk_amplifier_enable(bool enable)
 
 	rt5610_write_mask(codec, 0x4c, 0x0000, 0x0002); //Config GPIO1 as output
 
-	if (enable)
+	if (enable && !hs_det)
 		 rt5610_write_mask(codec, 0x5c, 0x0002, 0x0002); //ON
 	else
 		 rt5610_write_mask(codec, 0x5c, 0x0000, 0x0002); //OFF
+	spk_enable=enable;
 	return 0;
 
 }
@@ -1216,7 +1224,59 @@ static int rt5610_resume(struct platform_device *pdev)
  * initialise the RT5610 driver
  * register the mixer and dsp interfaces with the kernel
  */
+static void rt5610_hsdet_irq_worker(struct work_struct *work)
+{
+	
+	u16 status, pol;
+	dbg("rt5610_hsdet_irq_worker\n");
+	
+	status=rt5610_read(codec, 0x54);
+	pol=rt5610_read(codec, 0x4e);
 
+	dbg("GPIO3(pol,status)=%x,%x\n",(pol & GPIO_3)>>3,(status & GPIO_3)>>3);
+
+	if (!(GPIO_3 & status))
+	{
+		dbg("AC97 codec IRQ: Not Headset, quit.");
+		enable_irq(hs_irq);
+
+		return ;
+	}
+
+	if (GPIO_3 & pol) //current state: phone jack-in
+	{
+		dbg("phone jack-in\n");
+		hs_det=1;
+		rt5610_write_mask(codec, 0x4e, 0, GPIO_3); //Low active, to detect phone jack-in
+		if (spk_enable)
+			rt5610_write_mask(codec, 0x5c, 0, 0x0002); //SPK CLASS D AMP OFF
+
+	}
+	else //current state: phone jack-out
+	{
+		dbg("phone jack-out\n");
+		hs_det=0;
+		rt5610_write_mask(codec, 0x4e, GPIO_3, GPIO_3); //High active, , to detect phone jack-out
+		if (spk_enable)
+			rt5610_write_mask(codec, 0x5c, 0x0002, 0x0002); //SPK CLASS D AMP ON
+	}
+	rt5610_write_mask(codec, 0x54, 0, GPIO_2|GPIO_3); //clear status
+
+	enable_irq(hs_irq);
+
+
+}
+
+static irqreturn_t  rt5610_hsdet_int(int irq, void *dev_id)
+{
+	dbg("enter rt5610_hsdet_int handle.\n");
+
+	if (!work_pending(&hsdet_event_work)) {
+		disable_irq_nosync(hs_irq);
+		queue_work(hsdet_workq, &hsdet_event_work);
+	}
+	return IRQ_HANDLED;
+}
 
 static int rt5610_probe(struct platform_device *pdev)
 {
@@ -1284,6 +1344,27 @@ static int rt5610_probe(struct platform_device *pdev)
 	ret = snd_soc_init_card(socdev);
 	if (ret < 0)
 		goto reset_err;
+//HSDET INT{	
+	rt5610_write_mask(codec, 0x54, 0, GPIO_3); //clear status	
+	rt5610_write_mask(codec, 0x4e, GPIO_3, GPIO_3); //High active, for headset_det
+	rt5610_write_mask(codec, 0x4c, GPIO_3, GPIO_3); // GPIO3 as input
+	rt5610_write_mask(codec, 0x50, GPIO_3, GPIO_3); //enable sticky
+	
+	hsdet_workq = create_singlethread_workqueue("rt5610_snd");
+	if (hsdet_workq == NULL) {
+		err("Failed to create workqueue\n");
+		return -1;
+	}
+	INIT_WORK(&hsdet_event_work, rt5610_hsdet_irq_worker);
+	
+	hs_irq=platform_get_irq(pdev,0);
+	dbg(KERN_ERR "rt5610 irq=0x%x\n",hs_irq);
+	if (request_irq(hs_irq, rt5610_hsdet_int, IRQF_SHARED,
+		"rt5610_hsdet", socdev))	{
+		err("Failed to register rt5610_headset_det interrupt");
+		return -1;
+	}
+//}HSDET INT	
 	dbg("rt5610: initial ok\n");
 	return 0;
 	
