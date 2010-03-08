@@ -80,15 +80,11 @@ struct drm_kgsl_gem_object {
 /* This is a global list of all the memory currently mapped in the MMU */
 static struct list_head kgsl_mem_list;
 
-void kgsl_gem_kmem_flush(void *kmem, int size)
+static
+void kgsl_gem_kmem_flush(uint32_t addr, uint32_t size)
 {
-	int i;
-
-	for (i = 0; i < size / PAGE_SIZE; i++) {
-		struct page *page = vmalloc_to_page(kmem);
-		flush_dcache_page(page);
-		kmem += PAGE_SIZE;
-	}
+	dmac_flush_range((const void *) addr,
+			 (const void *) (addr + size));
 }
 
 /* Flush all the memory mapped in the MMU */
@@ -101,8 +97,7 @@ void kgsl_gpu_mem_flush(void)
 	list_for_each_entry(entry, &kgsl_mem_list, list) {
 		for (index = 0;
 		    entry->cpuaddr && (index < entry->bufcount); index++)
-			kgsl_gem_kmem_flush((void *)
-					    entry->cpuaddr +
+			kgsl_gem_kmem_flush(entry->cpuaddr +
 					    entry->bufs[index].offset,
 					    entry->size);
 	}
