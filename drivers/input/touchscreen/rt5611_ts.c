@@ -339,8 +339,8 @@ static void rt5611_ts_reader(struct work_struct *work)
 
 	/* Pen Up, enable IRQ if IRQ has been assigned */
 	if (!rt->pen_is_down && rt->pen_irq) {
-		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_POLARITY, RT_GPIO_BIT2,
-					 RT_GPIO_BIT2 | RT_GPIO_BIT13);
+//		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_POLARITY, RT_GPIO_BIT2,
+//					 RT_GPIO_BIT2 | RT_GPIO_BIT13);
 		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_STATUS, 0,
 					 RT_GPIO_BIT2 | RT_GPIO_BIT13);
 		enable_irq(rt->pen_irq);
@@ -378,10 +378,12 @@ static void rt5611_ts_pen_irq_worker(struct work_struct *work)
 	else
 		rt->pen_is_down = 0;
 
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_POLARITY,
-			    (pol | RT_GPIO_BIT2) & ~RT_GPIO_BIT13);
-	rt5611_ts_reg_write(rt, RT_GPIO_PIN_STATUS,
-			    status & ~(RT_GPIO_BIT2 | RT_GPIO_BIT13));
+//	printk(KERN_ERR "GPIO13(pol,status)=%x,%x\n",(pol & RT_GPIO_BIT13)>>13,(status & RT_GPIO_BIT13)>>13);
+
+//	rt5611_ts_reg_write(rt, RT_GPIO_PIN_POLARITY,
+//			    (pol | RT_GPIO_BIT2) & ~RT_GPIO_BIT13);
+//	rt5611_ts_reg_write(rt, RT_GPIO_PIN_STATUS,
+//			    status & ~(RT_GPIO_BIT2 | RT_GPIO_BIT13));
 	mutex_unlock(&rt->codec->mutex);
 
 	/* Data is not availiable immediately on pen down */
@@ -404,7 +406,7 @@ static int  rt5611_ts_init_pen_irq(struct  rt5611_ts *rt)
 	/* If an interrupt is supplied an IRQ enable operation must also be
 	 * provided. */
 
-	if (request_irq(rt->pen_irq, rt5611_ts_pen_interrupt, 0,
+	if (request_irq(rt->pen_irq, rt5611_ts_pen_interrupt, IRQF_SHARED,
 			"rt5611_ts-pen", rt)) {
 		dev_err(rt->dev,
 			"Failed to register pen down interrupt, polling");
