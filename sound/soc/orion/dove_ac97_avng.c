@@ -55,7 +55,7 @@ static struct snd_soc_device dove_ac97_snd_devdata = {
 
 struct platform_device rt5610_codec_dev = {
 	.name           = "rt5610-codec",
-	.id             = -1,
+	.id             = 0,
 };
 
 static int dove_ac97_snd_probe(struct platform_device *pdev)
@@ -71,6 +71,13 @@ static int dove_ac97_snd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(dove_ac97_snd_device, &dove_ac97_snd_devdata);
 	dove_ac97_snd_devdata.dev = &dove_ac97_snd_device->dev;
+
+	struct resource * res=platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	ret=platform_device_add_resources(dove_ac97_snd_device, res, 1);
+	
+	//printk(KERN_ERR "dove_ac97_avng: add resource ret=%x\n", ret);
+
+	
 	ret = platform_device_add(dove_ac97_snd_device);
 
 	if (ret)
