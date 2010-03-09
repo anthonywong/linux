@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.32.3-dove-5.1.0-rc1
-# Fri Mar  5 19:45:05 2010
+# Tue Mar  9 17:29:03 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -2211,7 +2211,7 @@ CONFIG_DMA_ENGINE=y
 #
 # CONFIG_NET_DMA is not set
 # CONFIG_ASYNC_TX_DMA is not set
-# CONFIG_DMATEST is not set
+CONFIG_DMATEST=m
 # CONFIG_AUXDISPLAY is not set
 CONFIG_UIO=y
 # CONFIG_UIO_CIF is not set
