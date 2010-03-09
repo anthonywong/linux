@@ -3071,6 +3071,10 @@ static int mv643xx_eth_suspend(struct platform_device *pdev, pm_message_t state)
 		mv643xx_eth_get_stats(mp->dev);
 		mib_counters_update(mp);
 	}
+
+	if (mp->phy != NULL)
+		phy_detach(mp->phy);
+
 	return 0;
 }
 
@@ -3078,6 +3082,13 @@ static int mv643xx_eth_resume(struct platform_device *pdev)
 {
 	struct mv643xx_eth_private *mp = platform_get_drvdata(pdev);
 	struct mv643xx_eth_platform_data *pd = pdev->dev.platform_data;
+	
+	if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
+		mp->phy = phy_scan(mp, pd->phy_addr);
+
+	if (mp->phy != NULL)
+		phy_init(mp, pd->speed, pd->duplex);
+
 	if (netif_running(mp->dev)) {
 		wrlp(mp, INT_CAUSE, 0);
 		wrlp(mp, INT_CAUSE_EXT, 0);
