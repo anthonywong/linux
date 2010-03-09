@@ -7,3 +7,5 @@ build_image	= vmlinuz
 kernel_file	= arch/$(build_arch)/boot/vmlinuz
 install_file	= vmlinuz
 loader		= grub
+
+do_tools	= false
