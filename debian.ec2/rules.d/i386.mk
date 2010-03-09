@@ -8,4 +8,5 @@ kernel_file	= arch/$(build_arch)/boot/vmlinuz
 install_file	= vmlinuz
 loader		= grub
 
-do_tools	= false
+do_libc_dev_package	= false
+do_tools		= false
