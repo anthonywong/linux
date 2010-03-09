@@ -9,8 +9,9 @@ install_file	= vmlinuz
 no_dumpfile     = true
 loader		= grub
 
-do_doc_package	= false
+do_doc_package		= false
 do_source_package	= false
 do_common_headers_indep = false
 do_libc_dev_package	= false
 do_full_source		= true
+do_tools		= false
