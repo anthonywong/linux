@@ -12,7 +12,7 @@ abi=$(echo $revision | awk -F. '{print $1}')
 verabi=$ver-$abi
 verfull=$ver-$revision
 
-repo_fsl="http://ports.ubuntu.com/pool/main/l/linux-fsl-imx51"
+repo_fsl="http://ports.ubuntu.com/pool/main/l/linux-qcm-msm"
 
 WGET="wget --quiet -c"
 
