@@ -826,7 +826,8 @@ error:
 #endif /*CONFIG_MSM_KGSL_MMU*/
 
 static long kgsl_ioctl_sharedmem_from_pmem(struct kgsl_file_private *private,
-						void __user *arg)
+						void __user *arg,
+						size_t size)
 {
 	int result = 0;
 	struct kgsl_sharedmem_from_pmem param;
@@ -834,7 +835,14 @@ static long kgsl_ioctl_sharedmem_from_pmem(struct kgsl_file_private *private,
 	unsigned long start = 0, vstart = 0, len = 0;
 	struct file *pmem_file = NULL;
 
-	if (copy_from_user(&param, arg, sizeof(param))) {
+	if (!(size == sizeof(struct kgsl_sharedmem_from_pmem_old) ||
+	      size == sizeof(param))) {
+		result = -EINVAL;
+		goto error;
+	}
+
+	memset(&param, 0, sizeof(param));
+	if (copy_from_user(&param, arg, size)) {
 		result = -EFAULT;
 		goto error;
 	}
@@ -881,7 +889,7 @@ static long kgsl_ioctl_sharedmem_from_pmem(struct kgsl_file_private *private,
 
 	param.gpuaddr = entry->memdesc.gpuaddr;
 
-	if (copy_to_user(arg, &param, sizeof(param))) {
+	if (copy_to_user(arg, &param, size)) {
 		result = -EFAULT;
 		goto error_unmap_entry;
 	}
@@ -1015,7 +1023,15 @@ static long kgsl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	case IOCTL_KGSL_SHAREDMEM_FROM_PMEM:
 		kgsl_yamato_runpending(&kgsl_driver.yamato_device);
 		result = kgsl_ioctl_sharedmem_from_pmem(private,
-							(void __user *)arg);
+				(void __user *)arg,
+				sizeof(struct kgsl_sharedmem_from_pmem));
+		break;
+
+	case IOCTL_KGSL_SHAREDMEM_FROM_PMEM_OLD:
+		kgsl_yamato_runpending(&kgsl_driver.yamato_device);
+		result = kgsl_ioctl_sharedmem_from_pmem(private,
+				(void __user *)arg,
+				sizeof(struct kgsl_sharedmem_from_pmem_old));
 		break;
 
 	case IOCTL_KGSL_DRAWCTXT_SET_BIN_BASE_OFFSET:

@@ -233,6 +233,15 @@ struct kgsl_sharedmem_from_pmem {
 #define IOCTL_KGSL_SHAREDMEM_FROM_PMEM \
 	_IOWR(KGSL_IOC_TYPE, 0x20, struct kgsl_sharedmem_from_pmem)
 
+/* Support the old SHAREDMEM_FROM_PMEM ioctl. */
+struct kgsl_sharedmem_from_pmem_old {
+	int pmem_fd;
+	unsigned int gpuaddr;	/*output param */
+};
+
+#define IOCTL_KGSL_SHAREDMEM_FROM_PMEM_OLD \
+	_IOWR(KGSL_IOC_TYPE, 0x20, struct kgsl_sharedmem_from_pmem_old)
+
 /* remove memory from the GPU's address space */
 struct kgsl_sharedmem_free {
 	unsigned int gpuaddr;
