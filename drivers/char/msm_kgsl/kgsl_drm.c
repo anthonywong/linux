@@ -43,30 +43,21 @@
 
 #ifdef CONFIG_PMEM_SMI_REGION
 #define TYPE_IS_PMEM(_t) \
-  (((_t & DRM_KGSL_GEM_TYPE_MEM_MASK) == DRM_KGSL_GEM_TYPE_EBI) || \
-   ((_t & DRM_KGSL_GEM_TYPE_MEM_MASK) == DRM_KGSL_GEM_TYPE_SMI) || \
+  (((_t) == DRM_KGSL_GEM_TYPE_EBI) || \
+   ((_t) == DRM_KGSL_GEM_TYPE_SMI) || \
    ((_t) & DRM_KGSL_GEM_TYPE_PMEM))
 #else
 #define TYPE_IS_PMEM(_t) \
-  (((_t & DRM_KGSL_GEM_TYPE_MEM_MASK) == DRM_KGSL_GEM_TYPE_EBI) || \
+  (((_t) == DRM_KGSL_GEM_TYPE_EBI) || \
    ((_t) & (DRM_KGSL_GEM_TYPE_PMEM | DRM_KGSL_GEM_PMEM_EBI)))
 #endif
 
 /* Returns true if the memory type is regular */
 
 #define TYPE_IS_MEM(_t) \
-  (((_t & DRM_KGSL_GEM_TYPE_MEM_MASK) == DRM_KGSL_GEM_TYPE_KMEM) || \
-   ((_t & DRM_KGSL_GEM_TYPE_MEM_MASK) == DRM_KGSL_GEM_TYPE_KMEM_NOCACHE) || \
+  (((_t) == DRM_KGSL_GEM_TYPE_KMEM) || \
+   ((_t) == DRM_KGSL_GEM_TYPE_KMEM_NOCACHE) || \
    ((_t) & DRM_KGSL_GEM_TYPE_MEM))
-
-/* Cache clean/flush ops */
-#define KGSL_GEM_CACHE_INV          0x00000000
-#define KGSL_GEM_CACHE_CLEAN        0x00000001
-#define KGSL_GEM_CACHE_FLUSH        0x00000002
-
-/* GEM mem addr types */
-#define KGSL_GEM_CACHE_PMEM_ADDR    0x00000010
-#define KGSL_GEM_CACHE_VMALLOC_ADDR 0x00000020
 
 struct drm_kgsl_gem_object {
 	struct drm_gem_object *obj;
@@ -89,70 +80,11 @@ struct drm_kgsl_gem_object {
 /* This is a global list of all the memory currently mapped in the MMU */
 static struct list_head kgsl_mem_list;
 
-static long kgsl_gem_cache_range_op(const void *addr, unsigned long size,
-					uint32_t flags)
+static
+void kgsl_gem_kmem_flush(uint32_t addr, uint32_t size)
 {
-#ifdef CONFIG_OUTER_CACHE
-	unsigned long end;
-
-	BUG_ON(addr & (PAGE_SIZE - 1));
-	BUG_ON(size & (PAGE_SIZE - 1));
-
-#endif
-	if (flags & KGSL_GEM_CACHE_FLUSH)
-		dmac_flush_range((const void *)addr,
-				(const void *)(addr + size));
-	else if (flags & KGSL_GEM_CACHE_CLEAN)
-		dmac_clean_range((const void *)addr,
-					(const void *)(addr + size));
-	else
-		dmac_inv_range((const void *)addr,
-					(const void *)(addr + size));
-
-#ifdef CONFIG_OUTER_CACHE
-	for (end = addr; end < (addr + size); end += PAGE_SIZE) {
-		unsigned long physaddr;
-		/* vmalloc addr */
-		if (flags & KGSL_CACHE_GEM_VMALLOC_ADDR) {
-			physaddr = vmalloc_to_pfn((void *)end);
-			physaddr <<= PAGE_SHIFT;
-		} else /* pmem addr */
-			physaddr = __pa(addr);
-		if (flags & KGSL_GEM_CACHE_FLUSH)
-			outer_flush_range(physaddr, physaddr + PAGE_SIZE);
-		else if (flags & KGSL_GEM_CACHE_CLEAN)
-			outer_clean_range(physaddr,
-				physaddr + PAGE_SIZE);
-		else
-			outer_inv_range(physaddr,
-				physaddr + PAGE_SIZE);
-	}
-#endif
-	return 0;
-}
-
-static void kgsl_gem_mem_flush(const void *addr,
-		unsigned long size, uint32_t type)
-{
-	int flags = 0;
-
-#ifdef CONFIG_OUTER_CACHE
-	if (TYPE_IS_PMEM(type))
-		flags |= KGSL_CACHE_GEM_PMEM_ADDR;
-	else if (TYPE_IS_MEM(type))
-		flags |= KGSL_CACHE_GEM_VMALLOC_ADDR;
-	else
-		return;
-#endif
-
-	if (type & (DRM_KGSL_GEM_CACHE_WBACK | DRM_KGSL_GEM_CACHE_WBACKWA))
-		flags |= KGSL_GEM_CACHE_FLUSH;
-	else if (type & DRM_KGSL_GEM_CACHE_WTHROUGH)
-		flags |= KGSL_GEM_CACHE_INV;
-	else
-		return;
-
-	kgsl_gem_cache_range_op(addr, size, flags);
+	dmac_flush_range((const void *) addr,
+			 (const void *) (addr + size));
 }
 
 /* Flush all the memory mapped in the MMU */
@@ -165,9 +97,9 @@ void kgsl_gpu_mem_flush(void)
 	list_for_each_entry(entry, &kgsl_mem_list, list) {
 		for (index = 0;
 		    entry->cpuaddr && (index < entry->bufcount); index++)
-			kgsl_gem_mem_flush((void *)(entry->cpuaddr +
-					    entry->bufs[index].offset),
-					    entry->size, entry->type);
+			kgsl_gem_kmem_flush(entry->cpuaddr +
+					    entry->bufs[index].offset,
+					    entry->size);
 	}
 }
 
@@ -452,8 +384,6 @@ kgsl_gem_obj_addr(int drm_fd, int handle, unsigned long *start,
 		*start = priv->cpuaddr + priv->bufs[priv->active].offset;
 		/* priv->mmap_offset is used for virt addr */
 		*len = obj->size;
-		/* flush cached obj */
-		kgsl_gem_mem_flush(__va(*start), *len, priv->type);
 	} else {
 		*start = 0;
 		*len = 0;
@@ -1026,23 +956,11 @@ int msm_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	vma->vm_private_data = map->handle;
 
 
-	/* Take care of requested caching policy */
 	if (gpriv->type == DRM_KGSL_GEM_TYPE_KMEM ||
-	    gpriv->type & DRM_KGSL_GEM_CACHE_MASK) {
-		if (gpriv->type & DRM_KGSL_GEM_CACHE_WBACKWA)
-			vma->vm_page_prot =
-			pgprot_writebackwacache(vma->vm_page_prot);
-		else if (gpriv->type & DRM_KGSL_GEM_CACHE_WBACK)
-				vma->vm_page_prot =
-				pgprot_writebackcache(vma->vm_page_prot);
-		else if (gpriv->type & DRM_KGSL_GEM_CACHE_WTHROUGH)
-				vma->vm_page_prot =
-				pgprot_writethroughcache(vma->vm_page_prot);
-		else
-			vma->vm_page_prot =
-			pgprot_writecombine(vma->vm_page_prot);
-	} else /* default pmem is WC */
+	    gpriv->type & DRM_KGSL_GEM_CACHE_WCOMBINE)
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	else
+		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	/* Add the other memory types here */
 
