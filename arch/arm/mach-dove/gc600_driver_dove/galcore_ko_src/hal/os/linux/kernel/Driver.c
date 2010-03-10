@@ -471,16 +471,7 @@ module_init(drv_init);
 module_exit(drv_exit);
 #else
 
-#ifdef CONFIG_DOVE_GPU
-#ifndef ANDROID
-#define DEVICE_NAME "dove_gpu"
-#else
 #define DEVICE_NAME "galcore"
-#endif
-#else
-#define DEVICE_NAME "galcore"
-#endif
-
 
 static int __devinit gpu_probe(struct platform_device *pdev)
 {
