@@ -51,14 +51,14 @@ advansys
 advantechwdt
 aedsp16
 aes_generic
-aes-i586
+aesni-intel
+aes-x86_64
 affs
 af_key
 af-rxrpc
 agpgart
 ah4
 ah6
-aha152x_cs
 ahci
 aic79xx
 aic7xxx
@@ -66,16 +66,13 @@ aic94xx
 aiptek
 aircable
 alauda
-ali-agp
 ali-ircc
 alim1535_wdt
 alim7101_wdt
 ambassador
 amd64-agp
-amd76x_edac
 amd76xrom
 amd8111e
-amd-k7-agp
 amd-rng
 analog
 anubis
@@ -107,7 +104,6 @@ async_xor
 ata_generic
 ata_piix
 aten
-ati-agp
 ati_remote
 ati_remote2
 atl1
@@ -128,7 +124,6 @@ av5100
 ax25
 axnet_cs
 b44
-baycom_epp
 baycom_par
 baycom_ser_fdx
 baycom_ser_hdx
@@ -139,7 +134,6 @@ belkin_sa
 berry_charge
 bfs
 bfusb
-binfmt_aout
 binfmt_misc
 bitblit
 block2mtd
@@ -152,7 +146,6 @@ bnx2x
 bonding
 bpa10x
 bpck
-bpck6
 bpqether
 br2684
 bridge
@@ -227,7 +220,6 @@ crvml
 cryptd
 cryptoloop
 crypto_null
-cs5535_gpio
 ct82c710
 ctr
 cts
@@ -283,7 +275,6 @@ doc2001
 doc2001plus
 docecc
 docprobe
-donauboe
 dpt_i2o
 drm
 drm_kms_helper
@@ -301,7 +292,6 @@ e100
 e1000
 e1000e
 e752x_edac
-e7xxx_edac
 eata
 ebt_802_3
 ebtable_broute
@@ -330,7 +320,6 @@ econet
 ecryptfs
 edac_core
 eeprom_93cx6
-efficeon-agp
 efs
 ehci-hcd
 elo
@@ -381,10 +370,12 @@ fmvj18x_cs
 font
 forcedeth
 fore_200e
+fpu
 freevxfs
 friq
 frpw
 fsam7400
+fscache
 fschmd
 ftdi-elan
 ftdi_sio
@@ -402,12 +393,11 @@ g_cdc
 gcm
 gdth
 gen_probe
-geode-aes
-geode-rng
 g_ether
 gf128mul
 gf2k
 g_file_storage
+ghash-clmulni-intel
 ghash-generic
 girbil-sir
 gl518sm
@@ -460,6 +450,7 @@ hid-logitech
 hid-microsoft
 hid-monterey
 hid-ntrig
+hid-ortek
 hidp
 hid-petalynx
 hid-pl
@@ -526,14 +517,13 @@ i5100_edac
 i5k_amb
 i6300esb
 i82092
-i82860_edac
-i82875p_edac
 i82975x_edac
 i8k
 ib700wdt
 ib_addr
 ib_cm
 ib_core
+ib_ipath
 ib_ipoib
 ib_iser
 ib_mad
@@ -682,7 +672,6 @@ kyrofb
 l2cap
 l440gx
 lanai
-lanstreamer
 lapb
 lapbether
 lcd
@@ -690,10 +679,8 @@ ldusb
 lec
 led-class
 leds-gpio
-leds-net48xx
 leds-pca9532
 leds-pca955x
-leds-wrap
 ledtrig-default-on
 ledtrig-heartbeat
 ledtrig-timer
@@ -879,7 +866,6 @@ nfs_acl
 nfsd
 nftl
 n_hdlc
-nicstar
 niu
 nls_ascii
 nls_cp1250
@@ -928,10 +914,7 @@ ns558
 ns83820
 nsc_gpio
 nsc-ircc
-nsp32
-nsp_cs
 ntfs
-nvidia-agp
 nvidiafb
 nvram
 ocfs2
@@ -944,7 +927,6 @@ ocfs2_stack_user
 ohci1394
 ohci-hcd
 old_belkin-sir
-olpc_battery
 olympic
 omfs
 omnibook
@@ -977,8 +959,6 @@ pata_atiixp
 pata_cmd64x
 pata_cs5520
 pata_cs5530
-pata_cs5535
-pata_cs5536
 pata_efar
 pata_hpt366
 pata_hpt37x
@@ -1036,6 +1016,7 @@ penmount
 pf
 pg
 phantom
+phonedev
 phram
 physmap
 pktcdvd
@@ -1077,7 +1058,7 @@ quota_v1
 quota_v2
 r128
 r8169
-r82600_edac
+r8192se_pci
 r8a66597-hcd
 radeon
 radeonfb
@@ -1143,7 +1124,7 @@ s2io
 s3fb
 safe_serial
 salsa20_generic
-salsa20-i586
+salsa20-x86_64
 sata_inic162x
 sata_mv
 sata_nv
@@ -1161,7 +1142,6 @@ savage
 savagefb
 sb
 sbc60xxwdt
-sbc7240_wdt
 sbc8360
 sbc_epx_c3
 sbc_gxx
@@ -1202,13 +1182,6 @@ scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
-scx200
-scx200_acb
-scx200_docflash
-scx200_gpio
-scx200_hrt
-scx200_i2c
-scx200_wdt
 sd_mod
 seed
 seqiv
@@ -1358,7 +1331,6 @@ snd-seq-midi-event
 snd-seq-oss
 snd-seq-virmidi
 snd-serial-u16550
-snd-sis7019
 snd-soc-core
 snd-sonicvibes
 snd-timer
@@ -1378,7 +1350,6 @@ snd-vxpocket
 snd-ymfpci
 softcursor
 softdog
-sonypi
 sound
 soundcore
 sound_firmware
@@ -1412,7 +1383,6 @@ sunkbd
 sunrpc
 svcrdma
 svgalib
-sworks-agp
 sx8
 sym53c500_cs
 sym53c8xx
@@ -1481,7 +1451,7 @@ turbografx
 twidjoy
 twofish
 twofish_common
-twofish-i586
+twofish-x86_64
 typhoon
 u132-hcd
 uart401
@@ -1574,7 +1544,6 @@ warrior
 wdt_pci
 whiteheat
 winbond-840
-wistron_btns
 wm97xx-ts
 wp512
 x25
