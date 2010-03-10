@@ -202,6 +202,8 @@ static void setup_audio_video(void)
 	set_video_mode(AD9889_720p, RGB, AD9889_0_255, _16x9);
 	set_audio_format(SPDIF);
 	set_spdif_audio();
+	//set_audio_format(I2S);
+	set_audio_mode(_44k, 24, 2, 2);
 	av_mute_off();
 
 }
