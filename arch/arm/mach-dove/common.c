@@ -70,7 +70,7 @@ static unsigned int dove_gpu_memory_start;
 #define UIO_DOVE_VMETA_MEM_SIZE 0
 #endif
 
-unsigned int __initdata vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
+unsigned int vmeta_size = UIO_DOVE_VMETA_MEM_SIZE;
 
 /* used for memory allocation for the GPU graphics engine */
 #ifdef CONFIG_DOVE_GPU
