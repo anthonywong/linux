@@ -46,7 +46,13 @@
 #define USB_AHB_BURST        (MSM_USB_BASE + 0x0090)
 #define USB_AHB_MODE         (MSM_USB_BASE + 0x0098)
 #define USB_ROC_AHB_MODE     (MSM_USB_BASE + 0x0090)
+
+#ifdef CONFIG_ARCH_MSM7X00A
 #define USB_SBUSCFG          (MSM_USB_BASE + 0x0090)
+#else
+#define USB_AHBBURST         (MSM_USB_BASE + 0x0090)
+#define USB_AHBMODE          (MSM_USB_BASE + 0x0098)
+#endif
 
 #define USB_CAPLENGTH        (MSM_USB_BASE + 0x0100) /* 8 bit */
 #define USB_HCIVERSION       (MSM_USB_BASE + 0x0102) /* 16 bit */
@@ -200,6 +206,13 @@ struct ept_queue_item {
 #define ULPI_DATA(n)          ((n) & 255)
 #define ULPI_DATA_READ(n)     (((n) >> 8) & 255)
 
+#define ULPI_DEBUG_REG        (0x15)
+#define ULPI_SCRATCH_REG      (0x16)
+
+#define ULPI_FUNC_CTRL_CLR    (0x06)
+#define   ULPI_FUNC_SUSPENDM  (1 << 6)
+
+
 /* USB_PORTSC bits for determining port speed */
 #define PORTSC_PSPD_FS        (0 << 26)
 #define PORTSC_PSPD_LS        (1 << 26)
@@ -277,8 +290,16 @@ struct ept_queue_item {
 
 #define USBH                     (1 << 15)
 #define USB_PHY                  (1 << 18)
+#define PORTSC_PTS_MASK       (3 << 30)
+#define PORTSC_PTS_ULPI       (2 << 30)
+#define PORTSC_PTS_SERIAL     (3 << 30)
+
+#define PORTSC_CCS             (1 << 0)  /* current connect status */
+#define PORTSC_FPR             (1 << 6)  /* R/W - State normal => suspend */
+#define PORTSC_SUSP            (1 << 7)  /* Read - Port in suspend state */
+#define PORTSC_LS              (3 << 10) /* Read - Port's Line status */
+#define PORTSC_PHCD            (1 << 23) /* phy suspend mode */
 
 #define ULPI_DEBUG               0x15
-#define ULPI_FUNC_CTRL_CLR       0x06
 #define ULPI_SUSPENDM            (1 << 6)
 #endif /* __LINUX_USB_GADGET_MSM72K_UDC_H__ */
