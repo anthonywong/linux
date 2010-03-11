@@ -1407,8 +1407,13 @@ static unsigned audio_gpio_on[] = {
 
 void q6audio_enable_spkr_phone(int enable)
 {
-	if (machine_is_qsd8x50a_st1_5())
+	if (machine_is_qsd8x50a_st1_5()) {
 		gpio_set_value(48, (enable != 0));
+		pmic_secure_mpp_control_digital_output(
+				PM_MPP_21,
+				PM_MPP__DLOGIC__LVL_VDD,
+				PM_MPP__DLOGIC_OUT__CTRL_HIGH);
+	}
 }
 
 static void __init audio_gpio_init(void)
@@ -1426,15 +1431,9 @@ static void __init audio_gpio_init(void)
 		}
 	}
 
-	if (machine_is_qsd8x50_st1()) {
+	if (machine_is_qsd8x50a_st1_5()) {
 		/* enable headset amplifier */
-		rc = gpio_tlmm_config(st15_audio_gpio_on[0], GPIO_ENABLE);
-		if (rc) {
-			printk(KERN_ERR
-				"%s: gpio_tlmm_config(%#x)=%d\n",
-				__func__, st15_audio_gpio_on[0], rc);
-			return;
-		}
+		gpio_tlmm_config(st15_audio_gpio_on[0], GPIO_ENABLE);
 	}
 }
 
