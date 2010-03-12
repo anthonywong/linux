@@ -326,7 +326,11 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	} else {
 		if (0 == init_ext_divider) {
 			init_ext_divider = 1;
-			printk(KERN_ERR "fix to (2G/%d) without half divider.\n", (2000000000/dmi->sclk_clock));
+			/*
+			printk(KERN_INFO "fix to (2G/%d) "
+				"without half divider.\n",
+				(2000000000/dmi->sclk_clock));
+			*/
 			set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
 		}
 	}
