@@ -434,15 +434,19 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 	if (dfli) {
 		u32 irq_ena = readl(dfli->reg_base + SPU_IRQ_ENA);
 		int rc = 0;
+		unsigned int mask = DOVEFB_GFX_INT_MASK | DOVEFB_VSYNC_INT_MASK;
 
-		writel(irq_ena | DOVEFB_GFX_INT_MASK | DOVEFB_VSYNC_INT_MASK, 
-		       dfli->reg_base + SPU_IRQ_ENA);
+		writel(irq_ena | mask, dfli->reg_base + SPU_IRQ_ENA);
 		
 		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
 						      atomic_read(&dfli->w_intr), 4);
-		if ( rc < 0)
-			printk(KERN_ERR "%s: gfx wait for vsync timed out, rc %d\n",
+		if ( rc < 0) {
+			u32 irq_isr = readl(dfli->reg_base + SPU_IRQ_ISR);
+			if ((irq_isr & mask) != 0)
+				printk(KERN_WARNING "%s: gfx wait for vsync"
+				" timed out, rc %d\n",
 				__func__, rc);
+		}
 
 		writel(irq_ena, 
 		       dfli->reg_base + SPU_IRQ_ENA);
