@@ -1360,6 +1360,7 @@ struct clk msm_clocks_8x50[] = {
 	CLK_PCOM("usb_phy_clk",	USB_PHY_CLK,	NULL, 0),
 
 #ifdef CONFIG_MSM_SOC_REV_A
+	CLK_PCOM("grp_pclk",	GRP_PCLK,	NULL, 0),
 	CLK_PCOM("grp_2d_clk",	GRP_2D_CLK,	NULL, 0),
 	CLK_PCOM("grp_2d_pclk",	GRP_2D_PCLK,	NULL, 0),
 	CLK_PCOM("qup_clk",	GSBI_CLK,	&qup_device_i2c.dev, 0),
