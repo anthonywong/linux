@@ -267,7 +267,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	u64 div_result;
 	u32 x = 0, x_bk;
 	struct dovefb_info *info = dfli->info;
-	u32 axi_div, lcd_div, is_ext;
+	u32 axi_div = 1, lcd_div, is_ext = 0;
 	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
 	u32 isInterlaced = 0;
 
