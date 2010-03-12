@@ -500,34 +500,6 @@ static void set_dumb_panel_control(struct fb_info *fi, int gpio_only)
 		writel(x, dfli->reg_base + LCD_SPU_DUMB_CTRL);
 }
 
-static void set_dumb_screen_dimensions(struct fb_info *fi)
-{
-	struct dovefb_layer_info *dfli = fi->par;
-	struct fb_var_screeninfo *v = &fi->var;
-	struct dovefb_info *info = dfli->info;
-	struct fb_videomode	 *ov = &info->out_vmode;
-	int x;
-	int y;
-	u32 reg, reg_bk;
-
-	reg_bk = readl(dfli->reg_base + LCD_SPUT_V_H_TOTAL);
-
-	if (info->fixed_output) {
-		x = ov->xres + ov->right_margin + ov->hsync_len +
-			ov->left_margin;
-		y = ov->yres + ov->lower_margin + ov->vsync_len +
-			ov->upper_margin;
-	} else {
-		x = v->xres + v->right_margin + v->hsync_len + v->left_margin;
-		y = v->yres + v->lower_margin + v->vsync_len + v->upper_margin;
-	}
-
-	reg = (y << 16)|x;
-
-	if (reg != reg_bk)
-		writel((y << 16) | x, dfli->reg_base + LCD_SPUT_V_H_TOTAL);
-}
-
 static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 {
 	struct dovefb_layer_info *dfli = fi->par;
