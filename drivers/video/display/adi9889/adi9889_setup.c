@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
 #include <linux/kthread.h>
+#include <linux/freezer.h>
 #include "AD9889_setup.h"
 #include "AD9889_interrupt_handler.h"
 
@@ -216,8 +217,9 @@ int adi9889_thread (void *data)
 	while (1) {
 		int ret;
 		counter ++;
-		msleep(2000);
+		try_to_freeze();
 		ret = ad9889_interrupt_handler(setup_audio_video);
+		msleep(2000);
 	}
 
 	return 0;
