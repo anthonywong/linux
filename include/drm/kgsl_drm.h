@@ -96,6 +96,7 @@ DRM_IOWR(DRM_COMMAND_BASE + DRM_KGSL_GEM_SET_ACTIVE, \
 #define DRM_KGSL_GEM_TYPE_SMI          1
 #define DRM_KGSL_GEM_TYPE_KMEM         2
 #define DRM_KGSL_GEM_TYPE_KMEM_NOCACHE 3
+#define DRM_KGSL_GEM_TYPE_MEM_MASK     0xF
 
 /* Contiguous memory (PMEM) */
 #define DRM_KGSL_GEM_TYPE_PMEM       0x000100
