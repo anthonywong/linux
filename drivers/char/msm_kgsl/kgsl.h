@@ -53,6 +53,10 @@
 #define KGSL_CACHE_USER_ADDR	0x00000010
 #define KGSL_CACHE_VMALLOC_ADDR	0x00000020
 
+/*cache coherency ops */
+#define DRM_KGSL_GEM_CACHE_OP_TO_DEV	0x0001
+#define DRM_KGSL_GEM_CACHE_OP_FROM_DEV	0x0002
+
 struct kgsl_driver {
 	struct miscdevice misc;
 	struct platform_device *pdev;
@@ -125,7 +129,7 @@ int kgsl_yamato_sleep(struct kgsl_device *device, const int idle);
 #ifdef CONFIG_MSM_KGSL_DRM
 extern int kgsl_drm_init(struct platform_device *dev);
 extern void kgsl_drm_exit(void);
-extern void kgsl_gpu_mem_flush(void);
+extern void kgsl_gpu_mem_flush(int op);
 #else
 static inline int kgsl_drm_init(struct platform_device *dev)
 {
