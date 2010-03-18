@@ -121,17 +121,17 @@ err_free:
 #ifdef CONFIG_PM
 static int mc13892_led_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct led_classdev *led_cdev = platform_get_drvdata(dev);
+	struct mc13892_led *led = platform_get_drvdata(dev);
 
-	led_classdev_suspend(led_cdev);
+	led_classdev_suspend(&led->cdev);
 	return 0;
 }
 
 static int mc13892_led_resume(struct platform_device *dev)
 {
-	struct led_classdev *led_cdev = platform_get_drvdata(dev);
+	struct mc13892_led *led = platform_get_drvdata(dev);
 
-	led_classdev_resume(led_cdev);
+	led_classdev_resume(&led->cdev);
 	return 0;
 }
 #else
