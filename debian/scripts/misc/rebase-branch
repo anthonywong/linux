@@ -18,7 +18,26 @@
 #  5. Keep things in a state that they can be merged back
 #     into the main tree at the end of the dev cycle
 
-remoteTag=${1:?"Usage: $0 <remote-tag to rebase on>"}
+CurBase=$(git log --pretty=oneline --grep="UBUNTU: Ubuntu-2.6.24" -1 | \
+		cut -d' ' -f3-)
+CurBranch=$(git branch|awk '/^\*/{print $2}')
+
+if [ "$1" = "" ]; then
+	echo "Usage: $(basename $0) <tag in master branch to rebase on>"
+
+	NewBase=$(git log --pretty=oneline --grep="UBUNTU: Ubuntu-2.6.24" \
+		-1 master|cut -d' ' -f3-)
+	echo
+	echo "Last base seems to be $CurBase"
+	echo "The latest master release is $NewBase"
+	exit 1
+else
+	remoteTag="$1"
+fi
+if [ "$(git tag -l $remoteTag 2>/dev/null)" = "" ]; then
+	echo "ERROR: $remoteTag does not seem to be a valid tag!" >&2
+	exit 1
+fi
 
 rebasing=".git/rebase-apply"
 
@@ -161,7 +180,20 @@ fi
 echo ""
 echo "If the final result looks good, then do the following to make it permanent:"
 ##echo " * Run debian/scripts/misc/retag-branch to retag"
-echo " * git checkout <original branch>"
+echo " * git checkout $CurBranch"
 echo " * git reset --hard $remoteBranch"
+echo
+echo "Some hints to progress (ONLY HINTS! DON'T TRUST ULTIMATELY!)"
+echo " * Start a new release (if you did not before)"
+echo " * ./debian/scripts/misc/insert-ubuntu-changes debian/changelog " \
+	$(echo $CurBase|cut -d- -f3) $(echo $remoteTag|cut -d- -f3)
+echo " * git add debian/changelog"
+echo " * git commit -s -m \"UBUNTU: Rebased to $(echo $remoteTag|cut -d- -f2-)\""
+echo " * Add any other changes you want to have in that release"
+echo " * Insert the changes into the changelog and commit that"
+echo " * Note: Make sure the commit tag is UBUNTU: NBK-Ubuntu-2.6.24-..."
+
+exit 0
+
 echo " * rm -rf patches/"
 
