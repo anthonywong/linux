@@ -1197,6 +1197,7 @@ static int rt5610_resume(struct platform_device *pdev)
 		return ret;
 	}
 
+	rt5610_write(codec, RT5610_PD_CTRL_STAT, 0); 
 	rt5610_set_bias_level(codec, SND_SOC_BIAS_STANDBY);\
 		
 	/* do we need to re-start the PLL ? */
