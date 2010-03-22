@@ -94,6 +94,8 @@ static void rt5611_ts_phy_init(struct rt5611_ts *rt)
 	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE1, CB1_DEFALT);
 	rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE2, CB2_DEFALT);
 	rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_STICKY, 0, RT_GPIO_BIT13);
+	rt5611_ts_reg_write_mask(rt, RT_PD_CTRL_STAT, 0,PD_CTRL_VREF|PD_CTRL_ADC); //enable ADC/Vref power down 
+
 }
 
 static int rt5611_ts_poll_coord(struct rt5611_ts *rt, struct rt5611_ts_data *data)
@@ -202,8 +204,13 @@ static int rt5611_ts_poll_touch(struct rt5611_ts *rt, struct rt5611_ts_data *dat
 static void rt5611_ts_enable(struct rt5611_ts *rt, int enable)
 {
 	RT5611_TS_DEBUG("rt5611_ts_enable(%d)\n", enable);
-	
+	u16 pdstatus=0;
 	if (enable) {
+		pdstatus=rt5611_ts_reg_read(rt, RT_PD_CTRL_STAT);
+		if (!(pdstatus & (PD_CTRL_STATUS_VREF|PD_CTRL_STATUS_ADC))) // 1:ready, 0:not ready
+			rt5611_ts_reg_write_mask(rt, RT_PD_CTRL_STAT, 0,
+			PD_CTRL_VREF|PD_CTRL_ADC); //enable ADC/Vref power down 
+	
 		/* power on main BIAS */
 		rt5611_ts_reg_write_mask(rt, RT_PWR_MANAG_ADD1, 
 					 PWR_MAIN_BIAS | PWR_IP_ENA,
@@ -212,7 +219,6 @@ static void rt5611_ts_enable(struct rt5611_ts *rt, int enable)
 		rt5611_ts_reg_write_mask(rt, RT_PWR_MANAG_ADD2, 
 					 PWR_MIXER_VREF | PWR_TP_ADC,
 					 PWR_MIXER_VREF |PWR_TP_ADC);
-
 #ifdef POLLING_MODE	/* poll mode */
 		/* set touch control register1 */
 		rt5611_ts_reg_write(rt, RT_TP_CTRL_BYTE1, 
@@ -258,6 +264,8 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 	RT5611_TS_DEBUG("rt5611_ts_read_samples\n");
 
 	mutex_lock(&rt->codec->mutex);
+
+       rt5611_ts_enable(rt, RT_TP_ENABLE);
 
 	rc = rt5611_ts_poll_touch(rt, &data);
 	if (rc & RC_PENUP) {
@@ -311,6 +319,8 @@ static int rt5611_ts_read_samples(struct rt5611_ts *rt)
 		rt->ts_reader_interval = rt->ts_reader_min_interval;
 	}
 
+	rt5611_ts_enable(rt, RT_TP_DISABLE);
+
 	mutex_unlock(&rt->codec->mutex);
 	return rc;
 }
@@ -330,8 +340,6 @@ static void rt5611_ts_reader(struct work_struct *work)
 #endif
 	RT5611_TS_DEBUG("rt5611_ts_reader\n");
 
-	/* Insure TSC is enabled.*/
-	rt5611_ts_enable(rt, RT_TP_ENABLE);
 	do {
 		rc = rt5611_ts_read_samples(rt);
 	} while (rc & RC_AGAIN);
@@ -343,8 +351,6 @@ static void rt5611_ts_reader(struct work_struct *work)
 
 	/* Pen Up, enable IRQ if IRQ has been assigned */
 	if (!rt->pen_is_down && rt->pen_irq) {
-//		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_POLARITY, RT_GPIO_BIT2,
-//					 RT_GPIO_BIT2 | RT_GPIO_BIT13);
 		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_STATUS, 0,
 					 RT_GPIO_BIT2 | RT_GPIO_BIT13);
 		enable_irq(rt->pen_irq);
@@ -382,12 +388,6 @@ static void rt5611_ts_pen_irq_worker(struct work_struct *work)
 	else
 		rt->pen_is_down = 0;
 
-//	printk(KERN_ERR "GPIO13(pol,status)=%x,%x\n",(pol & RT_GPIO_BIT13)>>13,(status & RT_GPIO_BIT13)>>13);
-
-//	rt5611_ts_reg_write(rt, RT_GPIO_PIN_POLARITY,
-//			    (pol | RT_GPIO_BIT2) & ~RT_GPIO_BIT13);
-//	rt5611_ts_reg_write(rt, RT_GPIO_PIN_STATUS,
-//			    status & ~(RT_GPIO_BIT2 | RT_GPIO_BIT13));
 	mutex_unlock(&rt->codec->mutex);
 
 	/* Data is not availiable immediately on pen down */
@@ -464,11 +464,6 @@ static void rt5611_ts_input_close(struct input_dev *idev)
 	RT5611_TS_DEBUG("rt5611_ts_input_close\n");
 
 	if (rt->pen_irq) {
-		/* Return the interrupt to GPIO usage (disabling it)
-		 * Config GPIO2 as GPIO
-		 */
-//		rt5611_ts_reg_write_mask(rt, RT_GPIO_PIN_SHARING, 0,
-//					 GPIO2_PIN_SHARING_MASK);
 		free_irq(rt->pen_irq, rt);
 	}
 
@@ -482,9 +477,9 @@ static void rt5611_ts_input_close(struct input_dev *idev)
 
 	destroy_workqueue(rt->ts_workq);
 
-	/* stop digitiser */
-//	rt5611_ts_enable(rt, RT_TP_DISABLE);
+
 }
+
 
 static int rt5611_ts_reset(struct snd_soc_codec *codec, int try_warm)
 {
