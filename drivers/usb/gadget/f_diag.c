@@ -396,8 +396,8 @@ static int diag_function_bind(struct usb_configuration *c,
 			goto fail;
 	}
 
-	ctxt->i_serial_number = cdev->desc.iSerialNumber;
-	ctxt->product_id   = cdev->desc.idProduct;
+	ctxt->i_serial_number = cdev->driver->dev->iSerialNumber;
+	ctxt->product_id   = cdev->driver->dev->idProduct;
 	/*send serial number to A9 sw download, only if serial_number
 	* is not null and i_serial_number is non-zero
 	*/
