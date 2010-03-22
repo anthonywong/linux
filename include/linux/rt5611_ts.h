@@ -47,6 +47,7 @@
 #define RT_ADC_X					0x0001
 #define RT_ADC_Y					0x0002
 #define RT_ADC_P					0x0003
+#define RT_PD_CTRL_STAT					0X26			//POWER DOWN CONTROL/STATUS
 
 #define RT_PWR_MANAG_ADD1				0X3A			//POWER MANAGMENT ADDITION 1
 #define RT_PWR_MANAG_ADD2				0X3C			//POWER MANAGMENT ADDITION 2
@@ -82,6 +83,12 @@
 #define	RT_GPIO_BIT13				0x2000				//Pen down detect Control/Status
 #define	RT_GPIO_BIT14				0x4000
 #define	RT_GPIO_BIT15				0x8000
+
+//Power Down CTRL/STATUS  (0x26),0:Normal,1:Power Down
+#define PD_CTRL_VREF				(0x1<<11)
+#define PD_CTRL_ADC					(0x1<<8)
+#define PD_CTRL_STATUS_VREF		(0x1<<3)
+#define PD_CTRL_STATUS_ADC		(0x1<<0)
 
 
 //Power managment addition 1 (0x3A),0:Disable,1:Enable
