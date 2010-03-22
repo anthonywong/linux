@@ -79,7 +79,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
-char *serial_number = "1234567890ABCDEF";
+char *serial_number = "0123456789ABCDEF";
 /*-------------------------------------------------------------------------*/
 
 static int __init chrome_bind_config(struct usb_configuration *c)
