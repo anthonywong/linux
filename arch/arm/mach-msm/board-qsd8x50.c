@@ -2138,9 +2138,11 @@ static struct i2c_board_info msm_i2c_board_info[] __initdata = {
 static struct i2c_board_info msm_i2c_st1_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("qci-i2ckbd", 0x18),
+		.irq = 37,
 	},
 	{
 		I2C_BOARD_INFO("qci-i2cpad", 0x19),
+		.irq = 35,
 	},
 	{
 		I2C_BOARD_INFO("qci-i2cbrg", 0x1A),
@@ -2157,9 +2159,11 @@ static struct i2c_board_info msm_i2c_st1_info[] __initdata = {
 static struct i2c_board_info msm_i2c_st1_5_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("qci-i2ckbd", 0x18),
+		.irq = 37,
 	},
 	{
 		I2C_BOARD_INFO("qci-i2cpad", 0x19),
+		.irq = 35,
 	},
 	{
 		I2C_BOARD_INFO("qci-i2cec", 0x1A),
