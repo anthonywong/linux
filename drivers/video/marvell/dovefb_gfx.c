@@ -628,9 +628,8 @@ static int set_frame_timings(const struct dovefb_layer_info *dfli,
 	 */
 	x = readl(dfli->reg_base+LCD_SPU_ADV_REG);
 	x &= ~((0x1 << 12) | (0xfff << 20) | 0xfff);
-	writel( (0x1 << 12) |
-		(active_w+rim) << 20 |
-		(active_w+rim), dfli->reg_base+LCD_SPU_ADV_REG);
+	x |=	(0x1 << 12) | (active_w+rim) << 20 | (active_w+rim);
+	writel( x, dfli->reg_base+LCD_SPU_ADV_REG);
 
 	return 0;
 }
@@ -949,7 +948,6 @@ int dovefb_gfx_handle_irq(u32 isr, struct dovefb_layer_info *dfli)
 		x &= ~((0x1 << 12) | (0xfff << 20) | 0xfff);
 		x |= (0x1 << 12) | (vs_adj << 20) | vs_adj;
 		writel( x, dfli->reg_base+LCD_SPU_ADV_REG);
-	
 	}
 
 	/* wake up queue. */
