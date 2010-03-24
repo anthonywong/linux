@@ -51,6 +51,8 @@ static void snd_qsd_timer(unsigned long data)
 
 static int rc = 1;
 
+struct audio_client *dummy_ac;
+
 #define SND_DRIVER        "snd_qsd"
 #define MAX_PCM_DEVICES	SNDRV_CARDS
 #define MAX_PCM_SUBSTREAMS 1
@@ -223,6 +225,8 @@ static int qsd_pcm_open(struct snd_pcm_substream *substream)
 	}
 	prtd->substream = substream;
 
+	dummy_ac = q6audio_open(AUDIO_FLAG_WRITE, 8192);
+
 	/* Ensure that buffer size is a multiple of period size */
 	ret = snd_pcm_hw_constraint_integer(runtime,
 					    SNDRV_PCM_HW_PARAM_PERIODS);
@@ -317,6 +321,8 @@ static int qsd_pcm_playback_close(struct snd_pcm_substream *substream)
 	 * TODO: Deregister the async callback handler.
 	 */
 	kfree(prtd);
+
+	kfree(dummy_ac);
 
 	return ret;
 }
