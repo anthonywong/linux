@@ -649,8 +649,7 @@ static int q6audio_init(void)
 	}
 	if (check_version(acdb, ACDB_DAL_VERSION) != 0) {
 		pr_err("Incompatablie acdb version\n");
-		res = -ENODEV;
-		goto done;
+		pr_err("ignore\n");
 	}
 
 
@@ -662,8 +661,7 @@ static int q6audio_init(void)
 	}
 	if (check_version(adie, ADIE_DAL_VERSION) != 0) {
 		pr_err("Incompatablie adie version\n");
-		res = -ENODEV;
-		goto done;
+		pr_err("ignore\n");
 	}
 	if (analog_ops->init)
 		analog_ops->init();
@@ -779,6 +777,12 @@ static void audio_rx_analog_enable(int en)
 	case ADSP_AUDIO_DEVICE_ID_BT_SCO_SPKR:
 		if (analog_ops->bt_sco_enable)
 			analog_ops->bt_sco_enable(en);
+		break;
+	default:
+		/* forcing speaker */
+		pr_err("forcing speaker as default rx device\n");
+		if (analog_ops->speaker_enable)
+			analog_ops->speaker_enable(en);
 		break;
 	}
 }
