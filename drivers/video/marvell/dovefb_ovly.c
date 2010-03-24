@@ -249,8 +249,8 @@ static u32 dovefb_ovly_set_colorkeyalpha(struct dovefb_layer_info *dfli)
 	x |= CFG_ALPHA((color_a->config & 0xff));
 
 	/* Have to program new regs to enable color key for new chip. */
-	x_ckey = readl(dfli->reg_base + LCD_SPU_DMA_CTRL1);
-	writel( x_ckey | (0x1 << 19), dfli->reg_base + 0x84);
+	x_ckey = readl(dfli->reg_base + LCD_SPU_ADV_REG);
+	writel( x_ckey | (0x1 << 19), dfli->reg_base + LCD_SPU_ADV_REG);
 
 	writel(x, dfli->reg_base + LCD_SPU_DMA_CTRL1);
 	writel(color_a->Y_ColorAlpha, dfli->reg_base + LCD_SPU_COLORKEY_Y);
