@@ -15,6 +15,7 @@
 #include "HDMI_RX_DRV.h"   
 #endif
 #include "ANX7150.h"
+#include <video/kg2.h>
 
 extern struct i2c_client *g_client;
 bool EX0;
@@ -1678,6 +1679,13 @@ void ANX7150_Embed_Sync_Decode()
 void ANX7150_Show_Video_Parameter()
 {
    // int h_res,h_act,v_res,v_act,h_fp,hsync_width,h_bp;
+//Add for KG2+
+#ifdef KG2_APP
+    unsigned short HActive = 0, VActive = 0;
+    unsigned char  IsProgressive = 0;		
+    unsigned short RefRate = 0;			
+#endif
+//Add for  KG2-
     BYTE c, c1;
    
     ANX7150_DEBUG("***********************************ANX7150 Info************************************\n");
@@ -1817,6 +1825,12 @@ void ANX7150_Show_Video_Parameter()
         {
             case ANX7150_V720x480p_60Hz_4x3:
             case ANX7150_V720x480p_60Hz_16x9:
+#ifdef KG2_APP
+		HActive=720;
+		VActive=480;
+		IsProgressive=1;
+		RefRate=60;
+#endif 
                 ANX7150_DEBUG("720x480p@60, ");
                 if(ANX7150_edid_result.supported_720x480p_60Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1824,6 +1838,12 @@ void ANX7150_Show_Video_Parameter()
                     ANX7150_DEBUG("but sink does not support this format.");
                 break;
             case ANX7150_V1280x720p_60Hz:
+#ifdef KG2_APP
+		HActive=1280;
+		VActive=720;
+		IsProgressive=1;
+		RefRate=60;
+#endif 
                 ANX7150_DEBUG("1280x720p@60, ");
                 if(ANX7150_edid_result.supported_720p_60Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1831,6 +1851,12 @@ void ANX7150_Show_Video_Parameter()
                     ANX7150_DEBUG("but sink does not support this format.");
                 break;
             case ANX7150_V1920x1080i_60Hz:
+#ifdef KG2_APP
+		HActive=1920;
+		VActive=1080;
+		IsProgressive=0;
+		RefRate=60;
+#endif
                 ANX7150_DEBUG("1920x1080i@60, ");
                 if(ANX7150_edid_result.supported_1080i_60Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1838,6 +1864,12 @@ void ANX7150_Show_Video_Parameter()
                     ANX7150_DEBUG("but sink does not support this format.");
                 break;
             case ANX7150_V1920x1080p_60Hz:
+#ifdef KG2_APP
+		HActive=1920;
+		VActive=1080;
+		IsProgressive=1;
+		RefRate=60;
+#endif
                 ANX7150_DEBUG("1920x1080p@60, ");
                 if(ANX7150_edid_result.supported_1080p_60Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1845,6 +1877,12 @@ void ANX7150_Show_Video_Parameter()
                     ANX7150_DEBUG("but sink does not support this format.");
                 break;
             case ANX7150_V1920x1080p_50Hz:
+#ifdef KG2_APP
+		HActive=1920;
+		VActive=1080;
+		IsProgressive=1;
+		RefRate=50;
+#endif
                 ANX7150_DEBUG("1920x1080p@50, ");
                 if(ANX7150_edid_result.supported_1080p_50Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1852,6 +1890,12 @@ void ANX7150_Show_Video_Parameter()
                     ANX7150_DEBUG("but sink does not support this format.");
                 break;
             case ANX7150_V1280x720p_50Hz:
+#ifdef KG2_APP
+		HActive=1280;
+		VActive=720;
+		IsProgressive=1;
+		RefRate=50;
+#endif
                 ANX7150_DEBUG("1280x720p@50, ");
                 if(ANX7150_edid_result.supported_720p_50Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1859,6 +1903,12 @@ void ANX7150_Show_Video_Parameter()
                     ANX7150_DEBUG("but sink does not support this format.");
                 break;
             case ANX7150_V1920x1080i_50Hz:
+#ifdef KG2_APP
+		HActive=1920;
+		VActive=1080;
+		IsProgressive=0;
+		RefRate=50;
+#endif
                 ANX7150_DEBUG("1920x1080i@50, ");
                 if(ANX7150_edid_result.supported_1080i_50Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1867,6 +1917,12 @@ void ANX7150_Show_Video_Parameter()
                 break;
             case ANX7150_V720x576p_50Hz_4x3:
             case ANX7150_V720x576p_50Hz_16x9:
+#ifdef KG2_APP
+		HActive=720;
+		VActive=576;
+		IsProgressive=1;
+		RefRate=50;
+#endif
                 ANX7150_DEBUG("720x576p@50, ");
                 if(ANX7150_edid_result.supported_576p_50Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1875,6 +1931,12 @@ void ANX7150_Show_Video_Parameter()
                 break;
             case ANX7150_V720x576i_50Hz_4x3:
             case ANX7150_V720x576i_50Hz_16x9:
+#ifdef KG2_APP
+		HActive=720;
+		VActive=576;
+		IsProgressive=0;
+		RefRate=50;
+#endif
                 ANX7150_DEBUG("720x576i@50, ");
                 if(ANX7150_edid_result.supported_576i_50Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1883,6 +1945,13 @@ void ANX7150_Show_Video_Parameter()
                 break;
             case ANX7150_V720x480i_60Hz_4x3:
             case ANX7150_V720x480i_60Hz_16x9:
+#ifdef KG2_APP
+		HActive=720;
+		VActive=480;
+		IsProgressive=0;
+		RefRate=60;
+#endif
+
                 ANX7150_DEBUG("720x480i@60, ");
                 if(ANX7150_edid_result.supported_720x480i_60Hz)
                     ANX7150_DEBUG("and sink supports this format.");
@@ -1894,6 +1963,34 @@ void ANX7150_Show_Video_Parameter()
                 break;
         }
     }
+#ifdef KG2_APP
+//for testing sending msg to KG2 API+
+                ANX7150_DEBUG("***********+add for testing sending msg to KG2 API+**********");
+		AVC_CMD_TIMING_PARAM kg2_timing_param;
+		
+		{
+			kg2_timing_param.HTotal = 0;				// Filled by kg2 daemon
+			kg2_timing_param.HActive = HActive;
+			kg2_timing_param.HFrontPorch = 0;			// Filled by kg2 daemon
+			kg2_timing_param.HSyncWidth = 0;			// Filled by kg2 daemon
+			kg2_timing_param.HPolarity = AVC_CMD_POLARITY_INVERT;	// Filled by kg2 daemon
+			kg2_timing_param.VTotal = 0;				// Filled by kg2 daemon
+			kg2_timing_param.VActive = VActive;
+			kg2_timing_param.VFrontPorch = 0;			// Filled by kg2 daemon
+			kg2_timing_param.VSyncWidth = 0;			// Filled by kg2 daemon
+			kg2_timing_param.VPolarity = AVC_CMD_POLARITY_INVERT;	// Filled by kg2 daemon
+			kg2_timing_param.AspRatio = 0;				// Filled by kg2 daemon
+			kg2_timing_param.IsProgressive = IsProgressive;
+			kg2_timing_param.RefRate = RefRate;
+
+			printk(KERN_INFO "anx7150: Change KG2 output timing\n");
+
+			kg2_set_output_timing(&kg2_timing_param);
+		}
+                ANX7150_DEBUG("***********-add for testing sending msg to KG2 API-**********");
+	//kg2_genl_set_input_timing(timing);
+//for testing sending msg to KG2 API-
+#endif
 	    if(c1)//HDMI output
 		{
 				ANX7150_i2c_read_p0_reg(ANX7150_HDMI_AUDCTRL0_REG, &c);
