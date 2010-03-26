@@ -21,7 +21,7 @@
 #include "ANX7150_System_Config.h"
 #include "HDMI_RX_DRV.h"
 #include "ANX7150.h"
-
+#include <video/kg2.h>
 int bist_reset=1;
 
 struct kg2_device_info {
@@ -373,6 +373,7 @@ static int anx7150_suspend(struct i2c_client *client)
 }
 static int anx7150_resume(struct i2c_client *client)
 {
+	ANX7150_API_Initial();
 	ANX7150_Timer_Process_Re_init();
 	return 0;
 }
