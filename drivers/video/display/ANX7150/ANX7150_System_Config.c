@@ -29,7 +29,8 @@ void ANX7150_API_System_Config()
     ANX7150_8770_Audio_Config();
     ANX7150_8770_Packets_Config();
 #else
-    ANX7150_API_Video_Config(ANX7150_V1920x1080i_60Hz,input_pixel_clk_1x_repeatition);
+    //ANX7150_API_Video_Config(ANX7150_V1920x1080i_60Hz,input_pixel_clk_1x_repeatition);
+    ANX7150_API_Video_Config(ANX7150_V1920x1080p_60Hz,input_pixel_clk_1x_repeatition);
     //printk("###ANX7150_API_System_Config()--> ANX7150_V1280x720p_60Hz is configured\n");
     //ANX7150_API_Video_Config(ANX7150_V1280x720p_60Hz,input_pixel_clk_1x_repeatition);
 
