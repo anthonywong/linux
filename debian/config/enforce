@@ -29,3 +29,7 @@ value CONFIG_USB_DEVICEFS n
 # upstart requires DEVTMPFS be enabled and mounted by default.
 value CONFIG_DEVTMPFS y
 value CONFIG_DEVTMPFS_MOUNT y
+
+# EC2 requires certain configs set or bad things happen
+value CONFIG_SLAB y
+
