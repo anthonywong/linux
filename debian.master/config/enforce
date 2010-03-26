@@ -38,3 +38,6 @@ value CONFIG_BLK_DEV_RAM_SIZE 65536
 
 # LVM requires dm_mod built in to activate correctly (LP: #560717)
 value CONFIG_BLK_DEV_DM y
+
+# EC2 requires certain configs set or bad things happen
+value CONFIG_SLAB y
