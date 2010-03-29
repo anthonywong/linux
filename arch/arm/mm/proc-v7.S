@@ -241,7 +241,11 @@ cpu_pj4_name:
 __v7_setup:
 #ifdef CONFIG_DOVE_REV_Y0
 	mrc p15, 1, r0, c15, c1, 0
-	orr r0, r0, #(1<<15)
+        mrc     p15, 0, r10, c0, c0, 0          @ Main ID Y0 or not
+        and     r10, #0xF
+        cmp     r10, #1
+	orr   	r0, r0, #(1<<15)		@ Disable VFP/WMMX dual issue
+	orrne   r0, r0, #(1<<21)		@ X0 - Enable L2 Cache Way 7-4 
 	mcr p15, 1, r0, c15, c1, 0
 #endif
 #ifdef CONFIG_SMP
@@ -308,9 +312,16 @@ __v7_setup:
 						@ Refer 88SV581x-v7.Rev1.5.pdf
 	mrc	p15, 1, r0, c15, c1, 0		@ Read Marvell Extra Features Reg
 	orr	r0, r0, #0x100
+        mrc     p15, 0, r10, c0, c0, 0          @ Main ID Y0 or not
+        and     r10, #0xF
+        cmp     r10, #1
 						@ Write coalesce cycles
-	orr	r0, r0, #CONFIG_CPU_WRITECO_CYCLE << 9
+						@ Only for not X0
+	orreq	r0, r0, #CONFIG_CPU_WRITECO_CYCLE << 9	@ Y0
 	mcr	p15, 1, r0, c15, c1, 0		@ Write Marvell Extra Features Reg
+	movne	r0, #0x1
+	orrne	r0, r0, #CONFIG_CPU_WRITECO_CYCLE << 4	@ X0
+	mcrne   p15, 1, r0, c15, c2, 0          @ Write Marvell Auxiliary Function Reg
 #endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 	mov	r10, #0x1f			@ domains 0, 1 = manager
