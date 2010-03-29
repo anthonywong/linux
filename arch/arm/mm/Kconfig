@@ -398,7 +398,7 @@ config CPU_V6
 	select CPU_HAS_ASID if MMU
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V6 if MMU
-	select CPU_PJ4 if DOVE_REV_Y0
+	select CPU_PJ4 if DOVE_REV_Y0 || ARCH_INTEGRATOR
 
 # ARMv6k
 config CPU_32v6K
@@ -425,7 +425,7 @@ config CPU_V7
 	select CPU_HAS_ASID if MMU
 	select CPU_COPY_V6 if MMU
 	select CPU_TLB_V7 if MMU
-	select CPU_PJ4 if DOVE_REV_Y0
+	select CPU_PJ4 if DOVE_REV_Y0 || ARCH_INTEGRATOR
 
 # Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.
@@ -854,10 +854,10 @@ config CPU_WRITECO_CYCLE
 	Defines the number of cycles a store might stay in the write 
 	buffer waiting for coalescing.	
 	0 -> no wait cycles
-	1 -> 1 wait cycle
-	2 -> 3 wait cycles
-	3 -> 7 wait cycles
-	4 - 7 -> 15 wait cycles
+	1 -> 2 wait cycle
+	2 -> 4 wait cycles
+	3 -> 8 wait cycles
+	4 -> 16 wait cycles
 
 choice
 	prompt "Cache Write Allocate Setting"
