@@ -460,7 +460,7 @@ gcoHARDWARE_InitializeHardware(
 		gcoOS_WriteRegister(Hardware->os,
 							0x00424,
 							baseAddress));
-#if 0 
+#if 0
 	/* Enable clock gating. */
 	gcmONERROR(
 		gcoOS_WriteRegister(Hardware->os,
@@ -2372,7 +2372,7 @@ gcoHARDWARE_NotifyPower(
 	)
 {
 	gceSTATUS status;
-	gctUINT32 control;
+	/* gctUINT32 control; */
 
 	/* Verify the arguments. */
 	gcmVERIFY_OBJECT(Hardware, gcvOBJ_HARDWARE);
@@ -2384,7 +2384,7 @@ gcoHARDWARE_NotifyPower(
 		{
 			return gcvSTATUS_INVALID_ARGUMENT;
 		}
-
+#if 0
 		/* Enable all clocks, disable memory clock gating, frequency scaling to
 		** full speed. */
 		control = ((((gctUINT32) (0)) & ~(((gctUINT32) (((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0))) | (((gctUINT32) ((gctUINT32) (0) & ((gctUINT32) ((((1 ? 0:0) - (0 ? 0:0) + 1) == 32) ? ~0 : (~(~0 << ((1 ? 0:0) - (0 ? 0:0) + 1))))))) << (0 ? 0:0)))
@@ -2407,7 +2407,7 @@ gcoHARDWARE_NotifyPower(
 		/* Sleep for 10ms, to make sure everything is powered on */
 		gcmVERIFY_OK(
 			gcoOS_Delay(Hardware->os, 10));
-
+#endif
 		/* Reset context ID to force context flush */
 		Hardware->kernel->command->currentContext = 0;
 
