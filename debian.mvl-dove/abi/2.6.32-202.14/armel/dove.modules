@@ -650,7 +650,6 @@ ledtrig-timer
 legousbtower
 lgdt3305
 lgdt330x
-lgs8gl5
 lib80211
 lib80211_crypt_ccmp
 lib80211_crypt_tkip
@@ -739,7 +738,6 @@ md-mod
 mg_disk
 michael_mic
 microtek
-mimio
 minix
 mISDN_core
 mk712
