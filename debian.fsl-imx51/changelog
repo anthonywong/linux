@@ -4,6 +4,176 @@ linux-fsl-imx51 (2.6.31-606.12) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Ubuntu: 2.6.31-21.59 ]
+
+  * [Config] generic-pae switch to M586TSC
+    - LP: #519448
+  * (pre-stable) drm/i915: Increase fb alignment to 64k
+    - LP: #404064
+  * Input: i8042 - bypass AUX IRQ delivery test on laptops
+    - LP: #534448
+  * SAUCE: Fix volume hotkeys for Dell Studio 1557
+    - LP: #465250
+  * SAUCE: aufs: Fix header files inclusion in debug.h
+    - LP: #517151
+  * [Config] Enable all CGROUP configuration options
+    - LP: #480739
+  * Revert "[Upstream] acerhdf: Limit modalias matching to supported
+    boards"
+    - LP: #509730
+  * [Config] ext3 defaults to ordered mode
+    - LP: #510067
+  * [Config] Fix sub-flavours package conflicts
+    - LP: #454827
+  * PCI/cardbus: Add a fixup hook and fix powerpc
+    - LP: #455723
+  * fnctl: f_modown should call write_lock_irqsave/restore
+    - LP: #519436
+  * ACPI: enable C2 and Turbo-mode on Nehalem notebooks on A/C
+    - LP: #516325
+  * tg3: Add 57788, remove 57720
+    - LP: #515390
+  * HID: ignore all recent SoundGraph iMON devices
+    - LP: #488443
+  * Input: ALPS - add interleaved protocol support (Dell E6x00 series)
+    - LP: #296610
+  * acerhdf: limit modalias matching to supported
+    - LP: #509730
+  * ASoC: Do not write to invalid registers on the wm9712.
+    - LP: #509730
+  * cifs: NULL out tcon, pSesInfo, and srvTcp pointers when chasing DFS
+    referrals
+    - LP: #509730
+  * clockevents: Prevent clockevent_devices list corruption on cpu hotplug
+    - LP: #509730
+  * dma: at_hdmac: correct incompatible type for argument 1 of
+    'spin_lock_bh'
+    - LP: #509730
+  * drivers/net/usb: Correct code taking the size of a pointer
+    - LP: #509730
+  * Libertas: fix buffer overflow in lbs_get_essid()
+    - LP: #509730
+  * md: Fix unfortunate interaction with evms
+    - LP: #509730
+  * pata_cmd64x: fix overclocking of UDMA0-2 modes
+    - LP: #509730
+  * pata_hpt3x2n: fix clock turnaround
+    - LP: #509730
+  * SCSI: fc class: fix fc_transport_init error handling
+    - LP: #509730
+  * sound: sgio2audio/pdaudiocf/usb-audio: initialize PCM buffer
+    - LP: #509730
+  * USB: emi62: fix crash when trying to load EMI 6|2 firmware
+    - LP: #509730
+  * USB: Fix a bug on appledisplay.c regarding signedness
+    - LP: #509730
+  * USB: musb: gadget_ep0: avoid SetupEnd interrupt
+    - LP: #509730
+  * USB: option: support hi speed for modem Haier CE100
+    - LP: #490068, #509730
+  * x86, cpuid: Add "volatile" to asm in native_cpuid()
+    - LP: #509730
+  * e100: Use pci pool to work around GFP_ATOMIC order 5 memory allocation
+    failure
+    - LP: #509730
+  * e100: Fix broken cbs accounting due to missing memset.
+    - LP: #509730
+  * hostap: Revert a toxic part of the conversion to net_device_ops
+    - LP: #509730
+  * hwmon: (fschmd) Fix check on unsigned in watchdog_write()
+    - LP: #509730
+  * hwmon: (sht15) Off-by-one error in array index + incorrect constants
+    - LP: #509730
+  * i2c/tsl2550: Fix lux value in extended mode
+    - LP: #509730
+  * ipv6: reassembly: use seperate reassembly queues for conntrack and
+    local delivery
+    - LP: #509730
+  * S390: dasd: support DIAG access for read-only devices
+    - LP: #509730
+  * udf: Try harder when looking for VAT inode
+    - LP: #509730
+  * V4L/DVB (13596): ov511.c typo: lock => unlock
+    - LP: #509730
+  * x86/ptrace: make genregs[32]_get/set more robust
+    - LP: #509730
+  * XFS bug in log recover with quota (bugzilla id 855)
+    - LP: #509730
+  * generic_permission: MAY_OPEN is not write access
+    - LP: #509730
+  * memcg: avoid oom-killing innocent task in case of use_hierarchy
+    - LP: #509730
+  * Input: atkbd - add force relese key quirk for Samsung R59P/R60P/R61P
+    - LP: #253874, #509730
+  * Add unlocked version of inode_add_bytes() function
+    - LP: #509730
+  * ext4: fix sleep inside spinlock issue with quota and dealloc (#14739)
+    - LP: #509730
+  * Linux 2.6.31.10
+    - LP: #509730
+  * Linux 2.6.31.11
+    - LP: #509730
+  * quota: decouple fs reserved space from quota reservation
+    - LP: #510674
+  * ext4: Convert to generic reserved quota's space management.
+    - LP: #510674
+  * hwmon: (adt7462) Fix pin 28 monitoring
+    - LP: #510674
+  * netfilter: nf_ct_ftp: fix out of bounds read in update_nl_seq()
+    - LP: #510674
+  * quota: Fix dquot_transfer for filesystems different from ext4
+    - LP: #510674
+  * fix braindamage in audit_tree.c untag_chunk()
+    - LP: #510674
+  * fix more leaks in audit_tree.c tag_chunk()
+    - LP: #510674
+  * ACPI: sleep: another HP DMI entry for init_set_sci_en_on_resume
+    - LP: #453963, #510674
+  * ACPI: add DMI entry for SCI_EN resume quirk on HP dv4
+    - LP: #453963, #510674
+  * ACPI: sleep: another HP/Compaq DMI entries for
+    init_set_sci_en_on_resume
+    - LP: #453963, #510674
+  * ACPI: DMI init_set_sci_en_on_resume for HP-Compaq C700
+    - LP: #453963, #510674
+  * Linux 2.6.31.12
+    - LP: #510674
+
+  [ Ubuntu: 2.6.31-20.58 ]
+
+  * Revert "[Upstream] e1000: enhance frame fragment detection"
+    - CVE-2009-4536
+  * Revert "[Upstream] e1000e: enhance frame fragment detection"
+    - CVE-2009-4538
+  * e1000: enhance frame fragment detection
+    - CVE-2009-4536
+  * e1000/e1000e: don't use small hardware rx buffers
+    - CVE-2009-4536
+  * e1000e: enhance frame fragment detection
+    - CVE-2009-4538
+  * KVM: PIT: control word is write-only
+    - CVE-2010-0309
+  * connector: Delete buggy notification code.
+    - CVE-2010-0410
+  * Fix potential crash with sys_move_pages
+    - CVE-2010-0415
+  * futex: Handle user space corruption gracefully
+    - CVE-2010-0622
+  * futex_lock_pi() key refcnt fix
+    - CVE-2010-0623
+  * Split 'flush_old_exec' into two functions
+    - CVE-2010-0307
+  * Fix 'flush_old_exec()/setup_new_exec()' split
+    - CVE-2010-0307
+  * x86: get rid of the insane TIF_ABI_PENDING bit
+    - CVE-2010-0307
+  * powerpc: TIF_ABI_PENDING bit removal
+    - CVE-2010-0307
+  * sparc: TIF_ABI_PENDING bit removal
+    - CVE-2010-0307
+  * x86: set_personality_ia32() misses force_personality32
+    - CVE-2010-0307
+
  -- Andy Whitcroft <apw@canonical.com>  Wed, 31 Mar 2010 16:09:53 +0100
 
 linux-fsl-imx51 (2.6.31-606.11) lucid; urgency=low
