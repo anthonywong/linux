@@ -29,11 +29,8 @@
 #define ENABLE_GPU_CLOCK_BY_DRIVER	1
 #endif 
 
-/* Comment this line to use legacy driver model */
-// #define USE_PLATFORM_DRIVER 1
-#if defined(CONFIG_DOVE_GPU) && !defined(USE_PLATFORM_DRIVER)
+/* You can comment below line to use legacy driver model */
 #define USE_PLATFORM_DRIVER 1
-#endif
 
 
 #include <linux/device.h>
@@ -500,7 +497,13 @@ static int __devinit gpu_probe(struct platform_device *pdev)
 	contiguousBase  = res->start;
 	contiguousSize  = res->end-res->start;
 	
-	return drv_init();
+	ret = drv_init();
+	if (!ret)
+	{
+		platform_set_drvdata(pdev, galDevice);
+	}
+
+	return ret;
 
 gpu_probe_fail:	
 	printk(KERN_INFO "Failed to register gpu driver.\n");
@@ -518,15 +521,29 @@ static int __devinit gpu_suspend(struct platform_device *dev, pm_message_t state
 {
 	gceSTATUS status;
 	gcoGALDEVICE device;
+	struct clk * clk = NULL;
 
 	device = platform_get_drvdata(dev);
-	
+
+#if 1
+	status = gcoHARDWARE_NotifyPower(device->kernel->hardware, gcvFALSE);
+	if (gcmIS_ERROR(status))
+	{
+		return -1;
+	}
+
+	disable_irq(galDevice->irqLine);
+
+	clk = clk_get(NULL, "GCCLK");
+	clk_disable(clk);
+#else
 	status = gcoHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_OFF);
 
 	if (gcmIS_ERROR(status))
 	{
 		return -1;
 	}
+#endif
 
 	return 0;
 }
@@ -535,15 +552,42 @@ static int __devinit gpu_resume(struct platform_device *dev)
 {
 	gceSTATUS status;
 	gcoGALDEVICE device;
+	struct clk * clk = NULL;
 
 	device = platform_get_drvdata(dev);
-	
+
+#if 1
+	clk = clk_get(NULL, "GCCLK");
+	if (IS_ERR(clk))
+	{
+		int retval = PTR_ERR(clk);
+		printk("clk get error\n");
+		return retval;
+	}
+
+	if (clk_set_rate(clk, gpu_frequency*1000*1000))
+	{
+		gcmTRACE_ZONE(gcvLEVEL_ERROR, gcvZONE_DRIVER, 
+                  "[galcore] Can't set core clock.");
+		return -EAGAIN;
+	}
+
+	clk_enable(clk);
+	enable_irq(device->irqLine);
+
+	status = gcoHARDWARE_NotifyPower(device->kernel->hardware, gcvTRUE);
+	if (gcmIS_ERROR(status))
+	{
+		return -1;
+	}
+#else
 	status = gcoHARDWARE_SetPowerManagementState(device->kernel->hardware, gcvPOWER_ON);
 
 	if (gcmIS_ERROR(status))
 	{
 		return -1;
 	}
+#endif
 
 	return 0;
 }
