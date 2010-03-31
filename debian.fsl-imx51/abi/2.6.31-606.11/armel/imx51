@@ -6827,7 +6827,6 @@ EXPORT_SYMBOL_GPL vmlinux 0x923d0f37	ring_buffer_discard_commit
 EXPORT_SYMBOL_GPL vmlinux 0x924e9005	usb_set_device_state
 EXPORT_SYMBOL_GPL vmlinux 0x925d4935	rtc_device_unregister
 EXPORT_SYMBOL_GPL vmlinux 0x92d1b4d3	tracepoint_iter_next
-EXPORT_SYMBOL_GPL vmlinux 0x92d31cfb	fixed_phy_add
 EXPORT_SYMBOL_GPL vmlinux 0x92dbdba0	crypto_larval_lookup
 EXPORT_SYMBOL_GPL vmlinux 0x92fb217b	dcookie_unregister
 EXPORT_SYMBOL_GPL vmlinux 0x935f5044	sysdev_driver_unregister
@@ -7040,7 +7039,6 @@ EXPORT_SYMBOL_GPL vmlinux 0xb219399b	ata_std_error_handler
 EXPORT_SYMBOL_GPL vmlinux 0xb22c26e2	__rtnl_link_unregister
 EXPORT_SYMBOL_GPL vmlinux 0xb22e50fb	sock_prot_inuse_get
 EXPORT_SYMBOL_GPL vmlinux 0xb248a7b6	securityfs_create_file
-EXPORT_SYMBOL_GPL vmlinux 0xb25399a7	fixed_phy_set_link_update
 EXPORT_SYMBOL_GPL vmlinux 0xb26e46a2	ata_cable_40wire
 EXPORT_SYMBOL_GPL vmlinux 0xb305d9b1	skb_gro_receive
 EXPORT_SYMBOL_GPL vmlinux 0xb3164b07	dm_rh_start_recovery
