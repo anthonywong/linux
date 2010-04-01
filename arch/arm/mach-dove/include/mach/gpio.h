@@ -62,7 +62,7 @@ static inline int gpio_to_irq(int pin)
 
 static inline int irq_to_gpio(int irq)
 {
-	if (IRQ_DOVE_GPIO_START < irq && irq < NR_IRQS)
+	if (IRQ_DOVE_GPIO_START <= irq && irq < NR_IRQS)
 		return irq - IRQ_DOVE_GPIO_START;
 
 	return -EINVAL;
