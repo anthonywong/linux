@@ -1112,14 +1112,24 @@ failed:
 }
 
 #ifdef CONFIG_PM
+
+static unsigned int LCD_SPU_HWC_HPXL_VLN_saved_value = 0;
+static unsigned int LCD_SPU_ALPHA_COLOR1_saved_value = 0;
+static unsigned int LCD_SPU_ALPHA_COLOR2_saved_value = 0;
+
 static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
 	struct dovefb_info *dfi = platform_get_drvdata(pdev);
 
-	printk(KERN_INFO "dovefb_suspend(): state = %d.\n", mesg.event);
+	printk(KERN_INFO "dovefb_suspend(): state = %d.\n", mesg.event);	
 
 	/* Disable all interrupts */
 	writel( 0x0, dfi->reg_base+SPU_IRQ_ENA);
+
+	/* Save cursor related registers */
+	LCD_SPU_HWC_HPXL_VLN_saved_value = readl(dfi->reg_base + LCD_SPU_HWC_HPXL_VLN);
+	LCD_SPU_ALPHA_COLOR1_saved_value = readl(dfi->reg_base + LCD_SPU_ALPHA_COLOR1);
+	LCD_SPU_ALPHA_COLOR2_saved_value = readl(dfi->reg_base + LCD_SPU_ALPHA_COLOR2);
 
 	acquire_console_sem();
 
@@ -1174,6 +1184,11 @@ static int dovefb_resume(struct platform_device *pdev)
 				"dovefb_ovly_resume() failed.\n");
 		return -1;
 	}
+
+	/* Restore cursor related registers */
+	writel(LCD_SPU_HWC_HPXL_VLN_saved_value, dfi->reg_base + LCD_SPU_HWC_HPXL_VLN);
+	writel(LCD_SPU_ALPHA_COLOR1_saved_value, dfi->reg_base + LCD_SPU_ALPHA_COLOR1);
+	writel(LCD_SPU_ALPHA_COLOR2_saved_value, dfi->reg_base + LCD_SPU_ALPHA_COLOR2);
 
 	/* Disable all interrupts */
 	writel( 0x0, dfi->reg_base + SPU_IRQ_ENA);
