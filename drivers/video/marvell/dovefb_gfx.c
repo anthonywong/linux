@@ -728,6 +728,8 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 
 		if (strstr(fi->fix.id, "GFX Layer 0"))
 		{
+			printk(KERN_INFO "dovefb_gfx: Change kg2 input timing\n");
+
 			kg2_timing_param.HTotal = var->left_margin + var->xres + var->right_margin + var->hsync_len;
 			kg2_timing_param.HActive = var->xres;
 			kg2_timing_param.HFrontPorch = var->right_margin;
@@ -738,6 +740,9 @@ static int dovefb_gfx_set_par(struct fb_info *fi)
 			kg2_timing_param.VFrontPorch = var->lower_margin;
 			kg2_timing_param.VSyncWidth = var->vsync_len;
 			kg2_timing_param.VPolarity = (var->sync & FB_SYNC_VERT_HIGH_ACT) ? 0: 1;
+			kg2_timing_param.AspRatio = (var->xres * 100 / var->yres >= 160) ? AVC_CMD_ASP_RATIO_16_9: AVC_CMD_ASP_RATIO_4_3;
+			kg2_timing_param.IsProgressive = 1;
+			kg2_timing_param.RefRate = mode.refresh;
 
 			kg2_set_input_timing(&kg2_timing_param);
 		}
