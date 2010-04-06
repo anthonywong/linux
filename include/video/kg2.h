@@ -15,6 +15,14 @@ typedef enum tagAVC_CMD_SIGNAL_POLARITY
 
 }AVC_CMD_SIGNAL_POLARITY;
 
+//AVC_CMD_ASPECT_RATIO is used in the AVC_CMD_TIMING_PARAM structure
+typedef enum tagAVC_CMD_ASPECT_RATIO
+{
+    AVC_CMD_ASP_RATIO_4_3 = 0,
+    AVC_CMD_ASP_RATIO_16_9
+
+}AVC_CMD_ASPECT_RATIO;
+
 //AVC_CMD_TIMING_PARAM to be used when the SUBCMD is AVC_SUBCMD_INPUT_RES_MANUAL_SEL only (Common for Input/Output)
 typedef struct tagAVC_CMD_PARAM_TIMING
 {
@@ -30,10 +38,10 @@ typedef struct tagAVC_CMD_PARAM_TIMING
 	unsigned char			VSyncWidth;
 	AVC_CMD_SIGNAL_POLARITY		VPolarity;
 
-//	AVC_CMD_ASPECT_RATIO		AspRatio;		// Not used yet
-//	unsigned char			IsProgressive;		// Not used yet
+	AVC_CMD_ASPECT_RATIO		AspRatio;
+	unsigned char			IsProgressive;
 
-//	float				RefRate;		// Not used yet
+	unsigned short			RefRate;
 
 }AVC_CMD_TIMING_PARAM, *PAVC_CMD_TIMING_PARAM;
 
@@ -43,5 +51,6 @@ int kg2_run_script(const unsigned char * array, int count);
 int kg2_i2c_write(unsigned char baseaddr, unsigned char subaddr, const unsigned char * data, unsigned short dataLen);
 int kg2_initialize(void);
 int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing);
+int kg2_set_output_timing(AVC_CMD_TIMING_PARAM * timing);
 
 #endif

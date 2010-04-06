@@ -1853,7 +1853,7 @@ void ANX7150_Show_Video_Parameter()
             case ANX7150_V1920x1080i_60Hz:
 #ifdef KG2_APP
 		HActive=1920;
-		VActive=1080;
+		VActive=540;
 		IsProgressive=0;
 		RefRate=60;
 #endif
@@ -1905,7 +1905,7 @@ void ANX7150_Show_Video_Parameter()
             case ANX7150_V1920x1080i_50Hz:
 #ifdef KG2_APP
 		HActive=1920;
-		VActive=1080;
+		VActive=540;
 		IsProgressive=0;
 		RefRate=50;
 #endif
@@ -1933,7 +1933,7 @@ void ANX7150_Show_Video_Parameter()
             case ANX7150_V720x576i_50Hz_16x9:
 #ifdef KG2_APP
 		HActive=720;
-		VActive=576;
+		VActive=288;
 		IsProgressive=0;
 		RefRate=50;
 #endif
@@ -1947,7 +1947,7 @@ void ANX7150_Show_Video_Parameter()
             case ANX7150_V720x480i_60Hz_16x9:
 #ifdef KG2_APP
 		HActive=720;
-		VActive=480;
+		VActive=240;
 		IsProgressive=0;
 		RefRate=60;
 #endif
@@ -1969,6 +1969,8 @@ void ANX7150_Show_Video_Parameter()
 		AVC_CMD_TIMING_PARAM kg2_timing_param;
 		
 		{
+			printk(KERN_INFO "anx7150: Change kg2 output timing\n");
+
 			kg2_timing_param.HTotal = 0;				// Filled by kg2 daemon
 			kg2_timing_param.HActive = HActive;
 			kg2_timing_param.HFrontPorch = 0;			// Filled by kg2 daemon
@@ -1983,12 +1985,9 @@ void ANX7150_Show_Video_Parameter()
 			kg2_timing_param.IsProgressive = IsProgressive;
 			kg2_timing_param.RefRate = RefRate;
 
-			printk(KERN_INFO "anx7150: Change KG2 output timing\n");
-
 			kg2_set_output_timing(&kg2_timing_param);
 		}
                 ANX7150_DEBUG("***********-add for testing sending msg to KG2 API-**********");
-	//kg2_genl_set_input_timing(timing);
 //for testing sending msg to KG2 API-
 #endif
 	    if(c1)//HDMI output

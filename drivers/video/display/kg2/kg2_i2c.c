@@ -35,12 +35,6 @@ int kg2_i2c_read(unsigned char baseaddr, unsigned char subaddr,
 	unsigned short i = 0;
 	int result = 0;
 
-	if (i2c_client_kg2 == NULL)
-	{
-		pr_err("i2c_client_kg2 = NULL\n");
-		return -1;
-	}
-
 	for (i = 0; i < dataLen; i++)
 	{
 		i2c_client_kg2->addr = baseaddr >> 1;
@@ -48,9 +42,9 @@ int kg2_i2c_read(unsigned char baseaddr, unsigned char subaddr,
 		                                  subaddr + i);
 		if (result < 0)
 		{
-			dev_err(&i2c_client_kg2->dev,
-			        "Failed to read data via i2c. (baseaddr: 0x%02X, subaddr: 0x%02X)\n",
-			        baseaddr, subaddr + i);
+			printk(KERN_ERR
+			       "Failed to read data via i2c. (baseaddr: 0x%02X, subaddr: 0x%02X)\n",
+			       baseaddr, subaddr + i);
 
 			return -1;
 		}
@@ -107,12 +101,6 @@ int kg2_i2c_write(unsigned char baseaddr, unsigned char subaddr,
 	unsigned short i = 0;
 	int result = 0;
 
-	if (i2c_client_kg2 == NULL)
-	{
-		pr_err("i2c_client_kg2 = NULL\n");
-		return -1;
-	}
-
 	for (i = 0; i < dataLen; i++)
 	{
 		i2c_client_kg2->addr = baseaddr >> 1;
@@ -121,9 +109,9 @@ int kg2_i2c_write(unsigned char baseaddr, unsigned char subaddr,
 		                                   data[i]);
 		if (result < 0)
 		{
-			dev_err(&i2c_client_kg2->dev,
-			        "Failed to write data via i2c. (baseaddr: 0x%02X, subaddr: 0x%02X, data: 0x%02X)\n",
-			        baseaddr, subaddr + i, data[i]);
+			printk(KERN_ERR
+			       "Failed to write data via i2c. (baseaddr: 0x%02X, subaddr: 0x%02X, data: 0x%02X)\n",
+			       baseaddr, subaddr + i, data[i]);
 
 			return -1;
 		}
