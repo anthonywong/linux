@@ -504,8 +504,10 @@ static int init_vodsp_update(struct snd_soc_codec *codec, struct Voice_DSP_Funct
 	RT5630_DEBUG("dsp_init_state=%d\n",dsp_init_state);
 
 	if (dsp_func->feature == dsp_init_state)
+	{
+		RT5630_DEBUG("init_vodsp_update: dsp_init_state no change, return\n");
 		return 0;
-	
+	}
 	switch(dsp_init_state)
 	{
 //init_dsp:
@@ -524,6 +526,7 @@ static int init_vodsp_update(struct snd_soc_codec *codec, struct Voice_DSP_Funct
 			mdelay(20);
 
 			dsp_init_state = dsp_func->feature;
+	                RT5630_DEBUG("dsp_init_state change to %d\n",dsp_init_state);
 
 			for (i = 0; i < dsp_func->regsize; i ++) {
 				ret = rt5630_write_vodsp_reg(codec, dsp_func->reg_setting[i].VoiceDSPIndex, dsp_func->reg_setting[i].VoiceDSPValue);
@@ -738,7 +741,7 @@ static int realtek_aec_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int mode = codec->read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & 0x8000;
-		RT5630_DEBUG("mode=%x\n",mode);
+        RT5630_DEBUG("realtek_aec_mode_get:mode=%x \n", mode);
 
 	if (mode)
 		ucontrol->value.integer.value[0] = 1;
@@ -753,17 +756,20 @@ static int realtek_aec_mode_set(struct snd_kcontrol *kcontrol, struct snd_ctl_el
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int mode = codec->read(codec, VIRTUAL_REG_FOR_MISC_FUNC);
-		RT5630_DEBUG("mode=%x\n",mode);
+
+	RT5630_DEBUG("realtek_aec_mode_set:mode=%x, uctrl=%d\n", mode,ucontrol->value.integer.value[0]);
 
 	init_vodsp_update(codec, &voice_dsp_function_table[0]);
 
-	if (((mode & 0x8000) >> 15) == ucontrol->value.integer.value[0])
-		return 0;
+//	if (((mode & 0x8000) >> 15) == ucontrol->value.integer.value[0])
+//		return 0;
 
 	mode &= ~(0x8000);
 	mode |= (ucontrol->value.integer.value[0] << 15);
 	codec->write(codec, VIRTUAL_REG_FOR_MISC_FUNC, mode);
 	enable_vodsp_aec_func(codec, ucontrol->value.integer.value[0], DAC_IN_ADC_OUT);
+	RT5630_DEBUG("realtek_aec_mode_set:mode change to %x \n", mode);
+
 	return 0;
 }
 
@@ -771,7 +777,7 @@ static int realtek_ve_mode_get(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int mode = codec->read(codec, VIRTUAL_REG_FOR_MISC_FUNC) & 0x4000;
-		RT5630_DEBUG("mode=%x\n",mode);
+	RT5630_DEBUG("realtek_ve_mode_get:mode=%x \n", mode);
 
 	if (mode)
 		ucontrol->value.integer.value[0] = 1;
@@ -785,17 +791,19 @@ static int realtek_ve_mode_set(struct snd_kcontrol *kcontrol, struct snd_ctl_ele
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int mode = codec->read(codec, VIRTUAL_REG_FOR_MISC_FUNC);
-		RT5630_DEBUG("mode=%x\n",mode);
+	RT5630_DEBUG("realtek_ve_mode_set:mode=%x, uctrl=%d\n", mode,ucontrol->value.integer.value[0]);
 
 	init_vodsp_update(codec, &voice_dsp_function_table[1]);
 
-	if (((mode & 0x4000) >> 14) == ucontrol->value.integer.value[0])
-		return 0;
+//	if (((mode & 0x4000) >> 14) == ucontrol->value.integer.value[0])
+//		return 0;
 
 	mode &= ~(0x4000);
 	mode |= (ucontrol->value.integer.value[0] << 14);
 	codec->write(codec, VIRTUAL_REG_FOR_MISC_FUNC, mode);
 	enable_vodsp_ve_func(codec, ucontrol->value.integer.value[0], TXDP_TO_I2S);
+	RT5630_DEBUG("realtek_ve_mode_set:mode change to %x \n", mode);
+
 	return 0;
 }
 static const struct snd_kcontrol_new rt5630_snd_controls[] = {
@@ -808,8 +816,7 @@ static const struct snd_kcontrol_new rt5630_snd_controls[] = {
 //SOC_DOUBLE("LineIn Playback Volume", RT5630_LINE_IN_VOL, 8, 0, 31, 1),
 //SOC_SINGLE("Phone Playback Volume", RT5630_PHONEIN_VOL, 8, 31, 1),
 //SOC_SINGLE("Mic1 Playback Volume", RT5630_MIC_VOL, 8, 31, 1),
-//SOC_SINGLE("Mic2 Playback Volume", RT5630_MIC_VOL, 0, 31, 1),
-SOC_SINGLE("Mic Playback Volume", RT5630_MIC_VOL, 0, 31, 1),
+SOC_SINGLE("EAR MIC Playback Volume", RT5630_MIC_VOL, 0, 31, 1),
 SOC_DOUBLE("PCM Capture Volume", RT5630_ADC_REC_GAIN, 8, 0, 31, 0),
 SOC_DOUBLE("SPKOUT Playback Volume", RT5630_SPK_OUT_VOL, 8, 0, 31, 1),
 SOC_DOUBLE("SPKOUT Playback Switch", RT5630_SPK_OUT_VOL, 15, 7, 1, 1),
@@ -817,8 +824,8 @@ SOC_DOUBLE("HPOUT Playback Volume", RT5630_HP_OUT_VOL, 8, 0, 31, 1),
 SOC_DOUBLE("HPOUT Playback Switch", RT5630_HP_OUT_VOL, 15, 7, 1, 1),
 //SOC_DOUBLE("AUXOUT Playback Volume", RT5630_AUX_OUT_VOL, 8, 0, 31, 1),
 //SOC_DOUBLE("AUXOUT Playback Switch", RT5630_AUX_OUT_VOL, 15, 7, 1, 1),
-SOC_SINGLE_EXT("AEC Switch", VIRTUAL_REG_FOR_MISC_FUNC, 15, 1, 0, realtek_aec_mode_get, realtek_aec_mode_set),
-SOC_SINGLE_EXT("VE Switch", VIRTUAL_REG_FOR_MISC_FUNC, 14, 1, 0, realtek_ve_mode_get,realtek_ve_mode_set),
+//SOC_SINGLE_EXT("AEC Switch", VIRTUAL_REG_FOR_MISC_FUNC, 15, 1, 0, realtek_aec_mode_get, realtek_aec_mode_set),
+SOC_SINGLE_EXT("DIG MIC Switch", VIRTUAL_REG_FOR_MISC_FUNC, 14, 1, 0, realtek_ve_mode_get,realtek_ve_mode_set),
 };
 
 static int rt5630_add_controls(struct snd_soc_codec *codec)
@@ -1353,13 +1360,8 @@ static int rt5630_pcm_hw_prepare(struct snd_pcm_substream *substream, struct snd
 			break;
 		case SNDRV_PCM_STREAM_CAPTURE:
 
-		      //rt5630_write_mask(codec, RT5630_DMIC_CTRL, 0x9000, 0x90C0);         /*enable dmic*/
-
-			
 			rt5630_write_mask(codec, 0x3e, 0x0005, 0x0005);        /*power on mic2 boost*/
 			rt5630_write_mask(codec, 0x3a, 0x0004, 0x0004);        /*mic bias2*/
-//			rt5630_write_mask(codec, 0x3e, 0x0002, 0x0002);        /*power mic1 boost*/
-//			rt5630_write_mask(codec, 0x3a, 0x0008, 0x0008);        /*mic bias*/
 			rt5630_write_mask(codec, 0x3c, 0x00c3, 0x00c3);         /*power adc lr and rec mixer lr*/
 			break;
 		default:
@@ -1940,8 +1942,8 @@ static int rt5630_hifi_shutdown(struct snd_pcm_substream *substream, struct snd_
 			
 		case SNDRV_PCM_STREAM_CAPTURE:
 	
-			rt5630_write_mask(codec, 0x3e, 0x0000, 0x0002);        /*power mic1 boost*/
-			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0008);        /*mic bias*/
+			rt5630_write_mask(codec, 0x3e, 0x0000, 0x0005);        /*power mic1 boost*/
+			rt5630_write_mask(codec, 0x3a, 0x0000, 0x0004);        /*mic bias*/
 			rt5630_write_mask(codec, 0x3c, 0x0000, 0x00c3);        /*power adc lr and rec mixer lr*/
 
 		   break;
@@ -2354,6 +2356,8 @@ static int rt5630_suspend(struct platform_device *pdev, pm_message_t state)
         struct snd_soc_codec *codec = socdev->card->codec;
 	int i;
 	u8 data[3];
+	RT5630_DEBUG("");
+
 	rt5630_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	for (i = 0; i < ARRAY_SIZE(rt5630_suspend_reg); i ++) {
 		data[0] = rt5630_suspend_reg[i];
@@ -2361,6 +2365,9 @@ static int rt5630_suspend(struct platform_device *pdev, pm_message_t state)
 		data[2] = 0x00;
 		codec->hw_write(codec->control_data, data, 3);
 	}
+	dsp_init_state=VODSP_NULL;
+
+
 	return 0;
 }
 
@@ -2371,9 +2378,10 @@ static int rt5630_resume(struct platform_device *pdev)
 	int i;
 	u8 data[3];
 	u16 *cache = codec->reg_cache;
-	rt5630_write_mask(codec, 0x3a, 0x0002, 0x0002); 
-	rt5630_write_mask(codec, 0x3c, 0x2000, 0x2000);  
-	schedule_timeout_uninterruptible(msecs_to_jiffies(110));
+       RT5630_DEBUG("");
+	rt5630_write_mask(codec, 0x3a, 0x0802, 0x0802); 
+	rt5630_write_mask(codec, 0x3c, 0xa000, 0xa000);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(1000));
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < ARRAY_SIZE(rt5630_reg); i++) {
 		if (i == RT5630_RESET)
@@ -2382,6 +2390,7 @@ static int rt5630_resume(struct platform_device *pdev)
 		data[1] = (0xff00 & cache[i]) >> 8;
 		data[2] = (0x00ff & cache[i]);
 		codec->hw_write(codec->control_data, data, 3);
+		RT5630_DEBUG("recover codec register[0x%x] from cache\n", i<<1);
 	}
 
 	rt5630_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
