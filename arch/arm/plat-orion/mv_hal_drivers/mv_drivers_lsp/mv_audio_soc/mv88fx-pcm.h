@@ -49,6 +49,12 @@ unsigned int dig_mode;	/* i2s,spdif,both */
 
 };
 
+struct mv88fx_dma_window_config {
+	unsigned int 	playback_base;
+	unsigned int 	playback_ctrl;
+	unsigned int 	record_base;
+	unsigned int 	record_ctrl;
+};
 
 struct mv88fx_snd_chip {
 	struct snd_card *card;
@@ -71,6 +77,8 @@ struct mv88fx_snd_chip {
 #define PCM		0
 #define NON_PCM		1
 	int irq;
+
+	struct mv88fx_dma_window_config dma_window_config;
 
 };
 
