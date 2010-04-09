@@ -144,6 +144,23 @@ static int mv88fx_config_dma_window(struct mv88fx_snd_chip *chip,
 	writel(cs->base,
 	       chip->base + MV_AUDIO_REGS_OFFSET(chip->port) + WINDOW_BASE(dma));
 
+	if(dma==SNDRV_PCM_STREAM_PLAYBACK)
+	{
+		chip->dma_window_config.playback_base=
+		readl(chip->base + MV_AUDIO_REGS_OFFSET(chip->port) + WINDOW_BASE(dma));
+		chip->dma_window_config.playback_ctrl=
+		readl(chip->base + MV_AUDIO_REGS_OFFSET(chip->port) + WINDOW_CTRL(dma));
+	}
+	else
+	{
+		chip->dma_window_config.record_base=
+		readl(chip->base + MV_AUDIO_REGS_OFFSET(chip->port) + WINDOW_BASE(dma));
+		chip->dma_window_config.record_ctrl=
+		readl(chip->base + MV_AUDIO_REGS_OFFSET(chip->port) + WINDOW_CTRL(dma));
+	}
+		
+	
+
 
 #undef WINDOW_CTRL
 #undef WINDOW_BASE
@@ -569,8 +586,6 @@ static void mv88fx_pcm_free(struct snd_pcm *pcm)
 static int mv88fx_pcm_suspend(struct snd_soc_dai *cpu_dai)
 {
 	mv88fx_snd_debug("");
-
-
 	return 0;
 }
 
@@ -579,7 +594,18 @@ static int mv88fx_pcm_suspend(struct snd_soc_dai *cpu_dai)
 static int mv88fx_pcm_resume(struct snd_soc_dai *cpu_dai)
 {
 	mv88fx_snd_debug("");
+	struct mv88fx_snd_chip *chip=mv88fx_pcm_snd_chip;
+	if (!chip)
+		return -1;
 
+	mv88fx_snd_writel(chip->base,
+		MV_AUDIO_REGS_OFFSET(chip->port) +0xA0C, chip->dma_window_config.playback_ctrl);
+	mv88fx_snd_writel(chip->base,
+		MV_AUDIO_REGS_OFFSET(chip->port) +0xA08, chip->dma_window_config.playback_base);
+	mv88fx_snd_writel(chip->base,
+		MV_AUDIO_REGS_OFFSET(chip->port) +0xA04, chip->dma_window_config.record_ctrl);
+	mv88fx_snd_writel(chip->base,
+		MV_AUDIO_REGS_OFFSET(chip->port) +0xA00, chip->dma_window_config.record_base);
 
 	return 0;
 }
