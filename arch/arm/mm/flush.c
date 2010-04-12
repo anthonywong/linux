@@ -13,6 +13,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
+#include <asm/highmem.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 
@@ -125,14 +126,20 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page)
 	 * page.  This ensures that data in the physical page is mutually
 	 * coherent with the kernels mapping.
 	 */
-#ifdef CONFIG_HIGHMEM
-	/*
-	 * kmap_atomic() doesn't set the page virtual address, and
-	 * kunmap_atomic() takes care of cache flushing already.
-	 */
-	if (page_address(page))
-#endif
+	if (!PageHighMem(page)) {
 		__cpuc_flush_dcache_page(page_address(page));
+	} else {
+		void *addr = kmap_high_get(page);
+		if (addr) {
+			__cpuc_flush_dcache_page(addr);
+			kunmap_high(page);
+		} else if (cache_is_vipt()) {
+			pte_t saved_pte;
+			addr = kmap_high_l1_vipt(page, &saved_pte);
+			__cpuc_flush_dcache_page(addr);
+			kunmap_high_l1_vipt(page, saved_pte);
+		}
+	}
 
 	/*
 	 * If this is a page cache page, and we have an aliasing VIPT cache,
