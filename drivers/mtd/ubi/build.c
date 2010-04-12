@@ -851,8 +851,6 @@ static int ubi_reboot_notifier(struct notifier_block *n, unsigned long state,
 	struct ubi_device *ubi;
 
 	ubi = container_of(n, struct ubi_device, reboot_notifier);
-	if (ubi->bgt_thread)
-		kthread_stop(ubi->bgt_thread);
 	ubi_sync(ubi->ubi_num);
 	return NOTIFY_DONE;
 }
