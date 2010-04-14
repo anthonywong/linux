@@ -377,6 +377,7 @@ cxacru
 cxgb
 cxgb3
 cxgb3i
+cxgb4
 cyber2000fb
 cyberjack
 cyclades
@@ -1202,7 +1203,6 @@ max1619
 max17040_battery
 max2165
 max3100
-max63xx_wdt
 max6650
 max6875
 max7300
