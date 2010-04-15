@@ -1,5 +1,4 @@
-/*
- * arch/arm/mach-dove/dove-rd-avng-setup.c
+/* * arch/arm/mach-dove/dove-rd-avng-setup.c
  *
  * Marvell Dove MV88F6781-RD Avengers Mobile Internet Device Board Setup
  *
@@ -336,7 +335,7 @@ static struct mv_sata_platform_data dove_rd_avng_sata_data = {
  *     SPI0: 4M Flash MX25L3205D
  ****************************************************************************/
 static const struct flash_platform_data dove_rd_avng_spi_flash_data = {
-	.type           = "mx25l3205",
+	.type           = "mx25l3205d",
 };
 
 static struct spi_board_info __initdata dove_rd_avng_spi_flash_info[] = {
