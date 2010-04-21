@@ -1603,6 +1603,7 @@ xt_quota
 xt_rateest
 xt_RATEEST
 xt_realm
+xt_recent
 xts
 xt_sctp
 xt_SECMARK
