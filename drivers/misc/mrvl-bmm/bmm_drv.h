@@ -22,34 +22,36 @@
 
 #define BMM_MINOR		94
 
-/* assemble an ioctl command */
-#define BMM_IOCTL(cmd, arg)	(((cmd) << 16) | (arg))
+typedef struct {
+	unsigned long input;		/* the starting address of the block of memory */
+	unsigned long output;		/* the starting address of the block of memory */
+	unsigned long length;		/* the length of the block of memory */
+	unsigned long arg;		/* the arg of cmd */
+} ioctl_arg_t;
 
-/* disassemble an ioctl command */
-#define BMM_IOCTL_CMD(cmd)	((cmd) >> 16)
-#define BMM_IOCTL_ARG(cmd)	((cmd) & 0xffff)
-
+#define BMEM_IOCTL_MAGIC 'G'
 /* ioctl commands */
-#define BMM_MALLOC		(0)
-#define BMM_FREE		(1)
-#define BMM_GET_VIRT_ADDR	(2)
-#define BMM_GET_PHYS_ADDR	(3)
-#define BMM_GET_MEM_ATTR	(4)
-#define BMM_SET_MEM_ATTR	(5)
-#define BMM_GET_MEM_SIZE	(6)
-#define BMM_GET_TOTAL_SPACE	(7)
-#define BMM_GET_FREE_SPACE	(8)
-#define BMM_FLUSH_CACHE		(9)
-#define BMM_DMA_MEMCPY		(10)
-#define BMM_DMA_SYNC		(11)
-#define BMM_CONSISTENT_SYNC	(12)
-#define BMM_DUMP		(13)
-#define BMM_GET_ALLOCATED_SPACE	(14)
+#define BMM_MALLOC		_IOWR(BMEM_IOCTL_MAGIC, 0, ioctl_arg_t)
+#define BMM_FREE		_IOWR(BMEM_IOCTL_MAGIC, 1, ioctl_arg_t)
+#define BMM_GET_VIRT_ADDR	_IOWR(BMEM_IOCTL_MAGIC, 2, ioctl_arg_t)
+#define BMM_GET_PHYS_ADDR	_IOWR(BMEM_IOCTL_MAGIC, 3, ioctl_arg_t)
+#define BMM_GET_MEM_ATTR	_IOWR(BMEM_IOCTL_MAGIC, 4, ioctl_arg_t)
+#define BMM_SET_MEM_ATTR	_IOWR(BMEM_IOCTL_MAGIC, 5, ioctl_arg_t)
+#define BMM_GET_MEM_SIZE	_IOWR(BMEM_IOCTL_MAGIC, 6, ioctl_arg_t)
+#define BMM_GET_TOTAL_SPACE	_IOWR(BMEM_IOCTL_MAGIC, 7, ioctl_arg_t)
+#define BMM_GET_FREE_SPACE	_IOWR(BMEM_IOCTL_MAGIC, 8, ioctl_arg_t)
+#define BMM_FLUSH_CACHE		_IOWR(BMEM_IOCTL_MAGIC, 9, ioctl_arg_t)
+#define BMM_DMA_MEMCPY		_IOWR(BMEM_IOCTL_MAGIC, 10, ioctl_arg_t)
+#define BMM_DMA_SYNC		_IOWR(BMEM_IOCTL_MAGIC, 11, ioctl_arg_t)
+#define BMM_CONSISTENT_SYNC	_IOWR(BMEM_IOCTL_MAGIC, 12, ioctl_arg_t)
+#define BMM_DUMP		_IOWR(BMEM_IOCTL_MAGIC, 13, ioctl_arg_t)
+#define BMM_GET_ALLOCATED_SPACE	_IOWR(BMEM_IOCTL_MAGIC, 14, ioctl_arg_t)
+#define BMM_GET_KERN_PHYS_ADDR	_IOWR(BMEM_IOCTL_MAGIC, 15, ioctl_arg_t)
 
 /* ioctl arguments: memory attributes */
 #define BMM_ATTR_DEFAULT	(0)		/* cacheable bufferable */
-#define BMM_ATTR_NONBUFFERABLE	(1 << 0)	/* non-bufferable */
-#define BMM_ATTR_NONCACHEABLE	(1 << 1)	/* non-cacheable */
+#define BMM_ATTR_WRITECOMBINE	(1 << 0)	/* non-cacheable & bufferable */
+#define BMM_ATTR_NONCACHED	(1 << 1)	/* non-cacheable & non-bufferable */
 /* Note: extra attributes below are not supported yet! */
 #define BMM_ATTR_HUGE_PAGE	(1 << 2)	/* 64KB page size */
 #define BMM_ATTR_WRITETHROUGH	(1 << 3)	/* implies L1 Cacheable */
