@@ -6,6 +6,6 @@ flavours	= st1-5
 build_image	= zImage
 kernel_file	= arch/$(build_arch)/boot/zImage
 install_file	= vmlinuz
-no_dumpfile = true
-
+no_dumpfile	= true
 loader		= grub
+disable_d_i	= yes
