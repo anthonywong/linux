@@ -1605,6 +1605,7 @@ EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x19f0e900	iwl_debug_level
 EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x1a00ea82	iwl_send_cmd_pdu
 EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x1abfd55e	iwl_rx_reply_rx
 EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x1acfe675	iwl_tx_agg_start
+EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x1b134432	iwl_tx_queue_reset
 EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x1b9f4c3e	iwl_tx_cmd_complete
 EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x1bee4146	iwl_init_sensitivity
 EXPORT_SYMBOL drivers/net/wireless/iwlwifi/iwlcore 0x1c19b321	iwlcore_eeprom_acquire_semaphore
