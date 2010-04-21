@@ -2125,6 +2125,7 @@ EXPORT_SYMBOL vmlinux 0x3dddb4ab	jbd2_journal_wipe
 EXPORT_SYMBOL vmlinux 0x3de5d380	key_alloc
 EXPORT_SYMBOL vmlinux 0x3e01bfdf	pagecache_write_begin
 EXPORT_SYMBOL vmlinux 0x3e098047	qdisc_watchdog_init
+EXPORT_SYMBOL vmlinux 0x3e2a7d51	setup_new_exec
 EXPORT_SYMBOL vmlinux 0x3e383385	nf_hooks
 EXPORT_SYMBOL vmlinux 0x3e45e9ff	register_inetaddr_notifier
 EXPORT_SYMBOL vmlinux 0x3e47dd55	register_gifconf
