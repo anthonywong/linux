@@ -2791,6 +2791,7 @@ EXPORT_SYMBOL vmlinux 0x3656bf5a	lock_kernel
 EXPORT_SYMBOL vmlinux 0x3667a976	filp_open
 EXPORT_SYMBOL vmlinux 0x3667d37d	netif_carrier_off
 EXPORT_SYMBOL vmlinux 0x36875389	__timecompare_update
+EXPORT_SYMBOL vmlinux 0x36c5b406	inode_claim_rsv_space
 EXPORT_SYMBOL vmlinux 0x36d25b1d	blk_end_request_all
 EXPORT_SYMBOL vmlinux 0x36d36948	__destroy_inode
 EXPORT_SYMBOL vmlinux 0x36e8b470	revert_creds
@@ -3206,6 +3207,7 @@ EXPORT_SYMBOL vmlinux 0x5a87f43d	journal_start_commit
 EXPORT_SYMBOL vmlinux 0x5aad4f14	override_creds
 EXPORT_SYMBOL vmlinux 0x5adcaaf8	nf_register_hook
 EXPORT_SYMBOL vmlinux 0x5aea523d	security_path_rename
+EXPORT_SYMBOL vmlinux 0x5b13f616	inode_sub_rsv_space
 EXPORT_SYMBOL vmlinux 0x5b23b305	pcim_iounmap_regions
 EXPORT_SYMBOL vmlinux 0x5b27bcec	sysctl_intvec
 EXPORT_SYMBOL vmlinux 0x5b448021	phy_attach
@@ -3583,6 +3585,7 @@ EXPORT_SYMBOL vmlinux 0x78a06885	alloc_file
 EXPORT_SYMBOL vmlinux 0x78a484c9	_read_unlock_irqrestore
 EXPORT_SYMBOL vmlinux 0x78b22dcb	cdrom_number_of_slots
 EXPORT_SYMBOL vmlinux 0x78bdfdb6	pci_bus_write_config_byte
+EXPORT_SYMBOL vmlinux 0x78be5eb6	inode_add_rsv_space
 EXPORT_SYMBOL vmlinux 0x78ccddfc	HYPERVISOR_shared_info
 EXPORT_SYMBOL vmlinux 0x78d50f95	call_usermodehelper_setcleanup
 EXPORT_SYMBOL vmlinux 0x78dacd6c	read_cache_page_gfp
@@ -7875,6 +7878,7 @@ EXPORT_SYMBOL_GPL vmlinux 0xf51ce127	ring_buffer_record_enable
 EXPORT_SYMBOL_GPL vmlinux 0xf52bf8bc	blk_queue_lld_busy
 EXPORT_SYMBOL_GPL vmlinux 0xf5384ac1	__trace_printk
 EXPORT_SYMBOL_GPL vmlinux 0xf5386cc7	bus_create_file
+EXPORT_SYMBOL_GPL vmlinux 0xf54bd49b	lcm
 EXPORT_SYMBOL_GPL vmlinux 0xf5799f7a	stop_machine_destroy
 EXPORT_SYMBOL_GPL vmlinux 0xf589b391	inet_twdr_twkill_work
 EXPORT_SYMBOL_GPL vmlinux 0xf5945bac	gnttab_free_grant_references
