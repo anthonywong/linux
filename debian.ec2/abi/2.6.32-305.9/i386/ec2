@@ -2598,6 +2598,7 @@ EXPORT_SYMBOL vmlinux 0x263fa95b	user_revoke
 EXPORT_SYMBOL vmlinux 0x265d196f	__nla_put
 EXPORT_SYMBOL vmlinux 0x266188f7	__wait_on_buffer
 EXPORT_SYMBOL vmlinux 0x266c73d2	phy_print_status
+EXPORT_SYMBOL vmlinux 0x267dad3d	inode_claim_rsv_space
 EXPORT_SYMBOL vmlinux 0x267fc65b	__tasklet_hi_schedule
 EXPORT_SYMBOL vmlinux 0x2685c3d7	__sg_alloc_table
 EXPORT_SYMBOL vmlinux 0x268cc6a2	sys_close
@@ -3665,6 +3666,7 @@ EXPORT_SYMBOL vmlinux 0x83f2eab5	kernel_read
 EXPORT_SYMBOL vmlinux 0x84153ca6	inet_frags_fini
 EXPORT_SYMBOL vmlinux 0x841a44d2	__mod_zone_page_state
 EXPORT_SYMBOL vmlinux 0x845bc1ee	bio_integrity_get_tag
+EXPORT_SYMBOL vmlinux 0x8469142f	inode_add_rsv_space
 EXPORT_SYMBOL vmlinux 0x8486110a	mb_cache_entry_find_next
 EXPORT_SYMBOL vmlinux 0x84a9082c	nobh_write_end
 EXPORT_SYMBOL vmlinux 0x84aec40e	w1_add_master_device
@@ -4590,6 +4592,7 @@ EXPORT_SYMBOL vmlinux 0xd6cd51b3	tcp_setsockopt
 EXPORT_SYMBOL vmlinux 0xd6ee688f	vmalloc
 EXPORT_SYMBOL vmlinux 0xd72a9641	unlock_new_inode
 EXPORT_SYMBOL vmlinux 0xd72ab4b4	generic_file_mmap
+EXPORT_SYMBOL vmlinux 0xd732a355	inode_sub_rsv_space
 EXPORT_SYMBOL vmlinux 0xd73756ec	sock_common_recvmsg
 EXPORT_SYMBOL vmlinux 0xd7395b68	set_pages_x
 EXPORT_SYMBOL vmlinux 0xd76232dc	simple_readpage
@@ -7821,6 +7824,7 @@ EXPORT_SYMBOL_GPL vmlinux 0xf499fdb2	rcu_barrier_bh
 EXPORT_SYMBOL_GPL vmlinux 0xf4aebdc3	xenbus_suspend
 EXPORT_SYMBOL_GPL vmlinux 0xf4b4ae1b	crypto_alg_mod_lookup
 EXPORT_SYMBOL_GPL vmlinux 0xf5384ac1	__trace_printk
+EXPORT_SYMBOL_GPL vmlinux 0xf54bd49b	lcm
 EXPORT_SYMBOL_GPL vmlinux 0xf5799f7a	stop_machine_destroy
 EXPORT_SYMBOL_GPL vmlinux 0xf5945bac	gnttab_free_grant_references
 EXPORT_SYMBOL_GPL vmlinux 0xf5a5a4f3	spi_unregister_master
