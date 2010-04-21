@@ -89,12 +89,6 @@ static spinlock_t bmm_lock;	/* spin lock for block list */
 
 #define UNUSED_PARAM(x)	(void)(x)
 
-typedef struct {
-	unsigned long input;	/* the starting address of the block of memory */
-	unsigned long output;	/* the starting address of the block of memory */
-	unsigned long length;	/* the length of the block of memory */
-} ioctl_arg_t;
-
 static unsigned long uva_to_pa(struct mm_struct *mm, unsigned long addr)
 {
         unsigned long ret = 0UL;
@@ -130,6 +124,30 @@ static unsigned long uva_to_pa(struct mm_struct *mm, unsigned long addr)
                 }
         }
         return ret;
+}
+
+unsigned long va_to_pa(unsigned long user_addr, unsigned int size)
+{
+	unsigned long  paddr, paddr_tmp;
+	unsigned long  size_tmp = 0;
+	int page_num = PAGE_ALIGN(size) / PAGE_SIZE;
+	unsigned int vaddr = PAGE_ALIGN(user_addr);
+	int i = 0;
+	struct mm_struct *mm = current->mm;
+
+	if(vaddr == NULL)
+		return 0;
+
+	paddr = uva_to_pa(mm, vaddr);
+
+	for (i = 0; i < page_num; i++) {
+		paddr_tmp = uva_to_pa(mm, vaddr);
+		if ((paddr_tmp - paddr) != size_tmp)
+			return 0;
+		vaddr += PAGE_SIZE;
+		size_tmp += PAGE_SIZE;
+	}
+	return paddr;
 }
 
 static void bmm_dump(bmm_block_t *pbmm)
@@ -387,10 +405,10 @@ static int bmm_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_DONTEXPAND; /* Don't remap */
 	vma->vm_flags |= VM_DONTCOPY;	/* Don't fork */
 
-	if(!(pbmm->attr & BMM_ATTR_NONBUFFERABLE))
-		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
-	if(pbmm->attr & BMM_ATTR_NONCACHEABLE)
+	if(pbmm->attr & BMM_ATTR_NONCACHED)
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	if((pbmm->attr & BMM_ATTR_WRITECOMBINE))
+		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 
 	if(remap_pfn_range(vma, vma->vm_start, paddr >> PAGE_SHIFT, vm_len, vma->vm_page_prot)) {
 		pr_debug("bmm_mmap: EAGAIN\n");
@@ -466,7 +484,19 @@ static unsigned long __attribute__ ((unused)) bmm_get_paddr(unsigned long vaddr)
 #endif
 }
 
-static unsigned long bmm_get_paddr_ex(unsigned long vaddr)
+static unsigned long bmm_get_paddr_ex(unsigned long vaddr, unsigned long size)
+{
+	unsigned long paddr;
+	struct mm_struct *mm = current->mm;
+
+	spin_lock(&mm->page_table_lock);
+	paddr = va_to_pa(vaddr, size);
+	spin_unlock(&mm->page_table_lock);
+
+	return paddr;
+}
+
+static unsigned long bmm_get_paddr_inside_ex(unsigned long vaddr)
 {
 #ifndef BMM_USE_UVA_TO_PA
         unsigned long paddr;
@@ -520,23 +550,32 @@ static unsigned long bmm_get_mem_size(unsigned long vaddr)
 
 void bmm_consistent_sync(unsigned long start, size_t size, int direction)
 {
+	/* support addr both from kernel space and bmm space */
 	unsigned long end = start + size;
+	unsigned long paddr;
+
+	/* bmm space */
+	paddr = bmm_get_paddr_inside_ex(start);
+
+	/* kernel space */
+	if (paddr == NULL)
+		paddr = bmm_get_paddr_ex(start, size);
+
+	if (paddr == NULL)
+		BUG();
 
 	switch (direction) {
 	case BMM_DMA_FROM_DEVICE:	/* invalidate only */
 		dmac_inv_range((void *)start, (void *)end);
-		outer_inv_range(bmm_get_paddr_ex(start),
-			bmm_get_paddr_ex(start) + size);
+		outer_inv_range(paddr, paddr + size);
 		break;
 	case BMM_DMA_TO_DEVICE:		/* writeback only */
 		dmac_clean_range((void *)start, (void *)end);
-		outer_clean_range(bmm_get_paddr_ex(start),
-			bmm_get_paddr_ex(start) + size);
+		outer_clean_range(paddr, paddr + size);
 		break;
 	case BMM_DMA_BIDIRECTIONAL:	/* writeback and invalidate */
 		dmac_flush_range((void *)start, (void *)end);
-		outer_flush_range(bmm_get_paddr_ex(start),
-			bmm_get_paddr_ex(start) + size);
+		outer_flush_range(paddr, paddr + size);
 		break;
 	default:
 		BUG();
@@ -729,8 +768,7 @@ void bmm_dma_sync()
 static int bmm_ioctl(struct inode *inode, struct file * filp, 
 		   unsigned int cmd, unsigned long arg)
 {
-	unsigned int bmm_cmd = BMM_IOCTL_CMD(cmd);
-	unsigned int bmm_arg = BMM_IOCTL_ARG(cmd);
+	unsigned int bmm_arg;
 	unsigned long input;
 	unsigned long output = 0;
 	unsigned long length;
@@ -747,11 +785,12 @@ static int bmm_ioctl(struct inode *inode, struct file * filp,
 	input = io.input;
 	output = io.output;
 	length = io.length;
+	bmm_arg = io.arg;
 
 	pr_debug("bmm_ioctl(cmd=0x%08x, arg=0x%08lx, io=0x%08lx/0x%08lx)\n",
 		cmd, arg, io.input, io.output);
 
-	switch(bmm_cmd) {
+	switch(cmd) {
 	case BMM_MALLOC:
 		output = bmm_malloc(input, bmm_arg);
 		break;
@@ -762,7 +801,10 @@ static int bmm_ioctl(struct inode *inode, struct file * filp,
 		output = bmm_get_vaddr_ex(input);
 		break;
 	case BMM_GET_PHYS_ADDR:
-		output = bmm_get_paddr_ex(input);
+		output = bmm_get_paddr_inside_ex(input);
+		break;
+	case BMM_GET_KERN_PHYS_ADDR:
+		output = bmm_get_paddr_ex(input, length);
 		break;
 	case BMM_GET_MEM_ATTR:
 		output = bmm_get_mem_attr(input);
