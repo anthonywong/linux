@@ -225,9 +225,10 @@ ENTRY(mvPmuSramSaveCP15)
 	mrc	p15, 0, r8, c1, c0, 1		@ save CP15 - Aux CR
 	mov	r9, r13				@ save resume SP
 	stmfd	sp!, {r2-r9}
+	mrc     p15, 0, r6, c9, c14, 0		@ save CP15 - PMC
 	mrc	p15, 0, r7, c10, c2, 0		@ save CP15 - PRRR
 	mrc	p15, 0, r8, c10, c2, 1		@ save CP15 - NMRR
-	stmfd	sp!, {r7-r8}
+	stmfd	sp!, {r6-r8}
 	mov	pc, lr
 
 /***************************************************************
@@ -242,11 +243,21 @@ ENTRY(mvPmuSramSaveCP15)
  **************************************************************/
 ENTRY(mvPmuSramResumeCP15)
 	ldr	r0, saved_sp			@ stack phys addr
-	ldmfd	r0!, {r7-r8}
+	ldmfd	r0!, {r6-r8}
 	mcr	p15, 0, r8, c10, c2, 1		@ restore CP15 - NMRR
 	mcr	p15, 0, r7, c10, c2, 0		@ restore CP15 - PRRR
+	mcr     p15, 0, r6, c9, c14, 0		@ restore CP15 - PMC
 	ldmfd	r0, {r2-r9}
 	mcr	p15, 0, r8, c1, c0, 1		@ restore CP15 - Aux CR
+#ifdef CONFIG_CPU_ENABLE_WRITECO
+	mrc	p15, 0, r10, c0, c0, 0		@ Main ID Y0 or not
+	and	r10, #0xF
+        cmp     r10, #1
+
+	movne	r0, #0x1
+	orrne	r0, r0, #CONFIG_CPU_WRITECO_CYCLE << 4  @ X0
+	mcrne	p15, 1, r0, c15, c2, 0		@ Write Marvell Auxiliary Function Reg
+#endif	
 	mcr	p15, 1, r7, c15, c1, 0		@ restore CP15 - extra features		
 	mcr     p15, 0, r6, c13, c0, 1          @ restore CP15 - context ID
 	mcr 	p15, 0, r5, c2, c0, 0		@ restore CP15 - TTBR
