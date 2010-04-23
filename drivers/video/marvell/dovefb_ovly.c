@@ -1005,7 +1005,7 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 	if ((dfli->pix_fmt >= 0) && (dfli->pix_fmt < 10)) {
 		writel((var->xres_virtual * var->bits_per_pixel) >> 3,
 			dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
-		writel((var->yres << 16) | xbefzoom,
+		writel((var->yres << 16) | (xbefzoom * 2),
 			dfli->reg_base + LCD_SPU_DMA_HPXL_VLN);
 		writel((var->yres << 16) | var->xres,
 			dfli->reg_base + LCD_SPU_DZM_HPXL_VLN);
