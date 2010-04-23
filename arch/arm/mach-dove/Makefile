@@ -1,3 +1,5 @@
+AFLAGS_swsusp.o			:= -DTEXT_OFFSET=$(TEXT_OFFSET)
+
 obj-y				+= clock.o common.o addr-map.o irq.o pcie.o mpp.o \
 				sdhci_cam_mbus.o
 obj-$(CONFIG_MACH_DOVE_RD_AVNG)	+= dove-rd-avng-setup.o
