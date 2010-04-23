@@ -958,6 +958,53 @@ static int dovefb_ovly_pan_display(struct fb_var_screeninfo *var,
 	return 0;
 }
 
+static int set_pitch(struct dovefb_layer_info *dfli,
+	struct fb_var_screeninfo *var)
+{
+	int ycp, uvp;
+
+	ycp =	dfli->surface.viewPortInfo.ycPitch;
+	uvp =	dfli->surface.viewPortInfo.uvPitch;
+	if (ycp <= 0) {
+		printk(KERN_WARNING "YC pitch is 0."
+			"User program needs refine\n");
+		if ((dfli->pix_fmt >= 0) && (dfli->pix_fmt < 10)) {
+			writel((var->xres_virtual * var->bits_per_pixel) >> 3,
+				dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
+		} else {
+			if (((dfli->pix_fmt & ~0x1000) >> 1) == 5) {
+				writel((var->xres*2),
+					dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
+			} else {
+				writel((var->xres),
+					dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
+			}
+		}
+	} else {
+		writel(ycp, dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
+	}
+
+	if (uvp <= 0) {
+		if ((dfli->pix_fmt >= 0) && (dfli->pix_fmt < 10)) {
+			;
+		} else {
+			if (((dfli->pix_fmt & ~0x1000) >> 1) == 5) {
+				writel(((var->xres) << 16) | (var->xres) ,
+					dfli->reg_base + LCD_SPU_DMA_PITCH_UV);
+			} else {
+				writel((var->xres >> 1) << 16 |
+					(var->xres >> 1) ,
+					dfli->reg_base + LCD_SPU_DMA_PITCH_UV);
+			}
+		}
+	} else {
+		writel((uvp << 16) | uvp,
+			dfli->reg_base + LCD_SPU_DMA_PITCH_UV);
+	}
+
+	return 0;
+}
+
 static int dovefb_ovly_set_par(struct fb_info *fi)
 {
 	struct dovefb_layer_info *dfli = fi->par;
@@ -966,7 +1013,6 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 	struct fb_var_screeninfo *var = &fi->var;
 	int pix_fmt;
 	int xzoom, yzoom;
-	int xbefzoom;
 
 	/*
 	 * Determine which pixel format we're going to use.
@@ -999,44 +1045,33 @@ static int dovefb_ovly_set_par(struct fb_info *fi)
 	/*
 	 * Configure graphics DMA parameters.
 	 */
-	xbefzoom = var->xres/2;
 	set_graphics_start(fi, fi->var.xoffset, fi->var.yoffset);
 
-	if ((dfli->pix_fmt >= 0) && (dfli->pix_fmt < 10)) {
-		writel((var->xres_virtual * var->bits_per_pixel) >> 3,
-			dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
-		writel((var->yres << 16) | (xbefzoom * 2),
-			dfli->reg_base + LCD_SPU_DMA_HPXL_VLN);
-		writel((var->yres << 16) | var->xres,
-			dfli->reg_base + LCD_SPU_DZM_HPXL_VLN);
-	} else {
-		if (((dfli->pix_fmt & ~0x1000) >> 1) == 5) {
-			writel((var->xres*2),
-				dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
-			writel(((var->xres) << 16) | (var->xres) ,
-				dfli->reg_base + LCD_SPU_DMA_PITCH_UV);
-		} else {
-			writel((var->xres),
-				dfli->reg_base + LCD_SPU_DMA_PITCH_YC);
-			writel((var->xres >> 1) << 16 |
-				(var->xres >> 1) ,
-				dfli->reg_base + LCD_SPU_DMA_PITCH_UV);
-		}
+	/*
+	 * Configure yuv pitch.
+	 */
+	set_pitch(dfli, var);
 
-		writel((var->yres << 16) | (xbefzoom*2),
-			dfli->reg_base + LCD_SPU_DMA_HPXL_VLN);
-		if (info->fixed_output == 0) {
-			yzoom = dfli->surface.viewPortInfo.zoomYSize;
-			xzoom = dfli->surface.viewPortInfo.zoomXSize;
-		} else {
-			yzoom = dfli->surface.viewPortInfo.zoomYSize *
-				info->out_vmode.yres / gfxli->fb_info->var.yres;
-			xzoom = dfli->surface.viewPortInfo.zoomXSize *
-				info->out_vmode.xres / gfxli->fb_info->var.xres;
-		}
-		writel((yzoom << 16) | xzoom,
-				dfli->reg_base + LCD_SPU_DZM_HPXL_VLN);
+	/*
+	 * program original size.
+	 */
+	writel((var->yres << 16) | (var->xres),
+		dfli->reg_base + LCD_SPU_DMA_HPXL_VLN);
+
+	/*
+	 * program size after scaling.
+	 */
+	if (info->fixed_output == 0) {
+		yzoom = dfli->surface.viewPortInfo.zoomYSize;
+		xzoom = dfli->surface.viewPortInfo.zoomXSize;
+	} else {
+		yzoom = dfli->surface.viewPortInfo.zoomYSize *
+			info->out_vmode.yres / gfxli->fb_info->var.yres;
+		xzoom = dfli->surface.viewPortInfo.zoomXSize *
+			info->out_vmode.xres / gfxli->fb_info->var.xres;
 	}
+	writel((yzoom << 16) | xzoom,
+		dfli->reg_base + LCD_SPU_DZM_HPXL_VLN);
 
 	/* update video position offset */
 	writel(CFG_DMA_OVSA_VLN(dfli->surface.viewPortOffset.yOffset)|
