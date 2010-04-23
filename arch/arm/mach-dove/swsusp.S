@@ -28,6 +28,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/memory.h>
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
@@ -209,8 +210,15 @@ FUNC(swsusp_arch_suspend)
 
 FUNC_END(swsusp_arch_suspend)
 
+#define KERNEL_RAM_PADDR	(PHYS_OFFSET + TEXT_OFFSET)
+#define SWAPPER_PG_DIR		(KERNEL_RAM_PADDR - 0x4000)
+
 FUNC(swsusp_arch_resume)
 	/* set page table if needed */
+	ldr	r0, =SWAPPER_PG_DIR
+	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
+	mcr	p15, 0, r0, c8, c7, 0		@ invalidate I,D TLBs
+	mcr	p15, 0, r0, c7, c5, 4		@ ISB
 
 	/*
 	 * retore "nr_copy_pages" pages which are saved and specified
