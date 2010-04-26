@@ -152,7 +152,7 @@ static int handle_data_pio(struct pxa3xx_nand_info *info)
 	switch (info->state) {
 	case STATE_PIO_WRITING:
 		mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
-		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_CMDD, MV_TRUE);
+		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_RDY, MV_TRUE);
 
 		ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
 		if (!ret) {
@@ -631,8 +631,9 @@ static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
 		goto fail_stop;
 	}
 
-	if(info->state != STATE_READY)
-		printk(KERN_INFO "%s - %d - Bad state.\n", __FUNCTION__, __LINE__);
+	/*if(info->state != STATE_READY)
+		printk(KERN_INFO "%s - %d - Bad state.\n", __FUNCTION__, __LINE__);*/
+
 	if (info->use_dma == 0 && info->data_size > 0)
 		if (handle_data_pio(info))
 			goto fail_stop;
@@ -690,10 +691,12 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = page_addr;
 		if (prepare_read_prog_cmd(info, column, page_addr))
 			break;
-		pxa3xx_nand_do_cmd_multiple(info,
-				MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
-		/*pxa3xx_nand_do_cmd(info,
-				NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);*/
+
+		if (info->use_dma)
+			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+		else
+			pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
+
 		/* We only are OOB, so if the data has error, does not matter */
 		if (info->retcode == ERR_DBERR)
 			info->retcode = ERR_NONE;
@@ -709,10 +712,12 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = page_addr;
 		if (prepare_read_prog_cmd(info, column, page_addr))
 			break;
-		pxa3xx_nand_do_cmd_multiple(info,
-				MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
-		/*pxa3xx_nand_do_cmd(info,
-				NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);*/
+
+		if (info->use_dma)
+			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+		else
+			pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
+
 		if (info->retcode == ERR_DBERR) {
 			/* for blank page (all 0xff), HW will calculate its ECC as
 			 * 0, which is different from the ECC information within
@@ -743,16 +748,23 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			printk(KERN_ERR "prepare_read_prog_cmd() failed.\n");
 			break;
 		}
-		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY);
-		/*pxa3xx_nand_do_cmd(info, NFC_SR_WRDREQ_MASK);*/
+	
+		if (info->use_dma)
+			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY);
+		else
+			pxa3xx_nand_do_cmd(info, NFC_SR_WRDREQ_MASK);
+
 		break;
 	case NAND_CMD_ERASE1:
 		info->column = 0;
 		info->page_addr = page_addr;
 		info->cmd = MV_NFC_CMD_ERASE;
 
-		pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
-		/*pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);*/
+		if (info->use_dma)
+			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
+		else
+			pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
+
 		break;
 	case NAND_CMD_ERASE2:
 		break;
@@ -772,8 +784,12 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->column = 0;
 		info->page_addr = 0;
 		info->cmd = MV_NFC_CMD_RESET;
-		ret = pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_CMDD);
-		/*ret = pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_CMDD);*/
+
+		if (info->use_dma)
+			ret = pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_CMDD);
+		else
+			ret = pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_CMDD);
+
 		if (ret == 0) {
 			int timeout = 2;
 			uint32_t ndcr;
