@@ -474,8 +474,8 @@ void __init dove_ehci0_init(void)
 		dove_ehci0.name = usb_dev_name;
 		mvSysUsbInit(0, 0);
 	}
-	platform_device_register(&dove_ehci0);
 #endif
+	platform_device_register(&dove_ehci0);
 }
 
 /*****************************************************************************
@@ -521,9 +521,8 @@ void __init dove_ehci1_init(void)
 		dove_ehci1.name = usb_dev_name;
 		mvSysUsbInit(1, 0);
 	}
-
-	platform_device_register(&dove_ehci1);
 #endif
+	platform_device_register(&dove_ehci1);
 }
 #ifdef CONFIG_MV_ETHERNET
 /*****************************************************************************
