@@ -17,7 +17,7 @@ include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
 # Objects list
 
-obj-y	+= mvKW_HAL_glue.o export.o 
+obj-$(CONFIG_MV_HAL_DRIVERS_SUPPORT)	+= mvKW_HAL_glue.o export.o 
 
 obj-$(CONFIG_MV_DBG_TRACE)	+= dbg-trace.o
 obj-y    	+= mv_hal_sys/
