@@ -921,7 +921,8 @@ static int __bmm_init(void)
 	bmm_size = vmeta_size + gpu_size;
 	bmm_size_mb = bmm_size / 1024 / 1024;
 	bmm_paddr = (vmeta_memory_start > gpu_memory_start) ? gpu_memory_start : vmeta_memory_start;
-	bmm_vaddr = ioremap_nocache(bmm_paddr, bmm_size);
+	// mark here: because we don't use the bmm memory space in kernel
+	//bmm_vaddr = ioremap_nocache(bmm_paddr, bmm_size);
 #endif
 
 	return 0;
@@ -944,7 +945,8 @@ static void __bmm_exit(void)
 
 	__free_pages(virt_to_page(bmm_vaddr), get_order(bmm_size));
 #else
-	iounmap(bmm_vaddr);
+	// mark here: because we don't use the bmm memory space in kernel
+	//iounmap(bmm_vaddr);
 #endif
 }
 
