@@ -67,7 +67,7 @@ config MV_HAL_DRIVERS_SUPPORT
 	  based drivers where possible.
 
 config DOVE_PM_SUPPORT
-	depends on PM && MV_INCLUDE_PMU
+	depends on PM && MV_INCLUDE_PMU && MV_HAL_DRIVERS_SUPPORT
 	def_bool y
 
 endif
