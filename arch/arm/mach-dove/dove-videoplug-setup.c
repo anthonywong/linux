@@ -487,7 +487,7 @@ static void __init dove_videoplug_init(void)
 
 	pxa_init_dma_wins(&dove_mbus_dram_info);
 	pxa_init_dma(16);
-
+#ifdef CONFIG_MV_HAL_DRIVERS_SUPPORT
 	if(useHalDrivers || useNandHal) {
 		if (mvPdmaHalInit(MV_PDMA_MAX_CHANNELS_NUM) != MV_OK) {
 			printk(KERN_ERR "mvPdmaHalInit() failed.\n");
@@ -497,7 +497,7 @@ static void __init dove_videoplug_init(void)
 		pxa_reserve_dma_channel(MV_PDMA_NAND_DATA);
 		pxa_reserve_dma_channel(MV_PDMA_NAND_COMMAND);
 	}
-
+#endif
 	dove_xor0_init();
 	dove_xor1_init();
 #ifdef CONFIG_MV_ETHERNET
