@@ -31,31 +31,55 @@
 #include <asm/io.h>
 #include "pmu/mvPmuRegs.h"
 
-#define DOVE_OVERHEAT_TEMP	105		/* milidegree Celsius */
+#define DOVE_OVERHEAT_TEMP	105000		/* milidegree Celsius */
 #define DOVE_OVERHEAT_DELAY	0x700
-#define DOVE_OVERCOOL_TEMP	10		/* milidegree Celsius */
+#define DOVE_OVERCOOL_TEMP	10000		/* milidegree Celsius */
 #define	DOVE_OVERCOOL_DELAY	0x700
+#define DOVE_OVERHEAT_MIN	0
+#define DOVE_OVERHEAT_MAX	110000
+#define DOVE_OVERCOOL_MIN	0
+#define DOVE_OVERCOOL_MAX	110000
 
 /* Junction Temperature */
-#define DOVE_TSEN_TEMP2RAW(x)  ((2281638 - (10000 * x)) / 7298) /* in Celsius */
+#define DOVE_TSEN_TEMP2RAW(x)  ((2281638 - (10 * x)) / 7298)    /* in millCelsius */
 #define DOVE_TSEN_RAW2TEMP(x)  ((2281638 - (7298 * x)) / 10)	/* in miliCelsius */
 
 #define LABEL "T-junction"
 static struct device *hwmon_dev;
+unsigned int temp_min = DOVE_OVERCOOL_TEMP;
+unsigned int temp_max = DOVE_OVERHEAT_TEMP;
 
 typedef enum { 
 	SHOW_TEMP, 
-	SHOW_MAX,
-	SHOW_MIN,
+	TEMP_MAX,
+	TEMP_MIN,
 	SHOW_NAME,
 	SHOW_TYPE,
 	SHOW_LABEL } SHOW;
 
+static void dovetemp_set_thresholds(unsigned int max, unsigned int min)
+{
+	u32 temp, reg; 
+
+	/* Set the overheat threashold & delay */
+	temp = DOVE_TSEN_TEMP2RAW(max);
+	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
+	reg &= ~PMU_TM_OVRHEAT_THRSH_MASK;
+	reg |= (temp << PMU_TM_OVRHEAT_THRSH_OFFS);
+	writel(reg, (INTER_REGS_BASE | PMU_THERMAL_MNGR_REG));
+
+	/* Set the overcool threshole & delay */
+	temp = DOVE_TSEN_TEMP2RAW(min);
+	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
+	reg &= ~PMU_TM_COOL_THRSH_MASK;
+	reg |= (temp << PMU_TM_COOL_THRSH_OFFS);
+	writel(reg, (INTER_REGS_BASE | PMU_THERMAL_MNGR_REG));	
+}
 
 static int dovetemp_init_sensor(void)
 {
 	u32 reg;
-	u32 i, temp;
+	u32 i;
 
 	/* Configure the Diode Control Register #0 */
         reg = readl(INTER_REGS_BASE | PMU_TEMP_DIOD_CTRL0_REG);
@@ -90,20 +114,11 @@ static int dovetemp_init_sensor(void)
 	if (i== 1000000)
 		return -EIO;
 
-	/* Set the overheat threashold & delay */
-	temp = DOVE_TSEN_TEMP2RAW(DOVE_OVERHEAT_TEMP);
-	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
-	reg &= ~PMU_TM_OVRHEAT_THRSH_MASK;
-	reg |= (temp << PMU_TM_OVRHEAT_THRSH_OFFS);
-	writel(reg, (INTER_REGS_BASE | PMU_THERMAL_MNGR_REG));
-	writel(DOVE_OVERHEAT_DELAY, (INTER_REGS_BASE | PMU_TM_OVRHEAT_DLY_REG));
+	/* Set thresholds */
+	dovetemp_set_thresholds(temp_max, temp_min);
 
-	/* Set the overcool threshole & delay */
-	temp = DOVE_TSEN_TEMP2RAW(DOVE_OVERCOOL_TEMP);
-	reg = readl(INTER_REGS_BASE | PMU_THERMAL_MNGR_REG);
-	reg &= ~PMU_TM_COOL_THRSH_MASK;
-	reg |= (temp << PMU_TM_COOL_THRSH_OFFS);
-	writel(reg, (INTER_REGS_BASE | PMU_THERMAL_MNGR_REG));
+	/* Set delays */
+	writel(DOVE_OVERHEAT_DELAY, (INTER_REGS_BASE | PMU_TM_OVRHEAT_DLY_REG));	
 	writel(DOVE_OVERCOOL_DELAY, (INTER_REGS_BASE | PMU_TM_COOLING_DLY_REG));
 
 	return 0;
@@ -137,7 +152,7 @@ static int dovetemp_read_temp(void)
 	}
 
 	if (i==16)
-		printk(KERN_WARNING, "dove-hwmon: Thermal sensor is unstable!\n");
+		printk(KERN_WARNING "dove-hwmon: Thermal sensor is unstable!\n");
 	
 	/* Convert the temperature to Celsuis */
 	return DOVE_TSEN_RAW2TEMP(reg);
@@ -195,14 +210,49 @@ static ssize_t show_temp(struct device *dev,
 
 	if (attr->index == SHOW_TEMP)
 		ret = sprintf(buf, "%d\n", dovetemp_read_temp());
-	else if (attr->index == SHOW_MAX)
-		ret = sprintf(buf, "%d\n", DOVE_OVERHEAT_TEMP * 1000);
-	else if (attr->index == SHOW_MIN)
-		ret = sprintf(buf, "%d\n", DOVE_OVERCOOL_TEMP * 1000);
+	else if (attr->index == TEMP_MAX)
+		ret = sprintf(buf, "%d\n", temp_max);
+	else if (attr->index == TEMP_MIN)
+		ret = sprintf(buf, "%d\n", temp_min);
 	else
 		ret = sprintf(buf, "%d\n", -1);
 
 	return ret;
+}
+
+static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count) {
+
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
+	unsigned int temp;
+
+	if (sscanf(buf, "%d", &temp) != 1)
+		printk(KERN_WARNING "Invalid input string for temperature!");	
+
+	if (attr->index == TEMP_MAX) {
+		if((temp < DOVE_OVERHEAT_MIN) || (temp > DOVE_OVERHEAT_MAX))
+			printk(KERN_WARNING "Invalid max temperature input (out of range: %d-%d)!",
+				DOVE_OVERHEAT_MIN, DOVE_OVERHEAT_MAX);
+		else {
+			temp_max = temp;
+			dovetemp_set_thresholds(temp_max, temp_min);	
+		}
+	}
+	else if (attr->index == TEMP_MIN) {
+		if((temp < DOVE_OVERCOOL_MIN) || (temp > DOVE_OVERCOOL_MAX))
+			printk(KERN_WARNING "Invalid min temperature input (out of range: %d-%d)!",
+				DOVE_OVERCOOL_MIN, DOVE_OVERCOOL_MAX);
+		else {
+			temp_min = temp;
+			dovetemp_set_thresholds(temp_max, temp_min);
+		}
+	}
+	else
+		printk(KERN_ERR "dove-temp: Invalid sensor attribute!");
+
+	printk(KERN_INFO "set_temp got string: %d\n", temp);
+
+	return count;
 }
 
 /* TODO - Add read/write support in order to support setting max/min */
@@ -212,10 +262,10 @@ static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_info, NULL,
 			  SHOW_LABEL);
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL,
 			  SHOW_TEMP);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL,
-			  SHOW_MAX);
-static SENSOR_DEVICE_ATTR(temp1_min, S_IRUGO, show_temp, NULL,
-			  SHOW_MIN);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRWXUGO, show_temp, set_temp,
+			  TEMP_MAX);
+static SENSOR_DEVICE_ATTR(temp1_min, S_IRWXUGO, show_temp, set_temp,
+			  TEMP_MIN);
 static DEVICE_ATTR(temp1_crit_alarm, S_IRUGO, show_alarm, NULL);
 static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, SHOW_NAME);
 
@@ -275,7 +325,7 @@ static int __devexit dovetemp_remove(struct platform_device *pdev)
 
 static int dovetemp_resume(struct platform_device *dev)
 {
-	dovetemp_init_sensor();
+	return dovetemp_init_sensor();
 }
 
 static struct platform_driver dovetemp_driver = {
