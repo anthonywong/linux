@@ -29,6 +29,9 @@
 #include <linux/securebits.h>
 #include <linux/syslog.h>
 
+/* sysctl for symlink permissions checking */
+int weak_sticky_symlinks;
+
 /*
  * If a non-root user executes a setuid-root binary in
  * !secure(SECURE_NOROOT) mode, then we raise capabilities.
@@ -279,6 +282,27 @@ int cap_inode_killpriv(struct dentry *dentry)
 	       return 0;
 
 	return inode->i_op->removexattr(dentry, XATTR_NAME_CAPS);
+}
+
+int cap_inode_follow_link(struct dentry *dentry,
+			  struct nameidata *nameidata)
+{
+	const struct inode *parent = dentry->d_parent->d_inode;
+	const struct inode *inode = dentry->d_inode;
+	const struct cred *cred = current_cred();
+
+	if (weak_sticky_symlinks)
+		return 0;
+
+	if (S_ISLNK(inode->i_mode) && (parent->i_mode & S_ISVTX) &&
+	    (parent->i_mode & S_IWOTH) && (parent->i_uid != inode->i_uid) &&
+	    (cred->fsuid != inode->i_uid)) {
+		printk_ratelimited(KERN_INFO "deprecated sticky-directory"
+			" non-matching uid symlink following was attempted"
+			" by: %s\n", current->comm);
+		return -EACCES;
+	}
+	return 0;
 }
 
 /*
