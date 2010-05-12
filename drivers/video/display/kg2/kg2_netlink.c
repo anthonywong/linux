@@ -9,6 +9,7 @@
 
 
 // Generic netlink operation handlers
+static int kg2_genl_get_daemon_pid(struct sk_buff * skb, struct genl_info * info);
 static int kg2_genl_set_daemon_pid(struct sk_buff * skb, struct genl_info * info);
 
 // Generic netlink family definition
@@ -69,6 +70,14 @@ static struct nla_policy kg2_genl_policy[KG2_GENL_ATTR_MAX + 1] = {
 // Generic netlink operation definition
 static struct genl_ops kg2_genl_ops[] = {
 	{
+		.cmd		= KG2_GENL_CMD_GET_DAEMON_PID,
+		.flags		= 0,
+		.policy		= kg2_genl_policy,
+		.doit		= kg2_genl_get_daemon_pid,
+		.dumpit		= NULL,
+		.done		= NULL,
+	},
+	{
 		.cmd		= KG2_GENL_CMD_SET_DAEMON_PID,
 		.flags		= 0,
 		.policy		= kg2_genl_policy,
@@ -80,6 +89,61 @@ static struct genl_ops kg2_genl_ops[] = {
 
 unsigned int g_daemon_pid = 0;
 
+
+/*-----------------------------------------------------------------------------
+ * Description : Generic Netlink operation handler for KG2 family
+ * Parameter   : skb
+ *               info
+ * Return      : =0 - Success
+ *-----------------------------------------------------------------------------
+ */
+
+static int kg2_genl_get_daemon_pid(struct sk_buff * skb, struct genl_info * info)
+{
+	int ret = 0;
+	void * hdr;
+	struct sk_buff * msg;
+
+	printk(KERN_INFO "kg2: Send daemon PID to user: %u\n", info->snd_pid);
+
+	if (g_daemon_pid == 0)
+		return -EINVAL;
+
+	// Allocate message
+	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+
+	if (msg == NULL)
+		return -ENOMEM;
+
+	// Set message header
+	hdr = genlmsg_put(msg, info->snd_pid, info->snd_seq, &kg2_genl_family,
+	                  0, KG2_GENL_CMD_SET_DAEMON_PID);
+
+	if (hdr == NULL)
+	{
+		ret = -EMSGSIZE;
+		goto err;
+	}
+
+	// Set message payload
+	ret = nla_put_u32(msg, KG2_GENL_ATTR_PID, g_daemon_pid);
+
+	if (ret)
+	{
+		ret = -ENOBUFS;
+		goto err;
+	}
+
+	// Finalize message
+	genlmsg_end(msg, hdr);
+
+	// Reply message
+	return genlmsg_reply(msg, info);
+ err:
+	nlmsg_free(msg);
+
+	return ret;
+}
 
 /*-----------------------------------------------------------------------------
  * Description : Generic Netlink operation handler for KG2 family
@@ -127,7 +191,7 @@ int kg2_genl_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 	void * hdr;
 	struct sk_buff * msg;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 
 	if (msg == NULL)
 	{
@@ -251,6 +315,7 @@ int kg2_genl_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 	// Finalize the message
 	genlmsg_end(msg, hdr);
 
+	// Send the message
 	ret = genlmsg_unicast(&init_net, msg, g_daemon_pid);
 
 	return ret;
@@ -273,7 +338,7 @@ int kg2_genl_set_output_timing(AVC_CMD_TIMING_PARAM * timing)
 	void * hdr;
 	struct sk_buff * msg;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 
 	if (msg == NULL)
 	{
@@ -397,6 +462,7 @@ int kg2_genl_set_output_timing(AVC_CMD_TIMING_PARAM * timing)
 	// Finalize the message
 	genlmsg_end(msg, hdr);
 
+	// Send the message
 	ret = genlmsg_unicast(&init_net, msg, g_daemon_pid);
 
 	return ret;
@@ -419,7 +485,7 @@ int kg2_genl_system_is_resumed(void)
 	void * hdr;
 	struct sk_buff * msg;
 
-	msg = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 
 	if (msg == NULL)
 	{
@@ -438,6 +504,7 @@ int kg2_genl_system_is_resumed(void)
 	// Finalize the message
 	genlmsg_end(msg, hdr);
 
+	// Send the message
 	ret = genlmsg_unicast(&init_net, msg, g_daemon_pid);
 
 	return ret;

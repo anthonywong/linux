@@ -23,6 +23,10 @@
 #define TOTAL_PAGE		16	// Total number of pages
 #define TOTAL_OFFSET		256	// Total number of offsets in each page
 
+#if 0
+#define DEBUG				// For detail debug messages
+#endif
+
 
 // Glocal variable definitions
 bool bI2CBusy = false;				// Used to detect I2C bus collision
@@ -238,34 +242,22 @@ ABORT_SSPLL_CHECK:
 
 int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 {
-	// Restore the last setting if needed
-	if (timing == NULL)
-	{
-		printk(KERN_INFO "kg2: Set input timing (%dx%d%s%d)\n",
-		       avcInputTiming.HActive, avcInputTiming.VActive, (avcInputTiming.IsProgressive == 1)? "p": "i", avcInputTiming.RefRate);
-
-		printk(KERN_DEBUG "kg2: Ht: %5d, Ha: %5d, Hfp:%5d, Hsw:%5d, Hsp: %d\n",
-	               avcInputTiming.HTotal, avcInputTiming.HActive, avcInputTiming.HFrontPorch, avcInputTiming.HSyncWidth, avcInputTiming.HPolarity);
-		printk(KERN_DEBUG "kg2: Vt: %5d, Va: %5d, Vfp:%5d, Vsw:%5d, Vsp: %d\n",
-	               avcInputTiming.VTotal, avcInputTiming.VActive, avcInputTiming.VFrontPorch, avcInputTiming.VSyncWidth, avcInputTiming.VPolarity);
-		printk(KERN_DEBUG "kg2: AR: %5d, Pr: %5d, Rt: %5d\n",
-	               avcInputTiming.AspRatio, avcInputTiming.IsProgressive, avcInputTiming.RefRate);
-
-		kg2_genl_set_input_timing(&avcInputTiming);
-
-		return 0;
-	}
-
 	printk(KERN_INFO "kg2: Set input timing (%dx%d%s%d)\n",
-	       timing->HActive, timing->VActive, (timing->IsProgressive == 1)? "p": "i", timing->RefRate);
+	       timing->HActive,
+	       timing->VActive,
+	       (timing->IsProgressive == 1)? "p": "i",
+	       timing->RefRate);
 
+#ifdef DEBUG
 	printk(KERN_DEBUG "kg2: Ht: %5d, Ha: %5d, Hfp:%5d, Hsw:%5d, Hsp: %d\n",
                timing->HTotal, timing->HActive, timing->HFrontPorch, timing->HSyncWidth, timing->HPolarity);
 	printk(KERN_DEBUG "kg2: Vt: %5d, Va: %5d, Vfp:%5d, Vsw:%5d, Vsp: %d\n",
                timing->VTotal, timing->VActive, timing->VFrontPorch, timing->VSyncWidth, timing->VPolarity);
 	printk(KERN_DEBUG "kg2: AR: %5d, Pr: %5d, Rt: %5d\n",
                timing->AspRatio, timing->IsProgressive, timing->RefRate);
+#endif
 
+	// Error handling
 	if (i2c_client_kg2 == NULL)
 	{
 		printk(KERN_ERR "kg2: Abort - Not an i2c client\n");
@@ -455,26 +447,22 @@ int kg2_set_input_timing(AVC_CMD_TIMING_PARAM * timing)
 
 int kg2_set_output_timing(AVC_CMD_TIMING_PARAM * timing)
 {
-	// Restore the last setting if needed
-	if (timing == NULL)
-	{
-		printk(KERN_INFO "kg2: Set output timing (%dx%d%s%d)\n",
-		       avcOutputTiming.HActive,
-		       (avcOutputTiming.IsProgressive > 0) ? (avcOutputTiming.VActive) : (avcOutputTiming.VActive * 2),
-		       (avcOutputTiming.IsProgressive > 0) ? "p" : "i",
-		       avcOutputTiming.RefRate);
-
-		kg2_genl_set_output_timing(&avcOutputTiming);
-
-		return 0;
-	}
-
 	printk(KERN_INFO "kg2: Set output timing (%dx%d%s%d)\n",
 	       timing->HActive,
 	       (timing->IsProgressive > 0) ? (timing->VActive) : (timing->VActive * 2),
 	       (timing->IsProgressive > 0) ? "p" : "i",
 	       timing->RefRate);
 
+#ifdef DEBUG
+	printk(KERN_DEBUG "kg2: Ht: %5d, Ha: %5d, Hfp:%5d, Hsw:%5d, Hsp: %d\n",
+               timing->HTotal, timing->HActive, timing->HFrontPorch, timing->HSyncWidth, timing->HPolarity);
+	printk(KERN_DEBUG "kg2: Vt: %5d, Va: %5d, Vfp:%5d, Vsw:%5d, Vsp: %d\n",
+               timing->VTotal, timing->VActive, timing->VFrontPorch, timing->VSyncWidth, timing->VPolarity);
+	printk(KERN_DEBUG "kg2: AR: %5d, Pr: %5d, Rt: %5d\n",
+               timing->AspRatio, timing->IsProgressive, timing->RefRate);
+#endif
+
+	// Error handling
 	if (i2c_client_kg2 == NULL)
 	{
 		printk(KERN_ERR "kg2: Abort - Not an i2c client\n");
