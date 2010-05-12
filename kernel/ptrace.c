@@ -23,6 +23,8 @@
 #include <linux/uaccess.h>
 #include <linux/regset.h>
 
+/* sysctl for defining allowed scope of PTRACE */
+int ptrace_scope = 1;
 
 /*
  * ptrace a task: make the debugger its new parent and
@@ -127,6 +129,10 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 	 * ptrace_attach denies several cases that /proc allows
 	 * because setting up the necessary parent/child relationship
 	 * or halting the specified task is impossible.
+	 *
+	 * PTRACE scope can be define as:
+	 *  0 - classic: CAP_SYS_PTRACE and same uid can ptrace non-setuid
+	 *  1 - restricted: as above, but only children of ptracing process
 	 */
 	int dumpable = 0;
 	/* Don't let security modules deny introspection */
@@ -150,6 +156,24 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 		dumpable = get_dumpable(task->mm);
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
+	if (ptrace_scope && !capable(CAP_SYS_PTRACE)) {
+		/* require ptrace target be a child of ptracer */
+		struct task_struct *tmp = task;
+		struct task_struct *curtemp = current;
+		int rc = 0;
+
+		read_lock(&tasklist_lock);
+		while (tmp->pid > 0) {
+			if (tmp == curtemp)
+				break;
+			tmp = tmp->parent;
+		}
+		if (tmp->pid == 0)
+			rc = -EPERM;
+		read_unlock(&tasklist_lock);
+		if (rc)
+			return rc;
+	}
 
 	return security_ptrace_access_check(task, mode);
 }
