@@ -31,6 +31,8 @@
 
 /* sysctl for symlink permissions checking */
 int weak_sticky_symlinks;
+/* sysctl for hardlink permissions checking */
+int weak_nonaccess_hardlinks;
 
 /*
  * If a non-root user executes a setuid-root binary in
@@ -304,6 +306,48 @@ int cap_inode_follow_link(struct dentry *dentry,
 	}
 	return 0;
 }
+
+#ifdef CONFIG_SECURITY_PATH
+/*
+ * cap_path_link - verify that hardlinking is allowed
+ * @old_dentry: the source inode/dentry to hardlink from
+ * @new_dir: target directory
+ * @new_dentry: the target inode/dentry to hardlink to
+ *
+ * Block hardlink when all of:
+ *  - fsuid does not match inode
+ *  - not CAP_FOWNER
+ *  - and at least one of:
+ *    - inode is not a regular file
+ *    - inode is setuid
+ *    - inode is setgid and group-exec
+ *    - access failure for read or write
+ *
+ * Returns 0 if successful, -ve on error.
+ */
+int cap_path_link(struct dentry *old_dentry, struct path *new_dir,
+		  struct dentry *new_dentry)
+{
+	struct inode *inode = old_dentry->d_inode;
+	const int mode = inode->i_mode;
+	const struct cred *cred = current_cred();
+
+	if (weak_nonaccess_hardlinks) return 0;
+
+	if (cred->fsuid != inode->i_uid &&
+	    (!S_ISREG(mode) || (mode & S_ISUID) ||
+	     ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) ||
+	     (generic_permission(inode, MAY_READ | MAY_WRITE, NULL))) &&
+	    !capable(CAP_FOWNER)) {
+		printk_ratelimited(KERN_INFO "deprecated non-accessible"
+			" hardlink creation was attempted by: %s\n",
+			current->comm);
+		return -EPERM;
+	}
+
+	return 0;
+}
+#endif /* CONFIG_SECURITY_PATH */
 
 /*
  * Calculate the new process capability sets from the capability sets attached
