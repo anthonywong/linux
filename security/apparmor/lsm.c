@@ -317,7 +317,10 @@ static int apparmor_path_link(struct dentry *old_dentry, struct path *new_dir,
 			      struct dentry *new_dentry)
 {
 	struct aa_profile *profile;
-	int error = 0;
+	int error = 0, rc;
+
+	if ( (rc = cap_path_link(old_dentry, new_dir, new_dentry)) )
+		return rc;
 
 	if (!mediated_filesystem(old_dentry->d_inode))
 		return 0;
