@@ -79,6 +79,10 @@ extern int cap_task_setioprio(struct task_struct *p, int ioprio);
 extern int cap_task_setnice(struct task_struct *p, int nice);
 extern int cap_syslog(int type, bool from_file);
 extern int cap_vm_enough_memory(struct mm_struct *mm, long pages);
+#ifdef CONFIG_SECURITY_PATH
+extern int cap_path_link(struct dentry *old_dentry, struct path *new_dir,
+			 struct dentry *new_dentry);
+#endif
 
 struct msghdr;
 struct sk_buff;
