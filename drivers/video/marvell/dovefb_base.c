@@ -1113,9 +1113,17 @@ failed:
 
 #ifdef CONFIG_PM
 
-static unsigned int LCD_SPU_HWC_HPXL_VLN_saved_value = 0;
-static unsigned int LCD_SPU_ALPHA_COLOR1_saved_value = 0;
-static unsigned int LCD_SPU_ALPHA_COLOR2_saved_value = 0;
+/* Hardware cursor related registers */
+static unsigned int LCD_SPU_HWC_HPXL_VLN_saved_value    = 0;
+static unsigned int LCD_SPU_ALPHA_COLOR1_saved_value    = 0;
+static unsigned int LCD_SPU_ALPHA_COLOR2_saved_value    = 0;
+
+/* Colorkey related registers */
+static unsigned int LCD_SPU_COLORKEY_Y_saved_value      = 0;
+static unsigned int LCD_SPU_COLORKEY_U_saved_value      = 0;
+static unsigned int LCD_SPU_COLORKEY_V_saved_value      = 0;
+static unsigned int LCD_SPU_DMA_CTRL1_saved_value       = 0;
+static unsigned int LCD_SPU_ADV_REG_saved_value         = 0;
 
 static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 {
@@ -1127,9 +1135,16 @@ static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 	writel( 0x0, dfi->reg_base+SPU_IRQ_ENA);
 
 	/* Save cursor related registers */
-	LCD_SPU_HWC_HPXL_VLN_saved_value = readl(dfi->reg_base + LCD_SPU_HWC_HPXL_VLN);
-	LCD_SPU_ALPHA_COLOR1_saved_value = readl(dfi->reg_base + LCD_SPU_ALPHA_COLOR1);
-	LCD_SPU_ALPHA_COLOR2_saved_value = readl(dfi->reg_base + LCD_SPU_ALPHA_COLOR2);
+	LCD_SPU_HWC_HPXL_VLN_saved_value    = readl(dfi->reg_base + LCD_SPU_HWC_HPXL_VLN);
+	LCD_SPU_ALPHA_COLOR1_saved_value    = readl(dfi->reg_base + LCD_SPU_ALPHA_COLOR1);
+	LCD_SPU_ALPHA_COLOR2_saved_value    = readl(dfi->reg_base + LCD_SPU_ALPHA_COLOR2);
+
+    /* Save colorkey related regiters */
+	LCD_SPU_COLORKEY_Y_saved_value 	    = readl(dfi->reg_base + LCD_SPU_COLORKEY_Y);
+	LCD_SPU_COLORKEY_U_saved_value 	    = readl(dfi->reg_base + LCD_SPU_COLORKEY_U);
+	LCD_SPU_COLORKEY_V_saved_value 	    = readl(dfi->reg_base + LCD_SPU_COLORKEY_V);
+	LCD_SPU_DMA_CTRL1_saved_value  	    = readl(dfi->reg_base + LCD_SPU_DMA_CTRL1);
+	LCD_SPU_ADV_REG_saved_value    	    = readl(dfi->reg_base + LCD_SPU_ADV_REG);
 
 	acquire_console_sem();
 
@@ -1189,6 +1204,13 @@ static int dovefb_resume(struct platform_device *pdev)
 	writel(LCD_SPU_HWC_HPXL_VLN_saved_value, dfi->reg_base + LCD_SPU_HWC_HPXL_VLN);
 	writel(LCD_SPU_ALPHA_COLOR1_saved_value, dfi->reg_base + LCD_SPU_ALPHA_COLOR1);
 	writel(LCD_SPU_ALPHA_COLOR2_saved_value, dfi->reg_base + LCD_SPU_ALPHA_COLOR2);
+
+    /* Restore colorkey related regiters */
+	writel(LCD_SPU_COLORKEY_Y_saved_value,  dfi->reg_base + LCD_SPU_COLORKEY_Y);
+	writel(LCD_SPU_COLORKEY_U_saved_value,  dfi->reg_base + LCD_SPU_COLORKEY_U);
+	writel(LCD_SPU_COLORKEY_V_saved_value,  dfi->reg_base + LCD_SPU_COLORKEY_V);
+	writel(LCD_SPU_DMA_CTRL1_saved_value,   dfi->reg_base + LCD_SPU_DMA_CTRL1);
+	writel(LCD_SPU_ADV_REG_saved_value,     dfi->reg_base + LCD_SPU_ADV_REG);
 
 	/* Disable all interrupts */
 	writel( 0x0, dfi->reg_base + SPU_IRQ_ENA);
