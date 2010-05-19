@@ -6,7 +6,4 @@ flavours        = generic generic-pae
 build_image	= bzImage
 kernel_file	= arch/$(build_arch)/boot/bzImage
 install_file	= vmlinuz
-
-generic-pae_sub	= virtual
-
 loader		= grub
