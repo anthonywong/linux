@@ -6,8 +6,8 @@ repo_list=(
 )
 
 getall armel versatile
-getall amd64 generic server preempt
-getall i386 generic generic-pae
+getall amd64 generic server preempt virtual
+getall i386 generic generic-pae virtual
 
 # Ports arches and flavours.
 getall powerpc powerpc powerpc-smp powerpc64-smp
