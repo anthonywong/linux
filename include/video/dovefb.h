@@ -381,6 +381,18 @@ struct dovefb_info {
 	unsigned		edid:1;
 	unsigned		panel_rbswap:1;
 	unsigned		edid_en:1;
+
+        /* Hardware cursor related registers */
+	unsigned int LCD_SPU_HWC_HPXL_VLN_saved_value;
+	unsigned int LCD_SPU_ALPHA_COLOR1_saved_value;
+	unsigned int LCD_SPU_ALPHA_COLOR2_saved_value;
+
+	/* Colorkey related registers */
+	unsigned int LCD_SPU_COLORKEY_Y_saved_value;
+	unsigned int LCD_SPU_COLORKEY_U_saved_value;
+	unsigned int LCD_SPU_COLORKEY_V_saved_value;
+	unsigned int LCD_SPU_DMA_CTRL1_saved_value;
+	unsigned int LCD_SPU_ADV_REG_saved_value;
 };
 
 /*
