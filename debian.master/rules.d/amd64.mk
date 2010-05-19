@@ -6,7 +6,4 @@ flavours	= generic server preempt virtual
 build_image	= bzImage
 kernel_file	= arch/$(build_arch)/boot/bzImage
 install_file	= vmlinuz
-
-server_sub	= virtual
-
 loader		= grub
