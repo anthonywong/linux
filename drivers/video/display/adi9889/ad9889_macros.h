@@ -38,11 +38,17 @@
 #define HDMI_TX			AD9889A
 #define HDCP_OPTION
 
+//#define AD9889_DEBUG
 #define ERROR_MESSAGE(A)	printk(KERN_ERR A)
+#ifdef AD9889_DEBUG
 #define DEBUG_MESSAGE(A)	printk(A)
 #define DEBUG_MESSAGE_1(A,B)	printk(A,B)
 #define DEBUG_MESSAGE_2(A,B,C)	printk(A,B,C)
-
+#else
+#define DEBUG_MESSAGE(A)
+#define DEBUG_MESSAGE_1(A,B)
+#define DEBUG_MESSAGE_2(A,B,C)
+#endif
 #define ST_MAX			5
 #define DTD_MAX			5
 #define SAD_MAX			5
