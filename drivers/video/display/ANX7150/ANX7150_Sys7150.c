@@ -726,7 +726,7 @@ void ANX7150_AFIFO_Overrun_Interrupt(void)
         ANX7150_Set_System_State(ANX7150_CONFIG_AUDIO);
     }
 }
-
+/*
 void ANX7150_PllLock_Interrupt()
 {
     BYTE c;
@@ -754,6 +754,42 @@ void ANX7150_PllLock_Interrupt()
 
 		    
 		    ANX7150_system_config_done = 0;//
+
+}
+*/
+void ANX7150_PllLock_Interrupt()
+{
+    BYTE c;
+
+    if((ANX7150_system_state != ANX7150_INITIAL) 
+        && (ANX7150_system_state != ANX7150_WAIT_HOTPLUG) 
+        && (ANX7150_system_state != ANX7150_READ_PARSE_EDID)
+        && (ANX7150_system_state != ANX7150_WAIT_RX_SENSE))
+    {
+        ANX7150_i2c_read_p0_reg(ANX7150_CHIP_STATUS_REG,&c);
+
+    	if (!(c & ANX7150_CHIP_STATUS_PLL_LOCK))
+		{
+			ANX7150_Set_AVMute();
+			ANX7150_DEBUG("ANX7150: PLL unlock interrupt,disable audio.");
+			// disable audio & video
+			ANX7150_i2c_read_p0_reg(ANX7150_HDMI_AUDCTRL1_REG,&c);
+			c &= ~ANX7150_HDMI_AUDCTRL1_IN_EN;
+			ANX7150_i2c_write_p0_reg(ANX7150_HDMI_AUDCTRL1_REG,c);
+
+			ANX7150_i2c_read_p0_reg(ANX7150_VID_CTRL_REG,&c);
+			c &= ~ANX7150_VID_CTRL_IN_EN;
+			ANX7150_i2c_write_p0_reg(ANX7150_VID_CTRL_REG,c);
+			ANX7150_Set_System_State(ANX7150_CONFIG_VIDEO);
+
+	    //when pll change, clear this reg to avoid error in package config
+			ANX7150_i2c_write_p1_reg(ANX7150_INFO_PKTCTRL1_REG, 0x00);
+    		ANX7150_i2c_write_p1_reg(ANX7150_INFO_PKTCTRL2_REG, 0x00);
+		    ANX7150_system_config_done = 0;
+
+			}
+    }
+    
 
 }
 
