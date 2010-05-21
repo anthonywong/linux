@@ -35,6 +35,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 //#include <asm/hardware.h>
+#include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <asm/irq.h>
@@ -806,9 +807,29 @@ static int dovefb_pwr_on_sram(struct dovefb_layer_info *dfli)
 static int dovefb_blank(int blank, struct fb_info *fi)
 {
 	struct dovefb_layer_info *dfli = fi->par;
+	u32 reg;
 
 	dfli->is_blanked = (blank == FB_BLANK_UNBLANK) ? 0 : 1;
 	set_dumb_panel_control(fi, 0);
+
+	/*
+	 * Fix me: Currently, hardware won't generate video layer
+	 * IRQ or VSync IRQ if diable dumb LCD panel. However, if
+	 * we are playing movies and enter blank mode, video player
+	 * still decode frame to video driver and we can't handle
+	 * those frame data without IRQ events.
+	 * We create a timer to check video buffer and handle those
+	 * frame data to make a workaround version.
+	 */
+	reg = readl(dfli->reg_base + LCD_SPU_DMA_CTRL0) & 0x01;
+	if (reg && dfli->is_blanked && !dfli->checkbuf_timer_exist) {
+		add_timer(&checkbuf_timer);
+		dfli->checkbuf_timer_exist = 1;
+	}
+	if (!dfli->is_blanked && dfli->checkbuf_timer_exist) {
+		del_timer_sync(&checkbuf_timer);
+		dfli->checkbuf_timer_exist = 0;
+	}
 
 	return 0;
 }
