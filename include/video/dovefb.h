@@ -342,6 +342,7 @@ struct dovefb_layer_info {
 	unsigned		cursor_cfg:1;
 	unsigned		active:1;
 	unsigned		enabled:1;
+	unsigned                checkbuf_timer_exist:1;
 
 	/*
 	 * 0: DMA mem is from DMA region.
