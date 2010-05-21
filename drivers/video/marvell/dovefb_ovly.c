@@ -36,6 +36,7 @@
 #include <linux/uaccess.h>
 #include <linux/console.h>
 #include <linux/io.h>
+#include <linux/timer.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 
@@ -46,6 +47,7 @@
 #define MAX_QUEUE_NUM	60
 #define RESET_BUF	0x1
 #define FREE_ENTRY	0x2
+#define CHECKBUF_TIMER_DELAY	33 // check video buffer 30 timers per second
 
 static int dovefb_ovly_set_par(struct fb_info *fi);
 static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset);
@@ -59,6 +61,8 @@ static int dovefb_switch_buff(struct fb_info *fi);
 static void collectFreeBuf(u8 **filterList, u8 **freeList, int count);
 static u8 *filterBufList[MAX_QUEUE_NUM];
 static u8 *freeBufList[MAX_QUEUE_NUM];
+
+struct timer_list checkbuf_timer;
 
 static struct _sViewPortInfo gViewPortInfo = {
 	.srcWidth = 640,	/* video source size */
@@ -1089,7 +1093,21 @@ static int dovefb_ovly_fb_sync(struct fb_info *info)
 	return wait_for_vsync(dfli);
 }
 
+static void checkbuf_func(unsigned long data){
 
+	struct dovefb_layer_info *dfli = (struct dovefb_layer_info *) data;
+	u32 reg;
+
+	/* wake up queue. */
+	atomic_set(&dfli->w_intr, 1);
+	wake_up(&dfli->w_intr_wq);
+
+	/* add a tasklet. */
+	tasklet_schedule(&dfli->tasklet);
+
+	/* kick off timer */
+	add_timer(&checkbuf_timer);
+}
 /*
  *  dovefb_handle_irq(two lcd controllers)
  */
@@ -1149,6 +1167,14 @@ int dovefb_ovly_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 
 	init_waitqueue_head(&dfli->w_intr_wq);
 	mutex_init(&dfli->access_ok);
+
+	/*
+	 * Initialize check buffer timer
+	 */
+	init_timer(&checkbuf_timer);
+	checkbuf_timer.expires = jiffies + msecs_to_jiffies(CHECKBUF_TIMER_DELAY);
+	checkbuf_timer.data = (unsigned long)dfli;
+	checkbuf_timer.function = checkbuf_func;
 
 	/*
 	 * Fill in sane defaults.

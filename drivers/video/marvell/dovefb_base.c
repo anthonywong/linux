@@ -766,6 +766,7 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	dfli->reg_base = info->reg_base;
 	dfli->cur_fbid = 0;
 	dfli->src_mode = SHM_NORMAL;
+	dfli->checkbuf_timer_exist = 0;
 
 	if (type == DOVEFB_GFX_PLANE) {
 		dfli->cursor_enabled = 0;

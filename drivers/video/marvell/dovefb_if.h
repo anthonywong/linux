@@ -35,5 +35,6 @@ void dovefb_set_mode(struct dovefb_layer_info *dfli,
 
 extern struct fb_ops dovefb_gfx_ops;
 extern struct fb_ops dovefb_ovly_ops;
+extern struct timer_list checkbuf_timer;
 
 
