@@ -1605,11 +1605,8 @@ arch_get_unmapped_exec_area(struct file *filp, unsigned long addr0,
 	if (flags & MAP_FIXED)
 		return addr;
 
-	if (!addr) {
-		addr = SHLIB_BASE;
-		if ((current->flags & PF_RANDOMIZE) && randomize_va_space)
-			addr = randomize_range(addr, 0x01000000, len);
-	}
+	if (!addr)
+		addr = randomize_range(SHLIB_BASE, 0x01000000, len);
 
 	if (addr) {
 		addr = PAGE_ALIGN(addr);
@@ -1637,9 +1634,7 @@ arch_get_unmapped_exec_area(struct file *filp, unsigned long addr0,
 			 * Up until the brk area we randomize addresses
 			 * as much as possible:
 			 */
-			if ((current->flags & PF_RANDOMIZE) &&
-                            randomize_va_space &&
-                            addr >= 0x01000000) {
+			if (addr >= 0x01000000) {
 				tmp = randomize_range(0x01000000,
 					PAGE_ALIGN(max(mm->start_brk,
 					(unsigned long)0x08000000)), len);
