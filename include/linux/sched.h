@@ -102,7 +102,9 @@ struct fs_struct;
 struct bts_context;
 struct perf_event_context;
 
+#ifdef CONFIG_X86_32
 extern int exec_shield;
+#endif
 extern int print_fatal_signals;
 
 /*
