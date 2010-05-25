@@ -4,6 +4,43 @@ linux-ec2 (2.6.32-306.10) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Ubuntu: 2.6.32-22.35 ]
+
+  * kvm: restrict writing of segment selectors to segment registers
+    - CVE-2010-0419
+  * tty: release_one_tty() forgets to put pids
+    - CVE-2010-1162
+  * oom: fix the unsafe usage of badness() in proc_oom_score()
+    - CVE-2010-1488
+  * Attempt #2 to handle null nameidata
+    - CVE-2010-1148
+  * reiserfs: fix permissions on .reiserfs_priv
+    - CVE-2010-1146
+  * r8169: offical fix for CVE-2009-4537 (overlength frame DMAs)
+    - CVE-2009-4537
+
+  [ Ubuntu: 2.6.32-22.33 ]
+
+  * SAUCE: ACPI: EC: Allow multibyte access to EC (v3)
+    - LP: #526354
+  * ubuntu: rtl8192se -- update to version 0015.0127.2010
+    - LP: #567016
+
+  [ Ubuntu: 2.6.32-21.32 ]
+
+  * SAUCE: i915 KMS -- support disabling KMS for known broken devices
+    - LP: #563277
+  * SAUCE: i915 KMS -- blacklist i830
+    - LP: #542208, #563277
+  * SAUCE: i915 KMS -- blacklist i845g
+    - LP: #541492, #563277
+  * SAUCE: i915 KMS -- blacklist i855
+    - LP: #511001, #541511, #563277
+  * SAUCE: radeon KMS -- support disabling KMS for known broken devices
+    - LP: #546743
+  * SAUCE: radeon KMS -- blacklist ES1000
+    - LP: #546743
+
  -- Andy Whitcroft <apw@canonical.com>  Wed, 21 Apr 2010 11:40:35 +0100
 
 linux-ec2 (2.6.32-305.9) lucid; urgency=low
