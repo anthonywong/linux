@@ -1,4 +1,93 @@
-linux-maverick (2.6.34-3.10~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.34-4.11~lucid1) lucid-proposed; urgency=low
+
+  [ Amit Kucheria ]
+
+  * SAUCE: omap: remove calls to usb_nop_xceiv_register from board files
+  * [Config] Add support for OMAP-mainline flavour
+
+  [ Andy Whitcroft ]
+
+  * SAUCE: powerpc: fix compile error when ptrace.h is included from
+    userspace
+    - LP: #583733
+
+  [ Chase Douglas ]
+
+  * Revert "SAUCE: Don't register vga16fb framebuffer if other framebuffers
+    are present"
+  * Revert "SAUCE: Disable function tracing after hitting __schedule_bug"
+  * Revert "SAUCE: drm/i915: don't change DRM configuration when releasing
+    load detect pipe"
+
+  [ Kees Cook ]
+
+  * SAUCE: fs: block cross-uid sticky symlinks
+  * SAUCE: fs: block hardlinks to non-accessible sources
+
+  [ Koen Kooi ]
+
+  * SAUCE: board-omap3-beagle: add DSS2 support
+
+  [ Leann Ogasawara ]
+
+  * Revert "staging/go7007 -- disable"
+  * Revert "[Config] staging/winbond -- disable"
+  * Revert "Disable 4MB page tables for Atom, work around errata AAE44"
+  * Revert "SAUCE: sync before umount to reduce time taken by ext4 umount"
+  * Revert "SAUCE: Enable an e1000e Intel Corporation 82567 Gigabit
+    controller"
+  * Revert "SAUCE: Fix MODULE_IMPORT/MODULE_EXPORT"
+  * Revert "SAUCE: Created MODULE_EXPORT/MODULE_IMPORT macros"
+  * Revert "SAUCE: input/mouse/alps: Do not call psmouse_reset(~lucid1) for alps"
+  * Revert "SAUCE: r8169: disable TSO by default for RTL8111/8168B
+    chipsets."
+  * Revert "[Upstream] b43: Declare all possible firmware files."
+  * Revert "add Breaks: against hardy lvm2"
+  * Revert "SAUCE: Guest OS does not recognize a lun with non zero target
+    id on Vmware ESX Server"
+  * Revert "SAUCE: Catch nonsense keycodes and silently ignore"
+  * [Config] Enable CONFIG_ECRYPT_FS=y for ports
+  * [Config] Enable CONFIG_USB=y for armel and sparc
+  * [Config] Enable CONFIG_SCSI=y for ia64 and sparc
+  * [Config] Enable CONFIG_RFKILL=y for ports
+  * [Config] Enable CONFIG_ATH9K_DEBUGFS=y
+  * [Config] Enable CONFIG_IWMC3200TOP_DEBUGFS=y
+  * [Config] Enable CONFIG_RCU_FAST_NO_HZ=y
+  * [Config] Enable CONFIG_IWLWIFI_DEVICE_TRACING=y
+  * [Config] Enable CONFIG_LIBERTAS_MESH=y
+  * [Config] Enable CONFIG_MMC_RICOH_MMC=y
+  * [Config] CONFIG_RT2800USB_UNKNOWN=y
+  * [Config] Enable CONFIG_VGA_SWITCHEROO=y
+  * [Config] Enable CONFIG_CEPH_FS=m
+  * [Config] Enable CONFIG_CRYPTO_PCRYPT=m
+  * [Config] Enable CONFIG_EEEPC_WMI=m
+  * [Config] Enable CONFIG_RT2800PCI=m
+  * [Config] Enable CONFIG_SCSI_HPSA=m
+  * [Config] Enable CONFIG_VHOST_NET=m
+  * [Config] Disable CONFIG_SND_HDA_INPUT_BEEP_MODE by default
+    - LP: #582350
+  * [Config] Disable CONFIG_SOUND_OSS* and CONFIG_SND_*OSS
+    - LP: #579300
+  * [Config] Enable CONFIG_PCIEASPM=y
+    - LP: #333990
+  * [Config] updateconfigs for OMAP flavour
+
+  [ Loïc Minier ]
+
+  * Enable perf tools on armel
+
+  [ Tim Gardner ]
+
+  * SAUCE: Updated ndiswrapper to 1.56
+    - LP: #582555
+  * [Config] Added virtual flavour
+  * [Config] Remove support for sub-flavours
+  * [Config] Removed amd64 preempt flavour
+  * [Config] updateconfigs, updateportsconfigs after flavour munging
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 25 May 2010 09:34:55 -0700
+
+linux (2.6.34-3.10~lucid1) maverick; urgency=low
 
   [ Leann Ogasawara ]
 
