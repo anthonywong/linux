@@ -659,7 +659,7 @@ static struct platform_driver mv88fx_snd_driver = {
 
 static int __init mv88fx_snd_init(void)
 {
-	if (!machine_is_dove_db() && !machine_is_dove_db_z0() && !machine_is_videoplug())
+	if (!machine_is_dove_db() && !machine_is_dove_db_z0() && !machine_is_videoplug() && !machine_is_dove_db_b())
 		return -ENODEV;
 
 	mv88fx_snd_debug("");

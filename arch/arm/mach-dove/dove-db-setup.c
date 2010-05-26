@@ -431,7 +431,7 @@ static void dove_db_7seg_event(unsigned long data)
 
 static int __init dove_db_7seg_init(void)
 {
-	if (machine_is_dove_db()) {
+	if (machine_is_dove_db() || machine_is_dove_db_b()) {
 		int i;
 		
 		for(i = 0; i < 3; i++){
@@ -464,7 +464,7 @@ __initcall(dove_db_7seg_init);
  ****************************************************************************/
 static int __init dove_db_pci_init(void)
 {
-	if (machine_is_dove_db())
+	if (machine_is_dove_db() || machine_is_dove_db_b())
 		dove_pcie_init(1, 1);
 
 	return 0;
@@ -474,7 +474,7 @@ subsys_initcall(dove_db_pci_init);
 
 static int __init dove_db_cam_init(void)
 {
-	if (machine_is_dove_db()  &&  front_panel)
+	if ((machine_is_dove_db() || machine_is_dove_db_b())  &&  front_panel)
 		dove_cam_init(&dove_cafe_cam_data);
 	
 	return 0;
@@ -687,6 +687,63 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
         { -1 },
 };
 
+static struct dove_mpp_mode dove_db_b_mpp_modes[] __initdata = {
+	{ 0, MPP_PMU },           	/*  */
+	{ 1, MPP_SDIO0 },           	/* SDIO0 */
+
+	{ 2, MPP_GPIO },		/* PMU - DDR termination control */	
+	{ 3, MPP_PMU },			/* standby wakeup/wake on lan */
+	{ 4, MPP_PMU },			/* CKE mask */
+	{ 5, MPP_PMU },			/* Standby power control */
+	{ 6, MPP_PMU },			/* DDR-M-RESET */
+	{ 7, MPP_PMU },			/* Standby led */
+
+	{ 8, MPP_GPIO },		/* power off */
+
+	{ 9, MPP_GPIO },		/* USB DEV VBUS */
+	{ 10, MPP_PMU },		/* DVS SDI control */
+
+	{ 11, MPP_SATA_ACT },           /* SATA active */
+	{ 12, MPP_SDIO1 },           	/* SDIO1 */
+	{ 13, MPP_SDIO1 },           	/* SDIO1 */
+
+        { 14, MPP_GPIO },               /* 7segDebug Led */
+        { 15, MPP_GPIO },               /* 7segDebug Led */
+	{ 16, MPP_SDIO0 },		/* SDIO0 */
+	{ 17, MPP_TWSI },
+	{ 18, MPP_GPIO },
+	{ 19, MPP_TWSI },
+
+	{ 20, MPP_SPI1 },
+	{ 21, MPP_SPI1 },
+	{ 22, MPP_SPI1 },
+	{ 23, MPP_SPI1 },
+
+	{ 24, MPP_CAM }, /* will configure MPPs 24-39*/
+
+	{ 40, MPP_SDIO0 }, /* will configure MPPs 40-45 */
+
+	{ 46, MPP_SDIO1 }, /* SD0 Group */
+	{ 47, MPP_SDIO1 }, /* SD0 Group */
+	{ 48, MPP_SDIO1 }, /* SD0 Group */
+	{ 49, MPP_SDIO1 }, /* SD0 Group */
+	{ 50, MPP_SDIO1 }, /* SD0 Group */
+	{ 51, MPP_SDIO1 }, /* SD0 Group */
+
+        { 52, MPP_AUDIO1 }, /* AU1 Group */
+        { 53, MPP_AUDIO1 }, /* AU1 Group */
+        { 54, MPP_AUDIO1 }, /* AU1 Group */
+        { 55, MPP_AUDIO1 }, /* AU1 Group */
+        { 56, MPP_AUDIO1 }, /* AU1 Group */
+        { 57, MPP_AUDIO1 }, /* AU1 Group */
+
+	{ 58, MPP_SPI0 }, /* will configure MPPs 58-61 */
+
+        { 62, MPP_GPIO }, /* 7segDebug Led */
+        { 63, MPP_GPIO }, /* Touch screen irq */
+        { -1 },
+};
+
 static struct dove_mpp_mode dove_db_tact_int_mpp_modes[] __initdata = {
 	{ 57, MPP_GPIO_AUDIO1 }, /* use this mpp for the tact irq line */
 	{ -1 },
@@ -716,7 +773,7 @@ static int __init dove_db_pm_init(void)
 	MV_PMU_INFO pmuInitInfo;
 	u32 dev, rev;
 
-	if (!machine_is_dove_db())
+	if (!machine_is_dove_db() && !machine_is_dove_db_b())
 		return 0;
 
 	global_dvs_enable = dvs_enable;
@@ -791,7 +848,10 @@ static void __init dove_db_init(void)
 	 */
 	dove_init();
 
-	dove_mpp_conf(dove_db_mpp_modes);
+	if (machine_is_dove_db_b())
+		dove_mpp_conf(dove_db_b_mpp_modes);
+	else
+		dove_mpp_conf(dove_db_mpp_modes);
 	
 	if ((front_panel) && (left_tact || right_tact)) {
 		dove_mpp_conf(dove_db_tact_int_mpp_modes);
@@ -890,6 +950,18 @@ static void __init dove_db_init(void)
 }
 
 MACHINE_START(DOVE_DB, "Marvell DB-MV88F6781-BP Development Board")
+	.phys_io	= DOVE_SB_REGS_PHYS_BASE,
+	.io_pg_offst	= ((DOVE_SB_REGS_VIRT_BASE) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.init_machine	= dove_db_init,
+	.map_io		= dove_map_io,
+	.init_irq	= dove_init_irq,
+	.timer		= &dove_timer,
+/* reserve memory for VMETA and GPU */
+	.fixup		= dove_tag_fixup_mem32,
+MACHINE_END
+
+MACHINE_START(DOVE_DB_B, "Marvell DB-MV88F6781-BP-B Development Board")
 	.phys_io	= DOVE_SB_REGS_PHYS_BASE,
 	.io_pg_offst	= ((DOVE_SB_REGS_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
