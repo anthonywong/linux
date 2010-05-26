@@ -5,6 +5,7 @@ obj-y				+= clock.o common.o addr-map.o irq.o pcie.o mpp.o \
 obj-$(CONFIG_MACH_DOVE_RD_AVNG)	+= dove-rd-avng-setup.o
 obj-$(CONFIG_MACH_DOVE_RD)	+= dove-rd-setup.o dove-front-panel-common.o
 obj-$(CONFIG_MACH_DOVE_DB)	+= dove-db-setup.o dove-front-panel-common.o
+obj-$(CONFIG_MACH_DOVE_DB_B)	+= dove-db-setup.o dove-front-panel-common.o
 obj-$(CONFIG_MACH_DOVE_VIDEOPLUG)	+= dove-videoplug-setup.o
 obj-$(CONFIG_I2C_MV64XXX_PORT_EXPANDER)	+= twsi.o
 obj-$(CONFIG_DOVE_PM_SUPPORT)	+= pm.o

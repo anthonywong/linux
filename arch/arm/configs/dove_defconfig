@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.32.9-dove-5.1.1.1
-# Wed May 12 18:44:22 2010
+# Linux kernel version: 2.6.32.9-dove-5.1.0
+# Wed May 26 17:20:33 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -203,6 +203,7 @@ CONFIG_MACH_DOVE_RD_AVNG=y
 CONFIG_MV_INCLUDE_MPP_SYSFS=y
 # CONFIG_MACH_DOVE_RD is not set
 CONFIG_MACH_DOVE_DB=y
+CONFIG_MACH_DOVE_DB_B=y
 CONFIG_MACH_DOVE_VIDEOPLUG=y
 CONFIG_MV_HAL_DRIVERS_SUPPORT=y
 CONFIG_DOVE_PM_SUPPORT=y
