@@ -95,9 +95,8 @@ ENTRY(mvPmuSramDdrSrEnter)
 	 * Set DDR in Self refresh mode and poll status bit
 	 * Needed for a clean transition of the CKE 
 	 */	
-	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
-	orr	r2, r2, r1
+	orr	r2, r2, #PMU_CTRL_MC_SR_REQ_MASK
 	str	r2, [r0]
 sr_exit_poll:
 	ldr	r2, [r0]
@@ -118,9 +117,8 @@ ENTRY(mvPmuSramDdrSrExit)
 	 * Exit DDR self refresh mode if active
 	 * CKE and M_RESET already unmasked at BootROM level
 	 */	
-	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
-	bic	r2, r2, r1
+	bic	r2, r2, #PMU_CTRL_MC_SR_REQ_MASK
 	str	r2, [r0]
 sr_enter_poll:
 	ldr	r2, [r0]
@@ -395,9 +393,8 @@ ENTRY(mvPmuSramDdrReconfigFunc)
 	 * Set DDR in Self refresh mode and poll status bit
 	 */
 	ldr	r2, pmu_ctrl_reg_virt
-	mov	r3, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r4, [r2]
-	orr	r4, r4, r3
+	orr	r4, r4, #PMU_CTRL_MC_SR_REQ_MASK
 	cmp	r11, #0
 	strne	r4, [r2]
 ddr_fs_sr_loop:
@@ -430,11 +427,10 @@ ddr_fs_wfi_done:
 	 * Exit DDR self refresh mode if active
 	 */
 	ldr	r0, pmu_ctrl_reg_virt
-	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
 	beq	skip_ddrfs_sr_exit
-	bic	r2, r2, r1
+	bic	r2, r2, #PMU_CTRL_MC_SR_REQ_MASK
 	cmp	r11, #0
 	strne	r2, [r0]
 ddrfs_sr_exit_loop:
@@ -644,7 +640,7 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 	 * Check if DDR in self refresh mode
 	 */
 	ldr	r0, pmu_ctrl_reg_phys
-	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
+//	mov	r1, #PMU_CTRL_MC_SR_REQ_MASK
 	ldr	r2, [r0]
 	tst 	r2, #PMU_CTRL_MC_SR_REQ_MASK
 	beq	dix_ddr_active
