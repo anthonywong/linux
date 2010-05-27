@@ -60,6 +60,7 @@ struct platform_device rt5610_codec_dev = {
 
 static int dove_ac97_snd_probe(struct platform_device *pdev)
 {
+	struct resource *res;
 	int ret = 0;
 
         if (!machine_is_dove_rd_avng() && !machine_is_dove_rd_avng_z0())
@@ -72,8 +73,8 @@ static int dove_ac97_snd_probe(struct platform_device *pdev)
 	platform_set_drvdata(dove_ac97_snd_device, &dove_ac97_snd_devdata);
 	dove_ac97_snd_devdata.dev = &dove_ac97_snd_device->dev;
 
-	struct resource * res=platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	ret=platform_device_add_resources(dove_ac97_snd_device, res, 1);
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	ret = platform_device_add_resources(dove_ac97_snd_device, res, 1);
 	
 	//printk(KERN_ERR "dove_ac97_avng: add resource ret=%x\n", ret);
 
@@ -95,8 +96,9 @@ static int dove_ac97_snd_probe(struct platform_device *pdev)
 static int dove_ac97_snd_remove(struct platform_device *pdev)
 
 {
-       platform_device_unregister(&rt5610_codec_dev);
+	platform_device_unregister(&rt5610_codec_dev);
 	platform_device_unregister(dove_ac97_snd_device);
+	return 0;
 }
 static struct platform_driver dove_ac97_snd_driver = {
 	.probe = dove_ac97_snd_probe,
