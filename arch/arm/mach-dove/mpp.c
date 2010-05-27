@@ -65,7 +65,7 @@ void __init dove_mpp_pmu_config(int mpp, enum dove_mpp_type type);
 struct mpp_config dove_mpp_table[] __initdata = 
 {
 	/* MPP 0 */
-	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, MPP_LAST4},
+	{{{MPP_GPIO, 0}, {MPP_PMU, 0}, {MPP_SDIO0, 3}, MPP_LAST3},
 	 dove_mpp_legacy_config},
 	/* MPP 1 */
 	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, {MPP_PMU, 0}, {MPP_LCD, 0xf}, MPP_LAST3},
@@ -114,7 +114,7 @@ struct mpp_config dove_mpp_table[] __initdata =
 	{{{MPP_GPIO, 0}, {MPP_UART2, 2}, MPP_LAST5},
 	 dove_mpp_legacy_config},
 	/* MPP 16 */
-	{{{MPP_GPIO, 0}, MPP_LAST6},
+	{{{MPP_GPIO, 0}, {MPP_SDIO0, 3}, MPP_LAST5},
 	 dove_mpp_legacy_config},
 	/* MPP 17 */
 	{{{MPP_GPIO, 0}, {MPP_TWSI, 4}, MPP_LAST5},
