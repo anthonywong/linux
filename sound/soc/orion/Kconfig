@@ -21,6 +21,18 @@ config SND_DOVE_SOC_DB
 	  Say Y if you want to add support for SoC audio on Marvell
 	  Dove Development Board.
 
+config SND_DOVE_SOC_DB_B
+	tristate "SoC AC97 Audio support for Marvell Dove DB-B"
+	depends on SND_DOVE_AC97 && MACH_DOVE_DB_B
+	select SND_PXA2XX_SOC
+	select SND_PXA2XX_LIB
+	select SND_PXA2XX_SOC_AC97
+	select SND_PXA2XX_SOC_AC97_SURROUND
+	select SND_SOC_RT655
+	help
+	  Say Y if you want to add support for SoC audio on Marvell
+	  Dove Development Board.
+
 
 config SND_DOVE_SOC_AC97_AVD1
         tristate "SoC AC97 Audio support for AVD1"
