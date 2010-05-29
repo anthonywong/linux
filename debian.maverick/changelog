@@ -1,4 +1,42 @@
-linux-maverick (2.6.34-4.11~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.34-5.12~lucid1) lucid-proposed; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * enforce -- ensure SYSFS compatibility is disabled
+
+  [ Chase Douglas ]
+
+  * build with libdw-dev for perf probe symbol support
+  * maverick ftrace configuration changes
+
+  [ Kees Cook ]
+
+  * Revert "SAUCE: x86: brk away from exec rand area"
+  * Revert "SAUCE: [um] Don't use nx_enabled under UML"
+  * Revert "SAUCE: [x86] implement cs-limit nx-emulation for ia32"
+  * SAUCE: x86: implement cs-limit nx-emulation for ia32
+    - LP: #369978
+  * SAUCE: x86: more tightly confine cs-limit nx-emulation to ia32 only
+  * SAUCE: x86: brk away from exec rand area
+    - LP: #452175
+  * SAUCE: ptrace: restrict ptrace scope to children
+
+  [ Leann Ogasawara ]
+
+  * Add new omap flavour to getabis
+  * [Config] Enable CONFIG_FRAMEBUFFER_CONSOLE=y for all archs
+    - LP: #585490
+  * build/modules: Temorarily add ignore.modules
+  * ubuntu: iscsitarget -- version 1.4.20.1
+
+  [ Loïc Minier ]
+
+  * SAUCE: [um] Don't use nx_enabled under UML
+    - LP: #524849
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 28 May 2010 08:27:17 -0700
+
+linux (2.6.34-4.11~lucid1) maverick; urgency=low
 
   [ Amit Kucheria ]
 

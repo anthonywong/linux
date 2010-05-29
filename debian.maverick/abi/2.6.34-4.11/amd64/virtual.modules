@@ -33,6 +33,7 @@ acenic
 acerhdf
 acer-wmi
 acl7225b
+acpi_memhotplug
 acpi_pad
 acpiphp
 acpiphp_ibm
@@ -47,7 +48,6 @@ act_pedit
 act_police
 act_simple
 act_skbedit
-ad1848
 ad525x_dpot
 ad7414
 ad7418
@@ -102,7 +102,6 @@ advantechwdt
 adv_pci1710
 adv_pci1723
 adv_pci_dio
-aedsp16
 aes_generic
 aesni-intel
 aes-x86_64
@@ -317,6 +316,7 @@ cdc_ether
 cdc-phonet
 cdc_subset
 cdc-wdm
+ceph
 cfag12864b
 cfag12864bfb
 cfg80211
@@ -599,6 +599,7 @@ econet
 edac_core
 edac_mce_amd
 eeepc-laptop
+eeepc-wmi
 eeprom
 eeprom_93cx6
 eeti_ts
@@ -715,6 +716,8 @@ gluebi
 g_mass_storage
 g_midi
 g_nokia
+go7007
+go7007-usb
 gpio-addr-flash
 gpio_keys
 gpio_mouse
@@ -844,6 +847,7 @@ hp4x
 hp_accel
 hpfs
 hpilo
+hpsa
 hptiop
 hp-wmi
 hso
@@ -1096,7 +1100,6 @@ jsm
 k10temp
 k8temp
 kafs
-kahlua
 kaweth
 kb3886_bl
 kbic
@@ -1346,7 +1349,6 @@ mptlan
 mptsas
 mptscsih
 mptspi
-mpu401
 msdos
 msi-laptop
 msi-wmi
@@ -1546,7 +1548,6 @@ on26
 onenand
 onenand_sim
 opencores-kbd
-opl3
 oprofile
 opticon
 option
@@ -1585,7 +1586,6 @@ parport_ax88796
 parport_cs
 parport_pc
 parport_serial
-pas2
 pata_ali
 pata_amd
 pata_artop
@@ -1668,6 +1668,7 @@ pcmmio
 pcmuio
 pcnet32
 pcnet_cs
+pcrypt
 pcspkr
 pcwd_pci
 pcwd_usb
@@ -1721,7 +1722,6 @@ prism2_usb
 prism54
 progear_bl
 psmouse
-pss
 pt
 pvrusb2
 pwc
@@ -1810,6 +1810,7 @@ rt2400pci
 rt2500pci
 rt2500usb
 rt2800lib
+rt2800pci
 rt2800usb
 rt2860sta
 rt2870sta
@@ -1869,6 +1870,8 @@ rtl8180
 rtl8187
 rxkad
 s1d13xxxfb
+s2250
+s2250-loader
 s2255drv
 s2io
 s3fb
@@ -1913,14 +1916,12 @@ sata_via
 sata_vsc
 savage
 savagefb
-sb
 sb1000
 sbc60xxwdt
 sbc8360
 sbc_epx_c3
 sbc_fitpc2_wdt
 sbc_gxx
-sb_lib
 sbni
 sbp2
 sc1200wdt
@@ -1956,7 +1957,6 @@ scsi_tgt
 scsi_transport_fc
 scsi_transport_iscsi
 scsi_transport_sas
-scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
@@ -2107,7 +2107,6 @@ snd-lx6464es
 snd-maestro3
 snd-mia
 snd-mixart
-snd-mixer-oss
 snd-mona
 snd-mpu401
 snd-mpu401-uart
@@ -2120,7 +2119,6 @@ snd-oxygen
 snd-oxygen-lib
 snd-page-alloc
 snd-pcm
-snd-pcm-oss
 snd-pcsp
 snd-pcxhr
 snd-pdaudiocf
@@ -2139,7 +2137,6 @@ snd-seq-dummy
 snd-seq-midi
 snd-seq-midi-emul
 snd-seq-midi-event
-snd-seq-oss
 snd-seq-virmidi
 snd-serial-u16550
 snd-soc-ad1836
@@ -2220,9 +2217,7 @@ softcursor
 softdog
 solos-pci
 sony-laptop
-sound
 soundcore
-sound_firmware
 sp8870
 sp887x
 spaceball
@@ -2278,7 +2273,6 @@ svcrdma
 svgalib
 sx8
 sym53c500_cs
-sym53c8xx
 symbolserial
 synaptics_i2c
 synclink
@@ -2373,7 +2367,6 @@ tps6507x-regulator
 trancevibrator
 tranzport
 tridentfb
-trix
 ts5500_flash
 ts_bm
 tsc2007
@@ -2410,8 +2403,6 @@ twofish_common
 twofish-x86_64
 typhoon
 u132-hcd
-uart401
-uart6850
 uartlite
 ubi
 ubifs
@@ -2489,6 +2480,7 @@ vga16fb
 vgastate
 vgg2432a4
 vhci-hcd
+vhost_net
 via
 via686a
 via-agp
@@ -2508,13 +2500,8 @@ videobuf-dvb
 videobuf-vmalloc
 videocodec
 videodev
-virtio
 virtio_balloon
-virtio_blk
 virtio_console
-virtio_net
-virtio_pci
-virtio_ring
 virtio-rng
 virtual
 visor
@@ -2527,7 +2514,6 @@ vme_ca91cx42
 vme_tsi148
 vme_user
 vme_vmivme7805
-v_midi
 vmk80xx
 vmlfb
 vmwgfx
@@ -2548,6 +2534,7 @@ w1_ds2760
 w1-gpio
 w1_smem
 w1_therm
+w35und
 w6692
 w83627ehf
 w83627hf
@@ -2583,6 +2570,13 @@ wimax
 winbond-840
 winbond-cir
 wire
+wis-ov7640
+wis-saa7113
+wis-saa7115
+wis-sony-tuner
+wis-tw2804
+wis-tw9903
+wis-uda1342
 wl1251
 wl1251_sdio
 wl1251_spi
