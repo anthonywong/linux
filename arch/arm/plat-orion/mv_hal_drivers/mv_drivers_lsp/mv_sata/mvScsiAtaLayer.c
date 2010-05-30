@@ -563,7 +563,7 @@ static MV_SCSI_COMMAND_STATUS_TYPE  mvScsiAtaSendDataCommand(IN  MV_SATA_ADAPTER
     if (sectors == 0)
     {
         if ((cmd[0] == SCSI_OPCODE_READ10) || (cmd[0] == SCSI_OPCODE_WRITE10) || 
-	    (cmd[0] == SCSI_OPCODE_WRITE16) || (cmd[0] == SCSI_OPCODE_WRITE16))
+	    (cmd[0] == SCSI_OPCODE_READ16) || (cmd[0] == SCSI_OPCODE_WRITE16))
         {
 
             if (checkLBAOutOfRange(pSataAdapter, pScb,
