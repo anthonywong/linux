@@ -4418,7 +4418,6 @@ EXPORT_SYMBOL vmlinux 0xb180038d	da903x_query_status
 EXPORT_SYMBOL vmlinux 0xb19760c3	bitmap_onto
 EXPORT_SYMBOL vmlinux 0xb1a419df	get_sb_bdev
 EXPORT_SYMBOL vmlinux 0xb1a7c036	tcp_v4_md5_hash_skb
-EXPORT_SYMBOL vmlinux 0xb1ad28e0	__gnu_mcount_nc
 EXPORT_SYMBOL vmlinux 0xb1b22911	down_write
 EXPORT_SYMBOL vmlinux 0xb1c3a01a	oops_in_progress
 EXPORT_SYMBOL vmlinux 0xb1cdaee1	d_instantiate
@@ -4456,7 +4455,6 @@ EXPORT_SYMBOL vmlinux 0xb42453d3	param_get_invbool
 EXPORT_SYMBOL vmlinux 0xb42499a6	neigh_resolve_output
 EXPORT_SYMBOL vmlinux 0xb42c62f1	netif_device_detach
 EXPORT_SYMBOL vmlinux 0xb433377d	truncate_inode_pages
-EXPORT_SYMBOL vmlinux 0xb4390f9a	mcount
 EXPORT_SYMBOL vmlinux 0xb446fe58	pci_bus_read_config_dword
 EXPORT_SYMBOL vmlinux 0xb4709322	scsi_dev_info_add_list
 EXPORT_SYMBOL vmlinux 0xb48ad280	tcp_md5_hash_skb_data

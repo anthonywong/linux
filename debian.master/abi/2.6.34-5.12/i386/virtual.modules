@@ -271,7 +271,6 @@ bfs
 bfusb
 binfmt_aout
 binfmt_misc
-bitblit
 block2mtd
 blowfish
 bluecard_cs
@@ -701,7 +700,6 @@ fakephp
 farsync
 fat
 faulty
-fbcon
 fb_ddc
 fb_sys_fops
 fcoe
@@ -724,7 +722,6 @@ floppy
 fm801-gp
 fmvj18x_cs
 fnic
-font
 forcedeth
 fore_200e
 freevxfs
@@ -2395,7 +2392,6 @@ snd-ymfpci
 soc_camera
 soc_camera_platform
 soc_mediabus
-softcursor
 softdog
 solos-pci
 sony-laptop
@@ -2520,7 +2516,6 @@ tifm_7xx1
 tifm_core
 tifm_ms
 tifm_sd
-tileblit
 timberdale
 timbuart
 timeriomem-rng

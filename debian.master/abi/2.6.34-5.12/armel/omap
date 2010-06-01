@@ -3624,7 +3624,6 @@ EXPORT_SYMBOL vmlinux 0xb18e6948	omap_dss_pal_timings
 EXPORT_SYMBOL vmlinux 0xb18f3b5b	netif_carrier_off
 EXPORT_SYMBOL vmlinux 0xb1953b02	security_file_permission
 EXPORT_SYMBOL vmlinux 0xb19760c3	bitmap_onto
-EXPORT_SYMBOL vmlinux 0xb1ad28e0	__gnu_mcount_nc
 EXPORT_SYMBOL vmlinux 0xb1b22911	down_write
 EXPORT_SYMBOL vmlinux 0xb1b94fde	xfrm_unregister_km
 EXPORT_SYMBOL vmlinux 0xb1c3a01a	oops_in_progress
@@ -3657,7 +3656,6 @@ EXPORT_SYMBOL vmlinux 0xb423dba1	console_blanked
 EXPORT_SYMBOL vmlinux 0xb42453d3	param_get_invbool
 EXPORT_SYMBOL vmlinux 0xb42e91da	vfs_readv
 EXPORT_SYMBOL vmlinux 0xb430d487	revalidate_disk
-EXPORT_SYMBOL vmlinux 0xb4390f9a	mcount
 EXPORT_SYMBOL vmlinux 0xb4709322	scsi_dev_info_add_list
 EXPORT_SYMBOL vmlinux 0xb4b750a6	pipe_to_file
 EXPORT_SYMBOL vmlinux 0xb4b94377	__nand_correct_data
