@@ -257,7 +257,6 @@ dme1737
 dm-log
 dm-log-userspace
 dm-mirror
-dm-mod
 dm-multipath
 dm-queue-length
 dm-raid45
