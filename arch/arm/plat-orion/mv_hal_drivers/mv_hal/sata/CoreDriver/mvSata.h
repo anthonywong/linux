@@ -110,9 +110,14 @@ extern "C" /*{*/
 #define MV_SATA_DEVICE_ID_6323                  0x6323 /*6323 integrated sata*/
 
 #define MV_SATA_DEVICE_ID_6281                 0x6281 /*88f6281 integrated sata*/
+#define MV_SATA_DEVICE_ID_6282                 0x1155 /*88f6282 integrated sata*/
 #define MV_SATA_DEVICE_ID_6192                 0x6192 /*88f6192 integrated sata*/
 #define MV_SATA_DEVICE_ID_6190                 0x6190 /*88f6190 integrated sata*/
+
 #define MV_SATA_DEVICE_ID_6781                 0x6781 /*88f6781 integrated sata*/
+
+#define MV_SATA_DEVICE_ID_6550		       0x6550 /*88f6550 integrated sata*/
+#define MV_SATA_DEVICE_ID_6560		       0x6560 /*88f6560 integrated sata*/
 
 #define MV_SATA_CHANNELS_NUM                    8
 #define MV_SATA_UNITS_NUM                       2
@@ -122,13 +127,15 @@ extern "C" /*{*/
 #define MV_SATA_6082_PORT_NUM                   1
 #define MV_SATA_6490_PORT_NUM                   1
 #define MV_SATA_6281_PORT_NUM                   2
+#define MV_SATA_6282_PORT_NUM                   2
 #define MV_SATA_6192_PORT_NUM                   2
 #define MV_SATA_6190_PORT_NUM                   1
-#define MV_SATA_78XX0_PORT_NUM                  2
 #define MV_SATA_6781_PORT_NUM                   1
+#define MV_SATA_78XX0_PORT_NUM                  2
 #define MV_SATA_76100_PORT_NUM                  1
 #define MV_SATA_6323_PORT_NUM                   1
 
+#define MV_SATA_65XX_PORT_NUM			1
 
 #define MV_SATA_PM_MAX_PORTS                    15
 #define MV_SATA_PM_CONTROL_PORT                 15
@@ -601,6 +608,7 @@ typedef struct mvSataAdapter
     MV_BOOLEAN        chipIs60X1B2;
     MV_BOOLEAN        chipIs60X1C0;
     MV_BOOLEAN        chipIs62X1Z0;
+    MV_BOOLEAN        chipIs65XXZ0;
     MV_U8             signalAmps[MV_SATA_CHANNELS_NUM];
     MV_U8             pre[MV_SATA_CHANNELS_NUM];
     struct mvQueuedCommandEntry adapterCommands[_MV_SATA_COMMANDS_PER_ADAPTER];

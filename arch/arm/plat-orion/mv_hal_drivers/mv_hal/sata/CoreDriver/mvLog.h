@@ -77,6 +77,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 extern "C" /*{*/
 #endif /* __cplusplus */
 
+#include "mvOsS.h"
 
 /*-------------H file-----------------------------*/
 #define MV_DEBUG_FATAL_ERROR                    0x01

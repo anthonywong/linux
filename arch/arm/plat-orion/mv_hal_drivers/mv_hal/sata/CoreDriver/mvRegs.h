@@ -283,6 +283,8 @@ extern "C" {
 
 #define MV_SATA_II_SATA_CONFIG_REG_OFFSET       0x50
 
+#define MV_SATA_II_LP_EXT_CTRL_REG_OFFSET       0x58
+
 #define MV_SATA_II_PHY_MODE_9_GEN1_REG_OFFSET   0x39c
 #define MV_SATA_II_PHY_MODE_9_GEN2_REG_OFFSET   0x398
 /* EDMA registers */
@@ -405,6 +407,7 @@ extern "C" {
 #define MV_IOG_TRANS_HIGH_REG_OFFSET 0x1808C
 #define MV_IOG_TRANS_CTRL_REG_OFFSET 0x18048
 
+#define MV_SATA_MAX_ADDR_DECODE_WIN 4
 
 #ifdef __cplusplus
 }
