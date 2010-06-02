@@ -3386,7 +3386,7 @@ static void _fixPhyParams(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex)
         }
     }
     if ((pAdapter->sataAdapterGeneration >= MV_SATA_GEN_II) && 
-	(pAdapter->chipIs62X1Z0 == MV_FALSE))
+	(pAdapter->chipIs62X1Z0 == MV_FALSE) && (pAdapter->chipIs65XXZ0 == MV_FALSE))
     {
         MV_U32 phyMode2Offset = getEdmaRegOffset(channelIndex) +
                                 MV_SATA_II_PHY_MODE_2_REG_OFFSET;
@@ -3566,6 +3566,11 @@ static void _fixPhyParams(MV_SATA_ADAPTER *pAdapter, MV_U8 channelIndex)
 			     getEdmaRegOffset (channelIndex) +
 			     MV_SATA_II_PHY_MODE_9_GEN1_REG_OFFSET,
 			     regVal);
+    }
+
+    if(pAdapter->chipIs65XXZ0 == MV_TRUE)
+    {
+	    /* Do nothing */
     }
 }
 
@@ -5601,6 +5606,7 @@ MV_BOOLEAN mvSataInitAdapter (MV_SATA_ADAPTER *pAdapter)
     pAdapter->chipIs60X1B2 = MV_FALSE;
     pAdapter->chipIs60X1C0 = MV_FALSE;
     pAdapter->chipIs62X1Z0 = MV_FALSE;
+    pAdapter->chipIs65XXZ0 = MV_FALSE;
     pAdapter->numberOfChannels = MV_SATA_CHANNELS_NUM;
     pAdapter->numberOfUnits = MV_SATA_UNITS_NUM;
     pAdapter->portsPerUnit = MV_SATA_PORT_PER_UNIT;
@@ -5839,7 +5845,20 @@ MV_BOOLEAN mvSataInitAdapter (MV_SATA_ADAPTER *pAdapter)
 		pAdapter->mainMaskOffset = 0x20024;
 		pAdapter->mainCauseOffset = 0x20020;
 		pAdapter->chipIs62X1Z0 = MV_TRUE;
-        break;
+		break;
+
+    	case MV_SATA_DEVICE_ID_6282:
+		pAdapter->numberOfChannels = MV_SATA_6282_PORT_NUM;
+		pAdapter->numberOfUnits = 1;
+		pAdapter->portsPerUnit = MV_SATA_6282_PORT_NUM;
+		pAdapter->sataAdapterGeneration = MV_SATA_GEN_IIE;
+		/*The integrated sata core chip based on 60x1 C0*/
+		pAdapter->hostInterface = MV_HOST_IF_INTEGRATED;
+		pAdapter->mainMaskOffset = 0x20024;
+		pAdapter->mainCauseOffset = 0x20020;
+		pAdapter->chipIs62X1Z0 = MV_TRUE;
+		break;
+
 	case MV_SATA_DEVICE_ID_6192:
 		pAdapter->numberOfChannels = MV_SATA_6192_PORT_NUM;
 		pAdapter->numberOfUnits = 1;
@@ -5850,7 +5869,8 @@ MV_BOOLEAN mvSataInitAdapter (MV_SATA_ADAPTER *pAdapter)
 		pAdapter->mainMaskOffset = 0x20024;
 		pAdapter->mainCauseOffset = 0x20020;
 		pAdapter->chipIs62X1Z0 = MV_TRUE;
-        break;
+		break;
+
 	case MV_SATA_DEVICE_ID_6190:
 		pAdapter->numberOfChannels = MV_SATA_6190_PORT_NUM;
 		pAdapter->numberOfUnits = 1;
@@ -5861,7 +5881,8 @@ MV_BOOLEAN mvSataInitAdapter (MV_SATA_ADAPTER *pAdapter)
 		pAdapter->mainMaskOffset = 0x20024;
 		pAdapter->mainCauseOffset = 0x20020;
 		pAdapter->chipIs62X1Z0 = MV_TRUE;
-        break;
+		break;
+
 	case MV_SATA_DEVICE_ID_6781:
 		pAdapter->numberOfChannels = MV_SATA_6781_PORT_NUM;
 		pAdapter->numberOfUnits = 1;
@@ -5872,7 +5893,20 @@ MV_BOOLEAN mvSataInitAdapter (MV_SATA_ADAPTER *pAdapter)
 		pAdapter->mainMaskOffset = 0x20024;
 		pAdapter->mainCauseOffset = 0x20020;
 		pAdapter->chipIs62X1Z0 = MV_TRUE;
-        break;
+		break;
+
+    	case MV_SATA_DEVICE_ID_6550:
+	case MV_SATA_DEVICE_ID_6560:
+		pAdapter->numberOfChannels = MV_SATA_6781_PORT_NUM;
+		pAdapter->numberOfUnits = 1;
+		pAdapter->portsPerUnit = MV_SATA_65XX_PORT_NUM;
+		pAdapter->sataAdapterGeneration = MV_SATA_GEN_IIE;
+		/*The integrated sata core chip based on 60x1 C0*/
+		pAdapter->hostInterface = MV_HOST_IF_INTEGRATED;
+		pAdapter->mainMaskOffset = 0x20024;
+		pAdapter->mainCauseOffset = 0x20020;
+		pAdapter->chipIs65XXZ0 = MV_TRUE;
+		break;
 
     default:
         mvLogMsg(MV_CORE_DRIVER_LOG_ID, MV_DEBUG_ERROR, " %d : Bad device ID"
@@ -7334,7 +7368,7 @@ MV_BOOLEAN mvSataSetChannelPhyParams(MV_SATA_ADAPTER *pAdapter,
         return MV_FALSE;
     }
 
-    if (pAdapter->chipIs62X1Z0 == MV_TRUE)
+    if ((pAdapter->chipIs62X1Z0 == MV_TRUE) || (pAdapter->chipIs65XXZ0 == MV_TRUE))
     {
 	 mvLogMsg(MV_CORE_DRIVER_LOG_ID, MV_DEBUG_FATAL_ERROR, "%d  : mvSataSetChannelPhyPara\
 m"
@@ -8502,11 +8536,18 @@ MV_BOOLEAN mvSataSetInterfaceSpeed (MV_SATA_ADAPTER *pAdapter,
         mvOsSemTake(&pAdapter->semaphore);
         if (pAdapter->sataAdapterGeneration >= MV_SATA_GEN_II)
         {
-            MV_U32 regVal;
+	    MV_U32 regVal, LPRegVal = 0;
 
             regVal = MV_REG_READ_DWORD (pAdapter->adapterIoBaseAddress,
                                     getEdmaRegOffset (channelIndex) +
                                     MV_SATA_II_SATA_CONFIG_REG_OFFSET);
+	    if(pAdapter->chipIs65XXZ0 == MV_TRUE) {
+		LPRegVal = MV_REG_READ_DWORD (pAdapter->adapterIoBaseAddress,
+					      getEdmaRegOffset (channelIndex) +
+					      MV_SATA_II_LP_EXT_CTRL_REG_OFFSET);
+		LPRegVal &= ~(0xFF << 5);
+	    }
+
             /* according to the spec, bits [31:12] must be set to 0x009B1 */
             regVal &= 0x00000FFF;
             /* regVal |= MV_BIT12;*/
@@ -8516,12 +8557,22 @@ MV_BOOLEAN mvSataSetInterfaceSpeed (MV_SATA_ADAPTER *pAdapter,
                 (pAdapter->ifSpeed[channelIndex] == MV_SATA_IF_SPEED_1_5_GBPS))
             {
                 regVal &= ~MV_BIT7; /* Disable GEn II */
+		if(pAdapter->chipIs65XXZ0 == MV_TRUE) {
+			LPRegVal &= ~(0xFF << 5);
+		}
             }
             else
             {
                 regVal |= MV_BIT7;  /* Enable GEn II */
-
+		if(pAdapter->chipIs65XXZ0 == MV_TRUE) {
+			LPRegVal |= ~(0x11 << 5);
+		}
             }
+	    if(pAdapter->chipIs65XXZ0 == MV_TRUE) {
+		LPRegVal = MV_REG_WRITE_DWORD (pAdapter->adapterIoBaseAddress,
+					      getEdmaRegOffset (channelIndex) +
+					       MV_SATA_II_LP_EXT_CTRL_REG_OFFSET, LPRegVal);
+	    }
             MV_REG_WRITE_DWORD (pAdapter->adapterIoBaseAddress,
                                 getEdmaRegOffset (channelIndex) +
                                 MV_SATA_II_SATA_CONFIG_REG_OFFSET,
