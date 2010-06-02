@@ -17,6 +17,7 @@ obj-$(CONFIG_FB_DOVE_CLCD1)	+= clcd.o
 obj-$(CONFIG_MV_INCLUDE_MPP_SYSFS)	+= avng_mpp.o
 obj-$(CONFIG_CPU_IDLE)		+= cpuidle.o
 obj-$(CONFIG_PROC_FS)		+= dump_cp15_regs.o
+obj-$(CONFIG_MV_EXT_VGA_CLOCK)	+= idt5v49ee503.o
 
 include $(srctree)/$(subst ",,$(CONFIG_MV_HAL_RULES_PATH))
 
