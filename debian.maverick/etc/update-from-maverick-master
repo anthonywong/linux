@@ -62,7 +62,6 @@ fi
 # Update configs from master
 #
 rsync -av --delete ${DMAS}/config/ ${DMAV}/config
-(cd ${DMAV}/config; rm -rf ${FOREIGN_ARCHES})
 
 #
 # Update changelog from master. Change the package name and release pocket.
