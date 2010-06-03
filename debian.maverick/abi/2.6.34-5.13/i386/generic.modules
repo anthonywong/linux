@@ -271,7 +271,6 @@ bfs
 bfusb
 binfmt_aout
 binfmt_misc
-bitblit
 block2mtd
 blowfish
 bluecard_cs
@@ -690,7 +689,6 @@ eth16i
 ethoc
 eurotechwdt
 evbug
-evtchn
 ewrk3
 exofs
 exportfs
@@ -701,7 +699,6 @@ fakephp
 farsync
 fat
 faulty
-fbcon
 fb_ddc
 fb_sys_fops
 fcoe
@@ -724,7 +721,6 @@ floppy
 fm801-gp
 fmvj18x_cs
 fnic
-font
 forcedeth
 fore_200e
 freevxfs
@@ -2079,6 +2075,7 @@ scsi_tgt
 scsi_transport_fc
 scsi_transport_iscsi
 scsi_transport_sas
+scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
@@ -2395,7 +2392,6 @@ snd-ymfpci
 soc_camera
 soc_camera_platform
 soc_mediabus
-softcursor
 softdog
 solos-pci
 sony-laptop
@@ -2457,6 +2453,7 @@ sworks-agp
 sx8
 sym53c416
 sym53c500_cs
+sym53c8xx
 symbolserial
 synaptics_i2c
 synclink
@@ -2520,7 +2517,6 @@ tifm_7xx1
 tifm_core
 tifm_ms
 tifm_sd
-tileblit
 timberdale
 timbuart
 timeriomem-rng
@@ -2689,8 +2685,13 @@ videobuf-dvb
 videobuf-vmalloc
 videocodec
 videodev
+virtio
 virtio_balloon
+virtio_blk
 virtio_console
+virtio_net
+virtio_pci
+virtio_ring
 virtio-rng
 virtual
 visor
@@ -2808,11 +2809,6 @@ x25_asy
 x38_edac
 xc5000
 xcbc
-xen-blkfront
-xen-fbfront
-xenfs
-xen-kbdfront
-xen-netfront
 xfrm4_mode_beet
 xfrm4_mode_transport
 xfrm4_mode_tunnel

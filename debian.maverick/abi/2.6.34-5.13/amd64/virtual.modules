@@ -33,6 +33,7 @@ acenic
 acerhdf
 acer-wmi
 acl7225b
+acpi_memhotplug
 acpi_pad
 acpiphp
 acpiphp_ibm
@@ -238,7 +239,6 @@ bfa
 bfs
 bfusb
 binfmt_misc
-bitblit
 block2mtd
 blowfish
 bluecard_cs
@@ -647,7 +647,6 @@ fakephp
 farsync
 fat
 faulty
-fbcon
 fb_ddc
 fb_sys_fops
 fcoe
@@ -669,7 +668,6 @@ floppy
 fm801-gp
 fmvj18x_cs
 fnic
-font
 forcedeth
 fore_200e
 fpu
@@ -1956,7 +1954,6 @@ scsi_tgt
 scsi_transport_fc
 scsi_transport_iscsi
 scsi_transport_sas
-scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
@@ -2213,7 +2210,6 @@ snd-ymfpci
 soc_camera
 soc_camera_platform
 soc_mediabus
-softcursor
 softdog
 solos-pci
 sony-laptop
@@ -2273,7 +2269,6 @@ svcrdma
 svgalib
 sx8
 sym53c500_cs
-sym53c8xx
 symbolserial
 synaptics_i2c
 synclink
@@ -2333,7 +2328,6 @@ tifm_7xx1
 tifm_core
 tifm_ms
 tifm_sd
-tileblit
 timberdale
 timbuart
 timeriomem-rng
@@ -2501,13 +2495,8 @@ videobuf-dvb
 videobuf-vmalloc
 videocodec
 videodev
-virtio
 virtio_balloon
-virtio_blk
 virtio_console
-virtio_net
-virtio_pci
-virtio_ring
 virtio-rng
 virtual
 visor

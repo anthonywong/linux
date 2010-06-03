@@ -1,4 +1,34 @@
-linux-maverick (2.6.34-5.12~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.34-5.14~lucid1) lucid-proposed; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] Added module inclusion support
+  * [Config] Added virtual flavour module inclusion list and d-i package
+    definitions
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 02 Jun 2010 12:58:14 -0700
+
+linux (2.6.34-5.13~lucid1) maverick; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * Revert "ubuntu: AUFS -- aufs2 20091209"
+  * Revert "ubuntu: AUFS -- export various core functions
+    (aufs2-standalone.patch~lucid1)"
+  * Revert "ubuntu: AUFS -- export various core functions
+    (aufs2-base.patch~lucid1)"
+  * ubuntu: AUFS -- aufs2 base patch for linux-2.6.34
+    - LP: #587888
+  * ubuntu: AUFS -- aufs2 standalone patch for linux-2.6.34
+    - LP: #587888
+  * ubuntu: AUFS -- update to standalone 2.6.34 as at 20100601
+    - LP: #587888
+  * [Config] AUFS -- enable aufs options
+    - LP: #587888
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 01 Jun 2010 08:56:43 -0700
+
+linux (2.6.34-5.12~lucid1) maverick; urgency=low
 
   [ Andy Whitcroft ]
 
