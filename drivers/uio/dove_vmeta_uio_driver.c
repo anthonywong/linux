@@ -32,6 +32,7 @@ struct vmeta_xv_data {
 struct vmeta_uio_data {
 	struct uio_info		uio_info;
 	struct clk		*vmeta_clk;
+	wait_queue_head_t 	wait;
 };
 static struct vmeta_uio_data *vmeta_uio_priv_data;
 
@@ -97,6 +98,8 @@ static int vmeta_pm_event(struct notifier_block *notifier, unsigned long val, vo
 			atomic_set(&vmeta_pm_suspend_available, 0);
 			if(!mutex_is_locked(&vmeta_pm_suspend_check))
 				mutex_lock(&vmeta_pm_suspend_check);	// lock as default
+
+			wake_up_interruptible(&vmeta_uio_priv_data->wait);
 			break;
 	};
 
@@ -174,6 +177,7 @@ static int vmeta_ioctl(struct uio_info *info, unsigned int cmd, unsigned long ar
 	int ret = 0;
 
 	struct vmeta_xv_data *xv_data = (struct vmeta_xv_data*)info->priv;
+	struct vmeta_uio_data *vd = container_of(info, struct vmeta_uio_data, uio_info);
 
 	switch(cmd) {
 		case UIO_VMETA_IRQ_ENABLE:
@@ -289,9 +293,24 @@ static int vmeta_ioctl(struct uio_info *info, unsigned int cmd, unsigned long ar
 				__copy_to_user((int __user*)arg, &vmeta_suspend_check, sizeof(int));
 			}
 			break;
-		case UIO_VMETA_SUSPEND_READY:
+		case UIO_VMETA_SUSPEND_READY: {
+			DECLARE_WAITQUEUE(wait, current);
+
+			add_wait_queue(&vd->wait, &wait);
+			set_current_state(TASK_INTERRUPTIBLE);
+			
 			if(mutex_is_locked(&vmeta_pm_suspend_check))
 				mutex_unlock(&vmeta_pm_suspend_check);
+
+			schedule();
+			set_current_state(TASK_RUNNING);
+			remove_wait_queue(&vd->wait, &wait);
+
+
+			}
+			break;
+		case UIO_VMETA_SUSPEND_SET:
+			atomic_set(&vmeta_pm_suspend_available, 1);
 			break;
 		default:
 			break;
@@ -450,6 +469,9 @@ static int dove_vmeta_probe(struct platform_device *pdev)
 	mutex_init(&vmeta_pm_suspend_check);
 	if(!mutex_is_locked(&vmeta_pm_suspend_check))
 		mutex_lock(&vmeta_pm_suspend_check);	// lock as default
+
+	// init a wait queue for pm event sync
+	init_waitqueue_head(&vd->wait);
 
 	printk(KERN_INFO "VMETA UIO driver registered successfully.\n");
 	return 0;

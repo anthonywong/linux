@@ -45,5 +45,6 @@ struct vmeta_xv_frame {
 #define UIO_VMETA_POWER_OFF		_IO(IOP_MAGIC, 10)
 #define UIO_VMETA_SUSPEND_CHECK		_IOR(IOP_MAGIC, 11, int)
 #define UIO_VMETA_SUSPEND_READY		_IO(IOP_MAGIC, 12)
+#define UIO_VMETA_SUSPEND_SET		_IO(IOP_MAGIC, 13)
 
 #endif
