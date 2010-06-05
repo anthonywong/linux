@@ -40,7 +40,9 @@
 #include <linux/slab.h>
 
 #include <asm/atomic.h>
+#if ! defined CONFIG_ARCH_OMAP && ! defined CONFIG_ARCH_VERSATILE
 #include <asm/agp.h>
+#endif
 
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_page_alloc.h"
