@@ -539,8 +539,7 @@ static void ads7846_dev_init(void)
 
 	gpio_direction_input(OMAP3_STALKER_TS_GPIO);
 
-	omap_set_gpio_debounce(OMAP3_STALKER_TS_GPIO, 1);
-	omap_set_gpio_debounce_time(OMAP3_STALKER_TS_GPIO, 0xa);
+	gpio_set_debounce(OMAP3_STALKER_TS_GPIO, 310);
 }
 
 static int ads7846_get_pendown_state(void)
