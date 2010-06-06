@@ -2522,26 +2522,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	if (!type)
 		return ERR_PTR(-ENODEV);
 
-#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
-	if (chip->ecc_8bit_1k) {
-		for (i = 0; nand_flash_8bit_1k_ids[i].name != NULL; i++) {
-			if (dev_id == nand_flash_8bit_1k_ids[i].id) {
-				type =  &nand_flash_8bit_1k_ids[i];
-				break;
-			}
-		}
-		if (!type)
-			return ERR_PTR(-ENODEV);
-	}
-#endif
-
 	if (!mtd->name) {
-#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
-		sprintf(nand_name, "%s%s", type->name,
-				(chip->ecc_8bit_1k ? " - 8b/1K ECC" : ""));
-		type->name = nand_name;
-#endif
-
 #ifdef CONFIG_MV_MTD_GANG_SUPPORT
 		sprintf(nand_name, "%s%s", type->name,
 				(chip->num_devs == 2) ? " - Ganged" : "");
@@ -2592,13 +2573,10 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 		mtd->erasesize = type->erasesize;
 		mtd->writesize = type->pagesize;
 		mtd->oobsize = mtd->writesize / 32;
-#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
-		if (chip->ecc_8bit_1k)
-			/* The device has 218 bytes of spare area, 128 of them
-			** are allocated for data ECC. We are left with 90 for
-			** spare area.
-			*/
-			mtd->oobsize = (90 * chip->num_devs) & ~0x1F;
+#ifdef CONFIG_MV_MTD_MLC_NAND_SUPPORT
+		/* New devices have non standard OOB size */
+		if (chip->oobsize_ovrd)
+			mtd->oobsize = chip->oobsize_ovrd;
 #endif
 		busw = type->options & NAND_BUSWIDTH_16;
 #ifdef CONFIG_MV_MTD_GANG_SUPPORT

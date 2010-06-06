@@ -411,10 +411,11 @@ config MTD_ALAUDA
 	  SmartMedia and xD allow raw flash access.
 
 config MTD_NAND_ORION
-	tristate "NAND Flash support for Marvell Orion SoC"
+	tristate "Legacy NAND Flash support for Marvell Orion SoC"
 	depends on PLAT_ORION && MTD_NAND
 	help
-	  This enables the NAND flash controller on Orion machines.
+	  This enables the NAND flash support on Marvell's SoC machines
+          using the legacy NAND controller
 
 	  No board specific support is done by this driver, each board
 	  must advertise a platform_device for the driver to attach.
@@ -456,36 +457,36 @@ config MTD_NAND_SH_FLCTL
           Several Renesas SuperH CPU has FLCTL. This option enables support
           for NAND Flash using FLCTL. This driver support SH7723.
 
-config MTD_NAND_DOVE
-	tristate "Support for NAND flash devices on Dove"
-	depends on MTD_NAND
+config MTD_NFC_ORION
+	tristate "Support for NAND flash controller in Marvell's SoCs"
+	depends on PLAT_ORION && MTD_NAND
 	help
-	  This enables the driver for the NAND flash device found on
-	  the Marvell Dove SoC
+	  This enables the driver for the NAND flash controller found in
+	  the Marvell SoC devices
 
-config MTD_NAND_HAL_DOVE
-	tristate "Support for NAND flash devices on Dove (HAL based)"
-	depends on MTD_NAND && MV_HAL_DRIVERS_SUPPORT
-	select MV_MTD_GANG_SUPPORT
-	select MV_MTD_4K_8BIT_ECC_SUPPORT
-	help
-	  This enables the driver for the NAND flash device found on
-	  the Marvell Dove SoC.
-	  This driver uses the NFC HAL.
+config MTD_NFC_HAL_ORION
+	tristate "HAL based support for NAND flash controller in Marvell's SoCs"
+	depends on PLAT_ORION && MTD_NAND
+ 	select MV_MTD_GANG_SUPPORT
+	select MV_MTD_MLC_NAND_SUPPORT
+ 	help
+	  This enables the driver for the NAND flash controller found in
+	  the Marvell SoC devices. This driver uses the NFC HAL.
 
 config MV_MTD_GANG_SUPPORT
         bool "NAND Ganged mode support"
-        depends on MTD_NAND_HAL_DOVE
+        depends on MTD_NFC_HAL_ORION
         help
-          This option allows support for Nand ganged mode in the Dove
-	  NAND HAL driver and the MTD stack.
+          This option enables the support for 2x8bit ganged mode in
+          Marvell's NFC HAL driver and the MTD stack.
 
-config MV_MTD_4K_8BIT_ECC_SUPPORT
-        bool "NAND 4KB page with 8-bit ECC per 1KB device support"
-        depends on MTD_NAND_HAL_DOVE
-        help
-          This option allows support for Nand devices with 4KB page size
-	  and 8-bit per 1KB ECC requirements.
+config MV_MTD_MLC_NAND_SUPPORT
+        bool "NAND MLC devices support"
+        depends on MTD_NFC_HAL_ORION
+         help
+          This option allows support for Nand devices with non-standard
+	  page/oob layout. These devices are detected incorrectly with
+          standard autodetection mechanism based on the READ_ID command.
 
 config MTD_NAND_DAVINCI
         tristate "Support NAND on DaVinci SoC"

@@ -158,6 +158,7 @@ extern "C" {
 #define MV_NFC_512B_PAGE		512
 #define MV_NFC_2KB_PAGE			2048
 #define MV_NFC_4KB_PAGE			4096
+#define MV_NFC_8KB_PAGE			8192
 
 #define MV_NFC_MAX_CHUNK_SIZE		(2048)
 
@@ -189,10 +190,13 @@ extern "C" {
 
 /* ECC mode options.			*/
 typedef enum {
-	MV_NFC_ECC_HAMMING,
-	MV_NFC_ECC_BCH_1K,
+	MV_NFC_ECC_HAMMING = 0,
 	MV_NFC_ECC_BCH_2K,
-	MV_NFC_ECC_DISABLE
+	MV_NFC_ECC_BCH_1K,
+	MV_NFC_ECC_BCH_704B,
+	MV_NFC_ECC_BCH_512B,
+	MV_NFC_ECC_DISABLE,
+	MV_NFC_ECC_MAX_CNT
 }MV_NFC_ECC_MODE;
 
 
@@ -315,7 +319,6 @@ typedef struct {
 	MV_NFC_ECC_MODE eccMode;
 	MV_NFC_IF_MODE 	ifMode;
 	MV_NFC_CHIP_SEL currCs;
-
 	MV_PDMA_CHANNEL dataChanHndl;
 	MV_PDMA_CHANNEL cmdChanHndl;
 	MV_BUF_INFO	cmdBuff;
@@ -397,6 +400,7 @@ MV_STATUS mvNfcTransferDataLength(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_
 MV_STATUS mvNfcFlashIdGet(MV_NFC_CTRL *nfcCtrl, MV_U32 *flashId);
 MV_STATUS mvNfcUnitStateStore(MV_U32 *stateData, MV_U32 *len);
 MV_NFC_ECC_MODE mvNfcEccModeSet(MV_NFC_CTRL *nfcCtrl, MV_NFC_ECC_MODE eccMode);
+MV_U32 	  mvNfcBadBlockPageNumber(MV_NFC_CTRL *nfcCtrl);
 
 #ifdef __cplusplus
 }
