@@ -1,10 +1,24 @@
-#ifndef __ASM_ARCH_DOVE_NAND_H
-#define __ASM_ARCH_DOVE_NAND_H
+#ifndef __ASM_ARCH_ORION_NFC_H
+#define __ASM_ARCH_ORION_NFC_H
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include "mvCommon.h"
+#include "mvOs.h"
+#include "pdma/mvPdma.h"
+#include "nfc/mvNfc.h"
 
-struct dove_nand_platform_data {
+enum nfc_page_size
+{
+	NFC_PAGE_512B = 0,
+	NFC_PAGE_2KB,
+	NFC_PAGE_4KB,
+	NFC_PAGE_8KB,
+	NFC_PAGE_16KB,
+	NFC_PAGE_SIZE_MAX_CNT
+};
+
+struct nfc_platform_data {
 	unsigned int		tclk;		/* Clock supplied to NFC */
 	unsigned int		nfc_width;	/* Width of NFC 16/8 bits */
 	unsigned int		num_devs;	/* Number of NAND devices 
@@ -12,12 +26,8 @@ struct dove_nand_platform_data {
 	unsigned int		num_cs;		/* Number of NAND devices 
 						   chip-selects.	  */
 	unsigned int		use_dma;	/* Enable/Disable DMA 1/0 */
-	unsigned int 		use_ecc;	/* Enable/Disable ECC 1/0 */
-	unsigned int		use_bch;	/* Enable/Disable BCH 1/0
-						   (if ECC enabled) */
-	unsigned int		use_8bit_ecc;	/* Enable/Disable 8bit per
-						   1KB ecc support */
+	MV_NFC_ECC_MODE		ecc_type;
 	struct mtd_partition *	parts;
 	unsigned int		nr_parts;	
 };
-#endif /* __ASM_ARCH_DOVE_NAND_H */
+#endif /* __ASM_ARCH_ORION_NFC_H */

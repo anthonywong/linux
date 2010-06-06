@@ -25,7 +25,7 @@
 #include <mach/pxa-regs.h>
 //#include <asm/hardware/pxa-dma-regs.h>
 #include <asm/hardware/pxa-dma.h>
-#include <mach/dove_nand.h>
+#include <plat/orion_nfc.h>
 
 #define	CHIP_DELAY_TIMEOUT	(2 * HZ/10)
 
@@ -382,7 +382,7 @@ static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 static void pxa3xx_nand_set_timing(struct pxa3xx_nand_info *info,
 				   struct pxa3xx_nand_timing *t)
 {
-	struct dove_nand_platform_data *pdata = info->pdev->dev.platform_data;	
+	struct nfc_platform_data *pdata = info->pdev->dev.platform_data;	
 	unsigned int nand_clk = pdata->tclk;	
 	uint32_t ndtr0, ndtr1;
 
@@ -992,7 +992,7 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 				    struct pxa3xx_nand_flash *f)
 {
 	struct platform_device *pdev = info->pdev;
-	struct dove_nand_platform_data *pdata = pdev->dev.platform_data;
+	struct nfc_platform_data *pdata = pdev->dev.platform_data;
 	uint32_t ndcr = 0x00000FFF; /* disable all interrupts */
 
 	if (f->page_size != 2048 && f->page_size != 512)
@@ -1136,7 +1136,6 @@ static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 {
 	struct pxa3xx_nand_flash *f = info->flash_info;
 	struct nand_chip *this = &info->nand_chip;
-	struct dove_nand_platform_data *pdata = info->pdev->dev.platform_data;
 
 #ifdef CONFIG_MV_MTD_GANG_SUPPORT
 	this->num_devs = pdata->num_devs;
@@ -1173,7 +1172,7 @@ static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 
 static int pxa3xx_nand_probe(struct platform_device *pdev)
 {
-	struct dove_nand_platform_data *pdata;
+	struct nfc_platform_data *pdata;
 	struct pxa3xx_nand_info *info;
 	struct nand_chip *this;
 	struct mtd_info *mtd;
@@ -1190,8 +1189,21 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	
 	/* Set global parameters based on platform data */
 	if (pdata->use_dma) use_dma = 1;
-	if (pdata->use_ecc) use_ecc = 1;
-	if (pdata->use_bch) use_bch = 1;
+	if (pdata->ecc_type == MV_NFC_ECC_DISABLE)
+	{
+		use_ecc = 0;
+		use_bch = 0;
+	}
+	else if (pdata->ecc_type == MV_NFC_ECC_HAMMING)
+	{
+		use_ecc = 1;
+		use_bch = 0;
+	}
+	else /* All BCH types */
+	{
+		use_ecc = 1;
+		use_bch = 1;
+	}
 		
 	dev_info(&pdev->dev, "Initialize NFC in %dbit mode with DMA %s, ECC %s, BCH %s\n", 
 				pdata->nfc_width, stat[use_dma], stat[use_ecc], stat[use_bch]);
@@ -1366,7 +1378,7 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 
 static struct platform_driver pxa3xx_nand_driver = {
 	.driver = {
-		.name	= "dove-nand",
+		.name	= "orion-nfc",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa3xx_nand_probe,

@@ -37,7 +37,7 @@
 #include <asm/mach/arch.h>
 #include <mach/dove.h>
 #include <asm/hardware/pxa-dma.h>
-#include <mach/dove_nand.h>
+#include <plat/orion_nfc.h>
 #include <mach/dove_ssp.h>
 #include <mach/pm.h>
 #include <plat/cafe-orion.h>
@@ -530,37 +530,23 @@ static struct mtd_partition partition_dove[] = {
 	  .size         = MTDPART_SIZ_FULL},
 };
 static u64 nfc_dmamask = DMA_BIT_MASK(32);
-static struct dove_nand_platform_data dove_db_nfc_hal_data = {
-	.nfc_width      = 8,
-	.num_devs       = 1,
-	.num_cs         = 2,
+static struct nfc_platform_data dove_db_nfc_hal_data = {
+	.nfc_width      = 8,			/* Assume non-ganged by default */
+	.num_devs       = 1,			/* Assume non-ganged by default */
+	.num_cs         = 2,			/* Samsung K9HBG08U1A */
+//	.num_cs		= 1,			/* MT 29F64G908CBAAA */
 	.use_dma	= 1,
-	.use_ecc	= 1,
-	.use_bch	= 1,
-	.use_8bit_ecc	= 0,
+	.ecc_type	= MV_NFC_ECC_BCH_2K,	/* 4bit ECC required by K9HBG08U1A */
 	.parts = partition_dove,
 	.nr_parts = ARRAY_SIZE(partition_dove)
 };
 
-static struct dove_nand_platform_data dove_db_nfc_gang_hal_data = {
-	.nfc_width      = 16,
-	.num_devs       = 2,
-	.num_cs         = 2,
-	.use_dma	= 1,
-	.use_ecc	= 1,
-	.use_bch	= 1,
-	.use_8bit_ecc	= 0,
-	.parts = partition_dove,
-	.nr_parts = ARRAY_SIZE(partition_dove)
-};
-
-static struct dove_nand_platform_data dove_db_nfc_data = {
+static struct nfc_platform_data dove_db_nfc_data = {
 	.nfc_width      = 8,
 	.num_devs       = 1,
 	.num_cs         = 2,
 	.use_dma        = 1,
-	.use_ecc        = 1,
-	.use_bch        = 0,
+	.ecc_type	= MV_NFC_ECC_HAMMING,
 	.parts = partition_dove,
 	.nr_parts = ARRAY_SIZE(partition_dove)
  };
@@ -591,7 +577,7 @@ static struct resource dove_nfc_resources[]  = {
 };
 
 static struct platform_device dove_nfc = {
-	.name		= "dove-nand",
+	.name		= "orion-nfc",
 	.id		= -1,
 	.dev		= {
 		.dma_mask		= &nfc_dmamask,
@@ -604,27 +590,33 @@ static struct platform_device dove_nfc = {
 
 static void __init dove_db_nfc_init(void)
 {
-	int ganged = 0;
-	int ecc_8bit = 0;
-	dove_db_nfc_data.tclk = dove_tclk_get();
-
+	/* Check if HAL driver is intended */
 	if(useHalDrivers || useNandHal) {
-		dove_nfc.name = "dove-nand-hal";
-		if (useNandHal && (strncmp(useNandHal, "ganged", 6) == 0)) {
-			ganged = 1;
+		dove_nfc.name = "orion-nfc-hal";
+
+		/* Check for ganaged mode */
+		if (strncmp(useNandHal, "ganged", 6) == 0) {
+			dove_db_nfc_hal_data.nfc_width = 16;
+			dove_db_nfc_hal_data.num_devs = 2;
 			useNandHal += 7;
 		}
-		if (useNandHal && (strcmp(useNandHal, "8bitecc") == 0))
-			ecc_8bit = 1;
-		if (useNandHal && ganged) {
-			dove_db_nfc_gang_hal_data.tclk = dove_tclk_get();
-			dove_db_nfc_gang_hal_data.use_8bit_ecc = ecc_8bit;
-			dove_nfc.dev.platform_data = &dove_db_nfc_gang_hal_data;
-		} else {
-			dove_db_nfc_hal_data.tclk = dove_tclk_get();
-			dove_db_nfc_hal_data.use_8bit_ecc = ecc_8bit;
-			dove_nfc.dev.platform_data = &dove_db_nfc_hal_data;
+
+		/* Check for ECC type directive */
+		if (strcmp(useNandHal, "4bitecc") == 0) {
+			dove_db_nfc_hal_data.ecc_type = MV_NFC_ECC_BCH_2K;
+		} else if (strcmp(useNandHal, "8bitecc") == 0) {
+			dove_db_nfc_hal_data.ecc_type = MV_NFC_ECC_BCH_1K;
+		} else if (strcmp(useNandHal, "12bitecc") == 0) {
+			dove_db_nfc_hal_data.ecc_type = MV_NFC_ECC_BCH_704B;
+		} else if (strcmp(useNandHal, "16bitecc") == 0) {
+			dove_db_nfc_hal_data.ecc_type = MV_NFC_ECC_BCH_512B;
 		}
+
+		dove_db_nfc_hal_data.tclk = dove_tclk_get();
+		dove_nfc.dev.platform_data = &dove_db_nfc_hal_data;
+
+	} else {  /* NON HAL driver is used */
+		dove_db_nfc_data.tclk = dove_tclk_get();
 	}
 
 	platform_device_register(&dove_nfc);

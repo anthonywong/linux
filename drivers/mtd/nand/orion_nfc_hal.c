@@ -1,8 +1,10 @@
 /*
- * drivers/mtd/nand/pxa3xx_nand.c
+ * drivers/mtd/nand/orion_nfc.c
  *
  * Copyright c 2005 Intel Corporation
  * Copyright c 2006 Marvell International Ltd.
+ *
+ * This driver is based on the PXA drivers/mtd/nand/pxa3xx_nand.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -22,7 +24,7 @@
 #include <linux/irq.h>
 #include <asm/dma.h>
 
-#include <mach/dove_nand.h>
+#include <plat/orion_nfc.h>
 #include <asm/hardware/pxa-dma.h>
 
 #include "mvCommon.h"
@@ -32,15 +34,17 @@
 #include "nfc/mvNfc.h"
 #include "nfc/mvNfcRegs.h"
 
-#define NFC_DPRINT(x) /*printk x*/
+#define NFC_DPRINT(x) 		//printk x
+#define PRINT_LVL		KERN_INFO
 
 #define	CHIP_DELAY_TIMEOUT	(20 * HZ/10)
-#define NFC_MAX_NUM_OF_DESCR	(32)
+#define NFC_MAX_NUM_OF_DESCR	(33) /* worst case in 8K ganaged */
 #define NFC_8BIT1K_ECC_SPARE	(32)
 
 #define NFC_SR_MASK		(0xfff)
 #define NFC_SR_BBD_MASK		(NFC_SR_CS0_BBD_MASK | NFC_SR_CS1_BBD_MASK)
-static int pax3xx_nand_block_markbad(struct mtd_info *mtd, loff_t ofs);
+
+MV_U32 pg_sz[NFC_PAGE_SIZE_MAX_CNT] = {512, 2048, 4096, 8192, 16384};
 
 /* error code and state */
 enum {
@@ -61,20 +65,10 @@ enum {
 	STATE_PIO_WRITING,
 };
 
-struct pxa3xx_nand_flash {
-	uint32_t page_per_block;/* Pages per block (PG_PER_BLK) */
-	uint32_t page_size;	/* Page size in bytes (PAGE_SZ) */
-	uint32_t flash_width;	/* Width of Flash memory (DWIDTH_M) */
-	size_t	 read_id_bytes;
-	uint32_t num_devs;
-	uint32_t ecc_8bit;
-};
-
-struct pxa3xx_nand_info {
+struct orion_nfc_info {
 	struct nand_chip	nand_chip;
 
 	struct platform_device	 *pdev;
-	struct pxa3xx_nand_flash flash_info;
 
 	struct clk		*clk;
 	void __iomem		*mmio_base;
@@ -94,9 +88,15 @@ struct pxa3xx_nand_info {
 	/* relate to the command */
 	unsigned int		state;
 
-	int			use_ecc;	/* use HW ECC ? */
 	int			use_dma;	/* use DMA ? */
-	int			use_bch;	/* use BCH if use_ecc == 1 */
+
+	/* flash information */
+	MV_NFC_ECC_MODE		ecc_type;
+	enum nfc_page_size	page_size;
+	uint32_t 		page_per_block;	/* Pages per block (PG_PER_BLK) */	
+	uint32_t 		flash_width;	/* Width of Flash memory (DWIDTH_M) */
+	size_t	 		read_id_bytes;
+	uint32_t 		num_devs;
 
 	size_t			data_size;	/* data size in FIFO */
 	size_t			read_size;
@@ -119,21 +119,235 @@ struct pxa3xx_nand_info {
 	MV_U32			nfcDataLen;
 	MV_U32			pdmaUnitData[128];
 	MV_U32			pdmaDataLen;
-
-
 };
 
-static int use_dma = 0;
-module_param(use_dma, bool, 0444);
-MODULE_PARM_DESC(use_dma, "enable DMA for data transfering to/from NAND HW");
-static int use_ecc = 0;
-module_param(use_ecc, bool, 0444);
-MODULE_PARM_DESC(use_ecc, "enable ECC calculation/checking for data transfering to/from NAND HW");
-static int use_bch = 0;
-module_param(use_bch, bool, 0444);
-MODULE_PARM_DESC(use_bch, "enable 16bit BCH ECC calculation if ECC operations are enabled");
+/*
+ * ECC Layout
+ */
 
-static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
+static struct nand_ecclayout ecc_latout_512B_hamming = {
+	.eccbytes = 6,
+	.eccpos = {8, 9, 10, 11, 12, 13 },
+	.oobfree = { {2, 6} }
+};
+
+static struct nand_ecclayout ecc_layout_2KB_hamming = {
+	.eccbytes = 24,
+	.eccpos = {
+		40, 41, 42, 43, 44, 45, 46, 47,
+		48, 49, 50, 51, 52, 53, 54, 55,
+		56, 57, 58, 59, 60, 61, 62, 63},
+	.oobfree = { {2, 38} }
+};
+
+static struct nand_ecclayout ecc_layout_2KB_bch4bit = {
+	.eccbytes = 32,
+	.eccpos = {
+		32, 33, 34, 35, 36, 37, 38, 39,
+		40, 41, 42, 43, 44, 45, 46, 47,
+		48, 49, 50, 51, 52, 53, 54, 55,
+		56, 57, 58, 59, 60, 61, 62, 63},
+	.oobfree = { {2, 30} }
+};
+
+static struct nand_ecclayout ecc_layout_4KB_bch4bit = {
+	.eccbytes = 64,
+	.eccpos = {
+		32,  33,  34,  35,  36,  37,  38,  39,
+		40,  41,  42,  43,  44,  45,  46,  47,
+		48,  49,  50,  51,  52,  53,  54,  55,
+		56,  57,  58,  59,  60,  61,  62,  63,
+		96,  97,  98,  99,  100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127},
+	/* Bootrom looks in bytes 0 & 5 for bad blocks */
+	.oobfree = { {1, 4}, {6, 26}, { 64, 32} }
+};
+
+static struct nand_ecclayout ecc_layout_8KB_bch4bit = {
+	.eccbytes = 128,
+	.eccpos = {
+		32,  33,  34,  35,  36,  37,  38,  39,
+		40,  41,  42,  43,  44,  45,  46,  47,
+		48,  49,  50,  51,  52,  53,  54,  55,
+		56,  57,  58,  59,  60,  61,  62,  63,
+
+		96,  97,  98,  99,  100, 101, 102, 103,
+		104, 105, 106, 107, 108, 109, 110, 111,
+		112, 113, 114, 115, 116, 117, 118, 119,
+		120, 121, 122, 123, 124, 125, 126, 127,
+
+		160, 161, 162, 163, 164, 165, 166, 167,
+		168, 169, 170, 171, 172, 173, 174, 175,
+		176, 177, 178, 179, 180, 181, 182, 183,
+		184, 185, 186, 187, 188, 189, 190, 191,
+
+		224, 225, 226, 227, 228, 229, 230, 231,
+		232, 233, 234, 235, 236, 237, 238, 239,
+		240, 241, 242, 243, 244, 245, 246, 247,
+		248, 249, 250, 251, 252, 253, 254, 255},
+
+	/* Bootrom looks in bytes 0 & 5 for bad blocks */
+	.oobfree = { {1, 4}, {6, 26}, { 64, 32}, {128, 32}, {192, 32} }
+};
+
+static struct nand_ecclayout ecc_layout_4KB_bch8bit = {
+	.eccbytes = 64,
+	.eccpos = {
+		32,  33,  34,  35,  36,  37,  38,  39,
+		40,  41,  42,  43,  44,  45,  46,  47,
+		48,  49,  50,  51,  52,  53,  54,  55,
+		56,  57,  58,  59,  60,  61,  62,  63},
+	/* Bootrom looks in bytes 0 & 5 for bad blocks */
+	.oobfree = { {1, 4}, {6, 26},  }
+};
+
+static struct nand_ecclayout ecc_layout_8KB_bch8bit = {
+	.eccbytes = 160,
+	.eccpos = {
+		128, 129, 130, 131, 132, 133, 134, 135,
+		136, 137, 138, 139, 140, 141, 142, 143,
+		144, 145, 146, 147, 148, 149, 150, 151,
+		152, 153, 154, 155, 156, 157, 158, 159},
+	/* Bootrom looks in bytes 0 & 5 for bad blocks */
+	.oobfree = { {1, 4}, {6, 122},  }
+};
+
+static struct nand_ecclayout ecc_layout_8KB_bch12bit = {
+	.eccbytes = 0,
+	.eccpos = { },
+	/* Bootrom looks in bytes 0 & 5 for bad blocks */
+	.oobfree = { {1, 4}, {6, 58}, }
+};
+
+static struct nand_ecclayout ecc_layout_16KB_bch12bit = {
+	.eccbytes = 0,
+	.eccpos = { },
+	/* Bootrom looks in bytes 0 & 5 for bad blocks */
+	.oobfree = { {1, 4}, {6, 122},  }
+};
+
+/*
+ * Define bad block scan pattern when scanning a device for factory 
+ * marked blocks.
+ */
+static uint8_t mv_scan_pattern[] = { 0xff, 0xff };
+
+static struct nand_bbt_descr mv_sp_bb = {
+	.options = NAND_BBT_SCANMVCUSTOM,
+	.offs = 5,
+	.len = 1,
+	.pattern = mv_scan_pattern
+};
+
+static struct nand_bbt_descr mv_lp_bb = {
+	.options = NAND_BBT_SCANMVCUSTOM,
+	.offs = 0,
+	.len = 2,
+	.pattern = mv_scan_pattern
+};
+
+/*
+ * Lookup Tables
+ */
+
+struct orion_nfc_lkup {
+	
+	struct nand_ecclayout* 	ecc_layout;
+	struct nand_bbt_descr*	bb_info;
+	uint32_t		bb_bytepos;
+	uint32_t		chunk_size;
+	uint32_t		chunk_spare;
+	uint32_t		chunk_cnt;
+	uint32_t		last_chunk_size;
+	uint32_t		last_chunk_spare;
+};
+
+			                     /* PageSize*/          /* ECc Type */
+static struct orion_nfc_lkup orion_nfc_lkup_tbl[NFC_PAGE_SIZE_MAX_CNT][MV_NFC_ECC_MAX_CNT] = {
+	/* 512B Pages */
+	{{    	/* Hamming */
+		&ecc_latout_512B_hamming, &mv_sp_bb, 512, 512, 16, 1, 0, 0
+	}, { 	/* BCH 4bit */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}, { 	/* BCH 8bit */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}, { 	/* BCH 12bit */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}, { 	/* BCH 16bit */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}, { 	/* No ECC */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}},
+	/* 2KB Pages */
+	{{	/* Hamming */
+		&ecc_layout_2KB_hamming, &mv_lp_bb, 2048, 2048, 40, 1, 0, 0
+	}, { 	/* BCH 4bit */
+		&ecc_layout_2KB_bch4bit, &mv_lp_bb, 2048, 2048, 32, 1, 0, 0
+	}, { 	/* BCH 8bit */
+		NULL, NULL, 2018, 1024, 0, 1, 1024, 32
+	}, { 	/* BCH 12bit */
+		NULL, NULL, 1988, 704, 0, 2, 640, 0
+	}, { 	/* BCH 16bit */
+		NULL, NULL, 1958, 512, 0, 4, 0, 32
+	}, { 	/* No ECC */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}},
+	/* 4KB Pages */
+	{{	/* Hamming */
+		NULL, 0, 0, 0, 0, 0, 0, 0
+	}, { 	/* BCH 4bit */
+		&ecc_layout_4KB_bch4bit, &mv_lp_bb, 4034, 2048, 32, 2, 0, 0
+	}, { 	/* BCH 8bit */
+		&ecc_layout_4KB_bch8bit, &mv_lp_bb, 4006, 1024, 0, 4, 0, 64
+	}, { 	/* BCH 12bit */
+		NULL, NULL, 3946, 704,  0, 5, 576, 32
+	}, { 	/* BCH 16bit */
+		NULL, NULL, 3886, 512, 0, 8, 0, 32
+	}, { 	/* No ECC */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}},
+	/* 8KB Pages */
+	{{	/* Hamming */
+		NULL, 0, 0, 0, 0, 0, 0, 0
+	}, { 	/* BCH 4bit */
+		&ecc_layout_8KB_bch4bit, &mv_lp_bb, 8102, 2048, 32, 4, 0, 0
+	}, { 	/* BCH 8bit */
+		&ecc_layout_8KB_bch8bit, &mv_lp_bb, 7982, 1024, 0, 8, 0, 160
+	}, { 	/* BCH 12bit */
+		&ecc_layout_8KB_bch12bit, &mv_lp_bb,7862, 704, 0, 11, 448, 64
+	}, { 	/* BCH 16bit */
+		NULL, NULL, 7742, 512, 0, 16, 0, 32
+	}, { 	/* No ECC */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}},
+	/* 16KB Pages */
+	{{	/* Hamming */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}, { 	/* BCH 4bit */
+		NULL, NULL, 15914, 2048, 32, 8, 0, 0
+	}, { 	/* BCH 8bit */
+		NULL, NULL, 15930, 1024, 0, 16, 0, 352
+	}, { 	/* BCH 12bit */
+		&ecc_layout_16KB_bch12bit, &mv_lp_bb, 15724, 704, 0, 23, 192, 128
+	}, { 	/* BCH 16bit */
+		NULL, NULL, 15484, 512, 0, 32, 0, 32
+	}, { 	/* No ECC */
+		NULL, NULL, 0, 0, 0, 0, 0, 0
+	}}};
+		
+
+#define ECC_LAYOUT	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].ecc_layout)
+#define BB_INFO		(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].bb_info)
+#define	BB_BYTE_POS	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].bb_bytepos)
+#define CHUNK_CNT	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].chunk_cnt)
+#define CHUNK_SZ	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].chunk_size)
+#define CHUNK_SPR	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].chunk_spare)
+#define LST_CHUNK_SZ	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].last_chunk_size)
+#define LST_CHUNK_SPR	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].last_chunk_spare)
+
+static int prepare_read_prog_cmd(struct orion_nfc_info *info,
 			int column, int page_addr)
 {
 	MV_U32 size;
@@ -145,10 +359,10 @@ static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 	return 0;
 }
 
-static int handle_data_pio(struct pxa3xx_nand_info *info)
+static int handle_data_pio(struct orion_nfc_info *info)
 {
 	int ret, timeout = CHIP_DELAY_TIMEOUT;
-	NFC_DPRINT((KERN_INFO "handle_data_pio() - state = %d.\n",info->state));
+	NFC_DPRINT((PRINT_LVL "handle_data_pio() - state = %d.\n",info->state));
 	switch (info->state) {
 	case STATE_PIO_WRITING:
 		mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
@@ -161,7 +375,7 @@ static int handle_data_pio(struct pxa3xx_nand_info *info)
 		}
 		break;
 	case STATE_PIO_READING:
-		NFC_DPRINT((KERN_INFO "handle_data_pio() - data_size = %d.\n",info->data_size));
+		NFC_DPRINT((PRINT_LVL "handle_data_pio() - data_size = %d.\n",info->data_size));
 		mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
 		break;
 	default:
@@ -174,9 +388,9 @@ static int handle_data_pio(struct pxa3xx_nand_info *info)
 	return 0;
 }
 
-static void pxa3xx_nand_data_dma_irq(int irq, void *data)
+static void orion_nfc_data_dma_irq(int irq, void *data)
 {
-	struct pxa3xx_nand_info *info = data;
+	struct orion_nfc_info *info = data;
 	uint32_t dcsr, intr;
 	int channel = info->nfcCtrl.dataChanHndl.chanNumber;
 
@@ -184,7 +398,7 @@ static void pxa3xx_nand_data_dma_irq(int irq, void *data)
 	dcsr = MV_REG_READ(PDMA_CTRL_STATUS_REG(channel));
 	MV_REG_WRITE(PDMA_CTRL_STATUS_REG(channel), dcsr);
 
-	NFC_DPRINT((KERN_INFO "pxa3xx_nand_data_dma_irq(0x%x, 0x%x) - 1.\n", dcsr, intr));
+	NFC_DPRINT((PRINT_LVL "orion_nfc_data_dma_irq(0x%x, 0x%x) - 1.\n", dcsr, intr));
 
 	if(info->chained_cmd) {
 		if (dcsr & DCSR_BUSERRINTR) {
@@ -214,14 +428,14 @@ static void pxa3xx_nand_data_dma_irq(int irq, void *data)
 	return;
 }
 
-static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
+static irqreturn_t orion_nfc_irq(int irq, void *devid)
 {
-	struct pxa3xx_nand_info *info = devid;
+	struct orion_nfc_info *info = devid;
 	unsigned int status;
 
 	status = MV_REG_READ(NFC_STATUS_REG);
 
-	NFC_DPRINT((KERN_INFO "pxa3xx_nand_irq(0x%x) - 1.\n", status));
+	NFC_DPRINT((PRINT_LVL "orion_nfc_irq(0x%x) - 1.\n", status));
 
 	if(!info->chained_cmd) {
 		if (status & (NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK)) {
@@ -239,7 +453,7 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 			mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRDREQ_MASK, MV_FALSE);
 			if (info->use_dma) {
 				info->state = STATE_DMA_WRITING;
-				NFC_DPRINT((KERN_INFO "Calling mvNfcReadWrite().\n"));
+				NFC_DPRINT((PRINT_LVL "Calling mvNfcReadWrite().\n"));
 				if (mvNfcReadWrite(&info->nfcCtrl, info->cmd,
 						   (MV_U32 *)info->data_buff,
 						   info->data_buff_phys) 
@@ -277,111 +491,80 @@ static irqreturn_t pxa3xx_nand_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-static void pxa3xx_nand_set_rw_chunks(struct pxa3xx_nand_info *info)
-{
-	uint32_t idx, i;
-	uint32_t spare_size, single_trans;
-	uint32_t oob_size;
-
-	if ((info->nfcCtrl.ifMode != MV_NFC_IF_2X8) &&
-	    (info->flash_info.page_size <= 2048)) {
-		/* Non-Ganged mode */
-		if (info->flash_info.page_size <= 2048) {
-			info->sgNumBuffs = 1;
-			return;
-		}
-	}
-
-	/*
-	** Ganged mode,
-	** need to split the MTD read / write buffer into several buffers
-	** according to what the HW expects.
-	** e.g. MTD sees
-	** ---------------------------
-	** | Data (4K) | Spare | ECC |
-	** ---------------------------
-	** While HW see
-	** -----------------------------------------------------
-	** | Data (2K) | Spare | ECC | Data (2K) | Spare | ECC |
-	** -----------------------------------------------------
-	**
-	** In BCH mode, we read only the spare area.
-	*/
-	if (info->flash_info.page_size == 1024) {	/* 2 x 512 */
-		spare_size = 16;
-		single_trans = 512;
-		oob_size = 32;
-	} else if (info->flash_info.page_size == 4096) {/* 2 x 2048 */
-		spare_size = 32;
-		single_trans = 2048;
-		oob_size = 64;
-	} else if (info->flash_info.page_size == 8192) {/* 2 x 4096 */
-		spare_size = 32;
-		single_trans = 2048;
-		oob_size = 64;
-	} else
-		return;
-
-	idx = 0;
-	for (i = 0; i < (info->flash_info.page_size / single_trans); i++) {
-		info->sgBuffAddr[2 * i] = info->data_buff_phys +
-			(single_trans * i);
-		info->sgBuffSize[2 * i] = single_trans;
-		info->sgBuffAddr[2 * i + 1] = info->data_buff_phys +
-			info->flash_info.page_size + (oob_size * i);
-		info->sgBuffSize[2 * i + 1] = spare_size;
-		idx += 2;
-	}
-	info->sgNumBuffs = idx;
-
-	return;
-}
-
-static int pxa3xx_nand_desc_8bit_ecc_prepare(struct pxa3xx_nand_info *info,
+static int orion_nfc_cmd_prepare(struct orion_nfc_info *info,
 		MV_NFC_MULTI_CMD *descInfo, u32 *numCmds)
 {
-	MV_U32	count;
-	MV_U32	i, singleBuff;
-	MV_NFC_MULTI_CMD *currDesc;
+	MV_U32	i;
+	MV_NFC_MULTI_CMD *currDesc;	
+
 	currDesc = descInfo;
 	if (info->cmd == MV_NFC_CMD_READ_MONOLITHIC) {
-		singleBuff = 1024;
-		/* 1 for the spare area */
-		count = info->flash_info.page_size / singleBuff + 1;
-
-		currDesc->cmd = MV_NFC_CMD_READ_MONOLITHIC;
-		currDesc->pageAddr = info->page_addr;
-		currDesc->pageCount = 1;
-		currDesc->length = singleBuff;
-		currDesc->virtAddr = (MV_U32 *)info->data_buff;
-		currDesc->physAddr = info->data_buff_phys;
-		currDesc->numSgBuffs = 1;
-		currDesc++;
-
-		for (i = 1; i < count; i++) {
-			if (i == (count - 1)) {		/* Last desc  */
+		/* Main Chunks */
+		for (i=0; i<CHUNK_CNT; i++)
+		{
+			if (i == 0)
+				currDesc->cmd = MV_NFC_CMD_READ_MONOLITHIC;
+			else if ((i == (CHUNK_CNT-1)) && (LST_CHUNK_SZ == 0) && (LST_CHUNK_SPR == 0))
 				currDesc->cmd = MV_NFC_CMD_READ_LAST_NAKED;
-				currDesc->length = NFC_8BIT1K_ECC_SPARE *
-					info->nand_chip.num_devs;
-			} else {			/* all other  */
+			else
 				currDesc->cmd = MV_NFC_CMD_READ_NAKED;
-				currDesc->length = singleBuff;
-			}
+
 			currDesc->pageAddr = info->page_addr;
 			currDesc->pageCount = 1;
-			currDesc->virtAddr =
-				(u32 *)(info->data_buff + (i * singleBuff));
-			currDesc->physAddr =
-				info->data_buff_phys + (i * singleBuff);
-			currDesc->numSgBuffs = 1;
+			currDesc->virtAddr = (MV_U32 *)(info->data_buff + (i * CHUNK_SZ));
+			currDesc->physAddr = info->data_buff_phys + (i * CHUNK_SZ);
+			currDesc->length = (CHUNK_SZ + CHUNK_SPR);
+
+			if (CHUNK_SPR == 0)
+				currDesc->numSgBuffs = 1;
+			else
+			{
+				currDesc->numSgBuffs = 2;
+				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (i * CHUNK_SZ));
+				currDesc->sgBuffSize[0] = CHUNK_SZ;
+				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (i * CHUNK_SPR));
+				currDesc->sgBuffSize[1] = CHUNK_SPR;
+			}
+
 			currDesc++;
 		}
-	} else if (info->cmd == MV_NFC_CMD_WRITE_MONOLITHIC) {
-		singleBuff = 1024;
-		count = info->flash_info.page_size / singleBuff + 1;
-		/* Add 2 commands for Write dispatch start / end */
-		count += 2;
+		
+		/* Last chunk if existing */
+		if ((LST_CHUNK_SZ != 0) || (LST_CHUNK_SPR != 0))
+		{
+			currDesc->cmd = MV_NFC_CMD_READ_LAST_NAKED;
+			currDesc->pageAddr = info->page_addr;
+			currDesc->pageCount = 1;				
+			currDesc->length = (LST_CHUNK_SPR + LST_CHUNK_SZ);
 
+			if ((LST_CHUNK_SZ == 0) && (LST_CHUNK_SPR != 0))	/* Spare only */
+			{
+				currDesc->virtAddr = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
+				currDesc->physAddr = info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT);
+				currDesc->numSgBuffs = 1;
+				currDesc->length = LST_CHUNK_SPR;
+			}
+			else if ((LST_CHUNK_SZ != 0) && (LST_CHUNK_SPR == 0))	/* Data only */
+			{
+				currDesc->virtAddr = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT));
+				currDesc->physAddr = info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT);
+				currDesc->numSgBuffs = 1;
+				currDesc->length = LST_CHUNK_SZ;
+			}
+			else /* Both spare and data */
+			{
+				currDesc->numSgBuffs = 2;
+				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT));
+				currDesc->sgBuffSize[0] = LST_CHUNK_SZ;
+				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
+				currDesc->sgBuffSize[1] = LST_CHUNK_SPR;
+			}
+			currDesc++;
+		}
+
+		*numCmds = CHUNK_CNT + (((LST_CHUNK_SZ) || (LST_CHUNK_SPR)) ? 1 : 0);
+	} else if (info->cmd == MV_NFC_CMD_WRITE_MONOLITHIC) {
+		/* Write Dispatch */
 		currDesc->cmd = MV_NFC_CMD_WRITE_DISPATCH_START;
 		currDesc->pageAddr = info->page_addr;
 		currDesc->pageCount = 1;
@@ -389,27 +572,69 @@ static int pxa3xx_nand_desc_8bit_ecc_prepare(struct pxa3xx_nand_info *info,
 		currDesc->length = 0;
 		currDesc++;
 
-		for (i = 0; i < (count - 2); i++) {
+		/* Main Chunks */
+		for (i=0; i<CHUNK_CNT; i++)
+		{
 			currDesc->cmd = MV_NFC_CMD_WRITE_NAKED;
 			currDesc->pageAddr = info->page_addr;
 			currDesc->pageCount = 1;
-			currDesc->virtAddr =
-				(u32 *)(info->data_buff + (i * singleBuff));
-			currDesc->physAddr =
-				info->data_buff_phys + (i * singleBuff);
-			currDesc->numSgBuffs = 1;
-			if (i == (count - 3))		/* Last desc  */
-				currDesc->length = NFC_8BIT1K_ECC_SPARE *
-					info->nand_chip.num_devs;
-			else				/* all other  */
-				currDesc->length = singleBuff;
+			currDesc->virtAddr = (MV_U32 *)(info->data_buff + (i * CHUNK_SZ));
+			currDesc->physAddr = info->data_buff_phys + (i * CHUNK_SZ);
+			currDesc->length = (CHUNK_SZ + CHUNK_SPR);
+
+			if (CHUNK_SPR == 0)
+				currDesc->numSgBuffs = 1;
+			else
+			{
+				currDesc->numSgBuffs = 2;
+				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (i * CHUNK_SZ));
+				currDesc->sgBuffSize[0] = CHUNK_SZ;
+				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (i * CHUNK_SPR));
+				currDesc->sgBuffSize[1] = CHUNK_SPR;
+			}
+
 			currDesc++;
 		}
+		
+		/* Last chunk if existing */
+		if ((LST_CHUNK_SZ != 0) || (LST_CHUNK_SPR != 0))
+		{
+			currDesc->cmd = MV_NFC_CMD_WRITE_NAKED;
+			currDesc->pageAddr = info->page_addr;
+			currDesc->pageCount = 1;
+			currDesc->length = (LST_CHUNK_SZ + LST_CHUNK_SPR);
+
+			if ((LST_CHUNK_SZ == 0) && (LST_CHUNK_SPR != 0))	/* Spare only */
+			{
+				currDesc->virtAddr = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
+				currDesc->physAddr = info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT);
+				currDesc->numSgBuffs = 1;
+			}
+			else if ((LST_CHUNK_SZ != 0) && (LST_CHUNK_SPR == 0))	/* Data only */
+			{
+				currDesc->virtAddr = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT));
+				currDesc->physAddr = info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT);
+				currDesc->numSgBuffs = 1;
+			}
+			else /* Both spare and data */
+			{
+				currDesc->numSgBuffs = 2;
+				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT));
+				currDesc->sgBuffSize[0] = LST_CHUNK_SZ;
+				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
+				currDesc->sgBuffSize[1] = LST_CHUNK_SPR;
+			}
+			currDesc++;
+		}
+
+		/* Write Dispatch END */
 		currDesc->cmd = MV_NFC_CMD_WRITE_DISPATCH_END;
 		currDesc->pageAddr = info->page_addr;
 		currDesc->pageCount = 1;
 		currDesc->numSgBuffs = 1;
 		currDesc->length = 0;
+
+		*numCmds = CHUNK_CNT + (((LST_CHUNK_SZ) || (LST_CHUNK_SPR)) ? 1 : 0) + 2;
 	} else {
 		descInfo[0].cmd = info->cmd;
 		descInfo[0].pageAddr = info->page_addr;
@@ -418,125 +643,20 @@ static int pxa3xx_nand_desc_8bit_ecc_prepare(struct pxa3xx_nand_info *info,
 		descInfo[0].physAddr = info->data_buff_phys;
 		descInfo[0].numSgBuffs = 1;
 		descInfo[0].length = 0;
-		count = 1;
+		*numCmds = 1;
 	}
-
-	*numCmds = count;
 
 	return 0;
 }
 
-static int pxa3xx_nand_desc_prepare(struct pxa3xx_nand_info *info,
-		MV_NFC_MULTI_CMD *descInfo, u32 *numCmds)
-{
-	MV_U32	count;
-	MV_U32	i, singleBuff;
-	MV_NFC_MULTI_CMD *currDesc;
-
-	currDesc = descInfo;
-	if(info->cmd == MV_NFC_CMD_READ_MONOLITHIC) {
-		mvNfcTransferDataLength(&info->nfcCtrl, info->cmd, &singleBuff);
-		count = info->data_size / singleBuff;
-
-		currDesc->cmd = MV_NFC_CMD_READ_MONOLITHIC;
-		currDesc->pageAddr = info->page_addr;
-		currDesc->pageCount = 1;
-		currDesc->length = 0;
-		currDesc->virtAddr = (MV_U32*)info->data_buff;
-		currDesc->physAddr = info->data_buff_phys;
-		currDesc->numSgBuffs = ((info->sgNumBuffs == 1) ? 1 : 2);
-		if(currDesc->numSgBuffs > 1) {
-			memcpy(currDesc->sgBuffAddr, info->sgBuffAddr,
-					sizeof(u32) * 2);
-			memcpy(currDesc->sgBuffSize, info->sgBuffSize,
-					sizeof(u32) * 2);
-		}
-		currDesc++;
-
-		for (i = 1; i < count; i++) {
-			if (i == (count - 1))		/* Last desc  */
-				currDesc->cmd = MV_NFC_CMD_READ_LAST_NAKED;
-			else 				/* all other  */
-				currDesc->cmd = MV_NFC_CMD_READ_NAKED;
-
-			currDesc->pageAddr = info->page_addr;
-			currDesc->pageCount = 1;
-			currDesc->length = 0;
-			currDesc->virtAddr = (MV_U32 *)(info->data_buff +
-					(i * singleBuff));
-			currDesc->physAddr = info->data_buff_phys +
-				(i * singleBuff);
-			currDesc->numSgBuffs =
-				((info->sgNumBuffs == 1) ? 1 : 2);
-			if (currDesc->numSgBuffs > 1) {
-				memcpy(currDesc->sgBuffAddr, info->sgBuffAddr +
-						i*2, sizeof(MV_U32) * 2);
-				memcpy(currDesc->sgBuffSize, info->sgBuffSize +
-						i*2, sizeof(MV_U32) * 2);
-			}
-			currDesc++;
-		}
-	} else if (info->cmd == MV_NFC_CMD_WRITE_MONOLITHIC) {
-		mvNfcTransferDataLength(&info->nfcCtrl, info->cmd, &singleBuff);
-		count = info->data_size / singleBuff;
-		/* Add 2 commands for Write dispatch start / end */
-		count += 2;
-
-		currDesc->cmd = MV_NFC_CMD_WRITE_DISPATCH_START;
-		currDesc->pageAddr = info->page_addr;
-		currDesc->pageCount = 1;
-		currDesc->numSgBuffs = 1;
-		currDesc->length = 0;
-		currDesc++;
-
-		for (i = 0; i < (count - 2); i++) {
-			currDesc->cmd = MV_NFC_CMD_WRITE_NAKED;
-			currDesc->pageAddr = info->page_addr;
-			currDesc->pageCount = 1;
-			currDesc->length = 0;
-			currDesc->virtAddr = (MV_U32 *)(info->data_buff +
-					(i * singleBuff));
-			currDesc->physAddr = info->data_buff_phys +
-				(i * singleBuff);
-			currDesc->numSgBuffs = ((info->sgNumBuffs == 1) ? 1 : 2);
-			if (currDesc->numSgBuffs > 1) {
-				memcpy(currDesc->sgBuffAddr,
-						info->sgBuffAddr + (i * 2),
-						sizeof(MV_U32) * 2);
-				memcpy(currDesc->sgBuffSize,
-						info->sgBuffSize + (i * 2),
-						sizeof(MV_U32) * 2);
-			}
-			currDesc++;
-		}
-		currDesc->cmd = MV_NFC_CMD_WRITE_DISPATCH_END;
-		currDesc->pageAddr = info->page_addr;
-		currDesc->pageCount = 1;
-		currDesc->numSgBuffs = 1;
-		currDesc->length = 0;
-	} else {
-		descInfo[0].cmd = info->cmd;
-		descInfo[0].pageAddr = info->page_addr;
-		descInfo[0].pageCount = 1;
-		descInfo[0].virtAddr = (MV_U32*)info->data_buff;
-		descInfo[0].physAddr = info->data_buff_phys;
-		descInfo[0].numSgBuffs = 1;
-		descInfo[0].length = 0;
-		count = 1;
-	}
-
-	*numCmds = count;
-
-	return 0;
-}
-
-static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info,
+static int orion_nfc_do_cmd_multiple(struct orion_nfc_info *info,
 		uint32_t event)
 {
 	uint32_t ndcr;
 	int ret, timeout = CHIP_DELAY_TIMEOUT;
 	MV_STATUS status;
 	MV_U32	numCmds;
+
 	/* static allocation to avoid stack overflow*/
 	static MV_NFC_MULTI_CMD descInfo[NFC_MAX_NUM_OF_DESCR];
 
@@ -545,7 +665,7 @@ static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info,
 
 	mvNfcIntrEnable(&info->nfcCtrl, event, MV_TRUE);
 
-	NFC_DPRINT((KERN_INFO "About to issue multi cmd %d (cs %d) - 0x%x.\n",
+	NFC_DPRINT((PRINT_LVL "About to issue multi cmd %d (cs %d) - 0x%x.\n",
 				info->cmd, info->nfcCtrl.currCs,
 				MV_REG_READ(NFC_CONTROL_REG)));
 	if (info->cmd == MV_NFC_CMD_READ_MONOLITHIC)
@@ -554,10 +674,7 @@ static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info,
 		info->state = STATE_CMD_HANDLE;
 	info->chained_cmd = 1;
 
-	if (info->flash_info.ecc_8bit)
-		pxa3xx_nand_desc_8bit_ecc_prepare(info, descInfo, &numCmds);
-	else
-		pxa3xx_nand_desc_prepare(info, descInfo, &numCmds);
+	orion_nfc_cmd_prepare(info, descInfo, &numCmds);
 
 	status = mvNfcCommandMultiple(&info->nfcCtrl,descInfo, numCmds);
 	if (status != MV_OK) {
@@ -566,7 +683,7 @@ static int pxa3xx_nand_do_cmd_multiple(struct pxa3xx_nand_info *info,
 		goto fail;
 	}
 
-	NFC_DPRINT((KERN_INFO "After issue command %d - 0x%x.\n",
+	NFC_DPRINT((PRINT_LVL "After issue command %d - 0x%x.\n",
 				info->cmd, MV_REG_READ(NFC_STATUS_REG)));
 
 	ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
@@ -601,7 +718,7 @@ fail:
 	return -ETIMEDOUT;
 }
 
-static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
+static int orion_nfc_do_cmd(struct orion_nfc_info *info, uint32_t event)
 {
 	uint32_t ndcr;
 	int ret, timeout = CHIP_DELAY_TIMEOUT;
@@ -612,7 +729,7 @@ static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
  	mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRCMDREQ_MASK, MV_FALSE);
 	mvNfcIntrEnable(&info->nfcCtrl, event, MV_TRUE);
 
-	NFC_DPRINT((KERN_INFO "About to issue command %d (cs %d) - 0x%x.\n",
+	NFC_DPRINT((PRINT_LVL "About to issue command %d (cs %d) - 0x%x.\n",
 				info->cmd,info->nfcCtrl.currCs, MV_REG_READ(NFC_CONTROL_REG)));
 	info->state = STATE_CMD_HANDLE;
 
@@ -622,7 +739,7 @@ static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
 		printk(KERN_ERR "mvNfcCommandIssue() failed for command %d (%d).\n",info->cmd, status);
 		goto fail;
 	}
-	NFC_DPRINT((KERN_INFO "After issue command %d - 0x%x.\n", info->cmd, MV_REG_READ(NFC_STATUS_REG)));
+	NFC_DPRINT((PRINT_LVL "After issue command %d - 0x%x.\n", info->cmd, MV_REG_READ(NFC_STATUS_REG)));
 
 	ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
 	if (!ret) {
@@ -632,7 +749,7 @@ static int pxa3xx_nand_do_cmd(struct pxa3xx_nand_info *info, uint32_t event)
 	}
 
 	/*if(info->state != STATE_READY)
-		printk(KERN_INFO "%s - %d - Bad state.\n", __FUNCTION__, __LINE__);*/
+		printk(PRINT_LVL "%s - %d - Bad state.\n", __FUNCTION__, __LINE__);*/
 
 	if (info->use_dma == 0 && info->data_size > 0)
 		if (handle_data_pio(info))
@@ -653,7 +770,7 @@ fail:
 	return -ETIMEDOUT;
 }
 
-static int pxa3xx_nand_dev_ready(struct mtd_info *mtd)
+static int orion_nfc_dev_ready(struct mtd_info *mtd)
 {
 	return (MV_REG_READ(NFC_STATUS_REG) & (NFC_SR_RDY0_MASK | NFC_SR_RDY1_MASK)) ? 1 : 0;
 }
@@ -666,16 +783,12 @@ static inline int is_buf_blank(uint8_t *buf, size_t len)
 	return 1;
 }
 
-static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
+static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 				int column, int page_addr)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
-	struct pxa3xx_nand_flash *flash_info = &info->flash_info;
+	struct orion_nfc_info *info = mtd->priv;
 	int ret;
 
-	info->use_dma = (use_dma) ? 1 : 0;
-	info->use_bch = (use_bch) ? 1 : 0;
-	info->use_ecc = 0;
 	info->data_size = 0;
 	info->state = STATE_READY;
 	info->chained_cmd = 0;
@@ -693,9 +806,9 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			break;
 
 		if (info->use_dma)
-			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
 		else
-			pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
 
 		/* We only are OOB, so if the data has error, does not matter */
 		if (info->retcode == ERR_DBERR)
@@ -703,20 +816,20 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		break;
 
 	case NAND_CMD_READ0:
-		info->use_ecc = 1;
 		info->buf_start = column;
 		info->buf_count = mtd->writesize + mtd->oobsize;
 		memset(info->data_buff, 0xff, info->buf_count);
 		info->cmd = MV_NFC_CMD_READ_MONOLITHIC;
 		info->column = column;
 		info->page_addr = page_addr;
+
 		if (prepare_read_prog_cmd(info, column, page_addr))
 			break;
 
 		if (info->use_dma)
-			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
 		else
-			pxa3xx_nand_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
 
 		if (info->retcode == ERR_DBERR) {
 			/* for blank page (all 0xff), HW will calculate its ECC as
@@ -726,7 +839,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 			if (is_buf_blank(info->data_buff, mtd->writesize))
 				info->retcode = ERR_NONE;
 			else
-				printk(KERN_INFO "%s: retCode == ERR_DBERR\n", __FUNCTION__);
+				printk(PRINT_LVL "%s: retCode == ERR_DBERR\n", __FUNCTION__);
 		}
 		break;
 	case NAND_CMD_SEQIN:
@@ -739,7 +852,6 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->seqin_page_addr = page_addr;
 		break;
 	case NAND_CMD_PAGEPROG:
-		info->use_ecc = (info->seqin_column >= mtd->writesize) ? 0 : 1;
 		info->column = info->seqin_column;
 		info->page_addr = info->seqin_page_addr;
 		info->cmd = MV_NFC_CMD_WRITE_MONOLITHIC;
@@ -750,9 +862,9 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		}
 	
 		if (info->use_dma)
-			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_RDY);
+			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_RDY);
 		else
-			pxa3xx_nand_do_cmd(info, NFC_SR_WRDREQ_MASK);
+			orion_nfc_do_cmd(info, NFC_SR_WRDREQ_MASK);
 
 		break;
 	case NAND_CMD_ERASE1:
@@ -761,9 +873,9 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->cmd = MV_NFC_CMD_ERASE;
 
 		if (info->use_dma)
-			pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
+			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
 		else
-			pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
+			orion_nfc_do_cmd(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
 
 		break;
 	case NAND_CMD_ERASE2:
@@ -772,13 +884,13 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	case NAND_CMD_STATUS:
 		info->buf_start = 0;
 		info->buf_count = (command == NAND_CMD_READID) ?
-				flash_info->read_id_bytes : 1;
+				info->read_id_bytes : 1;
 		info->data_size = 8;
 		info->column = 0;
 		info->page_addr = 0;
 		info->cmd = (command == NAND_CMD_READID) ?
 			MV_NFC_CMD_READ_ID : MV_NFC_CMD_READ_STATUS;
-		pxa3xx_nand_do_cmd(info,NFC_SR_RDDREQ_MASK);
+		orion_nfc_do_cmd(info,NFC_SR_RDDREQ_MASK);
 		break;
 	case NAND_CMD_RESET:
 		info->column = 0;
@@ -786,9 +898,9 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->cmd = MV_NFC_CMD_RESET;
 
 		if (info->use_dma)
-			ret = pxa3xx_nand_do_cmd_multiple(info, MV_NFC_STATUS_CMDD);
+			ret = orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_CMDD);
 		else
-			ret = pxa3xx_nand_do_cmd(info, MV_NFC_STATUS_CMDD);
+			ret = orion_nfc_do_cmd(info, MV_NFC_STATUS_CMDD);
 
 		if (ret == 0) {
 			int timeout = 2;
@@ -816,9 +928,9 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 	}
 }
 
-static uint8_t pxa3xx_nand_read_byte(struct mtd_info *mtd)
+static uint8_t orion_nfc_read_byte(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 	char retval = 0xFF;
 
 	if (info->buf_start < info->buf_count)
@@ -827,9 +939,9 @@ static uint8_t pxa3xx_nand_read_byte(struct mtd_info *mtd)
 	return retval;
 }
 
-static u16 pxa3xx_nand_read_word(struct mtd_info *mtd)
+static u16 orion_nfc_read_word(struct mtd_info *mtd)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 	u16 retval = 0xFFFF;
 
 	if (!(info->buf_start & 0x01) && info->buf_start < info->buf_count) {
@@ -842,43 +954,43 @@ static u16 pxa3xx_nand_read_word(struct mtd_info *mtd)
 	return retval;
 }
 
-static void pxa3xx_nand_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+static void orion_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
 	memcpy(buf, info->data_buff + info->buf_start, real_len);
 	info->buf_start += real_len;
 }
 
-static void pxa3xx_nand_write_buf(struct mtd_info *mtd,
+static void orion_nfc_write_buf(struct mtd_info *mtd,
 		const uint8_t *buf, int len)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
 	memcpy(info->data_buff + info->buf_start, buf, real_len);
 	info->buf_start += real_len;
 }
 
-static int pxa3xx_nand_verify_buf(struct mtd_info *mtd,
+static int orion_nfc_verify_buf(struct mtd_info *mtd,
 		const uint8_t *buf, int len)
 {
 	return 0;
 }
 
-static void pxa3xx_nand_select_chip(struct mtd_info *mtd, int chip)
+static void orion_nfc_select_chip(struct mtd_info *mtd, int chip)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_0 + chip);
 	return;
 }
 
-static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
+static int orion_nfc_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 
-	/* pxa3xx_nand_send_command has waited for command complete */
+	/* orion_nfc_send_command has waited for command complete */
 	if (this->state == FL_WRITING || this->state == FL_ERASING) {
 		if (info->retcode == ERR_NONE)
 			return 0;
@@ -894,21 +1006,21 @@ static int pxa3xx_nand_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 	return 0;
 }
 
-static void pxa3xx_nand_ecc_hwctl(struct mtd_info *mtd, int mode)
+static void orion_nfc_ecc_hwctl(struct mtd_info *mtd, int mode)
 {
 	return;
 }
 
-static int pxa3xx_nand_ecc_calculate(struct mtd_info *mtd,
+static int orion_nfc_ecc_calculate(struct mtd_info *mtd,
 		const uint8_t *dat, uint8_t *ecc_code)
 {
 	return 0;
 }
 
-static int pxa3xx_nand_ecc_correct(struct mtd_info *mtd,
+static int orion_nfc_ecc_correct(struct mtd_info *mtd,
 		uint8_t *dat, uint8_t *read_ecc, uint8_t *calc_ecc)
 {
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 	/*
 	 * Any error include ERR_SEND_CMD, ERR_DBERR, ERR_BUSERR, we
 	 * consider it as a ecc error which will tell the caller the
@@ -921,42 +1033,63 @@ static int pxa3xx_nand_ecc_correct(struct mtd_info *mtd,
 	return 0;
 }
 
-static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info)
+static int orion_nfc_detect_flash(struct orion_nfc_info *info)
 {
 	struct platform_device *pdev = info->pdev;
-	struct dove_nand_platform_data *pdata = pdev->dev.platform_data;
-	struct pxa3xx_nand_flash *f = &info->flash_info;
+	struct nfc_platform_data *pdata = pdev->dev.platform_data;
+	MV_U32 my_page_size;
 
-	mvNfcFlashPageSizeGet(&info->nfcCtrl, &f->page_size, NULL);
-	if (f->page_size != 8192 && f->page_size != 4096 &&
-	    f->page_size != 2048 && f->page_size != 512)
-		return -EINVAL;
+	mvNfcFlashPageSizeGet(&info->nfcCtrl, &my_page_size, NULL);
 
-	f->flash_width = pdata->nfc_width;
-	if (f->flash_width != 16 && f->flash_width != 8)
+	/* Translate page size to enum */
+	switch (my_page_size)
+	{
+		case 512:
+			info->page_size = NFC_PAGE_512B;
+			break;
+
+		case 2048:
+			info->page_size = NFC_PAGE_2KB;
+			break;
+
+		case 4096:
+			info->page_size = NFC_PAGE_4KB;
+			break;
+		
+		case 8192:
+			info->page_size = NFC_PAGE_8KB;
+			break;
+
+		case 16384:
+			info->page_size = NFC_PAGE_16KB;
+			break;
+
+		default:
+			return -EINVAL;
+	}
+
+	info->flash_width = pdata->nfc_width;
+	if (info->flash_width != 16 && info->flash_width != 8)
 		return -EINVAL;
 
 	/* calculate flash information */
-	f->read_id_bytes = (f->page_size >= 2048) ? 4 : 2;
-	f->num_devs = pdata->num_devs;
-	f->ecc_8bit = pdata->use_8bit_ecc;
+	info->read_id_bytes = (pg_sz[info->page_size] >= 2048) ? 4 : 2;
+	info->num_devs = pdata->num_devs;
 
 	return 0;
 }
 
-/* the maximum possible buffer size for large page with OOB data
- * is: 4096 + 128 = 4224 bytes, allocate a page here for both the
- * data buffer and the DMA descriptor
- * Multiply by 2 for Ganged mode.
+/* the maximum possible buffer size for ganaged 8K page with OOB data
+ * is: 2 * (8K + Spare) ==> to be alligned allocate 5 MMU (4K) pages
  */
-#define MAX_BUFF_SIZE	(PAGE_SIZE << 2)
+#define MAX_BUFF_SIZE	(PAGE_SIZE * 5)
 
-static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
+static int orion_nfc_init_buff(struct orion_nfc_info *info)
 {
 	struct platform_device *pdev = info->pdev;
 	int ret;
 
-	if (use_dma == 0) {
+	if (info->use_dma == 0) {
 		info->data_buff = kmalloc(MAX_BUFF_SIZE, GFP_KERNEL);
 		if (info->data_buff == NULL)
 			return -ENOMEM;
@@ -972,102 +1105,13 @@ static int pxa3xx_nand_init_buff(struct pxa3xx_nand_info *info)
 	memset(info->data_buff, 0xff, MAX_BUFF_SIZE);
 
 	ret = pxa_request_dma_intr ("nand-data", info->nfcCtrl.dataChanHndl.chanNumber,
-			pxa3xx_nand_data_dma_irq, info);
+			orion_nfc_data_dma_irq, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request PDMA IRQ\n");
 		return -ENOMEM;
 	}
 	return 0;
 }
-
-static struct nand_ecclayout hw_largepage_bch_8bit_1k_ecclayout = {
-	.eccbytes = 64,
-	.eccpos = {
-		32,  33,  34,  35,  36,  37,  38,  39,
-		40,  41,  42,  43,  44,  45,  46,  47,
-		48,  49,  50,  51,  52,  53,  54,  55,
-		56,  57,  58,  59,  60,  61,  62,  63},
-	/* Bootrom looks in bytes 0 & 5 for bad blocks */
-	.oobfree = { {1, 4}, {6, 26},  }
-};
-
-static struct nand_ecclayout hw_ganged_largepage_bch_8bit_1k_ecclayout = {
-	.eccbytes = 160,
-	.eccpos = {
-		128, 129, 130, 131, 132, 133, 134, 135,
-		136, 137, 138, 139, 140, 141, 142, 143,
-		144, 145, 146, 147, 148, 149, 150, 151,
-		152, 153, 154, 155, 156, 157, 158, 159},
-	/* Bootrom looks in bytes 0 & 5 for bad blocks */
-	.oobfree = { {1, 4}, {6, 122},  }
-};
-
-static struct nand_ecclayout hw_smallpage_ecclayout = {
-	.eccbytes = 6,
-	.eccpos = {8, 9, 10, 11, 12, 13 },
-	.oobfree = { {2, 6} }
-};
-
-static struct nand_ecclayout hw_largepage_ecclayout = {
-	.eccbytes = 24,
-	.eccpos = {
-		40, 41, 42, 43, 44, 45, 46, 47,
-		48, 49, 50, 51, 52, 53, 54, 55,
-		56, 57, 58, 59, 60, 61, 62, 63},
-	.oobfree = { {2, 38} }
-};
-
-static struct nand_ecclayout hw_largepage_bch_ecclayout = {
-	.eccbytes = 32,
-	.eccpos = {
-		32, 33, 34, 35, 36, 37, 38, 39,
-		40, 41, 42, 43, 44, 45, 46, 47,
-		48, 49, 50, 51, 52, 53, 54, 55,
-		56, 57, 58, 59, 60, 61, 62, 63},
-	.oobfree = { {2, 30} }
-};
-
-static struct nand_ecclayout hw_ganged_largepage_bch_ecclayout = {
-	.eccbytes = 64,
-	.eccpos = {
-		32,  33,  34,  35,  36,  37,  38,  39,
-		40,  41,  42,  43,  44,  45,  46,  47,
-		48,  49,  50,  51,  52,  53,  54,  55,
-		56,  57,  58,  59,  60,  61,  62,  63,
-		96,  97,  98,  99,  100, 101, 102, 103,
-		104, 105, 106, 107, 108, 109, 110, 111,
-		112, 113, 114, 115, 116, 117, 118, 119,
-		120, 121, 122, 123, 124, 125, 126, 127},
-	/* Bootrom looks in bytes 0 & 5 for bad blocks */
-	.oobfree = { {1, 4}, {6, 26}, { 64, 32} }
-};
-
-static struct nand_ecclayout hw_ganged_largepage_8k_bch_ecclayout = {
-	.eccbytes = 128,
-	.eccpos = {
-		32,  33,  34,  35,  36,  37,  38,  39,
-		40,  41,  42,  43,  44,  45,  46,  47,
-		48,  49,  50,  51,  52,  53,  54,  55,
-		56,  57,  58,  59,  60,  61,  62,  63,
-
-		96,  97,  98,  99,  100, 101, 102, 103,
-		104, 105, 106, 107, 108, 109, 110, 111,
-		112, 113, 114, 115, 116, 117, 118, 119,
-		120, 121, 122, 123, 124, 125, 126, 127,
-
-		160, 161, 162, 163, 164, 165, 166, 167,
-		168, 169, 170, 171, 172, 173, 174, 175,
-		176, 177, 178, 179, 180, 181, 182, 183,
-		184, 185, 186, 187, 188, 189, 190, 191,
-
-		224, 225, 226, 227, 228, 229, 230, 231,
-		232, 233, 234, 235, 236, 237, 238, 239,
-		240, 241, 242, 243, 244, 245, 246, 247,
-		248, 249, 250, 251, 252, 253, 254, 255},
-
-	/* Bootrom looks in bytes 0 & 5 for bad blocks */
-	.oobfree = { {1, 4}, {6, 26}, { 64, 32}, {128, 32}, {192, 32} }
-};
 
 static uint8_t mv_bbt_pattern[] = {'M', 'V', 'B', 'b', 't', '0' };
 static uint8_t mv_mirror_pattern[] = {'1', 't', 'b', 'B', 'V', 'M' };
@@ -1093,7 +1137,7 @@ static struct nand_bbt_descr mvbbt_mirror_descr = {
 };
 
 
-static int pax3xx_nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int orion_nfc_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
 	uint8_t buf[6] = {0, 0, 0, 0, 0, 0};
@@ -1117,90 +1161,62 @@ static int pax3xx_nand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		page_addr = ofs;
 		do_div(page_addr, mtd->writesize);
 
-		pxa3xx_nand_cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize,
+		orion_nfc_cmdfunc(mtd, NAND_CMD_SEQIN, mtd->writesize,
 				page_addr);
-		pxa3xx_nand_write_buf(mtd, buf, 6);
-		pxa3xx_nand_cmdfunc(mtd, NAND_CMD_PAGEPROG, 0, page_addr);
+		orion_nfc_write_buf(mtd, buf, 6);
+		orion_nfc_cmdfunc(mtd, NAND_CMD_PAGEPROG, 0, page_addr);
 	}
 
 	return ret;
 }
 
 
-static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
-				 struct pxa3xx_nand_info *info)
+static void orion_nfc_init_mtd(struct mtd_info *mtd,
+				struct orion_nfc_info *info)
 {
-	struct pxa3xx_nand_flash *f = &info->flash_info;
 	struct nand_chip *this = &info->nand_chip;
-	struct dove_nand_platform_data *pdata = info->pdev->dev.platform_data;
+	struct nfc_platform_data *pdata = info->pdev->dev.platform_data;
 
-	this->options = (f->flash_width == 16) ? NAND_BUSWIDTH_16: 0;
-
-	this->num_devs = pdata->num_devs;
-	this->ecc_8bit_1k = pdata->use_8bit_ecc;
-	this->options |= NAND_USE_FLASH_BBT;
-
-	this->waitfunc		= pxa3xx_nand_waitfunc;
-	this->select_chip	= pxa3xx_nand_select_chip;
-	this->dev_ready		= pxa3xx_nand_dev_ready;
-	this->cmdfunc		= pxa3xx_nand_cmdfunc;
-	this->read_word		= pxa3xx_nand_read_word;
-	this->read_byte		= pxa3xx_nand_read_byte;
-	this->read_buf		= pxa3xx_nand_read_buf;
-	this->write_buf		= pxa3xx_nand_write_buf;
-	this->verify_buf	= pxa3xx_nand_verify_buf;
-	this->block_markbad	= pax3xx_nand_block_markbad;
-
+	if (info->flash_width == 16)
+		this->options 	= (NAND_USE_FLASH_BBT | NAND_BUSWIDTH_16);
+	else
+		this->options 	= NAND_USE_FLASH_BBT;
+	this->num_devs		= pdata->num_devs;
+	this->oobsize_ovrd	= ((CHUNK_SPR * CHUNK_CNT) + LST_CHUNK_SPR);
+	this->bb_location	= BB_BYTE_POS;
+	this->bb_page		= mvNfcBadBlockPageNumber(&info->nfcCtrl);
+	this->waitfunc		= orion_nfc_waitfunc;
+	this->select_chip	= orion_nfc_select_chip;
+	this->dev_ready		= orion_nfc_dev_ready;
+	this->cmdfunc		= orion_nfc_cmdfunc;
+	this->read_word		= orion_nfc_read_word;
+	this->read_byte		= orion_nfc_read_byte;
+	this->read_buf		= orion_nfc_read_buf;
+	this->write_buf		= orion_nfc_write_buf;
+	this->verify_buf	= orion_nfc_verify_buf;
+	this->block_markbad	= orion_nfc_markbad;
 	this->ecc.mode		= NAND_ECC_HW;
-	this->ecc.hwctl		= pxa3xx_nand_ecc_hwctl;
-	this->ecc.calculate	= pxa3xx_nand_ecc_calculate;
-	this->ecc.correct	= pxa3xx_nand_ecc_correct;
-	this->ecc.size		= f->page_size;
-
-	if(this->ecc_8bit_1k) {
-		if (info->nfcCtrl.ifMode != MV_NFC_IF_2X8)
-			this->ecc.layout = &hw_largepage_bch_8bit_1k_ecclayout;
-		else
-			this->ecc.layout = &hw_ganged_largepage_bch_8bit_1k_ecclayout;
-	} else {
-		if (f->page_size >= 2048) {
-			if (info->nfcCtrl.ifMode != MV_NFC_IF_2X8) {
-				if (f->page_size < 4096) {
-					if (info->use_bch)
-						this->ecc.layout =
-							&hw_largepage_bch_ecclayout;
-					else 
-						this->ecc.layout =
-							&hw_largepage_ecclayout;
-				} else
-					this->ecc.layout =
-						&hw_ganged_largepage_bch_ecclayout;
-			} else {
-				if (f->page_size <= 4096)
-					this->ecc.layout =
-						&hw_ganged_largepage_bch_ecclayout;
-				else
-					this->ecc.layout =
-						&hw_ganged_largepage_8k_bch_ecclayout;
-			}
-		} else
-			this->ecc.layout = &hw_smallpage_ecclayout;
-	}
-	this->bbt_td = &mvbbt_main_descr;
-	this->bbt_md = &mvbbt_mirror_descr;
-
-	this->chip_delay = 25;
+	this->ecc.hwctl		= orion_nfc_ecc_hwctl;
+	this->ecc.calculate	= orion_nfc_ecc_calculate;
+	this->ecc.correct	= orion_nfc_ecc_correct;
+	this->ecc.size		= pg_sz[info->page_size];
+	this->ecc.layout	= ECC_LAYOUT;
+	this->bbt_td 		= &mvbbt_main_descr;
+	this->bbt_md 		= &mvbbt_mirror_descr;
+	this->badblock_pattern	= BB_INFO;
+	this->chip_delay 	= 25;
 }
 
-static int pxa3xx_nand_probe(struct platform_device *pdev)
+static int orion_nfc_probe(struct platform_device *pdev)
 {
-	struct dove_nand_platform_data *pdata;
-	struct pxa3xx_nand_info *info;
+	struct nfc_platform_data *pdata;
+	struct orion_nfc_info *info;
 	struct nand_chip *this;
 	struct mtd_info *mtd;
 	struct resource *r;
 	int ret = 0, irq;
 	char * stat[2] = {"Disabled", "Enabled"};
+	char * ecc_stat[] = {"Hamming", "BCH 4bit", "BCH 8bit", "BCH 12bit", "BCH 16bit", "No"};
 	MV_NFC_INFO nfcInfo;
 
 	pdata = pdev->dev.platform_data;
@@ -1211,28 +1227,28 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	}
 
 	/* Set global parameters based on platform data */
-	if (pdata->use_dma) use_dma = 1;
-	if (pdata->use_ecc) use_ecc = 1;
-	if (pdata->use_bch) use_bch = 1;
+	//if (pdata->use_dma) use_dma = 1;
 
-	dev_info(&pdev->dev, "Initialize HAL based NFC in %dbit mode with "
-			"DMA %s, ECC %s, BCH %s, 8bitECC %s\n",
-			pdata->nfc_width, stat[use_dma], stat[use_ecc],
-			stat[use_bch], stat[pdata->use_8bit_ecc]);
+	dev_info(&pdev->dev, "Initialize HAL based NFC in %dbit mode with DMA %s using %s ECC\n",
+			pdata->nfc_width, stat[pdata->use_dma], ecc_stat[pdata->ecc_type]);
 
-	mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct pxa3xx_nand_info),
+	mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct orion_nfc_info),
 			GFP_KERNEL);
 	if (!mtd) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
 		return -ENOMEM;
 	}
 
-	info = (struct pxa3xx_nand_info *)(&mtd[1]);
+	info = (struct orion_nfc_info *)(&mtd[1]);
 	info->pdev = pdev;
 
 	this = &info->nand_chip;
 	mtd->priv = info;
 	mtd->owner = THIS_MODULE;
+
+	/* Copy all necessary information from platform data */
+	info->use_dma = pdata->use_dma;
+	info->ecc_type = pdata->ecc_type;
 
         info->clk = clk_get_sys("dove-nand", NULL);
         if (IS_ERR(info->clk)) {
@@ -1281,18 +1297,9 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	}
 #endif
 	/* Initialize NFC HAL */
-	nfcInfo.ioMode = (use_dma ? MV_NFC_PDMA_ACCESS : MV_NFC_PIO_ACCESS);
-	if (use_ecc) {
-		if (use_bch) {
-			if (pdata->use_8bit_ecc)
-				nfcInfo.eccMode = MV_NFC_ECC_BCH_1K;
-			else
-				nfcInfo.eccMode = MV_NFC_ECC_BCH_2K;
-		} else
-			nfcInfo.eccMode = MV_NFC_ECC_HAMMING;
-	} else
-		nfcInfo.eccMode = MV_NFC_ECC_DISABLE;
-
+	nfcInfo.ioMode = (pdata->use_dma ? MV_NFC_PDMA_ACCESS : MV_NFC_PIO_ACCESS);
+	nfcInfo.eccMode = pdata->ecc_type;
+		
 	if(pdata->num_devs == 1)
 		nfcInfo.ifMode = ((pdata->nfc_width == 8) ? MV_NFC_IF_1X8 : MV_NFC_IF_1X16);
 	else
@@ -1315,29 +1322,33 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 	mvNfcIntrEnable(&info->nfcCtrl,  0xFFF, MV_FALSE);
 	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_NONE);
 
-	ret = pxa3xx_nand_init_buff(info);
+	ret = orion_nfc_init_buff(info);
 	if (ret)
 		goto fail_put_clk;
 
 	/* Clear all old events on the status register */
 	MV_REG_WRITE(NFC_STATUS_REG, MV_REG_READ(NFC_STATUS_REG));
-	ret = request_irq(IRQ_NAND, pxa3xx_nand_irq, IRQF_DISABLED,
+	ret = request_irq(IRQ_NAND, orion_nfc_irq, IRQF_DISABLED,
 				pdev->name, info);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto fail_free_buf;
-	}
+	}	
 
-	ret = pxa3xx_nand_detect_flash(info);
+	ret = orion_nfc_detect_flash(info);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to detect flash\n");
 		ret = -ENODEV;
 		goto fail_free_irq;
 	}
 
-	pxa3xx_nand_set_rw_chunks(info);
+	orion_nfc_init_mtd(mtd, info);
 
-	pxa3xx_nand_init_mtd(mtd, info);
+	if (info->nand_chip.ecc.layout == NULL) {
+		dev_err(&pdev->dev, "Undefined ECC layout for selected nand device\n");
+		ret = -ENXIO;
+		goto fail_free_irq;
+	}
 
 	platform_set_drvdata(pdev, mtd);
 
@@ -1385,7 +1396,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 fail_free_irq:
 	free_irq(IRQ_NAND, info);
 fail_free_buf:
-	if (use_dma) {
+	if (pdata->use_dma) {
 		dma_free_coherent(&pdev->dev, info->data_buff_size,
 			info->data_buff, info->data_buff_phys);
 	} else
@@ -1398,17 +1409,17 @@ fail_free_mtd:
 	return ret;
 }
 
-static int pxa3xx_nand_remove(struct platform_device *pdev)
+static int orion_nfc_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 
 	platform_set_drvdata(pdev, NULL);
 
 	del_mtd_device(mtd);
 	del_mtd_partitions(mtd);
 	free_irq(IRQ_NAND, info);
-	if (use_dma) {
+	if (info->use_dma) {
 		dma_free_writecombine(&pdev->dev, info->data_buff_size,
 				info->data_buff, info->data_buff_phys);
 	} else
@@ -1421,10 +1432,10 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
+static int orion_nfc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct mtd_info *mtd = (struct mtd_info *)platform_get_drvdata(pdev);
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 
 	if (info->state != STATE_READY) {
 		dev_err(&pdev->dev, "driver busy, state = %d\n", info->state);
@@ -1443,10 +1454,10 @@ static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int pxa3xx_nand_resume(struct platform_device *pdev)
+static int orion_nfc_resume(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = (struct mtd_info *)platform_get_drvdata(pdev);
-	struct pxa3xx_nand_info *info = mtd->priv;
+	struct orion_nfc_info *info = mtd->priv;
 	MV_U32	i;
 
 	clk_enable(info->clk);
@@ -1465,32 +1476,32 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 	return 0;
 }
 #else
-#define pxa3xx_nand_suspend	NULL
-#define pxa3xx_nand_resume	NULL
+#define orion_nfc_suspend	NULL
+#define orion_nfc_resume	NULL
 #endif
 
-static struct platform_driver pxa3xx_nand_driver = {
+static struct platform_driver orion_nfc_driver = {
 	.driver = {
-		.name	= "dove-nand-hal",
+		.name	= "orion-nfc-hal",
 		.owner	= THIS_MODULE,
 	},
-	.probe		= pxa3xx_nand_probe,
-	.remove		= pxa3xx_nand_remove,
-	.suspend	= pxa3xx_nand_suspend,
-	.resume		= pxa3xx_nand_resume,
+	.probe		= orion_nfc_probe,
+	.remove		= orion_nfc_remove,
+	.suspend	= orion_nfc_suspend,
+	.resume		= orion_nfc_resume,
 };
 
-static int __init pxa3xx_nand_init(void)
+static int __init orion_nfc_init(void)
 {
-	return platform_driver_register(&pxa3xx_nand_driver);
+	return platform_driver_register(&orion_nfc_driver);
 }
-module_init(pxa3xx_nand_init);
+module_init(orion_nfc_init);
 
-static void __exit pxa3xx_nand_exit(void)
+static void __exit orion_nfc_exit(void)
 {
-	platform_driver_unregister(&pxa3xx_nand_driver);
+	platform_driver_unregister(&orion_nfc_driver);
 }
-module_exit(pxa3xx_nand_exit);
+module_exit(orion_nfc_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Dove NAND controller driver");

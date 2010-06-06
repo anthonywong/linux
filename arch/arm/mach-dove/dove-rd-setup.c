@@ -33,7 +33,7 @@
 #include <asm/mach/arch.h>
 #include <mach/dove.h>
 #include <asm/hardware/pxa-dma.h>
-#include <mach/dove_nand.h>
+#include <plat/orion_nfc.h>
 #include "common.h"
 #include "mpp.h"
 #include "clock.h"
@@ -114,7 +114,7 @@ static struct mtd_partition partition_dove[] = {
 	  .size		= 2043 * SZ_1M },
 };
 static u64 nfc_dmamask = DMA_BIT_MASK(32);
-static struct dove_nand_platform_data dove_rd_nfc_data = {
+static struct nfc_platform_data dove_rd_nfc_data = {
 	.nfc_width	= 8,
 	.use_dma	= 1,
 	.use_ecc	= 1,
@@ -149,7 +149,7 @@ static struct resource dove_nfc_resources[]  = {
 };
 
 static struct platform_device dove_nfc = {
-	.name		= "dove-nand",
+	.name		= "orion-nfc",
 	.id		= -1,
 	.dev		= {
 		.dma_mask		= &nfc_dmamask,

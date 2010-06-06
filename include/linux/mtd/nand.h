@@ -392,8 +392,10 @@ struct nand_chip {
 #ifdef CONFIG_MV_MTD_GANG_SUPPORT
 	unsigned int	num_devs;
 #endif
-#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
-	unsigned int	ecc_8bit_1k;
+#ifdef CONFIG_MV_MTD_MLC_NAND_SUPPORT
+	unsigned int	oobsize_ovrd;
+	unsigned int	bb_location;
+	unsigned int	bb_page;
 #endif
 	int		page_shift;
 	int		phys_erase_shift;
@@ -474,9 +476,6 @@ struct nand_manufacturers {
 
 extern struct nand_flash_dev nand_flash_ids[];
 extern struct nand_manufacturers nand_manuf_ids[];
-#ifdef CONFIG_MV_MTD_4K_8BIT_ECC_SUPPORT
-extern struct nand_flash_dev nand_flash_8bit_1k_ids[];
-#endif
 
 /**
  * struct nand_bbt_descr - bad block table descriptor
@@ -543,6 +542,11 @@ struct nand_bbt_descr {
 #define NAND_BBT_SAVECONTENT	0x00002000
 /* Search good / bad pattern on the first and the second page */
 #define NAND_BBT_SCAN2NDPAGE	0x00004000
+
+#ifdef CONFIG_MV_MTD_MLC_NAND_SUPPORT
+/* Search the bad block indicators according to Marvell's Naked symantics */
+#define NAND_BBT_SCANMVCUSTOM	0x10000000
+#endif
 
 /* The maximum number of blocks to scan for a bbt */
 #define NAND_BBT_SCAN_MAXBLOCKS	4
