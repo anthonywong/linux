@@ -1,4 +1,215 @@
-linux (2.6.34-3.10) maverick; urgency=low
+linux-maverick (2.6.35-1.1~lucid1) lucid-proposed; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * ubuntu: AUFS -- update to standalone 2.6.35-rcN as at 20100601
+    - LP: #587888
+  * ubuntu: AUFS -- track changes to the arguements to fop fsync(~lucid1)
+
+  [ Leann Ogasawara ]
+
+  * rebase to v2.6.35-rc1
+  * [Config] update configs following rebase to v2.6.35-rc1
+  * [Config] update port configs following rebase to v2.6.35-rc1
+  * SAUCE: lirc: rename usb_buffer_alloc(~lucid1) and usb_buffer_free()
+  * SAUCE: ndiswrapper: rename usb_buffer_alloc(~lucid1) and usb_buffer_free()
+  * SAUCE: ndiswrapper: convert multicast list to list_head
+  * [Config] [FTBS] armel: Temporarily disable CONFIG_GPIO_JANZ_TTL
+  * [Config] [FTBS] ia64: Temporarily disable gpiolib
+  * [Config] [FTBS] ia64: Temporarily disable CONFIG_CEPH_FS
+  * [Config] [FTBS] sparc: Temporarily disable CONFIG_INFINIBAND_QIB
+  * [Config] [FTBS] sparc: Temporarily disable CONFIG_MFD_JANZ_CMODIO
+  * [Config] [FTBS] armel: Temporarily disable CONFIG_MFD_JANZ_CMODIO
+  * [Config] [FTBS] armel: Temporarily disable CONFIG_DT3155
+  * [Config] [FTBS] sparc: Temporarily disable CONFIG_MTD_NAND_DENALI
+  * [Config] [FTBS] armel: Temporarily disable bnx2
+  * [Config] [FTBS] armel: Temporarily disable CONFIG_SERIAL_UARTLITE
+  * SAUCE: [FTBS] armel: Don't include asm/agp.h for ttm
+  * SAUCE: [FTBS] armel: include linux/dma-mapping.h
+  * SAUCE: [FTBS] armel: replace omap_set_gpio_debounce with
+    gpio_set_debounce
+
+  [ Upstream Kernel Changes ]
+
+  * of/usb: fix build error due to of_node pointer move
+  * n2_crypto: Fix build after of_device/of_platform_driver changes.
+  * powerpc/fsl-booke: fix the case where we are not in the first page
+  * powerpc/fsl-booke: Move the entry setup code into a seperate file
+  * powerpc/kexec: Add support for FSL-BookE
+  * greth: Fix build after OF device conversions.
+
+  [ Upstream changes ]
+
+  * rebased to v2.6.35-rc1
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 04 Jun 2010 23:01:52 -0700
+
+linux (2.6.35-1.0~lucid1) UNRELEASED; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * Null entry.
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 02 Jun 2010 15:17:41 -0700
+
+linux (2.6.34-5.14~lucid1) maverick; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] Added module inclusion support
+  * [Config] Added virtual flavour module inclusion list and d-i package
+    definitions
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 02 Jun 2010 12:58:14 -0700
+
+linux (2.6.34-5.13~lucid1) maverick; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * Revert "ubuntu: AUFS -- aufs2 20091209"
+  * Revert "ubuntu: AUFS -- export various core functions
+    (aufs2-standalone.patch~lucid1)"
+  * Revert "ubuntu: AUFS -- export various core functions
+    (aufs2-base.patch~lucid1)"
+  * ubuntu: AUFS -- aufs2 base patch for linux-2.6.34
+    - LP: #587888
+  * ubuntu: AUFS -- aufs2 standalone patch for linux-2.6.34
+    - LP: #587888
+  * ubuntu: AUFS -- update to standalone 2.6.34 as at 20100601
+    - LP: #587888
+  * [Config] AUFS -- enable aufs options
+    - LP: #587888
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 01 Jun 2010 08:56:43 -0700
+
+linux (2.6.34-5.12~lucid1) maverick; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * enforce -- ensure SYSFS compatibility is disabled
+
+  [ Chase Douglas ]
+
+  * build with libdw-dev for perf probe symbol support
+  * maverick ftrace configuration changes
+
+  [ Kees Cook ]
+
+  * Revert "SAUCE: x86: brk away from exec rand area"
+  * Revert "SAUCE: [um] Don't use nx_enabled under UML"
+  * Revert "SAUCE: [x86] implement cs-limit nx-emulation for ia32"
+  * SAUCE: x86: implement cs-limit nx-emulation for ia32
+    - LP: #369978
+  * SAUCE: x86: more tightly confine cs-limit nx-emulation to ia32 only
+  * SAUCE: x86: brk away from exec rand area
+    - LP: #452175
+  * SAUCE: ptrace: restrict ptrace scope to children
+
+  [ Leann Ogasawara ]
+
+  * Add new omap flavour to getabis
+  * [Config] Enable CONFIG_FRAMEBUFFER_CONSOLE=y for all archs
+    - LP: #585490
+  * build/modules: Temorarily add ignore.modules
+  * ubuntu: iscsitarget -- version 1.4.20.1
+
+  [ Loïc Minier ]
+
+  * SAUCE: [um] Don't use nx_enabled under UML
+    - LP: #524849
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 28 May 2010 08:27:17 -0700
+
+linux (2.6.34-4.11~lucid1) maverick; urgency=low
+
+  [ Amit Kucheria ]
+
+  * SAUCE: omap: remove calls to usb_nop_xceiv_register from board files
+  * [Config] Add support for OMAP-mainline flavour
+
+  [ Andy Whitcroft ]
+
+  * SAUCE: powerpc: fix compile error when ptrace.h is included from
+    userspace
+    - LP: #583733
+
+  [ Chase Douglas ]
+
+  * Revert "SAUCE: Don't register vga16fb framebuffer if other framebuffers
+    are present"
+  * Revert "SAUCE: Disable function tracing after hitting __schedule_bug"
+  * Revert "SAUCE: drm/i915: don't change DRM configuration when releasing
+    load detect pipe"
+
+  [ Kees Cook ]
+
+  * SAUCE: fs: block cross-uid sticky symlinks
+  * SAUCE: fs: block hardlinks to non-accessible sources
+
+  [ Koen Kooi ]
+
+  * SAUCE: board-omap3-beagle: add DSS2 support
+
+  [ Leann Ogasawara ]
+
+  * Revert "staging/go7007 -- disable"
+  * Revert "[Config] staging/winbond -- disable"
+  * Revert "Disable 4MB page tables for Atom, work around errata AAE44"
+  * Revert "SAUCE: sync before umount to reduce time taken by ext4 umount"
+  * Revert "SAUCE: Enable an e1000e Intel Corporation 82567 Gigabit
+    controller"
+  * Revert "SAUCE: Fix MODULE_IMPORT/MODULE_EXPORT"
+  * Revert "SAUCE: Created MODULE_EXPORT/MODULE_IMPORT macros"
+  * Revert "SAUCE: input/mouse/alps: Do not call psmouse_reset(~lucid1) for alps"
+  * Revert "SAUCE: r8169: disable TSO by default for RTL8111/8168B
+    chipsets."
+  * Revert "[Upstream] b43: Declare all possible firmware files."
+  * Revert "add Breaks: against hardy lvm2"
+  * Revert "SAUCE: Guest OS does not recognize a lun with non zero target
+    id on Vmware ESX Server"
+  * Revert "SAUCE: Catch nonsense keycodes and silently ignore"
+  * [Config] Enable CONFIG_ECRYPT_FS=y for ports
+  * [Config] Enable CONFIG_USB=y for armel and sparc
+  * [Config] Enable CONFIG_SCSI=y for ia64 and sparc
+  * [Config] Enable CONFIG_RFKILL=y for ports
+  * [Config] Enable CONFIG_ATH9K_DEBUGFS=y
+  * [Config] Enable CONFIG_IWMC3200TOP_DEBUGFS=y
+  * [Config] Enable CONFIG_RCU_FAST_NO_HZ=y
+  * [Config] Enable CONFIG_IWLWIFI_DEVICE_TRACING=y
+  * [Config] Enable CONFIG_LIBERTAS_MESH=y
+  * [Config] Enable CONFIG_MMC_RICOH_MMC=y
+  * [Config] CONFIG_RT2800USB_UNKNOWN=y
+  * [Config] Enable CONFIG_VGA_SWITCHEROO=y
+  * [Config] Enable CONFIG_CEPH_FS=m
+  * [Config] Enable CONFIG_CRYPTO_PCRYPT=m
+  * [Config] Enable CONFIG_EEEPC_WMI=m
+  * [Config] Enable CONFIG_RT2800PCI=m
+  * [Config] Enable CONFIG_SCSI_HPSA=m
+  * [Config] Enable CONFIG_VHOST_NET=m
+  * [Config] Disable CONFIG_SND_HDA_INPUT_BEEP_MODE by default
+    - LP: #582350
+  * [Config] Disable CONFIG_SOUND_OSS* and CONFIG_SND_*OSS
+    - LP: #579300
+  * [Config] Enable CONFIG_PCIEASPM=y
+    - LP: #333990
+  * [Config] updateconfigs for OMAP flavour
+
+  [ Loïc Minier ]
+
+  * Enable perf tools on armel
+
+  [ Tim Gardner ]
+
+  * SAUCE: Updated ndiswrapper to 1.56
+    - LP: #582555
+  * [Config] Added virtual flavour
+  * [Config] Remove support for sub-flavours
+  * [Config] Removed amd64 preempt flavour
+  * [Config] updateconfigs, updateportsconfigs after flavour munging
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 25 May 2010 09:34:55 -0700
+
+linux (2.6.34-3.10~lucid1) maverick; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -10,7 +221,7 @@ linux (2.6.34-3.10) maverick; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 18 May 2010 17:35:35 -0700
 
-linux (2.6.34-2.9) maverick; urgency=low
+linux (2.6.34-2.9~lucid1) maverick; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -18,7 +229,7 @@ linux (2.6.34-2.9) maverick; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 13 May 2010 23:20:55 +0200
 
-linux (2.6.34-2.8) maverick; urgency=low
+linux (2.6.34-2.8~lucid1) maverick; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -28,7 +239,7 @@ linux (2.6.34-2.8) maverick; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 13 May 2010 16:07:52 +0200
 
-linux (2.6.34-2.7) maverick; urgency=low
+linux (2.6.34-2.7~lucid1) maverick; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -37,7 +248,7 @@ linux (2.6.34-2.7) maverick; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 12 May 2010 18:26:43 +0200
 
-linux (2.6.34-1.6) maverick; urgency=low
+linux (2.6.34-1.6~lucid1) maverick; urgency=low
 
   [ Chase Douglas ]
 
@@ -70,7 +281,7 @@ linux (2.6.34-1.6) maverick; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 11 May 2010 11:29:08 +0200
 
-linux (2.6.34-1.5) UNRELEASED; urgency=low
+linux (2.6.34-1.5~lucid1) UNRELEASED; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -84,7 +295,7 @@ linux (2.6.34-1.5) UNRELEASED; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 30 Apr 2010 15:54:05 +0100
 
-linux (2.6.34-1.4) UNRELEASED; urgency=low
+linux (2.6.34-1.4~lucid1) UNRELEASED; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -97,7 +308,7 @@ linux (2.6.34-1.4) UNRELEASED; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 22 Apr 2010 15:36:12 -0700
 
-linux (2.6.34-1.3) UNRELEASED; urgency=low
+linux (2.6.34-1.3~lucid1) UNRELEASED; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -112,7 +323,7 @@ linux (2.6.34-1.3) UNRELEASED; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 13 Apr 2010 18:33:44 -0700
 
-linux (2.6.34-1.2) UNRELEASED; urgency=low
+linux (2.6.34-1.2~lucid1) UNRELEASED; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -127,7 +338,7 @@ linux (2.6.34-1.2) UNRELEASED; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 30 Mar 2010 16:55:44 -0700
 
-linux (2.6.34-1.1) UNRELEASED; urgency=low
+linux (2.6.34-1.1~lucid1) UNRELEASED; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -142,7 +353,7 @@ linux (2.6.34-1.1) UNRELEASED; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 24 Mar 2010 23:00:39 -0700
 
-linux (2.6.33-1.1) UNRELEASED; urgency=low
+linux (2.6.33-1.1~lucid1) UNRELEASED; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -161,7 +372,7 @@ linux (2.6.33-1.1) UNRELEASED; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 23 Mar 2010 03:55:46 -0700
 
-linux (2.6.33-0.0) UNRELEASED; urgency=low
+linux (2.6.33-0.0~lucid1) UNRELEASED; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -169,7 +380,7 @@ linux (2.6.33-0.0) UNRELEASED; urgency=low
 
  -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 17 Mar 2010 07:48:56 -0700
 
-linux (2.6.32-16.25) lucid; urgency=low
+linux (2.6.32-16.25~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -182,14 +393,14 @@ linux (2.6.32-16.25) lucid; urgency=low
 
   [ Upstream Kernel Changes ]
 
-  * (pre-stable) sched: Fix SMT scheduler regression in
-    find_busiest_queue()
+  * (pre-stable~lucid1) sched: Fix SMT scheduler regression in
+    find_busiest_queue(~lucid1)
   * KVM: introduce kvm_vcpu_on_spin
   * KVM: VMX: Add support for Pause-Loop Exiting
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 09 Mar 2010 14:13:51 +0000
 
-linux (2.6.32-16.24) lucid; urgency=low
+linux (2.6.32-16.24~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -198,7 +409,7 @@ linux (2.6.32-16.24) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Sat, 06 Mar 2010 11:42:12 +0000
 
-linux (2.6.32-16.23) lucid; urgency=low
+linux (2.6.32-16.23~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -217,7 +428,7 @@ linux (2.6.32-16.23) lucid; urgency=low
   * SAUCE: fix up Kconfig for staging drivers
   * [Config] enable NOUVEAU etc following drm backport
   * update DRM to mainline v2.6.33
-  * [Config] Remove AppArmor config options that no longer exist (ports)
+  * [Config] Remove AppArmor config options that no longer exist (ports~lucid1)
   * [Config] updateportsconfigs following drm update
 
   [ John Johansen ]
@@ -249,22 +460,22 @@ linux (2.6.32-16.23) lucid; urgency=low
     emulation"
   * Revert "KVM: x86 emulator: Add Virtual-8086 mode of emulation"
   * Revert "KVM: fix memory access during x86 emulation."
-  * Add vlan (8021.Q) module package for d-i.
-  * (pre-stable) drm/i915: blacklist lid status: Sony VGN-BX196VP, Dell
+  * Add vlan (8021.Q~lucid1) module package for d-i.
+  * (pre-stable~lucid1) drm/i915: blacklist lid status: Sony VGN-BX196VP, Dell
     Inspiron 700m
     - LP: #515246
   * [Upstream] docbook: need xmldoclinks for all doc types
-  * x86: set_personality_ia32() misses force_personality32
+  * x86: set_personality_ia32(~lucid1) misses force_personality32
   * lib: Introduce generic list_sort function
   * drm/nv50: Implement ctxprog/state generation.
   * drm/nv50: Remove redundant/incorrect ctxvals initialisation.
-  * (pre-stable) drm/i915: blacklist lid status: Sony VGN-BX196VP, Dell
+  * (pre-stable~lucid1) drm/i915: blacklist lid status: Sony VGN-BX196VP, Dell
     Inspiron 700m
     - LP: #515246
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 05 Mar 2010 15:40:38 +0000
 
-linux (2.6.32-15.22) lucid; urgency=low
+linux (2.6.32-15.22~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -278,13 +489,13 @@ linux (2.6.32-15.22) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 02 Mar 2010 01:35:37 +0000
 
-linux (2.6.32-15.21) lucid; urgency=low
+linux (2.6.32-15.21~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
-  * Revert "(pre-stable) drm/i915: Increase fb alignment to 64k"
+  * Revert "(pre-stable~lucid1) drm/i915: Increase fb alignment to 64k"
   * Revert "[Config] lenovo-sl-laptop -- enable"
-  * Revert "ubuntu: lenovo-sl-laptop -- git tip (b19a08f81f)"
+  * Revert "ubuntu: lenovo-sl-laptop -- git tip (b19a08f81f~lucid1)"
   * armel -- cramfs module will no longer be built
   * d-i -- make all modules optional
   * rename the debug packages to match archive standard
@@ -336,20 +547,20 @@ linux (2.6.32-15.21) lucid; urgency=low
   [ Tim Gardner ]
 
   * [Config] Enabled CONFIG_LEDS_DELL_NETBOOKS=m
-  * SAUCE: (pre-stable) netfilter: xt_recent: fix buffer overflow
-  * SAUCE: (pre-stable) netfilter: xt_recent: fix false match
+  * SAUCE: (pre-stable~lucid1) netfilter: xt_recent: fix buffer overflow
+  * SAUCE: (pre-stable~lucid1) netfilter: xt_recent: fix false match
 
   [ Upstream Kernel Changes ]
 
-  * Revert "(pre-stable) eCryptfs: Add getattr function"
+  * Revert "(pre-stable~lucid1) eCryptfs: Add getattr function"
   * Fix potential crash with sys_move_pages
-  * futex_lock_pi() key refcnt fix
+  * futex_lock_pi(~lucid1) key refcnt fix
   * futex: Handle user space corruption gracefully
   * futex: Handle futex value corruption gracefully
-  * Fix race in tty_fasync() properly
-  * hwmon: (w83781d) Request I/O ports individually for probing
-  * hwmon: (lm78) Request I/O ports individually for probing
-  * hwmon: (adt7462) Wrong ADT7462_VOLT_COUNT
+  * Fix race in tty_fasync(~lucid1) properly
+  * hwmon: (w83781d~lucid1) Request I/O ports individually for probing
+  * hwmon: (lm78~lucid1) Request I/O ports individually for probing
+  * hwmon: (adt7462~lucid1) Wrong ADT7462_VOLT_COUNT
   * ALSA: ctxfi - fix PTP address initialization
   * drm/i915: disable hotplug detect before Ironlake CRT detect
   * drm/i915: enable self-refresh on 965
@@ -372,13 +583,13 @@ linux (2.6.32-15.21) lucid; urgency=low
   * resource: add helpers for fetching rlimits
   * fs/exec.c: restrict initial stack space expansion to rlimit
   * cifs: fix length calculation for converted unicode readdir names
-  * NFS: Fix a reference leak in nfs_wb_cancel_page()
-  * NFS: Try to commit unstable writes in nfs_release_page()
+  * NFS: Fix a reference leak in nfs_wb_cancel_page(~lucid1)
+  * NFS: Try to commit unstable writes in nfs_release_page(~lucid1)
   * NFSv4: Don't allow posix locking against servers that don't support it
   * NFSv4: Ensure that the NFSv4 locking can recover from stateid errors
   * NFS: Fix an Oops when truncating a file
   * NFS: Fix a umount race
-  * NFS: Fix a bug in nfs_fscache_release_page()
+  * NFS: Fix a bug in nfs_fscache_release_page(~lucid1)
   * NFS: Fix the mapping of the NFSERR_SERVERFAULT error
   * md: fix 'degraded' calculation when starting a reshape.
   * V4L/DVB: dvb-core: fix initialization of feeds list in demux filter
@@ -398,16 +609,16 @@ linux (2.6.32-15.21) lucid; urgency=low
   * dasd: remove strings from s390dbf
   * crypto: padlock-sha - Add import/export support
   * wmi: Free the allocated acpi objects through wmi_get_event_data
-  * dell-wmi, hp-wmi, msi-wmi: check wmi_get_event_data() return value
-  * /dev/mem: introduce size_inside_page()
+  * dell-wmi, hp-wmi, msi-wmi: check wmi_get_event_data(~lucid1) return value
+  * /dev/mem: introduce size_inside_page(~lucid1)
   * devmem: check vmalloc address on kmem read/write
   * devmem: fix kmem write bug on memory holes
   * SCSI: mptfusion : mptscsih_abort return value should be SUCCESS instead
     of value 0.
   * sh: Couple kernel and user write page perm bits for CONFIG_X2TLB
-  * ALSA: hda - use WARN_ON_ONCE() for zero-division detection
-  * dst: call cond_resched() in dst_gc_task()
-  * ALSA: hda - Improved MacBook (Pro) 5,1 / 5,2 support
+  * ALSA: hda - use WARN_ON_ONCE(~lucid1) for zero-division detection
+  * dst: call cond_resched(~lucid1) in dst_gc_task()
+  * ALSA: hda - Improved MacBook (Pro~lucid1) 5,1 / 5,2 support
   * befs: fix leak
   * rtc-fm3130: add missing braces
   * Call flush_dcache_page after PIO data transfers in libata-sff.c
@@ -437,11 +648,11 @@ linux (2.6.32-15.21) lucid; urgency=low
   * dm log: userspace fix overhead_size calcuations
   * Linux 2.6.32.9
   * sfc: Fix SFE4002 initialisation
-  * sfc: Fix sign of efx_mcdi_poll_reboot() error in efx_mcdi_poll()
+  * sfc: Fix sign of efx_mcdi_poll_reboot(~lucid1) error in efx_mcdi_poll()
   * sfc: SFE4002/SFN4112F: Widen temperature and voltage tolerances
-  * (pre-stable) HID: handle joysticks with large number of buttons
+  * (pre-stable~lucid1) HID: handle joysticks with large number of buttons
     - LP: #492056
-  * (pre-stable) HID: extend mask for BUTTON usage page
+  * (pre-stable~lucid1) HID: extend mask for BUTTON usage page
     - LP: #492056
   * PM: Measure device suspend and resume times
   * e1000: enhance frame fragment detection
@@ -466,7 +677,7 @@ linux (2.6.32-15.21) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Mon, 01 Mar 2010 22:56:28 +0000
 
-linux (2.6.32-14.20) lucid; urgency=low
+linux (2.6.32-14.20~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -478,7 +689,7 @@ linux (2.6.32-14.20) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 19 Feb 2010 18:47:18 +0000
 
-linux (2.6.32-14.19) lucid; urgency=low
+linux (2.6.32-14.19~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -511,20 +722,20 @@ linux (2.6.32-14.19) lucid; urgency=low
   * drm/edid: Unify detailed block parsing between base and extension
     blocks
     - LP: #500999
-  * (pre-stable) eCryptfs: Add getattr function
+  * (pre-stable~lucid1) eCryptfs: Add getattr function
     - LP: #390833
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 18 Feb 2010 19:22:02 +0000
 
-linux (2.6.32-13.18) lucid; urgency=low
+linux (2.6.32-13.18~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
   * Revert "enforcer -- make the enforcement configuration common"
-  * Revert "(pre-stable) Input: ALPS - add interleaved protocol support
-    (Dell E6x00 series)"
-  * Revert "(pre-stable) driver-core: fix devtmpfs crash on s390"
-  * Revert "(pre-stable) Driver-Core: devtmpfs - set root directory mode to
+  * Revert "(pre-stable~lucid1) Input: ALPS - add interleaved protocol support
+    (Dell E6x00 series~lucid1)"
+  * Revert "(pre-stable~lucid1) driver-core: fix devtmpfs crash on s390"
+  * Revert "(pre-stable~lucid1) Driver-Core: devtmpfs - set root directory mode to
     0755"
   * Revert "SAUCE: Adds support for COMPAL JHL90 webcam"
   * Revert "SAUCE: fix kernel oops in VirtualBox during paravirt patching"
@@ -546,7 +757,7 @@ linux (2.6.32-13.18) lucid; urgency=low
 
   [ Chris Wilson ]
 
-  * (pre-stable) drm/i915: Increase fb alignment to 64k
+  * (pre-stable~lucid1) drm/i915: Increase fb alignment to 64k
     - LP: #404064
 
   [ Eric Miao ]
@@ -571,8 +782,8 @@ linux (2.6.32-13.18) lucid; urgency=low
   * [Config] versatile Builtin SCSI controller
   * [Config] armel Disable dma_cache_sync callers
   * [Config] armel Disable asm/time.h users
-  * [Config] armel Disable out of range udelay()
-  * [Config] armel Disable flush_cache_range() users
+  * [Config] armel Disable out of range udelay(~lucid1)
+  * [Config] armel Disable flush_cache_range(~lucid1) users
   * [Config] armel -- Enable ubuntu/ drivers
 
   [ Steve Conklin ]
@@ -594,22 +805,22 @@ linux (2.6.32-13.18) lucid; urgency=low
   * ar9170: Add support for D-Link DWA 160 A2
   * powerpc/fsl: Add PCI device ids for new QoirQ chips
   * davinci: dm646x: Add support for 3.x silicon revision
-  * Input: ALPS - add interleaved protocol support (Dell E6x00 series)
+  * Input: ALPS - add interleaved protocol support (Dell E6x00 series~lucid1)
   * Driver-Core: devtmpfs - set root directory mode to 0755
   * driver-core: fix devtmpfs crash on s390
-  * vfs: get_sb_single() - do not pass options twice
+  * vfs: get_sb_single(~lucid1) - do not pass options twice
   * ALSA: hda - Add PCI IDs for Nvidia G2xx-series
-  * V4L/DVB (13569): smsusb: add autodetection support for five additional
+  * V4L/DVB (13569~lucid1): smsusb: add autodetection support for five additional
     Hauppauge USB IDs
   * USB: mos7840: add device IDs for B&B electronics devices
   * USB: ftdi_sio: add USB device ID's for B&B Electronics line
-  * V4L/DVB (13168): Add support for Asus Europa Hybrid DVB-T card (SAA7134
-    SubVendor ID: 0x1043 Device ID: 0x4847)
+  * V4L/DVB (13168~lucid1): Add support for Asus Europa Hybrid DVB-T card (SAA7134
+    SubVendor ID: 0x1043 Device ID: 0x4847~lucid1)
   * iTCO_wdt: Add support for Intel Ibex Peak
   * atl1c:use common_task instead of reset_task and link_chg_task
   * atl1e:disable NETIF_F_TSO6 for hardware limit
-  * V4L/DVB (13680a): DocBook/media: copy images after building HTML
-  * V4L/DVB (13680b): DocBook/media: create links for included sources
+  * V4L/DVB (13680a~lucid1): DocBook/media: copy images after building HTML
+  * V4L/DVB (13680b~lucid1): DocBook/media: create links for included sources
   * netfilter: xtables: fix conntrack match v1 ipt-save output
   * partitions: read whole sector with EFI GPT header
   * partitions: use sector size for EFI GPT
@@ -623,7 +834,7 @@ linux (2.6.32-13.18) lucid; urgency=low
   * iscsi class: modify handling of replacement timeout
   * NFS: Revert default r/wsize behavior
   * HID: fixup quirk for NCR devices
-  * scsi_devinfo: update Hitachi entries (v2)
+  * scsi_devinfo: update Hitachi entries (v2~lucid1)
   * scsi_dh: create sysfs file, dh_state for all SCSI disk devices
   * scsi_transport_fc: remove invalid BUG_ON
   * lpfc: fix hang on SGI ia64 platform
@@ -657,18 +868,18 @@ linux (2.6.32-13.18) lucid; urgency=low
   * ALSA: hda - Fix quirk for Maxdata obook4-1
   * ALSA: hda - Add missing Line-Out and PCM switches as slave
   * iTCO_wdt.c - cleanup chipset documentation
-  * iTCO_wdt: add PCI ID for the Intel EP80579 (Tolapai) SoC
+  * iTCO_wdt: add PCI ID for the Intel EP80579 (Tolapai~lucid1) SoC
   * iTCO_wdt: Add Intel Cougar Point and PCH DeviceIDs
   * ahci: disable SNotification capability for ich8
   * ata_piix: fix MWDMA handling on PIIX3
   * md: fix small irregularity with start_ro module parameter
-  * V4L/DVB (13826): uvcvideo: Fix controls blacklisting
+  * V4L/DVB (13826~lucid1): uvcvideo: Fix controls blacklisting
   * cio: fix double free in case of probe failure
   * cio: dont panic in non-fatal conditions
   * netiucv: displayed TX bytes value much too high
-  * ipc ns: fix memory leak (idr)
+  * ipc ns: fix memory leak (idr~lucid1)
   * ALSA: hda - Fix HP T5735 automute
-  * hwmon: (fschmd) Fix a memleak on multiple opens of /dev/watchdog
+  * hwmon: (fschmd~lucid1) Fix a memleak on multiple opens of /dev/watchdog
   * UBI: fix memory leak in update path
   * UBI: initialise update marker
   * ASoC: fix a memory-leak in wm8903
@@ -679,12 +890,12 @@ linux (2.6.32-13.18) lucid; urgency=low
   * KVM: only allow one gsi per fd
   * KVM: Fix race between APIC TMR and IRR
   * KVM: MMU: bail out pagewalk on kvm_read_guest error
-  * KVM: x86: Fix host_mapping_level()
+  * KVM: x86: Fix host_mapping_level(~lucid1)
   * KVM: x86: Fix probable memory leak of vcpu->arch.mce_banks
-  * KVM: x86: Fix leak of free lapic date in kvm_arch_vcpu_init()
-  * KVM: fix lock imbalance in kvm_*_irq_source_id()
+  * KVM: x86: Fix leak of free lapic date in kvm_arch_vcpu_init(~lucid1)
+  * KVM: fix lock imbalance in kvm_*_irq_source_id(~lucid1)
   * KVM: only clear irq_source_id if irqchip is present
-  * IPoIB: Clear ipoib_neigh.dgid in ipoib_neigh_alloc()
+  * IPoIB: Clear ipoib_neigh.dgid in ipoib_neigh_alloc(~lucid1)
   * x86: Reenable TSC sync check at boot, even with NONSTOP_TSC
   * ACPI: enable C2 and Turbo-mode on Nehalem notebooks on A/C
     - LP: #516325
@@ -695,12 +906,12 @@ linux (2.6.32-13.18) lucid; urgency=low
   * Linux 2.6.32.7
   * scsi_lib: Fix bug in completion of bidi commands
   * mptsas: Fix issue with chain pools allocation on katmai
-  * mm: add new 'read_cache_page_gfp()' helper function
+  * mm: add new 'read_cache_page_gfp(~lucid1)' helper function
   * drm/i915: Selectively enable self-reclaim
   * firewire: ohci: fix crashes with TSB43AB23 on 64bit systems
   * S390: fix single stepped svcs with TRACE_IRQFLAGS=y
   * x86: Set hotpluggable nodes in nodes_possible_map
-  * x86: Remove "x86 CPU features in debugfs" (CONFIG_X86_CPU_DEBUG)
+  * x86: Remove "x86 CPU features in debugfs" (CONFIG_X86_CPU_DEBUG~lucid1)
   * libata: retry FS IOs even if it has failed with AC_ERR_INVALID
   * zcrypt: Do not remove coprocessor for error 8/72
   * dasd: fix possible NULL pointer errors
@@ -711,12 +922,12 @@ linux (2.6.32-13.18) lucid; urgency=low
   * UBI: fix volume creation input checking
   * e1000/e1000e: don't use small hardware rx buffers
   * drm/i915: Reload hangcheck timer too for Ironlake
-  * Fix a leak in affs_fill_super()
-  * Fix failure exits in bfs_fill_super()
+  * Fix a leak in affs_fill_super(~lucid1)
+  * Fix failure exits in bfs_fill_super(~lucid1)
   * fix oops in fs/9p late mount failure
-  * fix leak in romfs_fill_super()
+  * fix leak in romfs_fill_super(~lucid1)
   * Fix remount races with symlink handling in affs
-  * fix affs parse_options()
+  * fix affs parse_options(~lucid1)
   * Fix failure exit in ipathfs
   * mm: fix migratetype bug which slowed swapping
   * FDPIC: Respect PT_GNU_STACK exec protection markings when creating
@@ -737,9 +948,9 @@ linux (2.6.32-13.18) lucid; urgency=low
   * x86/amd-iommu: Fix possible integer overflow
   * clocksource: fix compilation if no GENERIC_TIME
   * tcp: update the netstamp_needed counter when cloning sockets
-  * sky2: Fix oops in sky2_xmit_frame() after TX timeout
+  * sky2: Fix oops in sky2_xmit_frame(~lucid1) after TX timeout
   * net: restore ip source validation
-  * af_packet: Don't use skb after dev_queue_xmit()
+  * af_packet: Don't use skb after dev_queue_xmit(~lucid1)
   * ax25: netrom: rose: Fix timer oopses
   * KVM: allow userspace to adjust kvmclock offset
   * oprofile/x86: add Xeon 7500 series support
@@ -748,14 +959,14 @@ linux (2.6.32-13.18) lucid; urgency=low
   * mm: percpu-vmap fix RCU list walking
   * mm: purge fragmented percpu vmap blocks
   * block: fix bio_add_page for non trivial merge_bvec_fn case
-  * Fix 'flush_old_exec()/setup_new_exec()' split
+  * Fix 'flush_old_exec(~lucid1)/setup_new_exec()' split
   * random: drop weird m_time/a_time manipulation
   * random: Remove unused inode variable
   * block: fix bugs in bio-integrity mempool usage
   * usb: r8a66597-hdc disable interrupts fix
   * connector: Delete buggy notification code.
   * be2net: Bug fix to support newer generation of BE ASIC
-  * be2net: Fix memset() arg ordering.
+  * be2net: Fix memset(~lucid1) arg ordering.
   * mm: flush dcache before writing into page to avoid alias
   * mac80211: fix NULL pointer dereference when ftrace is enabled
   * imxfb: correct location of callbacks in suspend and resume
@@ -772,7 +983,7 @@ linux (2.6.32-13.18) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Wed, 10 Feb 2010 18:56:52 +0000
 
-linux (2.6.32-12.17) lucid; urgency=low
+linux (2.6.32-12.17~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -826,7 +1037,7 @@ linux (2.6.32-12.17) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 05 Feb 2010 07:09:31 +0000
 
-linux (2.6.32-12.16) lucid; urgency=low
+linux (2.6.32-12.16~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -841,7 +1052,7 @@ linux (2.6.32-12.16) lucid; urgency=low
 
   [ Heiko Carstens ]
 
-  * (pre-stable) driver-core: fix devtmpfs crash on s390
+  * (pre-stable~lucid1) driver-core: fix devtmpfs crash on s390
     - LP: #512370
 
   [ John Johansen ]
@@ -853,7 +1064,7 @@ linux (2.6.32-12.16) lucid; urgency=low
 
   [ Kay Sievers ]
 
-  * (pre-stable) Driver-Core: devtmpfs - set root directory mode to 0755
+  * (pre-stable~lucid1) Driver-Core: devtmpfs - set root directory mode to 0755
     - LP: #512370
 
   [ Kees Cook ]
@@ -870,8 +1081,8 @@ linux (2.6.32-12.16) lucid; urgency=low
 
   [ Sebastian Kapfer ]
 
-  * (pre-stable) Input: ALPS - add interleaved protocol support (Dell E6x00
-    series)
+  * (pre-stable~lucid1) Input: ALPS - add interleaved protocol support (Dell E6x00
+    series~lucid1)
     - LP: #296610
 
   [ Upstream Kernel Changes ]
@@ -885,7 +1096,7 @@ linux (2.6.32-12.16) lucid; urgency=low
   * drm/i915: remove loop in Ironlake interrupt handler
   * block: Fix incorrect reporting of partition alignment
   * x86, mce: Thermal monitoring depends on APIC being enabled
-  * futexes: Remove rw parameter from get_futex_key()
+  * futexes: Remove rw parameter from get_futex_key(~lucid1)
   * page allocator: update NR_FREE_PAGES only when necessary
   * x86, apic: use physical mode for IBM summit platforms
   * edac: i5000_edac critical fix panic out of bounds
@@ -893,23 +1104,23 @@ linux (2.6.32-12.16) lucid; urgency=low
   * mfd: WM835x GPIO direction register is not locked
   * mfd: Correct WM835x ISINK ramp time defines
   * ALSA: hda - Fix missing capture mixer for ALC861/660 codecs
-  * V4L/DVB (13868): gspca - sn9c20x: Fix test of unsigned.
+  * V4L/DVB (13868~lucid1): gspca - sn9c20x: Fix test of unsigned.
   * reiserfs: truncate blocks not used by a write
   * HID: add device IDs for new model of Apple Wireless Keyboard
   * PCI/cardbus: Add a fixup hook and fix powerpc
   * Input: pmouse - move Sentelic probe down the list
   * asus-laptop: add Lenovo SL hotkey support
-  * sched: Fix cpu_clock() in NMIs, on !CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
+  * sched: Fix cpu_clock(~lucid1) in NMIs, on !CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
   * sparc64: Fix NMI programming when perf events are active.
   * sparc64: Fix Niagara2 perf event handling.
   * i2c: Do not use device name after device_unregister
   * i2c/pca: Don't use *_interruptible
   * serial/8250_pnp: add a new Fujitsu Wacom Tablet PC device
   * sched: Fix task priority bug
-  * vfs: Fix vmtruncate() regression
+  * vfs: Fix vmtruncate(~lucid1) regression
   * Linux 2.6.32.5
   * x86, msr/cpuid: Register enough minors for the MSR and CPUID drivers
-  * V4L/DVB (13900): gspca - sunplus: Fix bridge exchanges.
+  * V4L/DVB (13900~lucid1): gspca - sunplus: Fix bridge exchanges.
   * Staging: asus_oled: fix oops in 2.6.32.2
   * Staging: hv: fix smp problems in the hyperv core code
   * tty: fix race in tty_fasync
@@ -944,12 +1155,12 @@ linux (2.6.32-12.16) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Wed, 27 Jan 2010 16:40:23 +0000
 
-linux (2.6.32-11.15) lucid; urgency=low
+linux (2.6.32-11.15~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
-  * Revert "(pre-stable) drm/radeon/kms: fix crtc vblank update for r600"
-  * Revert "(pre-stable) sched: Fix balance vs hotplug race"
+  * Revert "(pre-stable~lucid1) drm/radeon/kms: fix crtc vblank update for r600"
+  * Revert "(pre-stable~lucid1) sched: Fix balance vs hotplug race"
   * Revert "[Upstream] acerhdf: Limit modalias matching to supported
     boards"
   * Revert "[Upstream] mmc: prevent dangling block device from accessing
@@ -985,9 +1196,9 @@ linux (2.6.32-11.15) lucid; urgency=low
   * SCSI: qla2xxx: dpc thread can execute before scsi host has been added
   * SCSI: st: fix mdata->page_order handling
   * SCSI: fc class: fix fc_transport_init error handling
-  * sched: Fix task_hot() test order
-  * x86, cpuid: Add "volatile" to asm in native_cpuid()
-  * sched: Select_task_rq_fair() must honour SD_LOAD_BALANCE
+  * sched: Fix task_hot(~lucid1) test order
+  * x86, cpuid: Add "volatile" to asm in native_cpuid(~lucid1)
+  * sched: Select_task_rq_fair(~lucid1) must honour SD_LOAD_BALANCE
   * clockevents: Prevent clockevent_devices list corruption on cpu hotplug
   * pata_hpt3x2n: fix clock turnaround
   * pata_cmd64x: fix overclocking of UDMA0-2 modes
@@ -1007,7 +1218,7 @@ linux (2.6.32-11.15) lucid; urgency=low
   * USB: musb: gadget_ep0: avoid SetupEnd interrupt
   * Bluetooth: Prevent ill-timed autosuspend in USB driver
   * USB: rename usb_configure_device
-  * USB: fix bugs in usb_(de)authorize_device
+  * USB: fix bugs in usb_(de~lucid1)authorize_device
   * drivers/net/usb: Correct code taking the size of a pointer
   * x86: SGI UV: Fix writes to led registers on remote uv hubs
   * md: Fix unfortunate interaction with evms
@@ -1022,7 +1233,7 @@ linux (2.6.32-11.15) lucid; urgency=low
   * ioat2,3: put channel hardware in known state at init
   * KVM: MMU: remove prefault from invlpg handler
   * KVM: LAPIC: make sure IRR bitmap is scanned after vm load
-  * Libertas: fix buffer overflow in lbs_get_essid()
+  * Libertas: fix buffer overflow in lbs_get_essid(~lucid1)
   * iwmc3200wifi: fix array out-of-boundary access
   * mac80211: fix propagation of failed hardware reconfigurations
   * mac80211: fix WMM AP settings application
@@ -1048,14 +1259,14 @@ linux (2.6.32-11.15) lucid; urgency=low
   * 'sysctl_max_map_count' should be non-negative
   * kernel/sysctl.c: fix the incomplete part of
     sysctl_max_map_count-should-be-non-negative.patch
-  * V4L/DVB (13596): ov511.c typo: lock => unlock
+  * V4L/DVB (13596~lucid1): ov511.c typo: lock => unlock
   * x86/ptrace: make genregs[32]_get/set more robust
   * memcg: avoid oom-killing innocent task in case of use_hierarchy
   * e100: Fix broken cbs accounting due to missing memset.
   * ipv6: reassembly: use seperate reassembly queues for conntrack and
     local delivery
   * netfilter: fix crashes in bridge netfilter caused by fragment jumps
-  * hwmon: (sht15) Off-by-one error in array index + incorrect constants
+  * hwmon: (sht15~lucid1) Off-by-one error in array index + incorrect constants
   * b43: avoid PPC fault during resume
   * Keys: KEYCTL_SESSION_TO_PARENT needs TIF_NOTIFY_RESUME architecture
     support
@@ -1064,14 +1275,14 @@ linux (2.6.32-11.15) lucid; urgency=low
   * drm: disable all the possible outputs/crtcs before entering KMS mode
   * S390: dasd: support DIAG access for read-only devices
   * xen: fix is_disconnected_device/exists_disconnected_device
-  * xen: improvement to wait_for_devices()
+  * xen: improvement to wait_for_devices(~lucid1)
   * xen: wait up to 5 minutes for device connetion
   * orinoco: fix GFP_KERNEL in orinoco_set_key with interrupts disabled
   * udf: Try harder when looking for VAT inode
-  * Add unlocked version of inode_add_bytes() function
+  * Add unlocked version of inode_add_bytes(~lucid1) function
   * quota: decouple fs reserved space from quota reservation
   * ext4: Convert to generic reserved quota's space management.
-  * ext4: fix sleep inside spinlock issue with quota and dealloc (#14739)
+  * ext4: fix sleep inside spinlock issue with quota and dealloc (#14739~lucid1)
   * x86, msr: Unify rdmsr_on_cpus/wrmsr_on_cpus
   * cpumask: use modern cpumask style in drivers/edac/amd64_edac.c
   * amd64_edac: unify MCGCTL ECC switching
@@ -1089,21 +1300,21 @@ linux (2.6.32-11.15) lucid; urgency=low
   * rt2x00: Disable powersaving for rt61pci and rt2800pci.
   * generic_permission: MAY_OPEN is not write access
   * Linux 2.6.32.3
-  * untangle the do_mremap() mess
-  * fasync: split 'fasync_helper()' into separate add/remove functions
-  * ASoC: fix params_rate() macro use in several codecs
+  * untangle the do_mremap(~lucid1) mess
+  * fasync: split 'fasync_helper(~lucid1)' into separate add/remove functions
+  * ASoC: fix params_rate(~lucid1) macro use in several codecs
   * modules: Skip empty sections when exporting section notes
   * exofs: simple_write_end does not mark_inode_dirty
   * nfsd: make sure data is on disk before calling ->fsync
   * sunrpc: fix peername failed on closed listener
   * SUNRPC: Fix up an error return value in
-    gss_import_sec_context_kerberos()
-  * SUNRPC: Fix the return value in gss_import_sec_context()
+    gss_import_sec_context_kerberos(~lucid1)
+  * SUNRPC: Fix the return value in gss_import_sec_context(~lucid1)
   * sunrpc: on successful gss error pipe write, don't return error
   * drm/i915: Update LVDS connector status when receiving ACPI LID event
   * drm/i915: fix order of fence release wrt flushing
   * drm/i915: Permit pinning whilst the device is 'suspended'
-  * drm: remove address mask param for drm_pci_alloc()
+  * drm: remove address mask param for drm_pci_alloc(~lucid1)
   * drm/i915: Enable/disable the dithering for LVDS based on VBT setting
   * drm/i915: Make the BPC in FDI rx/transcoder be consistent with that in
     pipeconf on Ironlake
@@ -1112,7 +1323,7 @@ linux (2.6.32-11.15) lucid; urgency=low
   * rtc_cmos: convert shutdown to new pnp_driver->shutdown
   * drivers/cpuidle/governors/menu.c: fix undefined reference to
     `__udivdi3'
-  * cgroups: fix 2.6.32 regression causing BUG_ON() in cgroup_diput()
+  * cgroups: fix 2.6.32 regression causing BUG_ON(~lucid1) in cgroup_diput()
   * lib/rational.c needs module.h
   * dma-debug: allow DMA_BIDIRECTIONAL mappings to be synced with
     DMA_FROM_DEVICE and
@@ -1127,9 +1338,9 @@ linux (2.6.32-11.15) lucid; urgency=low
     - LP: #498863
   * ASoC: Fix WM8350 DSP mode B configuration
   * netfilter: ebtables: enforce CAP_NET_ADMIN
-  * netfilter: nf_ct_ftp: fix out of bounds read in update_nl_seq()
-  * hwmon: (coretemp) Fix TjMax for Atom N450/D410/D510 CPUs
-  * hwmon: (adt7462) Fix pin 28 monitoring
+  * netfilter: nf_ct_ftp: fix out of bounds read in update_nl_seq(~lucid1)
+  * hwmon: (coretemp~lucid1) Fix TjMax for Atom N450/D410/D510 CPUs
+  * hwmon: (adt7462~lucid1) Fix pin 28 monitoring
   * quota: Fix dquot_transfer for filesystems different from ext4
   * xen: fix hang on suspend.
   * iwlwifi: fix iwl_queue_used bug when read_ptr == write_ptr
@@ -1140,11 +1351,11 @@ linux (2.6.32-11.15) lucid; urgency=low
   * drm/i915: remove render reclock support
   * libertas: Remove carrier signaling from the scan code
   * kernel/sysctl.c: fix stable merge error in NOMMU mmap_min_addr
-  * mac80211: fix skb buffering issue (and fixes to that)
-  * fix braindamage in audit_tree.c untag_chunk()
-  * fix more leaks in audit_tree.c tag_chunk()
+  * mac80211: fix skb buffering issue (and fixes to that~lucid1)
+  * fix braindamage in audit_tree.c untag_chunk(~lucid1)
+  * fix more leaks in audit_tree.c tag_chunk(~lucid1)
   * module: handle ppc64 relocating kcrctabs when CONFIG_RELOCATABLE=y
-  * ipv6: skb_dst() can be NULL in ipv6_hop_jumbo().
+  * ipv6: skb_dst(~lucid1) can be NULL in ipv6_hop_jumbo().
   * agp/intel-agp: Clear entire GTT on startup
   * Linux 2.6.32.4
   * ethtool: Add reset operation
@@ -1167,12 +1378,12 @@ linux (2.6.32-11.15) lucid; urgency=low
   * sfc: Move all TX DMA length limiting into tx.c
   * sfc: Change order of device removal to reverse of probe order
   * sfc: Remove declarations of nonexistent functions
-  * sfc: Move efx_xmit_done() declaration into correct stanza
+  * sfc: Move efx_xmit_done(~lucid1) declaration into correct stanza
   * sfc: Move shared members of struct falcon_nic_data into struct efx_nic
   * sfc: Maintain interrupt moderation values in ticks, not microseconds
   * sfc: Removed kernel-doc for nonexistent member of efx_phy_operations
   * sfc: Remove pointless abstraction of memory BAR number
-  * sfc: Remove incorrect assertion from efx_pci_remove_main()
+  * sfc: Remove incorrect assertion from efx_pci_remove_main(~lucid1)
   * sfc: Remove unnecessary tests of efx->membase
   * sfc: Move MTD probe after netdev registration and name allocation
   * sfc: Remove unused code for non-autoneg speed/duplex switching
@@ -1180,10 +1391,10 @@ linux (2.6.32-11.15) lucid; urgency=low
   * sfc: Really allow RX checksum offload to be disabled
   * sfc: Feed GRO result into RX allocation policy and interrupt moderation
   * sfc: Enable heuristic selection between page and skb RX buffers
-  * sfc: Remove pointless abstraction of memory BAR number (2)
-  * sfc: Remove redundant gotos from __efx_rx_packet()
+  * sfc: Remove pointless abstraction of memory BAR number (2~lucid1)
+  * sfc: Remove redundant gotos from __efx_rx_packet(~lucid1)
   * sfc: Remove ridiculously paranoid assertions
-  * sfc: Move assertions and buffer cleanup earlier in efx_rx_packet_lro()
+  * sfc: Move assertions and buffer cleanup earlier in efx_rx_packet_lro(~lucid1)
   * sfc: Record RX queue number on GRO path
   * sfc: SFT9001: Reset LED configuration correctly after blinking
   * sfc: Use a single blink implementation
@@ -1195,7 +1406,7 @@ linux (2.6.32-11.15) lucid; urgency=low
   * sfc: Gather link state fields in struct efx_nic into new struct
     efx_link_state
   * sfc: Remove unnecessary casts to struct sk_buff *
-  * sfc: Remove redundant efx_xmit() function
+  * sfc: Remove redundant efx_xmit(~lucid1) function
   * sfc: Combine high-level header files
   * sfc: Log interrupt and reset type names, not numbers
   * sfc: Fix descriptor cache sizes
@@ -1205,9 +1416,9 @@ linux (2.6.32-11.15) lucid; urgency=low
   * sfc: Remove unused constant
   * sfc: Clean up struct falcon_board and struct falcon_board_data
   * sfc: Fix bugs in RX queue flushing
-  * sfc: Remove unused function efx_flush_queues()
+  * sfc: Remove unused function efx_flush_queues(~lucid1)
   * sfc: Only switch Falcon MAC clocks as necessary
-  * sfc: Hold MAC lock for longer in efx_init_port()
+  * sfc: Hold MAC lock for longer in efx_init_port(~lucid1)
   * sfc: Split MAC stats DMA initiation and completion
   * sfc: Move Falcon board/PHY/MAC monitoring code to falcon.c
   * sfc: Simplify XMAC link polling
@@ -1238,20 +1449,20 @@ linux (2.6.32-11.15) lucid; urgency=low
   * sfc: Add efx_nic_type operation for identity LED control
   * sfc: Separate shared NIC code from Falcon-specific and rename
     accordingly
-  * sfc: Fold falcon_probe_nic_variant() into falcon_probe_nic()
+  * sfc: Fold falcon_probe_nic_variant(~lucid1) into falcon_probe_nic()
   * sfc: Extend loopback mode enumeration
   * sfc: Remove static PHY data and enumerations
   * sfc: Extend MTD driver for use with new NICs
   * sfc: Allow for additional checksum offload features
   * sfc: Rename falcon.h to nic.h
   * sfc: Move shared NIC code from falcon.c to new source file nic.c
-  * sfc: Add firmware protocol definitions (MCDI)
-  * sfc: Add support for SFC9000 family (1)
-  * sfc: Add support for SFC9000 family (2)
+  * sfc: Add firmware protocol definitions (MCDI~lucid1)
+  * sfc: Add support for SFC9000 family (1~lucid1)
+  * sfc: Add support for SFC9000 family (2~lucid1)
   * sfc: Implement TSO for TCP/IPv6
   * sfc: Update version, copyright dates, authors
   * drivers/net/sfc: Correct code taking the size of a pointer
-  * sfc: Move PHY software state initialisation from init() into probe()
+  * sfc: Move PHY software state initialisation from init(~lucid1) into probe()
   * sfc: Include XGXS in XMAC link status check except in XGMII loopback
   * sfc: Fix DMA mapping cleanup in case of an error in TSO
   * sfc: QT2025C: Work around PHY bug
@@ -1264,7 +1475,7 @@ linux (2.6.32-11.15) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 19 Jan 2010 16:12:47 +0000
 
-linux (2.6.32-10.14) lucid; urgency=low
+linux (2.6.32-10.14~lucid1) lucid; urgency=low
 
   [ Alex Deucher ]
 
@@ -1273,7 +1484,7 @@ linux (2.6.32-10.14) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
-  * Revert "(pre-stable) acpi: Use the ARB_DISABLE for the CPU which model
+  * Revert "(pre-stable~lucid1) acpi: Use the ARB_DISABLE for the CPU which model
     id is less than 0x0f."
   * config-check -- ensure the checks get run at build time
   * config-check -- check the processed config during updateconfigs
@@ -1288,7 +1499,7 @@ linux (2.6.32-10.14) lucid; urgency=low
 
   [ Dave Airlie ]
 
-  * (pre-stable) drm/radeon/kms: fix crtc vblank update for r600
+  * (pre-stable~lucid1) drm/radeon/kms: fix crtc vblank update for r600
 
   [ Leann Ogasawara ]
 
@@ -1297,7 +1508,7 @@ linux (2.6.32-10.14) lucid; urgency=low
 
   [ Peter Zijlstra ]
 
-  * (pre-stable) sched: Fix balance vs hotplug race
+  * (pre-stable~lucid1) sched: Fix balance vs hotplug race
 
   [ Tim Gardner ]
 
@@ -1310,25 +1521,25 @@ linux (2.6.32-10.14) lucid; urgency=low
 
   [ Upstream Kernel Changes ]
 
-  * Revert "(pre-stable) drm/i915: Avoid NULL dereference with
+  * Revert "(pre-stable~lucid1) drm/i915: Avoid NULL dereference with
     component_only tv_modes"
-  * Revert "(pre-stable) drm/i915: Fix sync to vblank when VGA output is
+  * Revert "(pre-stable~lucid1) drm/i915: Fix sync to vblank when VGA output is
     turned off"
   * USB: usb-storage: fix bug in fill_inquiry
   * USB: option: add pid for ZTE
   * firewire: ohci: handle receive packets with a data length of zero
   * rcu: Prepare for synchronization fixes: clean up for non-NO_HZ handling
     of ->completed counter
-  * rcu: Fix synchronization for rcu_process_gp_end() uses of ->completed
+  * rcu: Fix synchronization for rcu_process_gp_end(~lucid1) uses of ->completed
     counter
-  * rcu: Fix note_new_gpnum() uses of ->gpnum
+  * rcu: Fix note_new_gpnum(~lucid1) uses of ->gpnum
   * rcu: Remove inline from forward-referenced functions
   * perf_event: Fix invalid type in ioctl definition
-  * perf_event: Initialize data.period in perf_swevent_hrtimer()
+  * perf_event: Initialize data.period in perf_swevent_hrtimer(~lucid1)
   * perf: Don't free perf_mmap_data until work has been done
-  * PM / Runtime: Fix lockdep warning in __pm_runtime_set_status()
-  * sched: Check for an idle shared cache in select_task_rq_fair()
-  * sched: Fix affinity logic in select_task_rq_fair()
+  * PM / Runtime: Fix lockdep warning in __pm_runtime_set_status(~lucid1)
+  * sched: Check for an idle shared cache in select_task_rq_fair(~lucid1)
+  * sched: Fix affinity logic in select_task_rq_fair(~lucid1)
   * sched: Rate-limit newidle
   * sched: Fix and clean up rate-limit newidle code
   * x86/amd-iommu: attach devices to pre-allocated domains early
@@ -1351,7 +1562,7 @@ linux (2.6.32-10.14) lucid; urgency=low
   * KVM: s390: Make psw available on all exits, not just a subset
   * KVM: fix irq_source_id size verification
   * KVM: x86: include pvclock MSRs in msrs_to_save
-  * x86: Prevent GCC 4.4.x (pentium-mmx et al) function prologue wreckage
+  * x86: Prevent GCC 4.4.x (pentium-mmx et al~lucid1) function prologue wreckage
   * x86: Use -maccumulate-outgoing-args for sane mcount prologues
   * x86, mce: don't restart timer if disabled
   * x86/mce: Set up timer unconditionally
@@ -1359,9 +1570,9 @@ linux (2.6.32-10.14) lucid; urgency=low
   * x86: Fix duplicated UV BAU interrupt vector
   * x86: Add new Intel CPU cache size descriptors
   * x86: Fix typo in Intel CPU cache size descriptor
-  * pata_hpt{37x|3x2n}: fix timing register masks (take 2)
+  * pata_hpt{37x|3x2n}: fix timing register masks (take 2~lucid1)
   * s390: clear high-order bits of registers after sam64
-  * V4L/DVB: Fix test in copy_reg_bits()
+  * V4L/DVB: Fix test in copy_reg_bits(~lucid1)
   * bsdacct: fix uid/gid misreporting
   * UBI: flush wl before clearing update marker
   * jbd2: don't wipe the journal on a failed journal checksum
@@ -1374,10 +1585,10 @@ linux (2.6.32-10.14) lucid; urgency=low
   * pxa/em-x270: fix usb hub power up/reset sequence
   * hfs: fix a potential buffer overflow
   * SUNRPC: IS_ERR/PTR_ERR confusion
-  * NFS: Fix nfs_migrate_page()
+  * NFS: Fix nfs_migrate_page(~lucid1)
   * md/bitmap: protect against bitmap removal while being updated.
   * futex: Take mmap_sem for get_user_pages in fault_in_user_writeable
-  * devpts_get_tty() should validate inode
+  * devpts_get_tty(~lucid1) should validate inode
   * debugfs: fix create mutex racy fops and private data
   * Driver core: fix race in dev_driver_string
   * Serial: Do not read IIR in serial8250_start_tx when UART_BUG_TXEN
@@ -1387,9 +1598,9 @@ linux (2.6.32-10.14) lucid; urgency=low
   * mac80211: fix scan abort sanity checks
   * wireless: correctly report signal value for IEEE80211_HW_SIGNAL_UNSPEC
   * rtl8187: Fix wrong rfkill switch mask for some models
-  * x86: Fix bogus warning in apic_noop.apic_write()
-  * mm: hugetlb: fix hugepage memory leak in mincore()
-  * mm: hugetlb: fix hugepage memory leak in walk_page_range()
+  * x86: Fix bogus warning in apic_noop.apic_write(~lucid1)
+  * mm: hugetlb: fix hugepage memory leak in mincore(~lucid1)
+  * mm: hugetlb: fix hugepage memory leak in walk_page_range(~lucid1)
   * powerpc/windfarm: Add detection for second cpu pump
   * powerpc/therm_adt746x: Record pwm invert bit at module load time]
   * powerpc: Fix usage of 64-bit instruction in 32-bit altivec code
@@ -1402,13 +1613,13 @@ linux (2.6.32-10.14) lucid; urgency=low
   * drm/i915: Set the error code after failing to insert new offset into mm
     ht.
   * drm/i915: Add the missing clonemask for display port on Ironlake
-  * xen/xenbus: make DEVICE_ATTR()s static
+  * xen/xenbus: make DEVICE_ATTR(~lucid1)s static
   * xen: re-register runstate area earlier on resume.
   * xen: restore runstate_info even if !have_vcpu_info_placement
   * xen: correctly restore pfn_to_mfn_list_list after resume
   * xen: register timer interrupt with IRQF_TIMER
   * xen: register runstate on secondary CPUs
-  * xen: don't call dpm_resume_noirq() with interrupts disabled.
+  * xen: don't call dpm_resume_noirq(~lucid1) with interrupts disabled.
   * xen: register runstate info for boot CPU early
   * xen: call clock resume notifier on all CPUs
   * xen: improve error handling in do_suspend.
@@ -1450,11 +1661,11 @@ linux (2.6.32-10.14) lucid; urgency=low
   * matroxfb: fix problems with display stability
   * acerhdf: add new BIOS versions
   * asus-laptop: change light sens default values.
-  * vmalloc: conditionalize build of pcpu_get_vm_areas()
+  * vmalloc: conditionalize build of pcpu_get_vm_areas(~lucid1)
   * ACPI: Use the ARB_DISABLE for the CPU which model id is less than 0x0f.
   * net: Fix userspace RTM_NEWLINK notifications.
   * ext3: Fix data / filesystem corruption when write fails to copy data
-  * V4L/DVB (13116): gspca - ov519: Webcam 041e:4067 added.
+  * V4L/DVB (13116~lucid1): gspca - ov519: Webcam 041e:4067 added.
   * bcm63xx_enet: fix compilation failure after get_stats_count removal
   * x86: Under BIOS control, restore AP's APIC_LVTTHMR to the BSP value
   * drm/i915: Avoid NULL dereference with component_only tv_modes
@@ -1475,7 +1686,7 @@ linux (2.6.32-10.14) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 07 Jan 2010 15:28:43 +0000
 
-linux (2.6.32-9.13) lucid; urgency=low
+linux (2.6.32-9.13~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1493,7 +1704,7 @@ linux (2.6.32-9.13) lucid; urgency=low
   [ Brad Figg ]
 
   * SAUCE: Increase the default prealloc buffer for HDA audio devices
-    (non-modem)
+    (non-modem~lucid1)
 
   [ Manoj Iyer ]
 
@@ -1510,57 +1721,57 @@ linux (2.6.32-9.13) lucid; urgency=low
   * SCSI: scsi_lib_dma: fix bug with dma maps on nested scsi objects
   * SCSI: osd_protocol.h: Add missing #include
   * SCSI: megaraid_sas: fix 64 bit sense pointer truncation
-  * ext4: fix potential buffer head leak when add_dirent_to_buf() returns
+  * ext4: fix potential buffer head leak when add_dirent_to_buf(~lucid1) returns
     ENOSPC
   * ext4: avoid divide by zero when trying to mount a corrupted file system
   * ext4: fix the returned block count if EXT4_IOC_MOVE_EXT fails
-  * ext4: fix lock order problem in ext4_move_extents()
+  * ext4: fix lock order problem in ext4_move_extents(~lucid1)
   * ext4: fix possible recursive locking warning in EXT4_IOC_MOVE_EXT
-  * ext4: plug a buffer_head leak in an error path of ext4_iget()
+  * ext4: plug a buffer_head leak in an error path of ext4_iget(~lucid1)
   * ext4: make sure directory and symlink blocks are revoked
-  * ext4: fix i_flags access in ext4_da_writepages_trans_blocks()
+  * ext4: fix i_flags access in ext4_da_writepages_trans_blocks(~lucid1)
   * ext4: journal all modifications in ext4_xattr_set_handle
-  * ext4: don't update the superblock in ext4_statfs()
+  * ext4: don't update the superblock in ext4_statfs(~lucid1)
   * ext4: fix uninit block bitmap initialization when s_meta_first_bg is
     non-zero
   * ext4: fix block validity checks so they work correctly with meta_bg
   * ext4: avoid issuing unnecessary barriers
-  * ext4: fix error handling in ext4_ind_get_blocks()
-  * ext4: make trim/discard optional (and off by default)
+  * ext4: fix error handling in ext4_ind_get_blocks(~lucid1)
+  * ext4: make trim/discard optional (and off by default~lucid1)
   * ext4: make "norecovery" an alias for "noload"
   * ext4: Fix double-free of blocks with EXT4_IOC_MOVE_EXT
-  * ext4: initialize moved_len before calling ext4_move_extents()
-  * ext4: move_extent_per_page() cleanup
+  * ext4: initialize moved_len before calling ext4_move_extents(~lucid1)
+  * ext4: move_extent_per_page(~lucid1) cleanup
   * jbd2: Add ENOMEM checking in and for
-    jbd2_journal_write_metadata_buffer()
+    jbd2_journal_write_metadata_buffer(~lucid1)
   * ext4: Return the PTR_ERR of the correct pointer in
-    setup_new_group_blocks()
+    setup_new_group_blocks(~lucid1)
   * ext4: Avoid data / filesystem corruption when write fails to copy data
   * ext4: wait for log to commit when umounting
   * ext4: remove blocks from inode prealloc list on failure
-  * ext4: ext4_get_reserved_space() must return bytes instead of blocks
+  * ext4: ext4_get_reserved_space(~lucid1) must return bytes instead of blocks
   * ext4: quota macros cleanup
   * ext4: fix incorrect block reservation on quota transfer.
   * ext4: Wait for proper transaction commit on fsync
   * ext4: Fix insufficient checks in EXT4_IOC_MOVE_EXT
-  * ext4: Fix potential fiemap deadlock (mmap_sem vs. i_data_sem)
+  * ext4: Fix potential fiemap deadlock (mmap_sem vs. i_data_sem~lucid1)
   * Linux 2.6.32.1
   * kbuild: generate modules.builtin
-  * (pre-stable) drm/i915: Fix sync to vblank when VGA output is turned off
+  * (pre-stable~lucid1) drm/i915: Fix sync to vblank when VGA output is turned off
     - LP: #494461
-  * (pre-stable) drm/i915: Avoid NULL dereference with component_only
+  * (pre-stable~lucid1) drm/i915: Avoid NULL dereference with component_only
     tv_modes
     - LP: #494045
 
   [ Zhao Yakui ]
 
-  * (pre-stable) acpi: Use the ARB_DISABLE for the CPU which model id is
+  * (pre-stable~lucid1) acpi: Use the ARB_DISABLE for the CPU which model id is
     less than 0x0f.
     - LP: #481765
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 17 Dec 2009 15:41:21 +0000
 
-linux (2.6.32-8.12) lucid; urgency=low
+linux (2.6.32-8.12~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1568,7 +1779,7 @@ linux (2.6.32-8.12) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Sat, 12 Dec 2009 10:56:16 +0000
 
-linux (2.6.32-8.11) lucid; urgency=low
+linux (2.6.32-8.11~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1613,8 +1824,8 @@ linux (2.6.32-8.11) lucid; urgency=low
   * [Config] fsam7400 -- enable
   * [Config] omnibook -- enable
   * [Config] cleanup CONFIG_AUDIT
-  * ubuntu: AUFS -- export various core functions (aufs2-base.patch)
-  * ubuntu: AUFS -- export various core functions (aufs2-standalone.patch)
+  * ubuntu: AUFS -- export various core functions (aufs2-base.patch~lucid1)
+  * ubuntu: AUFS -- export various core functions (aufs2-standalone.patch~lucid1)
   * ubuntu: AUFS -- aufs2 20091209
   * [Config] AUFS -- enable
   * [Config] iscsitarget -- enable
@@ -1637,7 +1848,7 @@ linux (2.6.32-8.11) lucid; urgency=low
   [ Manoj Iyer ]
 
   * ubuntu: fsam7400 -- kill switch for Fujitsu Siemens Amilo M 7400
-  * ubuntu: omnibook -- support Toshiba (HP) netbooks
+  * ubuntu: omnibook -- support Toshiba (HP~lucid1) netbooks
   * ubuntu: iscsitarget --- version 1.4.19
     - LP: #494693
 
@@ -1653,15 +1864,15 @@ linux (2.6.32-8.11) lucid; urgency=low
   [ Upstream Kernel Changes ]
 
   * Config option to set a default LSM
-  * LSM: Add security_path_chroot().
-  * LSM: Add security_path_chroot().
-  * LSM: Move security_path_chmod()/security_path_chown() to after
-    mutex_lock().
+  * LSM: Add security_path_chroot(~lucid1).
+  * LSM: Add security_path_chroot(~lucid1).
+  * LSM: Move security_path_chmod(~lucid1)/security_path_chown() to after
+    mutex_lock(~lucid1).
   * ext4: Fix insufficient checks in EXT4_IOC_MOVE_EXT
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 11 Dec 2009 17:45:19 +0000
 
-linux (2.6.32-7.10) lucid; urgency=low
+linux (2.6.32-7.10~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1669,7 +1880,7 @@ linux (2.6.32-7.10) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Sun, 06 Dec 2009 12:56:48 +0000
 
-linux (2.6.32-7.9) lucid; urgency=low
+linux (2.6.32-7.9~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1706,7 +1917,7 @@ linux (2.6.32-7.9) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 04 Dec 2009 10:44:50 +0000
 
-linux (2.6.32-6.8) lucid; urgency=low
+linux (2.6.32-6.8~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1714,7 +1925,7 @@ linux (2.6.32-6.8) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Sat, 28 Nov 2009 12:16:40 +0000
 
-linux (2.6.32-6.7) lucid; urgency=low
+linux (2.6.32-6.7~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1746,7 +1957,7 @@ linux (2.6.32-6.7) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 27 Nov 2009 17:31:16 +0000
 
-linux (2.6.32-5.6) lucid; urgency=low
+linux (2.6.32-5.6~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1762,7 +1973,7 @@ linux (2.6.32-5.6) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Mon, 23 Nov 2009 11:16:14 +0000
 
-linux (2.6.32-4.5) lucid; urgency=low
+linux (2.6.32-4.5~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1786,7 +1997,7 @@ linux (2.6.32-4.5) lucid; urgency=low
 
   [ Ubuntu Changes ]
 
-  * resync with Karmic proposed (ddbc670a86a3dee18541a3734149f250ff307adf)
+  * resync with Karmic proposed (ddbc670a86a3dee18541a3734149f250ff307adf~lucid1)
 
   [ Upstream Kernel Changes ]
 
@@ -1794,7 +2005,7 @@ linux (2.6.32-4.5) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 13 Nov 2009 11:35:13 +0000
 
-linux (2.6.32-3.4) lucid; urgency=low
+linux (2.6.32-3.4~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1808,7 +2019,7 @@ linux (2.6.32-3.4) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Wed, 11 Nov 2009 14:47:04 +0000
 
-linux (2.6.32-3.3) lucid; urgency=low
+linux (2.6.32-3.3~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1836,8 +2047,8 @@ linux (2.6.32-3.3) lucid; urgency=low
 
   [ Scott James Remnant ]
 
-  * Revert "SAUCE: trace: add trace_event for the open() syscall"
-  * SAUCE: trace: add trace events for open(), exec() and uselib()
+  * Revert "SAUCE: trace: add trace_event for the open(~lucid1) syscall"
+  * SAUCE: trace: add trace events for open(~lucid1), exec() and uselib()
     - LP: #462111
 
   [ Stefan Bader ]
@@ -1856,7 +2067,7 @@ linux (2.6.32-3.3) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 10 Nov 2009 15:00:57 +0000
 
-linux (2.6.32-2.2) lucid; urgency=low
+linux (2.6.32-2.2~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1893,10 +2104,10 @@ linux (2.6.32-2.2) lucid; urgency=low
 
   [ Leann Ogasawara ]
 
-  * SAUCE: (drop after 2.6.31) input: Add support for filtering input
+  * SAUCE: (drop after 2.6.31~lucid1) input: Add support for filtering input
     events
     - LP: #430809
-  * SAUCE: (drop after 2.6.31) dell-laptop: Trigger rfkill updates on wifi
+  * SAUCE: (drop after 2.6.31~lucid1) dell-laptop: Trigger rfkill updates on wifi
     toggle switch press
     - LP: #430809
 
@@ -1943,7 +2154,7 @@ linux (2.6.32-2.2) lucid; urgency=low
   * [Config] Add armel arch to linux-libc-dev arches.
     - LP: #449637
   * [Config] CONFIG_X86_MCE
-  * [Upstream] (drop after 2.6.31) Input: synaptics - add another Protege
+  * [Upstream] (drop after 2.6.31~lucid1) Input: synaptics - add another Protege
     M300 to rate blacklist
     - LP: #433801
 
@@ -1955,7 +2166,7 @@ linux (2.6.32-2.2) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 22 Oct 2009 16:53:33 +0100
 
-linux (2.6.32-1.1) lucid; urgency=low
+linux (2.6.32-1.1~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -1986,7 +2197,7 @@ linux (2.6.32-1.1) lucid; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Mon, 05 Oct 2009 15:48:58 +0100
 
-linux (2.6.31-11.37) karmic; urgency=low
+linux (2.6.31-11.37~lucid1) karmic; urgency=low
 
   [ Tim Gardner ]
 
@@ -1995,7 +2206,7 @@ linux (2.6.31-11.37) karmic; urgency=low
   * [Config] Set HZ=100 for amd64 flavours
     - LP: #438234
   * [Upstream] e1000e: Emit notice instead of an error when
-    pci_enable_pcie_error_reporting() fails
+    pci_enable_pcie_error_reporting(~lucid1) fails
     - LP: #436370
 
   [ Upstream Kernel Changes ]
@@ -2019,13 +2230,13 @@ linux (2.6.31-11.37) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Mon, 28 Sep 2009 11:47:29 -0600
 
-linux (2.6.31-11.36) karmic; urgency=low
+linux (2.6.31-11.36~lucid1) karmic; urgency=low
 
   [ Brian Rogers ]
 
-  * SAUCE: (drop after 2.6.31) em28xx: ir-kbd-i2c init data needs a
+  * SAUCE: (drop after 2.6.31~lucid1) em28xx: ir-kbd-i2c init data needs a
     persistent object
-  * SAUCE: (drop after 2.6.31) saa7134: ir-kbd-i2c init data needs a
+  * SAUCE: (drop after 2.6.31~lucid1) saa7134: ir-kbd-i2c init data needs a
     persistent object
 
   [ Takashi Iwai ]
@@ -2035,26 +2246,26 @@ linux (2.6.31-11.36) karmic; urgency=low
 
   [ Tyler Hicks ]
 
-  * SAUCE: (drop after 2.6.31) eCryptfs: Prevent lower dentry from going
+  * SAUCE: (drop after 2.6.31~lucid1) eCryptfs: Prevent lower dentry from going
     negative during unlink
 
   [ Upstream Kernel Changes ]
 
-  * sg: fix oops in the error path in sg_build_indirect()
+  * sg: fix oops in the error path in sg_build_indirect(~lucid1)
   * mpt2sas : Rescan topology from Interrupt context instead of work thread
   * mpt2sas: Prevent sending command to FW while Host Reset
   * mpt2sas: setting SDEV into RUNNING state from Interrupt context
   * mpt2sas: Raid 10 Volume is showing as Raid 1E in dmesg
   * SCSI: fix oops during scsi scanning
-  * SCSI: libsrp: fix memory leak in srp_ring_free()
-  * cfg80211: fix looping soft lockup in find_ie()
+  * SCSI: libsrp: fix memory leak in srp_ring_free(~lucid1)
+  * cfg80211: fix looping soft lockup in find_ie(~lucid1)
   * ath5k: write PCU registers on initial reset
   * binfmt_elf: fix PT_INTERP bss handling
   * TPM: Fixup boot probe timeout for tpm_tis driver
   * md: Fix "strchr" [drivers/md/dm-log-userspace.ko] undefined!
   * x86/amd-iommu: fix broken check in amd_iommu_flush_all_devices
   * fix undefined reference to user_shm_unlock
-  * perf_counter: Fix buffer overflow in perf_copy_attr()
+  * perf_counter: Fix buffer overflow in perf_copy_attr(~lucid1)
   * perf_counter: Start counting time enabled when group leader gets
     enabled
   * powerpc/perf_counters: Reduce stack usage of power_check_constraints
@@ -2068,11 +2279,11 @@ linux (2.6.31-11.36) karmic; urgency=low
   * sound: oxygen: work around MCE when changing volume
   * mlx4_core: Allocate and map sufficient ICM memory for EQ context
   * perf stat: Change noise calculation to use stddev
-  * x86: Fix x86_model test in es7000_apic_is_cluster()
+  * x86: Fix x86_model test in es7000_apic_is_cluster(~lucid1)
   * x86/i386: Make sure stack-protector segment base is cache aligned
   * PCI: apply nv_msi_ht_cap_quirk on resume too
-  * x86, pat: Fix cacheflush address in change_page_attr_set_clr()
-  * ARM: 5691/1: fix cache aliasing issues between kmap() and kmap_atomic()
+  * x86, pat: Fix cacheflush address in change_page_attr_set_clr(~lucid1)
+  * ARM: 5691/1: fix cache aliasing issues between kmap(~lucid1) and kmap_atomic()
     with highmem
   * KVM guest: do not batch pte updates from interrupt context
   * KVM: Fix coalesced interrupt reporting in IOAPIC
@@ -2082,9 +2293,9 @@ linux (2.6.31-11.36) karmic; urgency=low
   * KVM: VMX: Fix cr8 exiting control clobbering by EPT
   * KVM: x86 emulator: Implement zero-extended immediate decoding
   * KVM: MMU: make __kvm_mmu_free_some_pages handle empty list
-  * KVM: x86 emulator: fix jmp far decoding (opcode 0xea)
+  * KVM: x86 emulator: fix jmp far decoding (opcode 0xea~lucid1)
   * KVM: limit lapic periodic timer frequency
-  * libata: fix off-by-one error in ata_tf_read_block()
+  * libata: fix off-by-one error in ata_tf_read_block(~lucid1)
   * PCI quirk: update 82576 device ids in SR-IOV quirks list
   * PCI: Unhide the SMBus on the Compaq Evo D510 USDT
   * powerpc/pseries: Fix to handle slb resize across migration
@@ -2092,7 +2303,7 @@ linux (2.6.31-11.36) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Thu, 24 Sep 2009 13:04:28 -0600
 
-linux (2.6.31-10.35) karmic; urgency=low
+linux (2.6.31-10.35~lucid1) karmic; urgency=low
 
   [ Amit Kucheria ]
 
@@ -2126,11 +2337,11 @@ linux (2.6.31-10.35) karmic; urgency=low
 
   [ Tim Gardner ]
 
-  * Revert "[Upstream] ACPI: Add Thinkpad W500, W700, & W700ds to OSI(Linux) white-list"
-  * Revert "[Upstream] ACPI: Add Thinkpad R400 & Thinkpad R500 to OSI(Linux) white-list"
-  * Revert "[Upstream] ACPI: Add Thinkpad X300 & Thinkpad X301 to OSI(Linux) white-list"
-  * Revert "[Upstream] ACPI: Add Thinkpad X200, X200s, X200t to OSI(Linux) white-list"
-  * Revert "[Upstream] ACPI: Add Thinkpad T400 & Thinkpad T500 to OSI(Linux) white-list"
+  * Revert "[Upstream] ACPI: Add Thinkpad W500, W700, & W700ds to OSI(Linux~lucid1) white-list"
+  * Revert "[Upstream] ACPI: Add Thinkpad R400 & Thinkpad R500 to OSI(Linux~lucid1) white-list"
+  * Revert "[Upstream] ACPI: Add Thinkpad X300 & Thinkpad X301 to OSI(Linux~lucid1) white-list"
+  * Revert "[Upstream] ACPI: Add Thinkpad X200, X200s, X200t to OSI(Linux~lucid1) white-list"
+  * Revert "[Upstream] ACPI: Add Thinkpad T400 & Thinkpad T500 to OSI(Linux~lucid1) white-list"
     Upstream suggests that this is not the right approach.
 
   * [Config] Set default I/O scheduler to DEADLINE
@@ -2149,7 +2360,7 @@ linux (2.6.31-10.35) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Wed, 16 Sep 2009 15:37:49 +0100
 
-linux (2.6.31-10.34) karmic; urgency=low
+linux (2.6.31-10.34~lucid1) karmic; urgency=low
 
   [ Ted Tso ]
 
@@ -2159,7 +2370,7 @@ linux (2.6.31-10.34) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Tue, 15 Sep 2009 16:00:45 -0600
 
-linux (2.6.31-10.33) karmic; urgency=low
+linux (2.6.31-10.33~lucid1) karmic; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -2169,7 +2380,7 @@ linux (2.6.31-10.33) karmic; urgency=low
   [ Tim Gardner ]
 
   * [Config] Unconditionally copy files from sub-flavours lists.
-    (really, really fix it this time)
+    (really, really fix it this time~lucid1)
     - LP: #423426
   * [Config] Set CONFIG_CACHEFILES=m for all flavours
 
@@ -2180,7 +2391,7 @@ linux (2.6.31-10.33) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Tue, 15 Sep 2009 07:50:21 -0600
 
-linux (2.6.31-10.32) karmic; urgency=low
+linux (2.6.31-10.32~lucid1) karmic; urgency=low
 
   [ Eric Miao ]
 
@@ -2194,7 +2405,7 @@ linux (2.6.31-10.32) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Thu, 10 Sep 2009 15:57:55 -0600
 
-linux (2.6.31-10.31) karmic; urgency=low
+linux (2.6.31-10.31~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2211,7 +2422,7 @@ linux (2.6.31-10.31) karmic; urgency=low
 
   [ Peter Feuerer ]
 
-  * [Upstream] (drop after 2.6.31) acerhdf: fix fan control for AOA150
+  * [Upstream] (drop after 2.6.31~lucid1) acerhdf: fix fan control for AOA150
     model
     - LP: #426691
 
@@ -2225,7 +2436,7 @@ linux (2.6.31-10.31) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 10 Sep 2009 09:38:10 +0100
 
-linux (2.6.31-10.30) karmic; urgency=low
+linux (2.6.31-10.30~lucid1) karmic; urgency=low
 
   [ Amit Kucheria ]
 
@@ -2246,19 +2457,19 @@ linux (2.6.31-10.30) karmic; urgency=low
 
   [ Jerone Young ]
 
-  * [Upstream] ACPI: Add Thinkpad T400 & Thinkpad T500 to OSI(Linux)
+  * [Upstream] ACPI: Add Thinkpad T400 & Thinkpad T500 to OSI(Linux~lucid1)
     white-list
     - LP: #281732
-  * [Upstream] ACPI: Add Thinkpad X200, X200s, X200t to OSI(Linux)
+  * [Upstream] ACPI: Add Thinkpad X200, X200s, X200t to OSI(Linux~lucid1)
     white-list
     - LP: #281732
-  * [Upstream] ACPI: Add Thinkpad X300 & Thinkpad X301 to OSI(Linux)
+  * [Upstream] ACPI: Add Thinkpad X300 & Thinkpad X301 to OSI(Linux~lucid1)
     white-list
     - LP: #281732
-  * [Upstream] ACPI: Add Thinkpad R400 & Thinkpad R500 to OSI(Linux)
+  * [Upstream] ACPI: Add Thinkpad R400 & Thinkpad R500 to OSI(Linux~lucid1)
     white-list
     - LP: #281732
-  * [Upstream] ACPI: Add Thinkpad W500, W700, & W700ds to OSI(Linux)
+  * [Upstream] ACPI: Add Thinkpad W500, W700, & W700ds to OSI(Linux~lucid1)
     white-list
     - LP: #281732
 
@@ -2302,7 +2513,7 @@ linux (2.6.31-10.30) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Mon, 07 Sep 2009 11:33:45 +0100
 
-linux (2.6.31-9.29) karmic; urgency=low
+linux (2.6.31-9.29~lucid1) karmic; urgency=low
 
   [ Leann Ogasawara ]
 
@@ -2320,7 +2531,7 @@ linux (2.6.31-9.29) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Fri, 28 Aug 2009 06:31:30 -0600
 
-linux (2.6.31-8.28) karmic; urgency=low
+linux (2.6.31-8.28~lucid1) karmic; urgency=low
 
   [ Ike Panhc ]
 
@@ -2329,18 +2540,18 @@ linux (2.6.31-8.28) karmic; urgency=low
 
   [ Leann Ogasawara ]
 
-  * [Upstream] (drop after 2.6.31) drm/i915: increase default latency
+  * [Upstream] (drop after 2.6.31~lucid1) drm/i915: increase default latency
     constant
     - LP: #412492
 
   [ Mario Limonciello ]
 
-  * [Upstream]: (drop after 2.6.31) dell-laptop: don't change softblock
+  * [Upstream]: (drop after 2.6.31~lucid1) dell-laptop: don't change softblock
     status if HW switch is disabled
     - LP: #418721
-  * [Upstream]: (drop after 2.6.31) compal-laptop: Add support for known
+  * [Upstream]: (drop after 2.6.31~lucid1) compal-laptop: Add support for known
     Compal made Dell laptops
-  * [Upstream]: (drop after 2.6.31) compal-laptop: Replace sysfs support
+  * [Upstream]: (drop after 2.6.31~lucid1) compal-laptop: Replace sysfs support
     with rfkill support
 
   [ Tim Gardner ]
@@ -2352,12 +2563,12 @@ linux (2.6.31-8.28) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Wed, 26 Aug 2009 08:14:26 -0600
 
-linux (2.6.31-7.27) karmic; urgency=low
+linux (2.6.31-7.27~lucid1) karmic; urgency=low
 
   [ Tim Gardner ]
 
   * [Config] updateconfigs updateportsconfigs after 2.6.31-rc7 rebase
-  * SAUCE: (drop after 2.6.31) Added KSM from mmotm-2009-08-20-19-18
+  * SAUCE: (drop after 2.6.31~lucid1) Added KSM from mmotm-2009-08-20-19-18
     Replaces previous ksm patches from 2.6.31-6.25
   * [Config] KSM=y
 
@@ -2367,7 +2578,7 @@ linux (2.6.31-7.27) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Sat, 22 Aug 2009 20:32:11 -0600
 
-linux (2.6.31-6.26) karmic; urgency=low
+linux (2.6.31-6.26~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2398,7 +2609,7 @@ linux (2.6.31-6.26) karmic; urgency=low
 
   [ Stefan Bader ]
 
-  * abstracted debian -- call $(DEBIAN)/rules using make
+  * abstracted debian -- call $(DEBIAN~lucid1)/rules using make
 
   [ Tim Gardner ]
 
@@ -2408,7 +2619,7 @@ linux (2.6.31-6.26) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Sun, 16 Aug 2009 20:33:28 -0600
 
-linux (2.6.31-6.25) karmic; urgency=low
+linux (2.6.31-6.25~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2513,13 +2724,13 @@ linux (2.6.31-6.25) karmic; urgency=low
   * ARM: Cleanup: Revert "ARM: IMX51: Add SoC and board support for
     Freescale mx51 platform"
   * Driver core: add new device to bus's list before probing
-  * [Upstream] (drop after 2.6.31) ALSA: hda - Reduce click noise at
+  * [Upstream] (drop after 2.6.31~lucid1) ALSA: hda - Reduce click noise at
     power-saving
     - LP: #381693, #399750, #380892
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 14 Aug 2009 11:32:23 +0100
 
-linux (2.6.31-5.24) karmic; urgency=low
+linux (2.6.31-5.24~lucid1) karmic; urgency=low
 
   [ Amit Kucheria ]
 
@@ -2564,7 +2775,7 @@ linux (2.6.31-5.24) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 28 Jul 2009 10:10:09 +0100
 
-linux (2.6.31-4.23) karmic; urgency=low
+linux (2.6.31-4.23~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2581,7 +2792,7 @@ linux (2.6.31-4.23) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Mon, 27 Jul 2009 11:11:47 +0100
 
-linux (2.6.31-4.22) karmic; urgency=low
+linux (2.6.31-4.22~lucid1) karmic; urgency=low
 
   [ Amit Kucheria ]
 
@@ -2627,11 +2838,11 @@ linux (2.6.31-4.22) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Fri, 24 Jul 2009 06:19:10 -0600
 
-linux (2.6.31-4.21) karmic; urgency=low
+linux (2.6.31-4.21~lucid1) karmic; urgency=low
 
   [ Amit Kucheria ]
 
-  * dm-raid-4-5: Add missing brackets around test_bit()
+  * dm-raid-4-5: Add missing brackets around test_bit(~lucid1)
 
   [ John Johansen ]
 
@@ -2641,7 +2852,7 @@ linux (2.6.31-4.21) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 23 Jul 2009 19:18:30 +0100
 
-linux (2.6.31-4.20) karmic; urgency=low
+linux (2.6.31-4.20~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2652,7 +2863,7 @@ linux (2.6.31-4.20) karmic; urgency=low
   * [Config] enable cryptoloop
   * [Config] enable various filesystems for armel
   * [Config] sync i386 generic and generic-pae
-  * [Config] add the 386 (486 processors and above) flavour
+  * [Config] add the 386 (486 processors and above~lucid1) flavour
   * [Config] re-set DEFAULT_MMAP_MIN_ADDR
     - LP: #399914
   * add genconfigs/genportsconfigs to extract the built configs
@@ -2700,7 +2911,7 @@ linux (2.6.31-4.20) karmic; urgency=low
 
   [ Scott James Remnant ]
 
-  * SAUCE: trace: add trace_event for the open() syscall
+  * SAUCE: trace: add trace_event for the open(~lucid1) syscall
 
   [ Stefan Bader ]
 
@@ -2722,7 +2933,7 @@ linux (2.6.31-4.20) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 23 Jul 2009 08:41:39 +0100
 
-linux (2.6.31-3.19) karmic; urgency=low
+linux (2.6.31-3.19~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2745,7 +2956,7 @@ linux (2.6.31-3.19) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 14 Jul 2009 12:52:55 +0100
 
-linux (2.6.31-3.18) karmic; urgency=low
+linux (2.6.31-3.18~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2774,7 +2985,7 @@ linux (2.6.31-3.18) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 10 Jul 2009 18:59:33 +0100
 
-linux (2.6.31-2.17) karmic; urgency=low
+linux (2.6.31-2.17~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2796,7 +3007,7 @@ linux (2.6.31-2.17) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 10 Jul 2009 15:02:05 +0100
 
-linux (2.6.31-2.16) karmic; urgency=low
+linux (2.6.31-2.16~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2806,7 +3017,7 @@ linux (2.6.31-2.16) karmic; urgency=low
 
   [ Manoj Iyer ]
 
-  * SAUCE: updated dm-raid45 module version to 2009.04.24 (2.6.30-rc3)
+  * SAUCE: updated dm-raid45 module version to 2009.04.24 (2.6.30-rc3~lucid1)
   * SAUCE: update compcache version to 0.5.3
 
   [ Tim Gardner ]
@@ -2815,7 +3026,7 @@ linux (2.6.31-2.16) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Mon, 06 Jul 2009 13:35:29 -0600
 
-linux (2.6.31-2.15) karmic; urgency=low
+linux (2.6.31-2.15~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2838,7 +3049,7 @@ linux (2.6.31-2.15) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Sat, 04 Jul 2009 17:39:13 +0100
 
-linux (2.6.31-1.14) karmic; urgency=low
+linux (2.6.31-1.14~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2865,11 +3076,11 @@ linux (2.6.31-1.14) karmic; urgency=low
 
   * intel-iommu: fix Identity Mapping to be arch independent
     - LP: #384695
-  * ACPI: video: prevent NULL deref in acpi_get_pci_dev()
+  * ACPI: video: prevent NULL deref in acpi_get_pci_dev(~lucid1)
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 30 Jun 2009 17:47:32 +0100
 
-linux (2.6.31-1.13) karmic; urgency=low
+linux (2.6.31-1.13~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2899,7 +3110,7 @@ linux (2.6.31-1.13) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Thu, 25 Jun 2009 12:06:22 +0100
 
-linux (2.6.30-10.12) karmic; urgency=low
+linux (2.6.30-10.12~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -2914,7 +3125,7 @@ linux (2.6.30-10.12) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Mon, 22 Jun 2009 09:17:14 -0600
 
-linux (2.6.30-10.11) karmic; urgency=low
+linux (2.6.30-10.11~lucid1) karmic; urgency=low
 
   [ Amit Kucheria ]
 
@@ -2936,7 +3147,7 @@ linux (2.6.30-10.11) karmic; urgency=low
 
   [ Colin Watson ]
 
-  * [Config] Run kernel-wedge in $(builddir) rather than at the top level
+  * [Config] Run kernel-wedge in $(builddir~lucid1) rather than at the top level
   * [Config] Add support for including firmware in udebs
   * [Config] Ship bnx2 firmware in nic-modules udeb
     - LP: #384861
@@ -2986,16 +3197,16 @@ linux (2.6.30-10.11) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Mon, 15 Jun 2009 14:38:26 -0600
 
-linux (2.6.30-9.10) karmic; urgency=low
+linux (2.6.30-9.10~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
-  * [Config] CONFIG_SECURITY_TOMOYO=y (amd64, i386, lpia)
-  * [Config] CONFIG_KEXEC_JUMP=y (amd64, lpia)
-  * [Config] CONFIG_LENOVO_SL_LAPTOP=m (amd64, lpia)
-  * [Config] CONFIG_POHMELFS_CRYPTO=y (i386, amd64)
-  * [Config] CONFIG_SERIAL_MAX3100=m (i386, amd64, lpia)
-  * [Config] CONFIG_VIDEO_GO7007=m (amd64, i386)
+  * [Config] CONFIG_SECURITY_TOMOYO=y (amd64, i386, lpia~lucid1)
+  * [Config] CONFIG_KEXEC_JUMP=y (amd64, lpia~lucid1)
+  * [Config] CONFIG_LENOVO_SL_LAPTOP=m (amd64, lpia~lucid1)
+  * [Config] CONFIG_POHMELFS_CRYPTO=y (i386, amd64~lucid1)
+  * [Config] CONFIG_SERIAL_MAX3100=m (i386, amd64, lpia~lucid1)
+  * [Config] CONFIG_VIDEO_GO7007=m (amd64, i386~lucid1)
 
   [ Upstream Kernel Changes ]
 
@@ -3003,7 +3214,7 @@ linux (2.6.30-9.10) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 05 Jun 2009 11:42:53 +0100
 
-linux (2.6.30-8.9) karmic; urgency=low
+linux (2.6.30-8.9~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -3017,13 +3228,13 @@ linux (2.6.30-8.9) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Wed, 03 Jun 2009 09:21:13 +0100
 
-linux (2.6.30-7.8) karmic; urgency=low
+linux (2.6.30-7.8~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
   * Enabled NEW configration options:
-      Paravirtualization layer for spinlocks (PARAVIRT_SPINLOCKS) [N/y/?] Y
-      Cisco FNIC Driver (FCOE_FNIC) [N/m/y/?] M
+      Paravirtualization layer for spinlocks (PARAVIRT_SPINLOCKS~lucid1) [N/y/?] Y
+      Cisco FNIC Driver (FCOE_FNIC~lucid1) [N/m/y/?] M
 
   [ Upstream Kernel Changes ]
 
@@ -3031,12 +3242,12 @@ linux (2.6.30-7.8) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Sat, 23 May 2009 23:47:24 +0100
 
-linux (2.6.30-6.7) karmic; urgency=low
+linux (2.6.30-6.7~lucid1) karmic; urgency=low
 
   [ Andy Whitcroft ]
 
   * Dropped: UBUNTU: SAUCE: input: Blacklist digitizers from joydev.c (now
-    upstream)
+    upstream~lucid1)
 
   [ Upstream Kernel Changes ]
 
@@ -3044,7 +3255,7 @@ linux (2.6.30-6.7) karmic; urgency=low
 
  -- Andy Whitcroft <apw@canonical.com>  Mon, 18 May 2009 18:05:54 +0100
 
-linux (2.6.30-5.6) karmic; urgency=low
+linux (2.6.30-5.6~lucid1) karmic; urgency=low
 
   [ Tim Gardner ]
 
@@ -3057,17 +3268,17 @@ linux (2.6.30-5.6) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Mon, 11 May 2009 12:02:16 -0600
 
-linux (2.6.30-4.5) karmic; urgency=low
+linux (2.6.30-4.5~lucid1) karmic; urgency=low
 
   [ Colin Watson ]
 
-  * Build-Conflict with findutils (= 4.4.1-1ubuntu1), to avoid
+  * Build-Conflict with findutils (= 4.4.1-1ubuntu1~lucid1), to avoid
     /usr/include/asm/* going missing
     - LP: #373214
 
  -- Stefan Bader <stefan.bader@canonical.com>  Fri, 08 May 2009 11:09:08 +0200
 
-linux (2.6.30-3.4) karmic; urgency=low
+linux (2.6.30-3.4~lucid1) karmic; urgency=low
 
   [ Kees Cook ]
 
@@ -3081,7 +3292,7 @@ linux (2.6.30-3.4) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Fri, 01 May 2009 14:00:42 -0600
 
-linux (2.6.30-2.3) karmic; urgency=low
+linux (2.6.30-2.3~lucid1) karmic; urgency=low
 
   [ Tim Gardner ]
 
@@ -3098,7 +3309,7 @@ linux (2.6.30-2.3) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Thu, 30 Apr 2009 09:17:05 -0600
 
-linux (2.6.30-1.2) karmic; urgency=low
+linux (2.6.30-1.2~lucid1) karmic; urgency=low
 
   [ Tim Gardner ]
 
@@ -3112,7 +3323,7 @@ linux (2.6.30-1.2) karmic; urgency=low
 
  --  Tim Gardner <tim.gardner@canonical.com>  Tue, 28 Apr 2009 16:54:41 -0600
 
-linux (2.6.30-1.1) karmic; urgency=low
+linux (2.6.30-1.1~lucid1) karmic; urgency=low
 
   * Initial release after rebasing against v2.6.30-rc3
 
