@@ -266,7 +266,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.tWP = 45,	/* tWP, ND_nWE pulse time */
 		.tRH = 45,	/* tRH, ND_nRE high duration */
 		.tRP = 45,	/* tRP, ND_nRE pulse width */			
-		.tR = 80000, 	/* tR = data transfer from cell to register */
+		.tR = 0, 	/* tR = data transfer from cell to register */
 		.tWHR = 90,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
 		.tAR = 65,	/* tAR, ND_ALE low to ND_nRE low delay */
 		.tRHW = 18,	/* tRHW, ND_nRE high to ND_nWE low delay */
@@ -2259,6 +2259,7 @@ static MV_STATUS mvNfcTimingSet(MV_U32 tclk, MV_NFC_FLASH_INFO *flInfo)
 	reg |= ((ns_clk(flInfo->tWHR, tclk) << NFC_TMNG1_TWHR_OFFS) & NFC_TMNG1_TWHR_MASK);
 	reg |= ((ns_clk(flInfo->tAR, tclk) << NFC_TMNG1_TAR_OFFS) & NFC_TMNG1_TAR_MASK);
 	reg |= ((ns_clk(flInfo->tRHW, tclk) << NFC_TMNG1_TRHW_OFFS) & NFC_TMNG1_TRHW_MASK);
+	reg |= NFC_TMNG1_WAIT_MODE_MASK;
 	MV_REG_WRITE(NFC_TIMING_1_REG, reg);
 	
 	return MV_OK;
