@@ -99,7 +99,13 @@ static struct dovefb_mach_info dove_rd_avng_lcd0_dmi = {
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 0,
 	.gpio_output_mask	= 0,
+#ifndef CONFIG_FB_DOVE_CLCD0_I2C_DEFAULT_SETTING
+	.ddc_i2c_adapter	= CONFIG_FB_DOVE_CLCD0_I2C_CHANNEL,
+	.ddc_i2c_address	= CONFIG_FB_DOVE_CLCD0_I2C_ADDRESS,
+#else
 	.ddc_i2c_adapter	= 1,
+	.ddc_i2c_address	= 0x3f,
+#endif
 	.invert_composite_blank	= 0,
 	.invert_pix_val_ena	= 0,
 	.invert_pixclock	= 0,
@@ -143,7 +149,13 @@ static struct dovefb_mach_info dove_rd_avng_lcd1_dmi = {
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 0,
 	.gpio_output_mask	= 0,
+#ifndef CONFIG_FB_DOVE_CLCD1_I2C_DEFAULT_SETTING
+	.ddc_i2c_adapter	= CONFIG_FB_DOVE_CLCD1_I2C_CHANNEL,
+	.ddc_i2c_address	= CONFIG_FB_DOVE_CLCD1_I2C_ADDRESS,
+#else
 	.ddc_i2c_adapter	= 1,
+	.ddc_i2c_address	= 0x50,
+#endif
 	.invert_composite_blank	= 0,
 	.invert_pix_val_ena	= 0,
 	.invert_pixclock	= 0,
