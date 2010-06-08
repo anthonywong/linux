@@ -67,7 +67,7 @@ rsync -av --delete ${DMAS}/config/ ${DMAV}/config
 # Update changelog from master. Change the package name and release pocket.
 #
 cp ${DMAS}/changelog ${DMAV}/changelog
-sed -i -e '1s/'${MAV}'.*;/lucid'${POCKET}';/' -e '1s/^linux /linux-'${MAV}' /' -e 's/)/~lucid1)/' ${DMAV}/changelog
+sed -i -e '1s/'${MAV}'.*;/lucid'${POCKET}';/' -e '1s/^linux /linux-'${MAV}' /' -e '1s/)/~lucid1)/' ${DMAV}/changelog
 
 #
 # Finally, rerun updateconfigs.
