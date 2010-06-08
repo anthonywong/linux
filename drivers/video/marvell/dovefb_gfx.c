@@ -38,6 +38,7 @@
 #include <linux/timer.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/i2c-algo-bit.h>
 #include <asm/irq.h>
 
 #include "../edid.h"
@@ -57,6 +58,10 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli);
 extern unsigned int lcd_accurate_clock;
 
 #define AXI_BASE_CLK	(2000000000ll)	/* 2000MHz */
+
+static const u8 edid_header[] = {
+        0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00
+};
 
 static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 {
@@ -1141,6 +1146,91 @@ static int dovefb_gfx_ioctl(struct fb_info *info, unsigned int cmd,
 	return 0;
 }
 
+static bool dovefb_edid_block_valid(u8 *raw_edid)
+{
+        int i;
+
+	if (raw_edid[0] == 0x00)
+		for (i = 0; i < sizeof(edid_header); i++)
+			if (raw_edid[i] != edid_header[i])
+				return 0;
+
+	return 1;
+}
+
+static int dovefb_do_probe_ddc_edid(struct i2c_adapter *adapter, int address,
+			unsigned char *buf, int block, int len)
+{
+        unsigned char start = block * EDID_LENGTH;
+        struct i2c_msg msgs[] = {
+                {
+                        .addr   = address,
+                        .flags  = 0,
+                        .len    = 1,
+                        .buf    = &start,
+                }, {
+                        .addr   = address,
+                        .flags  = I2C_M_RD,
+                        .len    = len,
+                        .buf    = buf + start,
+                }
+        };
+
+        if (i2c_transfer(adapter, msgs, 2) == 2)
+                return 0;
+
+        return -1;
+}
+
+static u8 *dovefb_get_edid(struct i2c_adapter *adapter, int address)
+{
+        int i, j = 0;
+        u8 *block, *new;
+
+        if ((block = kmalloc(EDID_LENGTH, GFP_KERNEL)) == NULL)
+                return NULL;
+
+        /* base block fetch */
+        for (i = 0; i < 4; i++) {
+                if (dovefb_do_probe_ddc_edid(adapter, address, block, 0, EDID_LENGTH))
+                        goto out;
+                if (dovefb_edid_block_valid(block))
+                        break;
+        }
+        if (i == 4)
+                goto carp;
+
+        /* if there's no extensions, we're done */
+        if (block[0x7e] == 0)
+                return block;
+
+        new = krealloc(block, (block[0x7e] + 1) * EDID_LENGTH, GFP_KERNEL);
+        if (!new)
+                goto out;
+        block = new;
+
+        for (j = 1; j <= block[0x7e]; j++) {
+                for (i = 0; i < 4; i++) {
+                        if (dovefb_do_probe_ddc_edid(adapter, address, block, j,
+                                                  EDID_LENGTH))
+                                goto out;
+                        if (dovefb_edid_block_valid(block + j * EDID_LENGTH))
+                                break;
+                }
+                if (i == 4)
+                        goto carp;
+        }
+
+        return block;
+
+carp:
+        printk(KERN_ERR " EDID block %d invalid.\n", j);
+
+out:
+        kfree(block);
+        return NULL;
+}
+
 static u8 *dove_read_edid(struct fb_info *fi, struct dovefb_mach_info *dmi)
 {
 #ifdef CONFIG_FB_DOVE_CLCD_EDID
@@ -1166,7 +1256,7 @@ static u8 *dove_read_edid(struct fb_info *fi, struct dovefb_mach_info *dmi)
 			return NULL;
 		}
 		/* Look for EDID data on the selected bus */
-		edid_data = fb_ddc_read(dove_i2c);
+		edid_data = dovefb_get_edid(dove_i2c,dmi->ddc_i2c_address);
 	}
 #endif
 	return edid_data;
