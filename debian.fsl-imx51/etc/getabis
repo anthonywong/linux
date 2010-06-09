@@ -1,0 +1,5 @@
+repo_list=(
+	"http://ports.ubuntu.com/pool/main/l/linux-fsl-imx51"
+)
+
+getall armel imx51
