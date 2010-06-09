@@ -9,6 +9,13 @@
 #include <asm-generic/dma-coherent.h>
 #include <asm/memory.h>
 
+extern struct dma_map_ops *dma_ops;
+
+static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+{
+	return dma_ops;
+}
+
 /*
  * page_to_dma/dma_to_virt/virt_to_dma are architecture private functions
  * used internally by the DMA-mapping API to provide DMA addresses. They
