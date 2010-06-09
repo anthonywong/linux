@@ -157,6 +157,9 @@ void play_dead(void);
 
 #endif /* CONFIG_XEN */
 
+void wbinvd_on_cpu(int cpu);
+int wbinvd_on_all_cpus(void);
+
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)
 
@@ -164,6 +167,13 @@ void smp_store_cpu_info(int id);
 static inline int num_booting_cpus(void)
 {
 	return cpumask_weight(cpu_callout_mask);
+}
+#else /* !CONFIG_SMP */
+#define wbinvd_on_cpu(cpu)     wbinvd()
+static inline int wbinvd_on_all_cpus(void)
+{
+	wbinvd();
+	return 0;
 }
 #endif /* CONFIG_SMP */
 
