@@ -35,7 +35,7 @@
 #include "nfc/mvNfcRegs.h"
 
 #define NFC_DPRINT(x) 		//printk x
-#define PRINT_LVL		KERN_INFO
+#define PRINT_LVL		KERN_DEBUG
 
 #define	CHIP_DELAY_TIMEOUT	(20 * HZ/10)
 #define NFC_MAX_NUM_OF_DESCR	(33) /* worst case in 8K ganaged */
@@ -50,9 +50,10 @@ MV_U32 pg_sz[NFC_PAGE_SIZE_MAX_CNT] = {512, 2048, 4096, 8192, 16384};
 enum {
 	ERR_NONE	= 0,
 	ERR_DMABUSERR	= -1,
-	ERR_SENDCMD	= -2,
-	ERR_DBERR	= -3,
-	ERR_BBERR	= -4,
+	ERR_CMD_TO	= -2,
+	ERR_DATA_TO	= -3,
+	ERR_DBERR	= -4,
+	ERR_BBD		= -5,
 };
 
 enum {
@@ -101,6 +102,7 @@ struct orion_nfc_info {
 	size_t			data_size;	/* data size in FIFO */
 	size_t			read_size;
 	int 			retcode;
+	uint32_t		dscr;		/* IRQ events - status */
 	struct completion 	cmd_complete;
 
 	int			chained_cmd;
@@ -252,7 +254,7 @@ static struct nand_bbt_descr mv_lp_bb = {
  * Lookup Tables
  */
 
-struct orion_nfc_lkup {
+struct orion_nfc_naked_info {
 	
 	struct nand_ecclayout* 	ecc_layout;
 	struct nand_bbt_descr*	bb_info;
@@ -265,7 +267,7 @@ struct orion_nfc_lkup {
 };
 
 			                     /* PageSize*/          /* ECc Type */
-static struct orion_nfc_lkup orion_nfc_lkup_tbl[NFC_PAGE_SIZE_MAX_CNT][MV_NFC_ECC_MAX_CNT] = {
+static struct orion_nfc_naked_info orion_nfc_naked_info_lkup[NFC_PAGE_SIZE_MAX_CNT][MV_NFC_ECC_MAX_CNT] = {
 	/* 512B Pages */
 	{{    	/* Hamming */
 		&ecc_latout_512B_hamming, &mv_sp_bb, 512, 512, 16, 1, 0, 0
@@ -338,14 +340,46 @@ static struct orion_nfc_lkup orion_nfc_lkup_tbl[NFC_PAGE_SIZE_MAX_CNT][MV_NFC_EC
 	}}};
 		
 
-#define ECC_LAYOUT	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].ecc_layout)
-#define BB_INFO		(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].bb_info)
-#define	BB_BYTE_POS	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].bb_bytepos)
-#define CHUNK_CNT	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].chunk_cnt)
-#define CHUNK_SZ	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].chunk_size)
-#define CHUNK_SPR	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].chunk_spare)
-#define LST_CHUNK_SZ	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].last_chunk_size)
-#define LST_CHUNK_SPR	(orion_nfc_lkup_tbl[info->page_size][info->ecc_type].last_chunk_spare)
+#define ECC_LAYOUT	(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].ecc_layout)
+#define BB_INFO		(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].bb_info)
+#define	BB_BYTE_POS	(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].bb_bytepos)
+#define CHUNK_CNT	(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].chunk_cnt)
+#define CHUNK_SZ	(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].chunk_size)
+#define CHUNK_SPR	(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].chunk_spare)
+#define LST_CHUNK_SZ	(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].last_chunk_size)
+#define LST_CHUNK_SPR	(orion_nfc_naked_info_lkup[info->page_size][info->ecc_type].last_chunk_spare)
+
+struct orion_nfc_cmd_info {
+	
+	uint32_t		events_p1;	/* post command events */
+	uint32_t		events_p2;	/* post data events */
+	MV_NFC_PIO_RW_MODE	rw;
+};
+
+static struct orion_nfc_cmd_info orion_nfc_cmd_info_lkup[MV_NFC_CMD_COUNT] = {
+	/* Phase 1 interrupts */			/* Phase 2 interrupts */			/* Read/Write */  /* MV_NFC_CMD_xxxxxx */
+	{(NFC_SR_RDDREQ_MASK), 				(0),						MV_NFC_PIO_READ}, /* READ_ID */
+	{(NFC_SR_RDDREQ_MASK), 				(0),						MV_NFC_PIO_READ}, /* READ_STATUS */
+	{(0), 						(MV_NFC_STATUS_RDY | MV_NFC_STATUS_BBD),	MV_NFC_PIO_NONE}, /* ERASE */
+	{(0), 						(0), 						MV_NFC_PIO_NONE}, /* MULTIPLANE_ERASE */
+	{(0), 						(MV_NFC_STATUS_RDY), 				MV_NFC_PIO_NONE}, /* RESET */
+	{(0), 						(0), 						MV_NFC_PIO_READ}, /* CACHE_READ_SEQ */
+	{(0), 						(0), 						MV_NFC_PIO_READ}, /* CACHE_READ_RAND */
+	{(0), 						(0), 						MV_NFC_PIO_NONE}, /* EXIT_CACHE_READ */
+	{(0), 						(0), 						MV_NFC_PIO_READ}, /* CACHE_READ_START */
+	{(NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK), 	(0), 						MV_NFC_PIO_READ}, /* READ_MONOLITHIC */
+	{(0), 						(0),						MV_NFC_PIO_READ}, /* READ_MULTIPLE */
+	{(NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK), 	(0), 						MV_NFC_PIO_READ}, /* READ_NAKED */
+	{(NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK), 	(0), 						MV_NFC_PIO_READ}, /* READ_LAST_NAKED */
+	{(0), 						(0), 						MV_NFC_PIO_NONE}, /* READ_DISPATCH */
+	{(MV_NFC_STATUS_WRD_REQ), 			(MV_NFC_STATUS_RDY | MV_NFC_STATUS_BBD),	MV_NFC_PIO_WRITE},/* WRITE_MONOLITHIC */
+	{(0), 						(0), 						MV_NFC_PIO_WRITE},/* WRITE_MULTIPLE */
+	{(MV_NFC_STATUS_WRD_REQ),			(MV_NFC_STATUS_PAGED),				MV_NFC_PIO_WRITE},/* WRITE_NAKED */
+	{(0), 						(0), 						MV_NFC_PIO_WRITE},/* WRITE_LAST_NAKED */
+	{(0), 						(0), 						MV_NFC_PIO_NONE}, /* WRITE_DISPATCH */
+	{(MV_NFC_STATUS_CMDD),				(0),						MV_NFC_PIO_NONE}, /* WRITE_DISPATCH_START */
+	{(0),						(MV_NFC_STATUS_RDY | MV_NFC_STATUS_BBD), 	MV_NFC_PIO_NONE}, /* WRITE_DISPATCH_END */
+};
 
 static int prepare_read_prog_cmd(struct orion_nfc_info *info,
 			int column, int page_addr)
@@ -356,35 +390,6 @@ static int prepare_read_prog_cmd(struct orion_nfc_info *info,
 	    != MV_OK)
 		return -EINVAL;
 
-	return 0;
-}
-
-static int handle_data_pio(struct orion_nfc_info *info)
-{
-	int ret, timeout = CHIP_DELAY_TIMEOUT;
-	NFC_DPRINT((PRINT_LVL "handle_data_pio() - state = %d.\n",info->state));
-	switch (info->state) {
-	case STATE_PIO_WRITING:
-		mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
-		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_RDY, MV_TRUE);
-
-		ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
-		if (!ret) {
-			printk(KERN_ERR "program command time out\n");
-			return -1;
-		}
-		break;
-	case STATE_PIO_READING:
-		NFC_DPRINT((PRINT_LVL "handle_data_pio() - data_size = %d.\n",info->data_size));
-		mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
-		break;
-	default:
-		printk(KERN_ERR "%s: invalid state %d\n", __func__,
-				info->state);
-		return -EINVAL;
-	}
-
-	info->state = STATE_READY;
 	return 0;
 }
 
@@ -419,7 +424,7 @@ static void orion_nfc_data_dma_irq(int irq, void *data)
 
 	if (info->state == STATE_DMA_WRITING) {
 		info->state = STATE_DMA_DONE;
-		mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY , MV_TRUE);
+		mvNfcIntrSet(&info->nfcCtrl,  MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY , MV_TRUE);
 	} else {
 		info->state = STATE_READY;
 		complete(&info->cmd_complete);
@@ -428,20 +433,37 @@ static void orion_nfc_data_dma_irq(int irq, void *data)
 	return;
 }
 
-static irqreturn_t orion_nfc_irq(int irq, void *devid)
+static irqreturn_t orion_nfc_irq_pio(int irq, void *devid)
+{
+	struct orion_nfc_info *info = devid;
+
+	/* Disable all interrupts */
+	mvNfcIntrSet(&info->nfcCtrl, 0xFFF, MV_FALSE);
+
+	/* Clear the interrupt and pass the status UP */
+	info->dscr = MV_REG_READ(NFC_STATUS_REG);
+	NFC_DPRINT((PRINT_LVL ">>> orion_nfc_irq_pio(0x%x)\n", info->dscr));
+	MV_REG_WRITE(NFC_STATUS_REG, info->dscr);
+	complete(&info->cmd_complete);
+
+	return IRQ_HANDLED;
+}
+	
+
+static irqreturn_t orion_nfc_irq_dma(int irq, void *devid)
 {
 	struct orion_nfc_info *info = devid;
 	unsigned int status;
 
 	status = MV_REG_READ(NFC_STATUS_REG);
 
-	NFC_DPRINT((PRINT_LVL "orion_nfc_irq(0x%x) - 1.\n", status));
+	NFC_DPRINT((PRINT_LVL "orion_nfc_irq_dma(0x%x) - 1.\n", status));
 
 	if(!info->chained_cmd) {
 		if (status & (NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK)) {
 			if (status & NFC_SR_UNCERR_MASK)
 				info->retcode = ERR_DBERR;
-			mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK, MV_FALSE);
+			mvNfcIntrSet(&info->nfcCtrl, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK, MV_FALSE);
 			if (info->use_dma) {
 				info->state = STATE_DMA_READING;
 				mvNfcReadWrite(&info->nfcCtrl, info->cmd, (MV_U32*)info->data_buff, info->data_buff_phys);
@@ -450,7 +472,7 @@ static irqreturn_t orion_nfc_irq(int irq, void *devid)
 				complete(&info->cmd_complete);
 			}
 		} else if (status & NFC_SR_WRDREQ_MASK) {
-			mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRDREQ_MASK, MV_FALSE);
+			mvNfcIntrSet(&info->nfcCtrl, NFC_SR_WRDREQ_MASK, MV_FALSE);
 			if (info->use_dma) {
 				info->state = STATE_DMA_WRITING;
 				NFC_DPRINT((PRINT_LVL "Calling mvNfcReadWrite().\n"));
@@ -467,8 +489,8 @@ static irqreturn_t orion_nfc_irq(int irq, void *devid)
 				     NFC_SR_RDY0_MASK | MV_NFC_CS1_CMD_DONE_INT |
 				     NFC_SR_RDY1_MASK)) {
 			if (status & NFC_SR_BBD_MASK)
-				info->retcode = ERR_BBERR;
-			mvNfcIntrEnable(&info->nfcCtrl,  MV_NFC_STATUS_BBD |
+				info->retcode = ERR_BBD;
+			mvNfcIntrSet(&info->nfcCtrl,  MV_NFC_STATUS_BBD |
 					MV_NFC_STATUS_CMDD | MV_NFC_STATUS_RDY,
 					MV_FALSE);
 			info->state = STATE_READY;
@@ -478,7 +500,7 @@ static irqreturn_t orion_nfc_irq(int irq, void *devid)
 				NFC_SR_RDY1_MASK | NFC_SR_UNCERR_MASK)) {
 		if (status & (NFC_SR_BBD_MASK | NFC_SR_UNCERR_MASK))
 			info->retcode = ERR_DBERR;
-		mvNfcIntrEnable(&info->nfcCtrl, MV_NFC_STATUS_BBD |
+		mvNfcIntrSet(&info->nfcCtrl, MV_NFC_STATUS_BBD |
 				MV_NFC_STATUS_RDY | MV_NFC_STATUS_CMDD,
 				MV_FALSE);
 		if ((info->state != STATE_DMA_READING) ||
@@ -521,8 +543,10 @@ static int orion_nfc_cmd_prepare(struct orion_nfc_info *info,
 			{
 				currDesc->numSgBuffs = 2;
 				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (i * CHUNK_SZ));
+				currDesc->sgBuffAddrVirt[0] = (MV_U32 *)(info->data_buff + (i * CHUNK_SZ));
 				currDesc->sgBuffSize[0] = CHUNK_SZ;
 				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (i * CHUNK_SPR));
+				currDesc->sgBuffAddrVirt[1] = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (i * CHUNK_SPR));
 				currDesc->sgBuffSize[1] = CHUNK_SPR;
 			}
 
@@ -555,8 +579,10 @@ static int orion_nfc_cmd_prepare(struct orion_nfc_info *info,
 			{
 				currDesc->numSgBuffs = 2;
 				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT));
+				currDesc->sgBuffAddrVirt[0] = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT));
 				currDesc->sgBuffSize[0] = LST_CHUNK_SZ;
 				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
+				currDesc->sgBuffAddrVirt[1] =  (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
 				currDesc->sgBuffSize[1] = LST_CHUNK_SPR;
 			}
 			currDesc++;
@@ -588,8 +614,10 @@ static int orion_nfc_cmd_prepare(struct orion_nfc_info *info,
 			{
 				currDesc->numSgBuffs = 2;
 				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (i * CHUNK_SZ));
+				currDesc->sgBuffAddrVirt[0] = (MV_U32 *)(info->data_buff + (i * CHUNK_SZ));
 				currDesc->sgBuffSize[0] = CHUNK_SZ;
 				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (i * CHUNK_SPR));
+				currDesc->sgBuffAddrVirt[1] = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (i * CHUNK_SPR));
 				currDesc->sgBuffSize[1] = CHUNK_SPR;
 			}
 
@@ -620,8 +648,10 @@ static int orion_nfc_cmd_prepare(struct orion_nfc_info *info,
 			{
 				currDesc->numSgBuffs = 2;
 				currDesc->sgBuffAddr[0] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT));
+				currDesc->sgBuffAddrVirt[0] = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT));
 				currDesc->sgBuffSize[0] = LST_CHUNK_SZ;
 				currDesc->sgBuffAddr[1] = (info->data_buff_phys + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
+				currDesc->sgBuffAddrVirt[1] = (MV_U32 *)(info->data_buff + (CHUNK_SZ * CHUNK_CNT) + LST_CHUNK_SZ + (CHUNK_SPR * CHUNK_CNT));
 				currDesc->sgBuffSize[1] = LST_CHUNK_SPR;
 			}
 			currDesc++;
@@ -642,14 +672,14 @@ static int orion_nfc_cmd_prepare(struct orion_nfc_info *info,
 		descInfo[0].virtAddr = (MV_U32 *)info->data_buff;
 		descInfo[0].physAddr = info->data_buff_phys;
 		descInfo[0].numSgBuffs = 1;
-		descInfo[0].length = 0;
+		descInfo[0].length = info->data_size;
 		*numCmds = 1;
 	}
 
 	return 0;
 }
 
-static int orion_nfc_do_cmd_multiple(struct orion_nfc_info *info,
+static int orion_nfc_do_cmd_dma(struct orion_nfc_info *info,
 		uint32_t event)
 {
 	uint32_t ndcr;
@@ -663,12 +693,14 @@ static int orion_nfc_do_cmd_multiple(struct orion_nfc_info *info,
 	/* Clear all status bits. */
 	MV_REG_WRITE(NFC_STATUS_REG, NFC_SR_MASK);
 
-	mvNfcIntrEnable(&info->nfcCtrl, event, MV_TRUE);
+	mvNfcIntrSet(&info->nfcCtrl, event, MV_TRUE);
 
-	NFC_DPRINT((PRINT_LVL "About to issue multi cmd %d (cs %d) - 0x%x.\n",
+	NFC_DPRINT((PRINT_LVL "\nAbout to issue dma cmd %d (cs %d) - 0x%x.\n",
 				info->cmd, info->nfcCtrl.currCs,
 				MV_REG_READ(NFC_CONTROL_REG)));
-	if (info->cmd == MV_NFC_CMD_READ_MONOLITHIC)
+	if ((info->cmd == MV_NFC_CMD_READ_MONOLITHIC) ||
+	    (info->cmd == MV_NFC_CMD_READ_ID) ||
+	    (info->cmd == MV_NFC_CMD_READ_STATUS))
 		info->state = STATE_DMA_READING;
 	else
 		info->state = STATE_CMD_HANDLE;
@@ -691,15 +723,11 @@ static int orion_nfc_do_cmd_multiple(struct orion_nfc_info *info,
 		printk(KERN_ERR "Cmd %d execution timed out (0x%x) - cs %d.\n",
 				info->cmd, MV_REG_READ(NFC_STATUS_REG),
 				info->nfcCtrl.currCs);
-		info->retcode = ERR_SENDCMD;
+		info->retcode = ERR_CMD_TO;
 		goto fail_stop;
 	}
 
-	if (info->use_dma == 0 && info->data_size > 0)
-		if (handle_data_pio(info))
-			goto fail_stop;
-
-	mvNfcIntrEnable(&info->nfcCtrl, event | MV_NFC_STATUS_CMDD, MV_FALSE);
+	mvNfcIntrSet(&info->nfcCtrl, event | MV_NFC_STATUS_CMDD, MV_FALSE);
 
 	while (MV_PDMA_CHANNEL_STOPPED !=
 			mvPdmaChannelStateGet(&info->nfcCtrl.dataChanHndl)) {
@@ -718,55 +746,185 @@ fail:
 	return -ETIMEDOUT;
 }
 
-static int orion_nfc_do_cmd(struct orion_nfc_info *info, uint32_t event)
+static int orion_nfc_error_check(struct orion_nfc_info *info)
 {
-	uint32_t ndcr;
-	int ret, timeout = CHIP_DELAY_TIMEOUT;
+	switch (info->cmd) {
+		case MV_NFC_CMD_ERASE:
+		case MV_NFC_CMD_MULTIPLANE_ERASE:
+		case MV_NFC_CMD_WRITE_MONOLITHIC:
+		case MV_NFC_CMD_WRITE_MULTIPLE:
+		case MV_NFC_CMD_WRITE_NAKED:
+		case MV_NFC_CMD_WRITE_LAST_NAKED:
+		case MV_NFC_CMD_WRITE_DISPATCH:
+		case MV_NFC_CMD_WRITE_DISPATCH_START:
+		case MV_NFC_CMD_WRITE_DISPATCH_END:
+			if (info->dscr & (MV_NFC_CS0_BAD_BLK_DETECT_INT | MV_NFC_CS1_BAD_BLK_DETECT_INT)) {
+				info->retcode = ERR_BBD;
+				return 1;
+			}
+			break;
+		
+		case MV_NFC_CMD_CACHE_READ_SEQ:
+		case MV_NFC_CMD_CACHE_READ_RAND:
+		case MV_NFC_CMD_EXIT_CACHE_READ:
+		case MV_NFC_CMD_CACHE_READ_START:
+		case MV_NFC_CMD_READ_MONOLITHIC:
+		case MV_NFC_CMD_READ_MULTIPLE:
+		case MV_NFC_CMD_READ_NAKED:
+		case MV_NFC_CMD_READ_LAST_NAKED:
+		case MV_NFC_CMD_READ_DISPATCH:
+			if (info->dscr & MV_NFC_UNCORR_ERR_INT) {
+				info->dscr = ERR_DBERR;
+				return 1;
+			}
+			break;
+
+		default:
+			break;
+	}
+
+	info->retcode = ERR_NONE;
+	return 0;
+}
+
+/* ==================================================================================================
+ *           STEP  1		|   STEP  2   |   STEP  3   |   STEP  4   |   STEP  5   |   STEP 6
+ *           COMMAND		|   WAIT FOR  |   CHK ERRS  |     PIO     |   WAIT FOR  |   CHK ERRS
+ * =============================|=============|=============|=============|=============|============
+ *   READ MONOLITHIC		|   RDDREQ    |   UNCERR    |    READ     |     NONE    |    NONE
+ *   READ NAKED			|   RDDREQ    |   UNCERR    |    READ     |     NONE    |    NONE
+ *   READ LAST NAKED		|   RDDREQ    |   UNCERR    |    READ     |     NONE    |    NONE
+ *   WRITE MONOLITHIC		|   WRDREQ    |    NONE     |    WRITE    |     RDY     |    BBD
+ *   WRITE DISPATCH START	|   CMDD      |    NONE     |    NONE     |     NONE    |    NONE
+ *   WRITE NAKED		|   WRDREQ    |    NONE     |    WRITE    |     PAGED   |    NONE
+ *   WRITE DISPATCH END		|   NONE      |    NONE     |    NONE     |     RDY     |    BBD
+ *   ERASE			|   NONE      |    NONE     |    NONE     |     RDY     |    BBD
+ *   READ ID			|   RDDREQ    |    NONE     |    READ     |     NONE    |    NONE
+ *   READ STAT			|   RDDREQ    |    NONE     |    READ     |     NONE    |    NONE
+ *   RESET			|   NONE      |    NONE     |    NONE     |     RDY     |    NONE
+ */
+static int orion_nfc_do_cmd_pio(struct orion_nfc_info *info)
+{
+	int timeout = CHIP_DELAY_TIMEOUT;
 	MV_STATUS status;
+	MV_U32	i, j, numCmds;
+	MV_U32 ndcr;
 
-	/* Clear all status bits. */
-	MV_REG_WRITE(NFC_STATUS_REG, NFC_SR_MASK);
- 	mvNfcIntrEnable(&info->nfcCtrl, NFC_SR_WRCMDREQ_MASK, MV_FALSE);
-	mvNfcIntrEnable(&info->nfcCtrl, event, MV_TRUE);
+	/* static allocation to avoid stack overflow */
+	static MV_NFC_MULTI_CMD descInfo[NFC_MAX_NUM_OF_DESCR];
 
-	NFC_DPRINT((PRINT_LVL "About to issue command %d (cs %d) - 0x%x.\n",
-				info->cmd,info->nfcCtrl.currCs, MV_REG_READ(NFC_CONTROL_REG)));
-	info->state = STATE_CMD_HANDLE;
+	/* Clear all status bits */
+	MV_REG_WRITE(NFC_STATUS_REG, NFC_SR_MASK);	
+	
+	NFC_DPRINT((PRINT_LVL "\nStarting PIO command %d (cs %d) - NDCR=0x%08x\n",
+				info->cmd, info->nfcCtrl.currCs, MV_REG_READ(NFC_CONTROL_REG)));
 
-	status = mvNfcCommandIssue(&info->nfcCtrl,info->cmd,
-				   info->page_addr,info->column);
-	if(status != MV_OK) {
-		printk(KERN_ERR "mvNfcCommandIssue() failed for command %d (%d).\n",info->cmd, status);
-		goto fail;
-	}
-	NFC_DPRINT((PRINT_LVL "After issue command %d - 0x%x.\n", info->cmd, MV_REG_READ(NFC_STATUS_REG)));
+	/* Build the chain of commands */
+	orion_nfc_cmd_prepare(info, descInfo, &numCmds);
+	NFC_DPRINT((PRINT_LVL "Prepared %d commands in sequence\n", numCmds));
 
-	ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
-	if (!ret) {
-		printk(KERN_ERR "command %d execution timed out (0x%x).\n",info->cmd, MV_REG_READ(NFC_STATUS_REG));
-		info->retcode = ERR_SENDCMD;
-		goto fail_stop;
-	}
-
-	/*if(info->state != STATE_READY)
-		printk(PRINT_LVL "%s - %d - Bad state.\n", __FUNCTION__, __LINE__);*/
-
-	if (info->use_dma == 0 && info->data_size > 0)
-		if (handle_data_pio(info))
+	/* Execute the commands */
+	for (i=0; i < numCmds; i++) {
+		/* Verify that command is supported in PIO mode */
+		if ((orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p1 == 0) &&
+		    (orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p2 == 0)) {
 			goto fail_stop;
+		}
+		
+		/* clear the return code */
+		info->dscr = 0;
 
-	mvNfcIntrEnable(&info->nfcCtrl, event | MV_NFC_STATUS_CMDD, MV_FALSE);
+		/* STEP1: Initiate the command */
+		NFC_DPRINT((PRINT_LVL "About to issue Descriptor #%d (command %d, pageaddr 0x%x, length %d).\n", 
+			    i, descInfo[i].cmd, descInfo[i].pageAddr, descInfo[i].length));
+		if ((status = mvNfcCommandPio(&info->nfcCtrl, &descInfo[i], MV_FALSE)) != MV_OK) {
+			printk(KERN_ERR "mvNfcCommandPio() failed for command %d (%d).\n", descInfo[i].cmd, status);
+			goto fail_stop;
+		}
+		NFC_DPRINT((PRINT_LVL "After issue command %d (NDSR=0x%x)\n", descInfo[i].cmd, MV_REG_READ(NFC_STATUS_REG)));
+	
+		/* Check if command phase interrupts events are needed */
+		if (orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p1) {
+			/* Enable necessary interrupts for command phase */
+			NFC_DPRINT((PRINT_LVL "Enabling part1 interrupts (IRQs 0x%x)\n", orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p1));
+			mvNfcIntrSet(&info->nfcCtrl, orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p1, MV_TRUE);	
+			
+			/* STEP2: wait for interrupt */
+			if (!wait_for_completion_timeout(&info->cmd_complete, timeout)) {
+				printk(KERN_ERR "command %d execution timed out (CS %d, NDCR=0x%x, NDSR=0x%x).\n",
+				       descInfo[i].cmd, info->nfcCtrl.currCs, MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG));
+				info->retcode = ERR_CMD_TO;
+				goto fail_stop;
+			}
+		
+			/* STEP3: Check for errors */
+			if (orion_nfc_error_check(info)) {
+				NFC_DPRINT((PRINT_LVL "Command level errors (DSCR=%08x, retcode=%d)\n", info->dscr, info->retcode));
+				goto fail_stop;
+			}
+		}		
+				
+		/* STEP4: PIO Read/Write data if needed */
+		if (descInfo[i].numSgBuffs > 1)
+		{
+			for (j=0; j< descInfo[i].numSgBuffs; j++) {
+				NFC_DPRINT((PRINT_LVL "Starting SG#%d PIO Read/Write (%d bytes, R/W mode %d)\n", j, 
+					    descInfo[i].sgBuffSize[j], orion_nfc_cmd_info_lkup[descInfo[i].cmd].rw));
+				mvNfcReadWritePio(&info->nfcCtrl, descInfo[i].sgBuffAddrVirt[j], 
+						  descInfo[i].sgBuffSize[j], orion_nfc_cmd_info_lkup[descInfo[i].cmd].rw);
+			}
+		}
+		else {
+			NFC_DPRINT((PRINT_LVL "Starting nonSG PIO Read/Write (%d bytes, R/W mode %d)\n", 
+				    descInfo[i].length, orion_nfc_cmd_info_lkup[descInfo[i].cmd].rw));
+			mvNfcReadWritePio(&info->nfcCtrl, descInfo[i].virtAddr, 
+					  descInfo[i].length, orion_nfc_cmd_info_lkup[descInfo[i].cmd].rw);
+		}
 
-	if(MV_PDMA_CHANNEL_STOPPED != mvPdmaChannelStateGet(&info->nfcCtrl.dataChanHndl))
-		BUG();
+		/* check if data phase events are needed */
+		if (orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p2) {
+			/* Enable the RDY interrupt to close the transaction */
+			NFC_DPRINT((PRINT_LVL "Enabling part2 interrupts (IRQs 0x%x)\n", orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p2));
+			mvNfcIntrSet(&info->nfcCtrl, orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p2, MV_TRUE);			
 
+			/* STEP5: Wait for transaction to finish */
+			if (!wait_for_completion_timeout(&info->cmd_complete, timeout)) {
+				printk(KERN_ERR "command %d execution timed out (NDCR=0x%08x, NDSR=0x%08x, NDECCCTRL=0x%08x)\n", descInfo[i].cmd, 
+						MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG), MV_REG_READ(NFC_ECC_CONTROL_REG));
+				info->retcode = ERR_DATA_TO;
+				goto fail_stop;
+			}
+		
+			/* STEP6: Check for errors BB errors (in erase) */
+			if (orion_nfc_error_check(info)) {
+				NFC_DPRINT((PRINT_LVL "Data level errors (DSCR=0x%08x, retcode=%d)\n", info->dscr, info->retcode));
+				goto fail_stop;
+			}
+		}
+	
+		/* Fallback - in case the NFC did not reach the idle state */
+		ndcr = MV_REG_READ(NFC_CONTROL_REG);
+		if (ndcr & NFC_CTRL_ND_RUN_MASK) {
+			printk(KERN_DEBUG "WRONG NFC STAUS: command %d, NDCR=0x%08x, NDSR=0x%08x, NDECCCTRL=0x%08x)\n", 
+		       	info->cmd, MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG), MV_REG_READ(NFC_ECC_CONTROL_REG));
+			MV_REG_WRITE(NFC_CONTROL_REG, (ndcr & ~NFC_CTRL_ND_RUN_MASK));
+		}
+	}
+
+	NFC_DPRINT((PRINT_LVL "Command done (NDCR=0x%08x, NDSR=0x%08x)\n", MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG)));
+	info->retcode = ERR_NONE;	
+	
 	return 0;
 
 fail_stop:
 	ndcr = MV_REG_READ(NFC_CONTROL_REG);
-	MV_REG_WRITE(NFC_CONTROL_REG, ndcr & ~NFC_CTRL_ND_RUN_MASK);
+	if (ndcr & NFC_CTRL_ND_RUN_MASK) {
+		printk(KERN_ERR "WRONG NFC STAUS: command %d, NDCR=0x%08x, NDSR=0x%08x, NDECCCTRL=0x%08x)\n", 
+		       info->cmd, MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG), MV_REG_READ(NFC_ECC_CONTROL_REG));
+		MV_REG_WRITE(NFC_CONTROL_REG, (ndcr & ~NFC_CTRL_ND_RUN_MASK));
+	}
+	mvNfcIntrSet(&info->nfcCtrl, 0xFFF, MV_FALSE);
 	udelay(10);
-fail:
 	return -ETIMEDOUT;
 }
 
@@ -806,9 +964,9 @@ static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 			break;
 
 		if (info->use_dma)
-			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd_dma(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
 		else
-			orion_nfc_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd_pio(info);
 
 		/* We only are OOB, so if the data has error, does not matter */
 		if (info->retcode == ERR_DBERR)
@@ -827,9 +985,9 @@ static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 			break;
 
 		if (info->use_dma)
-			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd_dma(info, MV_NFC_STATUS_RDY | NFC_SR_UNCERR_MASK);
 		else
-			orion_nfc_do_cmd(info, NFC_SR_RDDREQ_MASK | NFC_SR_UNCERR_MASK);
+			orion_nfc_do_cmd_pio(info);
 
 		if (info->retcode == ERR_DBERR) {
 			/* for blank page (all 0xff), HW will calculate its ECC as
@@ -862,9 +1020,9 @@ static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 		}
 	
 		if (info->use_dma)
-			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_RDY);
+			orion_nfc_do_cmd_dma(info, MV_NFC_STATUS_RDY);
 		else
-			orion_nfc_do_cmd(info, NFC_SR_WRDREQ_MASK);
+			orion_nfc_do_cmd_pio(info);
 
 		break;
 	case NAND_CMD_ERASE1:
@@ -873,9 +1031,9 @@ static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->cmd = MV_NFC_CMD_ERASE;
 
 		if (info->use_dma)
-			orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
+			orion_nfc_do_cmd_dma(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
 		else
-			orion_nfc_do_cmd(info, MV_NFC_STATUS_BBD | MV_NFC_STATUS_RDY);
+			orion_nfc_do_cmd_pio(info);
 
 		break;
 	case NAND_CMD_ERASE2:
@@ -890,7 +1048,12 @@ static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->page_addr = 0;
 		info->cmd = (command == NAND_CMD_READID) ?
 			MV_NFC_CMD_READ_ID : MV_NFC_CMD_READ_STATUS;
-		orion_nfc_do_cmd(info,NFC_SR_RDDREQ_MASK);
+
+		if (info->use_dma)
+			orion_nfc_do_cmd_dma(info,MV_NFC_STATUS_RDY);
+		else
+			orion_nfc_do_cmd_pio(info);
+
 		break;
 	case NAND_CMD_RESET:
 		info->column = 0;
@@ -898,9 +1061,9 @@ static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->cmd = MV_NFC_CMD_RESET;
 
 		if (info->use_dma)
-			ret = orion_nfc_do_cmd_multiple(info, MV_NFC_STATUS_CMDD);
+			ret = orion_nfc_do_cmd_dma(info, MV_NFC_STATUS_CMDD);
 		else
-			ret = orion_nfc_do_cmd(info, MV_NFC_STATUS_CMDD);
+			ret = orion_nfc_do_cmd_pio(info);
 
 		if (ret == 0) {
 			int timeout = 2;
@@ -1317,9 +1480,9 @@ static int orion_nfc_probe(struct platform_device *pdev)
 	}
 
 	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_0);
-	mvNfcIntrEnable(&info->nfcCtrl,  0xFFF, MV_FALSE);
+	mvNfcIntrSet(&info->nfcCtrl,  0xFFF, MV_FALSE);
 	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_1);
-	mvNfcIntrEnable(&info->nfcCtrl,  0xFFF, MV_FALSE);
+	mvNfcIntrSet(&info->nfcCtrl,  0xFFF, MV_FALSE);
 	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_NONE);
 
 	ret = orion_nfc_init_buff(info);
@@ -1328,8 +1491,13 @@ static int orion_nfc_probe(struct platform_device *pdev)
 
 	/* Clear all old events on the status register */
 	MV_REG_WRITE(NFC_STATUS_REG, MV_REG_READ(NFC_STATUS_REG));
-	ret = request_irq(IRQ_NAND, orion_nfc_irq, IRQF_DISABLED,
+	if (info->use_dma)
+		ret = request_irq(IRQ_NAND, orion_nfc_irq_dma, IRQF_DISABLED,
 				pdev->name, info);
+	else
+		ret = request_irq(IRQ_NAND, orion_nfc_irq_pio, IRQF_DISABLED,
+				pdev->name, info);
+
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to request IRQ\n");
 		goto fail_free_buf;

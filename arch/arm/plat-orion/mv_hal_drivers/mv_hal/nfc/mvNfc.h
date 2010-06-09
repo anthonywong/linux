@@ -205,6 +205,12 @@ typedef enum {
 	MV_NFC_PDMA_ACCESS
 }MV_NFC_IO_MODE;
 
+typedef enum {
+	MV_NFC_PIO_READ,
+	MV_NFC_PIO_WRITE,
+	MV_NFC_PIO_NONE
+}MV_NFC_PIO_RW_MODE;
+
 
 typedef enum {
 	MV_NFC_IF_1X8,
@@ -255,7 +261,7 @@ typedef struct {
 
 
 typedef enum {
-	MV_NFC_CMD_READ_ID,
+	MV_NFC_CMD_READ_ID = 0,
 	MV_NFC_CMD_READ_STATUS,
 	MV_NFC_CMD_ERASE,
 	MV_NFC_CMD_MULTIPLANE_ERASE,
@@ -277,7 +283,9 @@ typedef enum {
 	MV_NFC_CMD_WRITE_LAST_NAKED,
 	MV_NFC_CMD_WRITE_DISPATCH,
 	MV_NFC_CMD_WRITE_DISPATCH_START,
-	MV_NFC_CMD_WRITE_DISPATCH_END
+	MV_NFC_CMD_WRITE_DISPATCH_END,
+
+	MV_NFC_CMD_COUNT	/* This should be the last enum */
 
 }MV_NFC_CMD_TYPE;
 
@@ -366,6 +374,7 @@ typedef struct {
 	MV_U32		physAddr;
 	MV_U32		numSgBuffs;
 	MV_U32		sgBuffAddr[MV_NFC_RW_MAX_BUFF_NUM];
+	MV_U32		*sgBuffAddrVirt[MV_NFC_RW_MAX_BUFF_NUM];
 	MV_U32		sgBuffSize[MV_NFC_RW_MAX_BUFF_NUM];
 	MV_U32		length;
 }MV_NFC_MULTI_CMD;
@@ -384,11 +393,12 @@ typedef struct {
 
 MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl);
 MV_STATUS mvNfcSelectChip(MV_NFC_CTRL *nfcCtrl, MV_NFC_CHIP_SEL chip);
-MV_STATUS mvNfcCommandIssue(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 pageAddr, MV_U32 columnOffs);
+MV_STATUS mvNfcCommandPio(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD * cmd_desc, MV_BOOL next);
 MV_STATUS mvNfcCommandMultiple(MV_NFC_CTRL *nfcCtrl, MV_NFC_MULTI_CMD *descInfo, MV_U32 descCnt);
 MV_U32 	  mvNfcStatusGet(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *value);
-MV_STATUS mvNfcIntrEnable(MV_NFC_CTRL *nfcCtrl, MV_U32 intMask, MV_BOOL enable);
+MV_STATUS mvNfcIntrSet(MV_NFC_CTRL *nfcCtrl, MV_U32 intMask, MV_BOOL enable);
 MV_STATUS mvNfcReadWrite(MV_NFC_CTRL *nfcCtrl, MV_NFC_CMD_TYPE cmd, MV_U32 *virtBufAddr, MV_U32 physBuffAddr);
+MV_VOID   mvNfcReadWritePio(MV_NFC_CTRL *nfcCtrl, MV_U32 * buff, MV_U32 data_len, MV_NFC_PIO_RW_MODE mode);
 MV_VOID   mvNfcAddress2RowConvert(MV_NFC_CTRL *nfcCtrl, MV_U32 address, MV_U32 *row, MV_U32 *colOffset);
 MV_VOID   mvNfcAddress2BlockConvert(MV_NFC_CTRL *nfcCtrl, MV_U32 address, MV_U32 *blk);
 MV_8 * 	  mvNfcFlashModelGet(MV_NFC_CTRL *nfcCtrl);

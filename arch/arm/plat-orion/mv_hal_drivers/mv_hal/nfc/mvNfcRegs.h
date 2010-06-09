@@ -162,6 +162,7 @@ extern "C" {
 #define NFC_SR_CS0_PAGED_MASK		(0x1 << 10)
 #define NFC_SR_RDY0_MASK		(0x1 << 11)
 #define NFC_SR_RDY1_MASK		(0x1 << 12)
+#define NFC_SR_ALLIRQ_MASK		(0x1FFF << 0)
 #define NFC_SR_TRUSTVIO_MASK		(0x1 << 15)
 #define NFC_SR_ERR_CNT_OFFS		16
 #define NFC_SR_ERR_CNT_MASK		(0x1F << NFC_SR_ERR_CNT_OFFS)
