@@ -506,7 +506,7 @@ static int disable_periodic (struct ehci_hcd *ehci)
 	ehci_writel(ehci, cmd, &ehci->regs->command);
 	/* posted write ... */
 
-	free_cached_itd_list(ehci);
+	free_cached_lists(ehci);
 
 	ehci->next_uframe = -1;
 	return 0;
