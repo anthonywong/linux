@@ -774,25 +774,41 @@ static int __init dove_db_pm_init(void)
 
 	pmuInitInfo.batFltMngDis = MV_FALSE;				/* Keep battery fault enabled */
 	pmuInitInfo.exitOnBatFltDis = MV_FALSE;				/* Keep exit from STANDBY on battery fail enabled */
-	pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
-	pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;		/* STANDBY => 0: I/O off, 1: I/O on */
-	pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;		/* power on push button */	
-	if (rev >= DOVE_REV_X0) { /* For X0 and higher Power Good indication is not needed */
-		if (standby_fix)
-			pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CKE_OVRID;	/* CKE controlled by Dove */
+	if (machine_is_dove_db()) {
+
+		pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
+		pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
+		pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_SLP_PWRDWN;		/* STANDBY => 0: I/O off, 1: I/O on */
+		pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;		/* power on push button */	
+		if (rev >= DOVE_REV_X0) { /* For X0 and higher Power Good indication is not needed */
+			if (standby_fix)
+				pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CKE_OVRID;	/* CKE controlled by Dove */
+			else
+				pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
+		}
 		else
-			pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_NC;
+			pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
+		
+		pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;		/* DEEP-IdLE => 0: CPU off, 1: CPU on */
+		
+		if ((rev >= DOVE_REV_X0) && (standby_fix)) /* For boards with X0 we use MPP6 as MRESET */
+			pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_MRESET_OVRID;		/* M_RESET is pulled up - always HI */
+		else
+			pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;
+	} else {
+		
+		pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_CPU_PWRDWN; /* DEEP-IdLE => 0: CPU off, 1: CPU on */
+		pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
+		
+		pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_NC;
+		
+		pmuInitInfo.sigSelctor[3] = PMU_SIGNAL_EXT0_WKUP;		/* power on push button */	
+		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CKE_OVRID;	/* CKE controlled by Dove */
+		pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_SLP_PWRDWN;		/* STANDBY => 0: I/O off, 1: I/O on */
+		
+		/* For boards with X0 we use MPP6 as MRESET */
+		pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_MRESET_OVRID;
 	}
-	else
-		pmuInitInfo.sigSelctor[4] = PMU_SIGNAL_CPU_PWRGOOD;	/* CORE power good used as Standby PG */
-
-	pmuInitInfo.sigSelctor[5] = PMU_SIGNAL_CPU_PWRDWN;		/* DEEP-IdLE => 0: CPU off, 1: CPU on */
-
-	if ((rev >= DOVE_REV_X0) && (standby_fix)) /* For boards with X0 we use MPP6 as MRESET */
-		pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_MRESET_OVRID;		/* M_RESET is pulled up - always HI */
-	else
-		pmuInitInfo.sigSelctor[6] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[7] = PMU_SIGNAL_1;			/* Standby Led - inverted */
 	pmuInitInfo.sigSelctor[8] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[9] = PMU_SIGNAL_NC;			/* CPU power good  - not used */
@@ -803,7 +819,11 @@ static int __init dove_db_pm_init(void)
 	pmuInitInfo.sigSelctor[14] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
 	pmuInitInfo.dvsDelay = 0x4200;				/* ~100us in 166MHz cc - delay for DVS change */
-	pmuInitInfo.ddrTermGpioNum = 16;			/* GPIO 16 used to disable terminations */
+	if (machine_is_dove_db_b())
+		pmuInitInfo.ddrTermGpioNum = 2;			/* GPIO 2 used to disable terminations */
+	else
+		pmuInitInfo.ddrTermGpioNum = 16;			/* GPIO 16 used to disable terminations */
+
 	if (rev >= DOVE_REV_X0) /* For X0 and higher wait at least 150ms + spare */
 		pmuInitInfo.standbyPwrDelay = 0x2000;		/* 250ms delay to wait for complete powerup */
 	else
