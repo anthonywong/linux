@@ -24,6 +24,9 @@
 #include <asm/tlbflush.h>
 #include <asm/sizes.h>
 
+struct dma_map_ops *dma_ops;
+EXPORT_SYMBOL(dma_ops);
+
 /* Sanity check size */
 #if (CONSISTENT_DMA_SIZE % SZ_2M)
 #error "CONSISTENT_DMA_SIZE must be multiple of 2MiB"
