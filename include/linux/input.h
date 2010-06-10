@@ -694,6 +694,7 @@ struct input_absinfo {
 #define ABS_VOLUME		0x20
 #define ABS_MISC		0x28
 
+#define ABS_MT_SLOT		0x2f	/* MT slot being modified */
 #define ABS_MT_TOUCH_MAJOR	0x30	/* Major axis of touching ellipse */
 #define ABS_MT_TOUCH_MINOR	0x31	/* Minor axis (omit if circular) */
 #define ABS_MT_WIDTH_MAJOR	0x32	/* Major axis of approaching ellipse */
@@ -813,6 +814,24 @@ struct input_absinfo {
  */
 #define MT_TOOL_FINGER		0
 #define MT_TOOL_PEN		1
+
+/*
+ * MT slot event lists
+ */
+
+#define MT_SLOT_ABS_EVENTS {	\
+	ABS_MT_TOUCH_MAJOR,	\
+	ABS_MT_TOUCH_MINOR,	\
+	ABS_MT_WIDTH_MAJOR,	\
+	ABS_MT_WIDTH_MINOR,	\
+	ABS_MT_ORIENTATION,	\
+	ABS_MT_POSITION_X,	\
+	ABS_MT_POSITION_Y,	\
+	ABS_MT_TOOL_TYPE,	\
+	ABS_MT_BLOB_ID,		\
+	ABS_MT_TRACKING_ID,	\
+	ABS_MT_PRESSURE,	\
+}
 
 /*
  * Values describing the status of a force-feedback effect
@@ -1081,6 +1100,9 @@ struct ff_effect {
  * @sync: set to 1 when there were no new events since last EV_SYNC
  * @abs: current values for reports from absolute axes
  * @rep: current values for autorepeat parameters (delay, rate)
+ * @mt: array of MT slots
+ * @mtsize: number of allocated MT slots
+ * @slot: current MT slot
  * @key: reflects current state of device's keys/buttons
  * @led: reflects current state of device's LEDs
  * @snd: reflects current state of sound effects
@@ -1157,6 +1179,10 @@ struct input_dev {
 
 	int abs[ABS_CNT];
 	int rep[REP_MAX + 1];
+
+	struct input_mt_slot *mt;
+	int mtsize;
+	int slot;
 
 	unsigned long key[BITS_TO_LONGS(KEY_CNT)];
 	unsigned long led[BITS_TO_LONGS(LED_CNT)];
@@ -1406,6 +1432,11 @@ static inline void input_mt_sync(struct input_dev *dev)
 	input_event(dev, EV_SYN, SYN_MT_REPORT, 0);
 }
 
+static inline void input_mt_slot(struct input_dev *dev, int slot)
+{
+	input_event(dev, EV_ABS, ABS_MT_SLOT, slot);
+}
+
 void input_set_capability(struct input_dev *dev, unsigned int type, unsigned int code);
 
 static inline void input_set_abs_params(struct input_dev *dev, int axis, int min, int max, int fuzz, int flat)
@@ -1484,6 +1515,19 @@ int input_ff_erase(struct input_dev *dev, int effect_id, struct file *file);
 
 int input_ff_create_memless(struct input_dev *dev, void *data,
 		int (*play_effect)(struct input_dev *, void *, struct ff_effect *));
+
+#define MT_ABS_SIZE 11
+
+/**
+ * struct input_mt_slot - represents the state of an input MT slot
+ * @abs: current values of ABS_MT axes for this slot
+ */
+struct input_mt_slot {
+	int abs[MT_ABS_SIZE];
+};
+
+int input_mt_create_slots(struct input_dev *dev, int max_slots);
+void input_mt_destroy_slots(struct input_dev *dev);
 
 #endif
 #endif
