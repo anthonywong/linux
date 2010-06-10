@@ -10,7 +10,7 @@
 
 #define EVDEV_MINOR_BASE	64
 #define EVDEV_MINORS		32
-#define EVDEV_BUFFER_SIZE	64
+#define EVDEV_MIN_BUFFER_SIZE	64
 
 #include <linux/poll.h>
 #include <linux/sched.h>
@@ -34,7 +34,8 @@ struct evdev {
 	struct mutex mutex;
 	struct device dev;
 	int head;
-	struct input_event buffer[EVDEV_BUFFER_SIZE];
+	unsigned int bufsize;
+	struct input_event *buffer;
 };
 
 struct evdev_client {
@@ -75,7 +76,7 @@ static void evdev_event(struct input_handle *handle,
 
 	/* dev->event_lock held */
 	evdev->buffer[evdev->head] = event;
-	evdev->head = (evdev->head + 1) & (EVDEV_BUFFER_SIZE - 1);
+	evdev->head = (evdev->head + 1) & (evdev->bufsize - 1);
 
 	rcu_read_lock();
 
@@ -122,6 +123,7 @@ static void evdev_free(struct device *dev)
 	struct evdev *evdev = container_of(dev, struct evdev, dev);
 
 	input_put_device(evdev->handle.dev);
+	kfree(evdev->buffer);
 	kfree(evdev);
 }
 
@@ -340,7 +342,7 @@ static int evdev_fetch_next_event(struct evdev_client *client,
 	have_event = client->head != client->tail;
 	if (have_event) {
 		*event = evdev->buffer[client->tail++];
-		client->tail &= EVDEV_BUFFER_SIZE - 1;
+		client->tail &= evdev->bufsize - 1;
 	}
 
 	spin_unlock_irq(&dev->event_lock);
@@ -793,6 +795,11 @@ static void evdev_cleanup(struct evdev *evdev)
 	}
 }
 
+static int evdev_compute_buffer_size(struct input_dev *dev)
+{
+	return EVDEV_MIN_BUFFER_SIZE;
+}
+
 /*
  * Create new evdev device. Note that input core serializes calls
  * to connect and disconnect so we don't need to lock evdev_table here.
@@ -836,6 +843,14 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	evdev->dev.parent = &dev->dev;
 	evdev->dev.release = evdev_free;
 	device_initialize(&evdev->dev);
+
+	evdev->bufsize = evdev_compute_buffer_size(dev);
+	evdev->buffer = kcalloc(evdev->bufsize, sizeof(struct input_event),
+				GFP_KERNEL);
+	if (!evdev->buffer) {
+		error = -ENOMEM;
+		goto err_free_evdev;
+	}
 
 	error = input_register_handle(&evdev->handle);
 	if (error)
