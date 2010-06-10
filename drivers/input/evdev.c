@@ -11,6 +11,7 @@
 #define EVDEV_MINOR_BASE	64
 #define EVDEV_MINORS		32
 #define EVDEV_MIN_BUFFER_SIZE	64
+#define EVDEV_BUF_PACKETS	8
 
 #include <linux/poll.h>
 #include <linux/sched.h>
@@ -797,7 +798,9 @@ static void evdev_cleanup(struct evdev *evdev)
 
 static int evdev_compute_buffer_size(struct input_dev *dev)
 {
-	return EVDEV_MIN_BUFFER_SIZE;
+	int nev = dev->hint_events_per_packet * EVDEV_BUF_PACKETS;
+	nev = max(nev, EVDEV_MIN_BUFFER_SIZE);
+	return roundup_pow_of_two(nev);
 }
 
 /*
