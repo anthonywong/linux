@@ -33,11 +33,23 @@ static struct platform_device *dove_ac97_snd_device;
 
 static struct snd_soc_dai_link dove_ac97_dai[] = {
 	{
-	 .name = "AC97",
-	 .stream_name = "AC97 HiFi",
-	 .cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_HIFI],
-	 .codec_dai = &rt655_dai,
-	 },
+		.name = "AC97",
+		.stream_name = "AC97 HiFi",
+		.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_HIFI],
+		.codec_dai = &rt655_dai,
+	},
+	{
+		.name = "AC97",
+		.stream_name = "AC97 LFE",
+		.cpu_dai = &pxa_ac97_surround_dai[PXA3XX_DAI_AC97_LFE],
+		.codec_dai = &rt655_dai,
+	},
+	{
+		.name = "AC97",
+		.stream_name = "AC97 Surround",
+		.cpu_dai = &pxa_ac97_surround_dai[PXA3XX_DAI_AC97_SURROUND],
+		.codec_dai = &rt655_dai,
+	},
 };
 
 static struct snd_soc_card dove = {
