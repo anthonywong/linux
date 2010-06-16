@@ -516,6 +516,13 @@ static struct i2c_board_info __initdata i2c_a2d = {
 };
 
 /*****************************************************************************
+ * IDT clock 
+ ****************************************************************************/
+static struct i2c_board_info __initdata idt = {
+	I2C_BOARD_INFO("idt5v49ee503", 0x6A),
+};
+
+/*****************************************************************************
  * NAND
  ****************************************************************************/
 static struct mtd_partition partition_dove[] = {
@@ -954,6 +961,8 @@ static void __init dove_db_init(void)
 
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
+	if (machine_is_dove_db_b())
+		i2c_register_board_info(0, &idt, 1);
 	spi_register_board_info(dove_db_spi_flash_info,
 				ARRAY_SIZE(dove_db_spi_flash_info));
 	if (front_panel)
