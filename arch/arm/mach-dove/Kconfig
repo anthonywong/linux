@@ -64,14 +64,6 @@ config MACH_DOVE_VIDEOPLUG
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell  88AP510 Video Plug Board.
 
-config MV_EXT_VGA_CLOCK
-       bool "Marvell external IDT5V49EE503 clock on 88AP510 Board"
-       depends on MACH_DOVE_VIDEOPLUG
-       help
-	  Say 'Y' here if you want your kernel to support the
-	  external video clock on Marvell  88AP510 Board.
-	  This clock enables dual-head VGA out with different resolution
-
 endmenu
 
 config MV_HAL_DRIVERS_SUPPORT
@@ -85,5 +77,12 @@ config MV_HAL_DRIVERS_SUPPORT
 config DOVE_PM_SUPPORT
 	depends on PM && MV_INCLUDE_PMU && MV_HAL_DRIVERS_SUPPORT
 	def_bool y
+
+config MV_EXT_VGA_CLOCK
+       tristate "Marvell external IDT5V49EE503 clock on 88AP510 Board"
+       help
+	  Say 'Y' here if you want your kernel to support the
+	  external video clock on Marvell  88AP510 Board.
+	  This clock enables dual-head VGA out with different resolution
 
 endif

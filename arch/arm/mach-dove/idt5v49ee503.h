@@ -65,8 +65,7 @@ typedef struct _idt_clock_cfg_t
 						/* in the clock EEPROM, but also set as active  and */
 						/* PLL + output are enabled */
 } idt_clock_cfg_t;
-
-int idt5v49ee503_init (int bus_id);
+#if 0
 int idt5v49ee503_set (unsigned long freq_set, 
 		      idt_clock_cfg_t *clock_cfg);
 
@@ -85,6 +84,6 @@ int idt5v49ee503_out_enable (int             bus_id,
 
 int idt5v49ee503_sw_ctrl (int  bus_id,
 			  int  sw_ctl);
-
+#endif
 
 #endif /* _INC_IDT5V49EE503_H */
