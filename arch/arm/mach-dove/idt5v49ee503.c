@@ -4,12 +4,13 @@
  */
 
 /* TODO: move to Dove's clock.c ? */
-
+#include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/i2c.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <asm/string.h>
-
+#include <asm/div64.h>
 #include "idt5v49ee503.h"
 
 #define IDT5V49EE503_BUS_ADDR			0x6A /* 7'b1101010 */
@@ -92,10 +93,7 @@ typedef struct _idt_freq_ten_t
 
 typedef struct _idt_drv_info_t
 {
-	struct i2c_adapter 	*i2c_ad;
 	struct i2c_client 	*i2c_cl;
-	int			valid;
-
 } idt_drv_info_t;
 
 /***************/
@@ -208,14 +206,54 @@ static idt_freq_ten_t idt5v49ee503_freq_tbl[] = {
 	/*f_out      f_in      n    d   odiv */
 	{ 148500000, 25000000, 891, 25,  6},
 	{  64109000, 25000000, 877, 19, 18},
-	{ 108883000, 25000000, 527, 11, 11},
+	{ 108883000, 25000000, 662, 19, 8},
 	{ 160963000, 25000000, 734, 19,  6},
-	{ 136358000, 25000000, 480, 19,  8},
+	{ 136358000, 25000000, 480, 11,  8},
 	{         0,        0,   0,  0,  0},
 };
 
-/* local driver information */
-static idt_drv_info_t idt5v49ee503_drv[IDT5V49EE503_NUM_BUS] = {{0}, {0}};
+#define FIN 25000000ULL
+static int calc_freq_div(unsigned long long freq, idt_freq_ten_t *entry)
+{
+	unsigned int n, d, odiv;
+	unsigned long long max_diff, diff;
+	uint64_t tmp;
+	uint32_t factor;
+
+	max_diff = freq * 1;
+	do_div(max_diff, 10000);
+	for (odiv = 4; odiv < 256; odiv+=2)
+		for (d = odiv/*1*/; d < 127; d++) {
+			tmp = freq * odiv * d;
+			do_div(tmp, FIN);
+			if (tmp < 1 || tmp > 4095)
+				continue;
+			n = (unsigned int) tmp;
+			/* check if this n gives accurate Fout */
+			tmp = FIN * n;
+			factor = d * odiv;
+			do_div(tmp, factor);
+			if (tmp > freq)
+				diff = tmp - freq;
+			else
+				diff = freq - tmp;
+			
+			if (diff < max_diff) {
+				printk(KERN_DEBUG "dividers found for Fout = %lld. n=%d d=%d odiv %d\n",
+				       freq, n, d, odiv);
+				printk(KERN_DEBUG "diff = %lld. max diff %lld freq %lld tmp %lld\n",
+				       diff, max_diff, freq, tmp);
+				entry->odiv = odiv;
+				entry->d = d;
+				entry->n = n;
+				return 0;
+			}
+		}
+
+	printk("error: can't find dividers for Fout = %lld\n", freq);
+
+	return -1;
+}
 
 /****************************************************************************** 
    Write I2C register
@@ -229,20 +267,24 @@ static idt_drv_info_t idt5v49ee503_drv[IDT5V49EE503_NUM_BUS] = {{0}, {0}};
    Returns:
 	0 on success or error value
 *******************************************************************************/
-static int idt5v49ee503_write_reg (idt_drv_info_t *driver,
+static int idt5v49ee503_write_reg (idt_drv_info_t *idt_drv,
 				   unsigned char  addr,
 				   unsigned char  val)
 {
  	unsigned char buf[3] = {0, addr, val}; /* fist byte is command (0) */
-	
-	return i2c_master_send(driver->i2c_cl, buf, 3);
+	int rc = i2c_master_send(idt_drv->i2c_cl, buf, 3);
+//	printk("%s: addr %x val %x\n", __func__, addr, val);
+	if (rc != 3) {
+		return -EIO;
+	}
+	return 0;
 
 } /* end of idt5v49ee503_read_reg */
 
 /****************************************************************************** 
    Read I2C register
    Input:
- 	driver - driver control structure
+ 	idt_drv - driver control structure
  	addr   - register address
  	val    - register value
    Output:
@@ -251,29 +293,27 @@ static int idt5v49ee503_write_reg (idt_drv_info_t *driver,
    Returns:
 	0 on success or error value
 *******************************************************************************/
-static int idt5v49ee503_read_reg (idt_drv_info_t *driver,
+static int idt5v49ee503_read_reg (idt_drv_info_t *idt_drv,
 				  unsigned char  addr,
 				  unsigned char  *val)
 {
 	int           rval;
 	unsigned char buf[3] = {0, addr, 0}; /* fist byte for WRITE is command (0)
 	                                        or ID byte for READ (ignored) */
-	
-	rval = i2c_master_send(driver->i2c_cl, buf, 2);
-	if (rval == 0)
+	rval = i2c_master_send(idt_drv->i2c_cl, buf, 2);
+	if (rval == 2)
 	{	
-		rval = i2c_master_recv(driver->i2c_cl, buf, 2);
+		rval = i2c_master_recv(idt_drv->i2c_cl, buf, 2);
 		*val = buf[1];
 	}
-
-	return rval;
+	return (rval != 2);
 
 } /* end of idt5v49ee503_read_reg */
 
 /****************************************************************************** 
    Read, modify and write back I2C register
    Input:
- 	driver - driver control structure
+ 	idt_drv - driver control structure
  	addr   - register address
  	fval   - register's field value
  	shift  - number of bits to shift the field
@@ -284,22 +324,22 @@ static int idt5v49ee503_read_reg (idt_drv_info_t *driver,
    Returns:
 	0 on success or error value
 *******************************************************************************/
-static int idt5v49ee503_mod_reg (idt_drv_info_t *driver,
+static int idt5v49ee503_mod_reg (idt_drv_info_t *idt_drv,
 				 unsigned char  addr,
 				 unsigned char  fval,
 				 unsigned char  shift,
 				 unsigned char	mask)
 {
 	int           rval;
-	unsigned char val;
-	
-	if ((rval = idt5v49ee503_read_reg(driver, addr, &val)) != 0)
+	unsigned char val = 0;
+
+	if ((rval = idt5v49ee503_read_reg(idt_drv, addr, &val)) != 0)
 		return rval;
 
 	val &= ~(mask << shift); 
 	val |= (fval & mask) <<	shift;
 
-	return idt5v49ee503_write_reg(driver, addr, val);
+	return idt5v49ee503_write_reg(idt_drv, addr, val);
 
 } /* end of idt5v49ee503_mod_reg */
 
@@ -307,7 +347,7 @@ static int idt5v49ee503_mod_reg (idt_drv_info_t *driver,
 /****************************************************************************** 
    Connect PLL to specific output pin and output divider
    Input:
- 	driver - driver control structure
+ 	idt_drv - driver control structure
  	clock_cfg - clock configuration
    Output:
       	NONE
@@ -315,7 +355,7 @@ static int idt5v49ee503_mod_reg (idt_drv_info_t *driver,
    Returns:
 	Output divider ID
 *******************************************************************************/
-static idt_out_div_t idt5v49ee503_setup_output (idt_drv_info_t	*driver,
+static idt_out_div_t idt5v49ee503_setup_output (idt_drv_info_t	*idt_drv,
 						idt_clock_cfg_t	*clock_cfg)
 {
 	idt_clock_src_id_t	clk_src_id[2]; /* maximum 2 clock sources to config */
@@ -324,7 +364,7 @@ static idt_out_div_t idt5v49ee503_setup_output (idt_drv_info_t	*driver,
 	idt_src_reg_set_t	*reg_set = idt5v49ee503_src_regs[clock_cfg->cfg_id];
 	int			i;
 
-	if (driver == NULL)
+	if (idt_drv == NULL)
 		return IDT_OUT_DIV_INV;
 
 	/* second source MUX will usually not be used (excepting OUT0) */
@@ -396,7 +436,7 @@ static idt_out_div_t idt5v49ee503_setup_output (idt_drv_info_t	*driver,
 		if (clk_src_id[i] == IDT_OUT_ID_INV)
 			continue;
 
-		if (idt5v49ee503_mod_reg(driver,
+		if (idt5v49ee503_mod_reg(idt_drv,
 				         reg_set[clk_src_id[i]].lreg,
 				         clk_src[i],
 				         reg_set[clk_src_id[i]].lshift,
@@ -406,7 +446,7 @@ static idt_out_div_t idt5v49ee503_setup_output (idt_drv_info_t	*driver,
 		/* MSB bit is located in other than LSB register? */
 		if (reg_set[clk_src_id[i]].mreg != 0xFF)
 		{
-			if (idt5v49ee503_mod_reg(driver,
+			if (idt5v49ee503_mod_reg(idt_drv,
 						 reg_set[clk_src_id[i]].mreg,
 						 clk_src[i],
 						 reg_set[clk_src_id[i]].mshift,
@@ -416,60 +456,16 @@ static idt_out_div_t idt5v49ee503_setup_output (idt_drv_info_t	*driver,
 	}	
 
 	/* Configure primary clock source */
-	if (idt5v49ee503_mod_reg(driver,
+	if (idt5v49ee503_mod_reg(idt_drv,
 				 reg_set[IDT_CLK_SRC_ID_PRIM].lreg,
 				 clock_cfg->clk_src_clkin != 0 ? 
 					IDT_PRM_CLK_CLKIN : IDT_PRM_CLK_CRYSTAL,
 				 reg_set[IDT_CLK_SRC_ID_PRIM].lshift,
 				 reg_set[IDT_CLK_SRC_ID_PRIM].lmask) != 0)
 		return IDT_OUT_DIV_INV;
-
 	return divider;
 
 } /* end of idt5v49ee503_setup_output */
-
-/****************************************************************************** 
-   Initilalize driver data
-   Input:
- 	bus_id  - bus ID
-   Output:
-      	NONE
- 
-   Returns:
-	0	- success,
-*******************************************************************************/
-int idt5v49ee503_init (int bus_id)
-{
-	struct i2c_board_info 	i2c_brd;
-	
-	idt5v49ee503_drv[bus_id].i2c_ad = i2c_get_adapter(bus_id);
-	if (idt5v49ee503_drv[bus_id].i2c_ad == NULL)
-	{	
-		printk(KERN_ERR "idt5v49ee503: failed to obtain "
-				"adapter[%d] handler\n", bus_id);
-		return -ENODEV;
-	}
-
-	/* configure board values for getting slave device handler */
-	memset(&i2c_brd, 0, sizeof(struct i2c_board_info));
-	i2c_brd.addr          = IDT5V49EE503_BUS_ADDR;
-	i2c_brd.platform_data = "ext_vga_clock";
-	strlcpy(i2c_brd.type, "idt5v49ee503", I2C_NAME_SIZE);
-
-	idt5v49ee503_drv[bus_id].i2c_cl = 
-		i2c_new_device(idt5v49ee503_drv[bus_id].i2c_ad, &i2c_brd);
-	if (idt5v49ee503_drv[bus_id].i2c_cl == NULL)
-	{	
-		printk(KERN_ERR "idt5v49ee503: failed to obtain "
-				"device handler\n");
-		return -ENODEV;
-	}
-
-	idt5v49ee503_drv[bus_id].valid = 1;
-
-	return 0;
-
-} /* end of idt5v49ee503_init */
 
 /****************************************************************************** 
    Write PLL parameters to clock HW according to specific frequency index
@@ -482,30 +478,21 @@ int idt5v49ee503_init (int bus_id)
    Returns:
 	0	- success,
 *******************************************************************************/
-static int idt5v49ee503_write_cfg (unsigned int    freq_idx,
+static int idt5v49ee503_write_cfg (idt_drv_info_t *idt_drv,
+				   idt_freq_ten_t *freq,
 				   idt_clock_cfg_t *clock_cfg)
 {
-	idt_drv_info_t		*drv = NULL;
-	idt_freq_ten_t		*freq = &idt5v49ee503_freq_tbl[freq_idx];
 	idt_out_div_t		div_id; /* output divider */
 	idt_pll_reg_set_t 	*pll_regs = idt5v49ee503_pll_regs[clock_cfg->cfg_id];
 	unsigned int 		*div_regs = idt5v49ee503_div_regs[clock_cfg->cfg_id];
 	unsigned int		div_val, n_lsb, n_msb = 0;
 
-	/* Sanity checks */
-	if (clock_cfg->bus_id >= IDT5V49EE503_NUM_BUS)
-		return -EINVAL;
-
-	drv = &idt5v49ee503_drv[clock_cfg->bus_id];
-	if (drv->valid != 1)
-		return -EPERM;
 
 	/* Setup SRCx MUXes and primary clock source first */
-	if ((div_id = idt5v49ee503_setup_output(drv, clock_cfg)) == IDT_OUT_DIV_INV)
+	if ((div_id = idt5v49ee503_setup_output(idt_drv, clock_cfg)) == IDT_OUT_DIV_INV)
 		return -EIO;
-
 	/* Configure clock parameters */
-	if (idt5v49ee503_write_reg(drv,
+	if (idt5v49ee503_write_reg(idt_drv,
 				 pll_regs[clock_cfg->clock_id].D_reg,
 				 freq->d) != 0)
 		return -EIO;
@@ -521,28 +508,28 @@ static int idt5v49ee503_write_cfg (unsigned int    freq_idx,
 		n_msb = (freq->n >> 8) & 0xF;
 	} /* M =  N */
 
-	if (idt5v49ee503_write_reg(drv,
+	if (idt5v49ee503_write_reg(idt_drv,
 				   pll_regs[clock_cfg->clock_id].N_lreg,
 				   n_lsb) != 0)
 		return -EIO;
 
 	/* MSP part of N parameter shares register space with others */
-	if (idt5v49ee503_mod_reg(drv,
+	if (idt5v49ee503_mod_reg(idt_drv,
 				 pll_regs[clock_cfg->clock_id].N_mreg,
 				 n_msb,
 				 pll_regs[clock_cfg->clock_id].N_mlshft,
 				 0xF) != 0)
 		return -EIO;
-	
+
 	/* Configure output divider */
 	if (freq->odiv == 1)
 		div_val = 0xFF;
 	else if (freq->odiv == 2)
-		div_val = 0xFF;
+		div_val = 0;
 	else /* ODIV = (Q[6:0] + 2) * 2 */
-		div_val = (freq->odiv >> 1) - 2 + 0x90; 
+		div_val = ((freq->odiv >> 1) - 2) | 0x80; 
 
-	if (idt5v49ee503_write_reg(drv,
+	if (idt5v49ee503_write_reg(idt_drv,
 				   div_regs[div_id],
 				   div_val) != 0)
 		return -EIO;
@@ -554,6 +541,7 @@ static int idt5v49ee503_write_cfg (unsigned int    freq_idx,
 /****************************************************************************** 
    activate specific clock configuration
    Input:
+	idt_drv	    - driver data
 	clock_cfg   - clock configuration
    Output:
       	NONE
@@ -563,22 +551,13 @@ static int idt5v49ee503_write_cfg (unsigned int    freq_idx,
  	-EPERM - the clock is not initialized
  	-EINVAL - bad configuration ID
 *******************************************************************************/
-int idt5v49ee503_set_act_cfg (idt_clock_cfg_t *clock_cfg)
+int idt5v49ee503_set_act_cfg (idt_drv_info_t *idt_drv, idt_clock_cfg_t *clock_cfg)
 {
-	idt_drv_info_t	*drv = NULL;
-	
-	if (clock_cfg->bus_id >= IDT5V49EE503_NUM_BUS)
-		return -EINVAL;
-
-	drv = &idt5v49ee503_drv[clock_cfg->bus_id];
-	if (drv->valid != 1)
-		return -EPERM;
-
 	if (clock_cfg->cfg_id >= IDT_CLK_CFG_NUM)
 		return -EINVAL;
 
 	/* Activate configuration */
-	return idt5v49ee503_write_reg(drv,
+	return idt5v49ee503_write_reg(idt_drv,
 				      IDT5V49EE503_CFG_SEL_REG,
 				      clock_cfg->cfg_id);
 
@@ -587,61 +566,45 @@ int idt5v49ee503_set_act_cfg (idt_clock_cfg_t *clock_cfg)
 /****************************************************************************** 
    Save all clock registers to EEPROM
    Input:
- 	bus_id  - bus ID
+ 	idt_drv - driver data
    Output:
       	NONE
  
    Returns:
  	0      - success,
 *******************************************************************************/
-int idt5v49ee503_save_regs (int bus_id)
+int idt5v49ee503_save_regs (idt_drv_info_t *idt_drv)
 {
 	/* PROGSAVE command (1) */
 	char		cmd = 0x1;
-	idt_drv_info_t	*drv = NULL;
 
-	if (bus_id >= IDT5V49EE503_NUM_BUS)
-		return -EINVAL;
-
-	drv = &idt5v49ee503_drv[bus_id];
-	if (drv->valid != 1)
-		return -EPERM;
-
-	return i2c_master_send(drv->i2c_cl, &cmd, 1);
+	return i2c_master_send(idt_drv->i2c_cl, &cmd, 1);
 
 } /* end of idt5v49ee503_save_regs */
 
 /****************************************************************************** 
    Save all clock registers to EEPROM
    Input:
- 	bus_id  - bus ID
+ 	idt_drv - driver data
    Output:
       	NONE
  
    Returns:
  	0      - success,
 *******************************************************************************/
-int idt5v49ee503_restore_regs (int bus_id)
+int idt5v49ee503_restore_regs (idt_drv_info_t *idt_drv)
 {
 	/* PROGRESTORE command (2) */
 	char		cmd = 0x2;
-	idt_drv_info_t	*drv = NULL;
 
-	if (bus_id >= IDT5V49EE503_NUM_BUS)
-		return -EINVAL;
-
-	drv = &idt5v49ee503_drv[bus_id];
-	if (drv->valid != 1)
-		return -EPERM;
-
-	return i2c_master_send(drv->i2c_cl, &cmd, 1);
+	return i2c_master_send(idt_drv->i2c_cl, &cmd, 1);
 
 } /* end of idt5v49ee503_save_regs */
 
 /****************************************************************************** 
    Enable or disable PLL
    Input:
- 	bus_id  - bus ID
+ 	idt_drv  - driver data
  	pll_id  - PLL ID
  	enable  - 1 for enable, 0 for disable
    Output:
@@ -650,21 +613,13 @@ int idt5v49ee503_restore_regs (int bus_id)
    Returns:
  	0      - success,
 *******************************************************************************/
-int idt5v49ee503_pll_enable (int            bus_id,
+int idt5v49ee503_pll_enable (idt_drv_info_t *idt_drv,
 			     idt_clock_id_t pll_id,
 			     int            enable)
 {
-	idt_drv_info_t	*drv = NULL;
-
-	if (bus_id >= IDT5V49EE503_NUM_BUS)
-		return -EINVAL;
-
-	drv = &idt5v49ee503_drv[bus_id];
-	if (drv->valid != 1)
-		return -EPERM;
 
 	/* Enable specific PLL */
-	return idt5v49ee503_mod_reg(drv,
+	return idt5v49ee503_mod_reg(idt_drv,
 				    IDT5V49EE503_PLL_SUSPEND_REG,
 				    enable != 0 ? 1 : 0,
 				    pll_id,
@@ -675,7 +630,7 @@ int idt5v49ee503_pll_enable (int            bus_id,
 /****************************************************************************** 
    Enable or disable clock Output
    Input:
- 	bus_id  - bus ID
+ 	idt_drv  - driver data
  	out_id  - output ID
  	enable  - 1 for enable, 0 for disable
    Output:
@@ -684,21 +639,12 @@ int idt5v49ee503_pll_enable (int            bus_id,
    Returns:
  	0      - success,
 *******************************************************************************/
-int idt5v49ee503_out_enable (int             bus_id,
+int idt5v49ee503_out_enable (idt_drv_info_t *idt_drv,
 			     idt_output_id_t out_id,
 			     int             enable)
 {
-	idt_drv_info_t	*drv = NULL;
-
-	if (bus_id >= IDT5V49EE503_NUM_BUS)
-		return -EINVAL;
-
-	drv = &idt5v49ee503_drv[bus_id];
-	if (drv->valid != 1)
-		return -EPERM;
-
 	/* Enable specific PLL */
-	return idt5v49ee503_mod_reg(drv,
+	return idt5v49ee503_mod_reg(idt_drv,
 				    IDT5V49EE503_OUT_SUSPEND_REG,
 				    enable != 0 ? 1 : 0,
 				    out_id,
@@ -709,7 +655,7 @@ int idt5v49ee503_out_enable (int             bus_id,
 /****************************************************************************** 
    Enable or disable clock Output
    Input:
- 	bus_id  - bus ID
+ 	idr_drv - driver data
  	sw_ctl  - 1 - SW control, 0 - HW control
    Output:
       	NONE
@@ -717,27 +663,18 @@ int idt5v49ee503_out_enable (int             bus_id,
    Returns:
  	0      - success,
 *******************************************************************************/
-int idt5v49ee503_sw_ctrl (int  bus_id,
+int idt5v49ee503_sw_ctrl (idt_drv_info_t *idt_drv,
 			  int  sw_ctl)
 {
-	idt_drv_info_t	*drv = NULL;
-
-	if (bus_id >= IDT5V49EE503_NUM_BUS)
-		return -EINVAL;
-
-	drv = &idt5v49ee503_drv[bus_id];
-	if (drv->valid != 1)
-		return -EPERM;
-
 	/* Enable specific PLL */
-	return idt5v49ee503_write_reg(drv,
+	return idt5v49ee503_write_reg(idt_drv,
 				      IDT5V49EE503_SW_MODE_CTL_REG,
 				      sw_ctl != 0 ? 1 : 0);
 
 } /* end of idt5v49ee503_out_enable */
 
 /****************************************************************************** 
-   Program clock with specific frequency
+   Program clock with specific frequency from known fixed freqiencies
    Input:
  	freq_set - frequency to be programmed
  		(only a number of fixed freqiencies is supported)
@@ -749,7 +686,8 @@ int idt5v49ee503_sw_ctrl (int  bus_id,
 	0	- success,
 	-EINVAL	- unsupported frequency
 *******************************************************************************/
-int idt5v49ee503_set (unsigned long	freq_set, 
+int idt5v49ee503_set (idt_drv_info_t *idt_drv,
+		      unsigned long	freq_set, 
 		      idt_clock_cfg_t	*clock_cfg)
 {
 	int	i;
@@ -759,28 +697,30 @@ int idt5v49ee503_set (unsigned long	freq_set,
 	{
 		if (idt5v49ee503_freq_tbl[i].f_out == freq_set)
 		{
-			rval = idt5v49ee503_write_cfg(i, clock_cfg);
+
+			rval = idt5v49ee503_write_cfg(idt_drv, &idt5v49ee503_freq_tbl[i], clock_cfg);
 
 			if ((rval == 0) && (clock_cfg->cfg_act))
 			{ /* activate clock and config */
 
-				rval = idt5v49ee503_set_act_cfg(clock_cfg);
+				rval = idt5v49ee503_set_act_cfg(idt_drv, clock_cfg);
+
 				/* enable PLL core */
 				if (rval == 0)
 				{	
-					rval = idt5v49ee503_pll_enable(clock_cfg->bus_id,
+					rval = idt5v49ee503_pll_enable(idt_drv,
 								       clock_cfg->clock_id,
 								       1);
 				}
 				/* enable clock output pin */
 				if (rval == 0)
 				{	
-					rval = idt5v49ee503_out_enable(clock_cfg->bus_id,
+					rval = idt5v49ee503_out_enable(idt_drv,
 								       clock_cfg->out_id,
 								       1);
 				}
 				/* use SW control (i.e. values stored in clock registers) */
-				return idt5v49ee503_sw_ctrl(clock_cfg->bus_id, 1);
+				return idt5v49ee503_sw_ctrl(idt_drv, 1);
 
 			} /* activate clock and config */
 		}
@@ -789,4 +729,218 @@ int idt5v49ee503_set (unsigned long	freq_set,
 	return -EINVAL;
 
 } /* end of idt5v49ee503_set */
+#if 1
+/****************************************************************************** 
+   Program clock with specific frequency
+   Input:
+ 	freq - frequency to be programmed
+ 	clock_cfg - clock configuration
+   Output:
+      	NONE
+ 
+   Returns:
+	0	- success,
+	-EINVAL	- unsupported frequency
+*******************************************************************************/
+int idt5v49ee503_set_freq (idt_drv_info_t *idt_drv,
+			   unsigned long long	freq, 
+			   idt_clock_cfg_t	*clock_cfg)
+{
+	int	i;
+	int	rval;
+	idt_freq_ten_t entry;
+	
+	if (calc_freq_div(freq, &entry) < -1)
+		return -1;
 
+	rval = idt5v49ee503_write_cfg(idt_drv, &entry, clock_cfg);
+
+	if ((rval == 0) && (clock_cfg->cfg_act))
+	{ /* activate clock and config */
+		
+		rval = idt5v49ee503_set_act_cfg(idt_drv, clock_cfg);
+		/* enable PLL core */
+		if (rval == 0)
+		{	
+			rval = idt5v49ee503_pll_enable(idt_drv,
+						       clock_cfg->clock_id,
+						       1);
+		}
+				/* enable clock output pin */
+		if (rval == 0)
+		{	
+			rval = idt5v49ee503_out_enable(idt_drv,
+						       clock_cfg->out_id,
+						       1);
+		}
+		/* use SW control (i.e. values stored in clock registers) */
+		return idt5v49ee503_sw_ctrl(idt_drv, 1);
+		
+	} /* activate clock and config */
+
+	return -EINVAL;
+
+} /* end of idt5v49ee503_set */
+#endif
+/*
+ * Generic counter attributes
+ */
+static ssize_t idt5v49ee503_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	dev_dbg(dev, "idt5v49ee503_show() called on %s\n", attr->attr.name);
+
+	/* Format the output string and return # of bytes */
+	return sprintf(buf, "%d\n", 0);
+}
+
+static ssize_t idt5v49ee503_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	idt_drv_info_t *idt_drv = i2c_get_clientdata(client);
+	idt_clock_cfg_t *cfg;
+	char *endp;
+	u64 val;
+
+	dev_dbg(dev, "idt5v49ee503_store() called on %s\n", attr->attr.name);
+
+	/* Decode input */
+	val = simple_strtoull(buf, &endp, 0);
+	if (buf == endp) {
+		dev_dbg(dev, "input string not a number\n");
+		return -EINVAL;
+	}
+	cfg = kzalloc(sizeof(idt_clock_cfg_t), GFP_KERNEL);
+	if (cfg == NULL) {
+		dev_dbg(dev, "failed to allocate memory\n");
+		return -EINVAL;
+	}
+	cfg->clk_src_clkin = IDT_PRM_CLK_CRYSTAL;
+	cfg->clock_id = IDT_PLL_1;
+	cfg->out_id = IDT_OUT_ID_3;
+	cfg->cfg_id = IDT_CLK_CFG_0;
+	cfg->cfg_act = 1;
+		
+	if (idt5v49ee503_set_freq(idt_drv, val, cfg)) {
+		dev_err(dev, "failed to set clock to %llu\n", val);
+		return -EIO;
+	}
+
+	return count;
+}
+
+static ssize_t idt5v49ee503_store2(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	idt_drv_info_t *idt_drv = i2c_get_clientdata(client);
+	idt_clock_cfg_t *cfg;
+	char *endp;
+	u64 val;
+
+	dev_dbg(dev, "idt5v49ee503_store() called on %s\n", attr->attr.name);
+
+	/* Decode input */
+	val = simple_strtoull(buf, &endp, 0);
+	if (buf == endp) {
+		dev_dbg(dev, "input string not a number\n");
+		return -EINVAL;
+	}
+	cfg = kzalloc(sizeof(idt_clock_cfg_t), GFP_KERNEL);
+	if (cfg == NULL) {
+		dev_dbg(dev, "failed to allocate memory\n");
+		return -EINVAL;
+	}
+	cfg->clk_src_clkin = IDT_PRM_CLK_CRYSTAL;
+	cfg->clock_id = IDT_PLL_1;
+	cfg->out_id = IDT_OUT_ID_3;
+	cfg->cfg_id = IDT_CLK_CFG_0;
+	cfg->cfg_act = 1;
+		
+	if (idt5v49ee503_set(idt_drv, val, cfg)) {
+		dev_err(dev, "failed to set clock to %llu\n", val);
+		return -EIO;
+	}
+
+	return count;
+}
+
+/*
+ * Simple register attributes
+ */
+
+static DEVICE_ATTR(clk, S_IRUGO | S_IWUSR, idt5v49ee503_show, idt5v49ee503_store);
+static DEVICE_ATTR(clkf, S_IRUGO | S_IWUSR, idt5v49ee503_show, idt5v49ee503_store2);
+
+static const struct attribute_group idt5v49ee503_group = {
+	.attrs = (struct attribute *[]) {
+		&dev_attr_clk.attr,
+		&dev_attr_clkf.attr,
+		NULL,
+	},
+};
+
+/*
+ * Called when a idt5v49ee503 device is matched with this driver
+ */
+static int idt5v49ee503_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	idt_drv_info_t *idt_drv;
+	int rc;
+
+	if (!i2c_check_functionality(client->adapter,
+				     I2C_FUNC_SMBUS_I2C_BLOCK)) {
+		dev_err(&client->dev, "i2c bus does not support the idt5v49ee503\n");
+		rc = -ENODEV;
+		goto exit;
+	}
+	idt_drv = kzalloc(sizeof(idt_drv_info_t), GFP_KERNEL);
+	
+	if (idt_drv == NULL)
+		return -ENOMEM;
+	idt_drv->i2c_cl = client;
+	i2c_set_clientdata(client, idt_drv);
+	rc = sysfs_create_group(&client->dev.kobj, &idt5v49ee503_group);
+ exit:
+	return rc;
+}
+
+static int idt5v49ee503_remove(struct i2c_client *client)
+{
+	sysfs_remove_group(&client->dev.kobj, &idt5v49ee503_group);
+	return 0;
+}
+
+static const struct i2c_device_id idt5v49ee503_id[] = {
+	{ "idt5v49ee503", IDT5V49EE503_BUS_ADDR },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, idt5v49ee503_id);
+
+static struct i2c_driver idt5v49ee503_driver = {
+	.driver = {
+		.name = "idt5v49ee503",
+	},
+	.probe = idt5v49ee503_probe,
+	.remove = idt5v49ee503_remove,
+	.id_table = idt5v49ee503_id,
+};
+
+static int __init idt5v49ee503_i2c_init(void)
+{
+	return i2c_add_driver(&idt5v49ee503_driver);
+}
+
+static void __exit idt5v49ee503_i2c_exit(void)
+{
+	i2c_del_driver(&idt5v49ee503_driver);
+}
+
+MODULE_AUTHOR("kostap <kostap@gandalf602.il.marvell.com>");
+MODULE_DESCRIPTION("IDT5V49EE503 I2C clock generator driver");
+MODULE_LICENSE("GPL");
+
+module_init(idt5v49ee503_i2c_init);
+module_exit(idt5v49ee503_i2c_exit);
