@@ -9,9 +9,12 @@
 #include <linux/i2c.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/clk.h>
+#include <asm/clkdev.h>
 #include <asm/string.h>
 #include <asm/div64.h>
 #include "idt5v49ee503.h"
+#include "clock.h"
 
 #define IDT5V49EE503_BUS_ADDR			0x6A /* 7'b1101010 */
 
@@ -99,6 +102,7 @@ typedef struct _idt_drv_info_t
 /***************/
 /* STATIC DATA */
 /***************/
+idt_drv_info_t *idt_drv_g;
 
 /* Registers addresses in clock programming tables */
 static idt_pll_reg_set_t idt5v49ee503_pll_regs[IDT_CLK_CFG_NUM][IDT_PLL_NUM] = {
@@ -746,7 +750,6 @@ int idt5v49ee503_set_freq (idt_drv_info_t *idt_drv,
 			   unsigned long long	freq, 
 			   idt_clock_cfg_t	*clock_cfg)
 {
-	int	i;
 	int	rval;
 	idt_freq_ten_t entry;
 	
@@ -824,9 +827,12 @@ static ssize_t idt5v49ee503_store(struct device *dev, struct device_attribute *a
 		
 	if (idt5v49ee503_set_freq(idt_drv, val, cfg)) {
 		dev_err(dev, "failed to set clock to %llu\n", val);
-		return -EIO;
+		count = -EIO;
+		goto exit;
 	}
-
+	return count;
+exit:
+	kfree(cfg);
 	return count;
 }
 
@@ -881,6 +887,100 @@ static const struct attribute_group idt5v49ee503_group = {
 	},
 };
 
+static void  idt_clk_enable(struct clk *clk)
+{
+#if 0
+	idt_clock_id_t pll_id;
+	if (clk->flags == 0)
+		pll_id = IDT_PLL_1;
+	else
+		pll_id = IDT_PLL_2;
+		
+	idt5v49ee503_pll_enable(idt_drv_g, pll_id , 1);
+#endif
+	return;
+}
+
+static void  idt_clk_disable(struct clk *clk)
+{
+	idt_clock_id_t pll_id;
+
+	if (clk->flags == 0)
+		pll_id = IDT_PLL_1;
+	else
+		pll_id = IDT_PLL_2;
+		
+	idt5v49ee503_pll_enable(idt_drv_g, pll_id , 0);
+
+	return;
+}
+
+static int idt_clk_setrate(struct clk *clk, unsigned long rate)
+{
+	idt_clock_cfg_t *cfg;
+	idt_clock_id_t pll_id;
+	idt_output_id_t out_id;
+	int rc = 0;
+
+	if (clk->flags == 0) {
+		pll_id = IDT_PLL_1;
+		out_id = IDT_OUT_ID_2;
+	} else {
+		pll_id = IDT_PLL_2;
+		out_id = IDT_OUT_ID_3;
+	}
+
+	cfg = kzalloc(sizeof(idt_clock_cfg_t), GFP_KERNEL);
+	if (cfg == NULL) {
+		printk("idt clk: failed to allocate memory\n");
+		return -EINVAL;
+	}
+	cfg->clk_src_clkin = IDT_PRM_CLK_CRYSTAL;
+	cfg->clock_id = pll_id;
+	cfg->out_id = out_id;
+	cfg->cfg_id = IDT_CLK_CFG_0;
+	cfg->cfg_act = 1;
+		
+	if (idt5v49ee503_set_freq(idt_drv_g, rate, cfg)) {
+		printk("idt clk: failed to set clock to %lu\n", rate);
+		rc = -EIO;
+	} else
+		*(clk->rate) = rate;
+	kfree(cfg);
+	return rc;
+}
+
+const struct clkops idt_clk_ops = {
+	.enable		= idt_clk_enable,
+	.disable	= idt_clk_disable,
+	.setrate	= idt_clk_setrate,
+};
+static unsigned long idt_clk0_rate = 0;
+static unsigned long idt_clk1_rate = 0;
+
+static struct clk idt_clk0 = {
+	.ops	= &idt_clk_ops,
+	.flags	= 0,
+	.rate	= &idt_clk0_rate,
+};
+
+static struct clk idt_clk1 = {
+	.ops	= &idt_clk_ops,
+	.flags	= 1,
+	.rate	= &idt_clk1_rate,
+};
+
+static struct clk_lookup idt_clocks[] = {
+	{
+		.con_id = "LCD_EXT_CLK0",
+		.clk	= &idt_clk0,
+	},
+	{
+		.con_id = "LCD_EXT_CLK1",
+		.clk	= &idt_clk1,
+	},
+};
+
 /*
  * Called when a idt5v49ee503 device is matched with this driver
  */
@@ -888,6 +988,7 @@ static int idt5v49ee503_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	idt_drv_info_t *idt_drv;
+	int i;
 	int rc;
 
 	if (!i2c_check_functionality(client->adapter,
@@ -900,9 +1001,20 @@ static int idt5v49ee503_probe(struct i2c_client *client,
 	
 	if (idt_drv == NULL)
 		return -ENOMEM;
+	idt_drv_g = idt_drv;
 	idt_drv->i2c_cl = client;
 	i2c_set_clientdata(client, idt_drv);
 	rc = sysfs_create_group(&client->dev.kobj, &idt5v49ee503_group);
+
+	if (rc)
+		goto free;
+
+	for (i = 0; i < ARRAY_SIZE(idt_clocks); i++)
+                clkdev_add(&idt_clocks[i]);
+
+	return rc;
+ free:
+	kfree(idt_drv);
  exit:
 	return rc;
 }
