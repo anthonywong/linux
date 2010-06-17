@@ -1005,7 +1005,14 @@ static int __init dovefb_probe(struct platform_device *pdev)
 	info->panel_rbswap = dmi->panel_rbswap;
 
 	/* get LCD clock information. */
-	info->clk = clk_get(&pdev->dev, "LCDCLK");
+	if (dmi->use_external_refclk) {
+		info->use_external_refclk = 1;
+		info->ext_refclk = dmi->ext_refclk;
+		info->clk = clk_get(&pdev->dev, dmi->ext_refclk_name);
+		dev_info(&pdev->dev, "use external ref clock %s\n", dmi->ext_refclk_name);
+	} else
+		info->clk = clk_get(&pdev->dev, "LCDCLK");
+
 	if (IS_ERR(info->clk))
 		dev_notice(&pdev->dev, "cannot get clkdev\n");
 	else
