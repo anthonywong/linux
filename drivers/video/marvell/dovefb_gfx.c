@@ -263,7 +263,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	const struct fb_videomode *m)
 {
 	int divider_int;
-	int needed_pixclk;
+	u32 needed_pixclk;
 	u64 div_result;
 	u32 x = 0, x_bk;
 	struct dovefb_info *info = dfli->info;
@@ -305,36 +305,48 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 	do_div(div_result, m->pixclock);
 	needed_pixclk = (u32)(isInterlaced ? (div_result/2) : div_result);
 
-	if (lcd_accurate_clock) {
-		calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
-		//printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
-		//		needed_pixclk, axi_div, lcd_div, is_ext);
-		divider_int = lcd_div;
+	if (info->use_external_refclk) {
+		if (clk_set_rate(info->clk, needed_pixclk)) {
+			printk(KERN_ERR "failed to set external clk to rate %ud.\n", needed_pixclk);
+			return;
+		}
+		divider_int = 1; //don't use clk divider
+
+		if (info->ext_refclk == 0)
+			x = 1 << 30;
+		else
+			x = 3 << 30;
 	} else {
-		divider_int = (dmi->sclk_clock + (needed_pixclk / 2)) / needed_pixclk;
+		if (lcd_accurate_clock) {
+			calc_best_clock_div(needed_pixclk, &axi_div, &lcd_div, &is_ext);
+			//printk(KERN_INFO "pix_clock = %d, axi_div = %d, lcd_div = %d, is_ext = %d.\n",
+			//		needed_pixclk, axi_div, lcd_div, is_ext);
+			divider_int = lcd_div;
+		} else {
+			divider_int = (dmi->sclk_clock + (needed_pixclk / 2)) / needed_pixclk;
+			
+			/* check whether divisor is too small. */
+			if (divider_int < 2) {
+				printk(KERN_WARNING "Warning: clock source is too slow."
+				       "Try smaller resolution\n");
+				divider_int = 2;
+			}
+		}
 		
-		/* check whether divisor is too small. */
-		if (divider_int < 2) {
-			printk(KERN_WARNING "Warning: clock source is too slow."
-					 "Try smaller resolution\n");
-			divider_int = 2;
-		}
-	}
-
-	if (lcd_accurate_clock) {
-		set_external_lcd_clock(axi_div, is_ext);
-	} else {
-		if (0 == init_ext_divider) {
-			init_ext_divider = 1;
-			/*
+		if (lcd_accurate_clock) {
+			set_external_lcd_clock(axi_div, is_ext);
+		} else {
+			if (0 == init_ext_divider) {
+				init_ext_divider = 1;
+				/*
 			printk(KERN_INFO "fix to (2G/%d) "
-				"without half divider.\n",
-				(2000000000/dmi->sclk_clock));
-			*/
-			set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+			"without half divider.\n",
+			(2000000000/dmi->sclk_clock));
+				*/
+				set_external_lcd_clock((2000000000/dmi->sclk_clock), 0);
+			}
 		}
 	}
-
 	/*
 	 * Set setting to reg.
 	 */
