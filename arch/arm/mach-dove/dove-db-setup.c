@@ -247,6 +247,7 @@ void __init dove_db_clcd_init(void) {
 #endif /* CONFIG_FB_DOVE */
 }
 
+#define DOVE_DB_PHY_RST_GPIO	(1)
 #define DOVE_DB_TS_PEN_GPIO	(63)
 #define DOVE_DB_TS_PEN_IRQ	(64 + DOVE_DB_TS_PEN_GPIO)
 
@@ -284,6 +285,21 @@ int __init dove_db_ts_gpio_setup(void)
 	set_irq_chip(DOVE_DB_TS_PEN_IRQ, &orion_gpio_irq_chip);
 	set_irq_handler(DOVE_DB_TS_PEN_IRQ, handle_level_irq);
 	set_irq_type(DOVE_DB_TS_PEN_IRQ, IRQ_TYPE_LEVEL_LOW);
+
+	return 0;
+}
+
+int __init dove_db_b_giga_phy_gpio_setup(void)
+{
+	orion_gpio_set_valid(DOVE_DB_PHY_RST_GPIO, 1);
+	if (gpio_request(DOVE_DB_PHY_RST_GPIO, "Giga Phy reset gpio") != 0)
+		pr_err("Dove: failed to setup Giga phy reset GPIO\n");
+	if (gpio_direction_output(DOVE_DB_PHY_RST_GPIO, 1) != 0) {
+		printk(KERN_ERR "%s failed to set output pin %d\n", __func__,
+		       DOVE_DB_PHY_RST_GPIO);
+		gpio_free(DOVE_DB_PHY_RST_GPIO);
+		return -1;
+	}
 
 	return 0;
 }
@@ -688,7 +704,7 @@ static struct dove_mpp_mode dove_db_mpp_modes[] __initdata = {
 
 static struct dove_mpp_mode dove_db_b_mpp_modes[] __initdata = {
 	{ 0, MPP_PMU },           	/*  */
-	{ 1, MPP_SDIO0 },           	/* SDIO0 */
+	{ 1, MPP_PMU },           	/* SDIO0 */
 
 	{ 2, MPP_GPIO },		/* PMU - DDR termination control */	
 	{ 3, MPP_PMU },			/* standby wakeup/wake on lan */
@@ -805,7 +821,7 @@ static int __init dove_db_pm_init(void)
 	} else {
 		
 		pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_CPU_PWRDWN; /* DEEP-IdLE => 0: CPU off, 1: CPU on */
-		pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
+		pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_1;
 		
 		pmuInitInfo.sigSelctor[2] = PMU_SIGNAL_NC;
 		
@@ -867,9 +883,10 @@ static void __init dove_db_init(void)
 	 */
 	dove_init();
 
-	if (machine_is_dove_db_b())
+	if (machine_is_dove_db_b()) {
 		dove_mpp_conf(dove_db_b_mpp_modes);
-	else
+		dove_db_b_giga_phy_gpio_setup();
+	} else
 		dove_mpp_conf(dove_db_mpp_modes);
 	
 	if ((front_panel) && (left_tact || right_tact)) {
