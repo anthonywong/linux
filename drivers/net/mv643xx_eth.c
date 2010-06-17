@@ -388,7 +388,7 @@ struct mv643xx_eth_private {
 	int port_num;
 
 	struct net_device *dev;
-
+	struct platform_device *pdev;
 	struct phy_device *phy;
 
 	struct timer_list mib_counters_timer;
@@ -411,6 +411,7 @@ struct mv643xx_eth_private {
 	int skb_size;
 	struct sk_buff_head rx_recycle;
 
+	u8 wol;
 	/*
 	 * RX state.
 	 */
@@ -1650,6 +1651,108 @@ static int mv643xx_eth_get_sset_count(struct net_device *dev, int sset)
 	return -EOPNOTSUPP;
 }
 
+/* Wake on Lan only supported on phy 1310 */
+static u32 wol_supported(const struct mv643xx_eth_private *mp)
+{
+	u32 phy_id;
+
+	if (mp->phy == NULL)
+		return 0;
+
+	phy_id = phy_read(mp->phy, MII_PHYSID1) << 16;
+	phy_id |= phy_read(mp->phy, MII_PHYSID2);
+
+	if((phy_id & 0xfffffff0) == (0x01410e90 & 0xfffffff0))
+		return WAKE_MAGIC | WAKE_PHY;
+	printk("wol not support for phy 0x%x\n", phy_id);
+	return 0;
+}
+
+static void phy_dump_wol_regs(struct mv643xx_eth_private *mp)
+{
+	return;
+	phy_write(mp->phy, 0x16, 0);
+	printk("reg 0 0x12 %x\n", phy_read(mp->phy, 0x12));
+	printk("reg 0 23 (global int sts) %x\n", phy_read(mp->phy, 23));
+	phy_write(mp->phy, 0x16, 3);
+	printk("reg 3 0x12 %x\n", phy_read(mp->phy, 0x12));
+	printk("reg 3 16 %x\n", phy_read(mp->phy, 16));
+	phy_write(mp->phy, 0x16, 17);
+	printk("reg 17 23 %x\n", phy_read(mp->phy, 23));
+	printk("reg 17 24 %x\n", phy_read(mp->phy, 24));
+	printk("reg 17 25 %x\n", phy_read(mp->phy, 25));
+	printk("reg 17 16 (WOL control) %x\n", phy_read(mp->phy, 16));
+	printk("reg 17 17 (WOL status) %x\n", phy_read(mp->phy, 17));
+	phy_write(mp->phy, 0x16, 0);
+	printk("reg 0 19 %x\n", phy_read(mp->phy, 19));
+}
+
+static void phy_set_wol(struct mv643xx_eth_private *mp)
+{
+	unsigned char *addr = mp->dev->dev_addr;
+	u16 wol_control = 0x500;
+
+	phy_write(mp->phy, 22, 0);
+	phy_write(mp->phy, 18, phy_read(mp->phy, 18) | (1 << 7)); // WOL interrupt enable
+	phy_write(mp->phy, 22, 3);
+	phy_write(mp->phy, 18, (phy_read(mp->phy, 18) & 0x7fff) | 0x4880);// active low, INTn to LED2
+	phy_write(mp->phy, 22, 17);
+
+	if (mp->wol & WAKE_MAGIC) {
+		phy_write(mp->phy, 23, addr[5] << 8 | addr[4]);
+		phy_write(mp->phy, 24, addr[3] << 8 | addr[2]);
+		phy_write(mp->phy, 25, addr[1] << 8 | addr[0]);
+		wol_control |= 1 << 14;
+	}
+	if (mp->wol & WAKE_PHY)
+		wol_control |= 1 << 13;
+
+	phy_write(mp->phy, 16, wol_control);
+	phy_write(mp->phy, 22, 0);
+}
+
+static void phy_clear_wol(struct mv643xx_eth_private *mp)
+{
+	u16 wol_control = 0x500;
+
+	printk("reg 0 19 %x\n", phy_read(mp->phy, 19));
+	phy_write(mp->phy, 22, 17);
+	phy_read(mp->phy, 17);
+	printk("reg 17 17 (WOL status) %x\n", phy_read(mp->phy, 17));
+	if (mp->wol & WAKE_MAGIC)
+		wol_control |= 1 << 14; //Magic packet match enable
+	if (mp->wol & WAKE_PHY)
+		wol_control |= 1 << 13; // Link
+	
+	wol_control |= 1 << 12; //Clear WOL status
+	phy_write(mp->phy, 16, wol_control);
+       
+	phy_write(mp->phy, 22, 0);
+	phy_read(mp->phy, 19);
+}
+
+static void mv643xx_eth_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	wol->supported = wol_supported(mp);
+	wol->wolopts = mp->wol;
+}
+
+static int mv643xx_eth_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
+
+	if ((wol->wolopts & ~wol_supported(mp))
+	    || !device_can_wakeup(&mp->pdev->dev))
+		return -EOPNOTSUPP;
+
+	mp->wol = wol->wolopts;
+	device_set_wakeup_enable(&mp->pdev->dev, mp->wol);
+
+	return 0;
+}
+
 static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_settings		= mv643xx_eth_get_settings,
 	.set_settings		= mv643xx_eth_set_settings,
@@ -1669,6 +1772,8 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops = {
 	.get_flags		= ethtool_op_get_flags,
 	.set_flags		= ethtool_op_set_flags,
 	.get_sset_count		= mv643xx_eth_get_sset_count,
+	.get_wol		= mv643xx_eth_get_wol,
+	.set_wol		= mv643xx_eth_set_wol,
 };
 
 
@@ -2952,6 +3057,7 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	mp->port_num = pd->port_number;
 
 	mp->dev = dev;
+	mp->pdev = pdev;
 
 	set_params(mp, pd);
 	dev->real_num_tx_queues = mp->txq_count;
@@ -2961,6 +3067,9 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	if (mp->phy != NULL)
 		phy_init(mp, pd->speed, pd->duplex);
+
+	mp->wol = wol_supported(mp) & WAKE_MAGIC;
+	device_init_wakeup(&mp->pdev->dev, mp->wol);
 
 	SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
 
@@ -3053,6 +3162,9 @@ static void mv643xx_eth_shutdown(struct platform_device *pdev)
 
 	if (netif_running(mp->dev))
 		port_reset(mp);
+
+	if (mp->phy != NULL && mp->wol)
+		phy_set_wol(mp);
 }
 
 #if CONFIG_PM
@@ -3072,8 +3184,12 @@ static int mv643xx_eth_suspend(struct platform_device *pdev, pm_message_t state)
 		mib_counters_update(mp);
 	}
 
-	if (mp->phy != NULL)
-		phy_detach(mp->phy);
+	if (mp->phy != NULL) {
+		if (mp->wol)
+			phy_set_wol(mp);
+		else
+			phy_detach(mp->phy);
+	}
 
 	return 0;
 }
@@ -3083,11 +3199,14 @@ static int mv643xx_eth_resume(struct platform_device *pdev)
 	struct mv643xx_eth_private *mp = platform_get_drvdata(pdev);
 	struct mv643xx_eth_platform_data *pd = pdev->dev.platform_data;
 	
-	if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
-		mp->phy = phy_scan(mp, pd->phy_addr);
-
-	if (mp->phy != NULL)
-		phy_init(mp, pd->speed, pd->duplex);
+	if (mp->wol)
+		phy_clear_wol(mp);
+	else {
+		if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
+			mp->phy = phy_scan(mp, pd->phy_addr);
+		if (mp->phy != NULL)
+			phy_init(mp, pd->speed, pd->duplex);
+	}
 
 	if (netif_running(mp->dev)) {
 		wrlp(mp, INT_CAUSE, 0);
