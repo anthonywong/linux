@@ -1,4 +1,28 @@
-linux-maverick (2.6.35-3.4~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-4.5~lucid1) lucid-proposed; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * Revert "[Upstream] (evdev) Use driver hint to compute the evdev buffer
+    size (rev2)"
+  * Revert "[Upstream] (evdev) Convert to dynamic event buffer (rev4)"
+  * Revert "[Upstream] (evdev) Use multi-reader buffer to save space
+    (rev4)"
+  * Revert "SAUCE: drivers: Remove some duplicate device entries in various
+    modules"
+  * [Upstream] USB: option: Remove duplicate AMOI_VENDOR_ID
+  * [Upstream] Revert "USB: Adding support for HTC Smartphones to ipaq"
+  * [Upstream] p54usb: Comment out duplicate Medion MD40900 device id
+
+  [ Tim Gardner ]
+
+  * [Config] CONFIG_NFS_FSCACHE=y
+    - LP: #440522
+  * [Config] CONFIG_FSCACHE_STATS=y, CONFIG_FSCACHE_HISTOGRAM=y
+    - LP: #440522
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 16 Jun 2010 08:43:07 -0700
+
+linux (2.6.35-3.4) maverick; urgency=low
 
   [ Andy Whitcroft ]
 
