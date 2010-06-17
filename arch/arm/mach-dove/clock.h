@@ -1,3 +1,5 @@
+struct clk;
+
 struct clkops {
 	void			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
