@@ -1668,25 +1668,6 @@ static u32 wol_supported(const struct mv643xx_eth_private *mp)
 	return 0;
 }
 
-static void phy_dump_wol_regs(struct mv643xx_eth_private *mp)
-{
-	return;
-	phy_write(mp->phy, 0x16, 0);
-	printk("reg 0 0x12 %x\n", phy_read(mp->phy, 0x12));
-	printk("reg 0 23 (global int sts) %x\n", phy_read(mp->phy, 23));
-	phy_write(mp->phy, 0x16, 3);
-	printk("reg 3 0x12 %x\n", phy_read(mp->phy, 0x12));
-	printk("reg 3 16 %x\n", phy_read(mp->phy, 16));
-	phy_write(mp->phy, 0x16, 17);
-	printk("reg 17 23 %x\n", phy_read(mp->phy, 23));
-	printk("reg 17 24 %x\n", phy_read(mp->phy, 24));
-	printk("reg 17 25 %x\n", phy_read(mp->phy, 25));
-	printk("reg 17 16 (WOL control) %x\n", phy_read(mp->phy, 16));
-	printk("reg 17 17 (WOL status) %x\n", phy_read(mp->phy, 17));
-	phy_write(mp->phy, 0x16, 0);
-	printk("reg 0 19 %x\n", phy_read(mp->phy, 19));
-}
-
 static void phy_set_wol(struct mv643xx_eth_private *mp)
 {
 	unsigned char *addr = mp->dev->dev_addr;
