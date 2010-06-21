@@ -2308,7 +2308,7 @@ static void phy_reset(struct mv643xx_eth_private *mp)
 	} while (data >= 0 && data & BMCR_RESET);
 }
 
-static void port_start(struct mv643xx_eth_private *mp)
+static void port_start(struct mv643xx_eth_private *mp, bool reset_phy)
 {
 	u32 pscr;
 	int i;
@@ -2316,7 +2316,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	/*
 	 * Perform PHY reset, if there is a PHY.
 	 */
-	if (mp->phy != NULL) {
+	if (reset_phy && mp->phy != NULL) {
 		struct ethtool_cmd cmd;
 
 		mv643xx_eth_get_settings(mp->dev, &cmd);
@@ -2461,7 +2461,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 		mp->int_mask |= INT_TX_END_0 << i;
 	}
 
-	port_start(mp);
+	port_start(mp, true);
 
 	wrlp(mp, INT_MASK_EXT, INT_EXT_LINK_PHY | INT_EXT_TX);
 	wrlp(mp, INT_MASK, mp->int_mask);
@@ -2592,7 +2592,7 @@ static void tx_timeout_task(struct work_struct *ugly)
 	if (netif_running(mp->dev)) {
 		netif_tx_stop_all_queues(mp->dev);
 		port_reset(mp);
-		port_start(mp);
+		port_start(mp, true);
 		netif_tx_wake_all_queues(mp->dev);
 	}
 }
@@ -3207,7 +3207,7 @@ static int mv643xx_eth_resume(struct platform_device *pdev)
 		set_rx_coal(mp, 250);
 		set_tx_coal(mp, 0);
 
-		port_start(mp);
+		port_start(mp, false);
 
 		wrlp(mp, INT_MASK_EXT, INT_EXT_LINK_PHY | INT_EXT_TX);
 		wrlp(mp, INT_MASK, mp->int_mask);
