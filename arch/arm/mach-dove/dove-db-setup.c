@@ -408,7 +408,7 @@ static struct platform_device keys_gpio = {
 
 /*****************************************************************************
  * SPI Devices:
- * 	SPI0: 4M Flash ST-M25P32-VMF6P
+ * 	SPI0: 8M Flash ST-M25P64-VMF6P
  ****************************************************************************/
 static const struct flash_platform_data dove_db_spi_flash_data = {
 	.type		= "m25p64",
