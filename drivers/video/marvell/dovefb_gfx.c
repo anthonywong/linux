@@ -50,6 +50,7 @@
 #include <video/kg2.h>
 #define MAX_HWC_SIZE		(64*64*2)
 #define DEFAULT_REFRESH		60	/* Hz */
+#define DEFAULT_EDID_INTERVAL   30	/* seconds */
 
 static int dovefb_fill_edid(struct fb_info *fi,
 				struct dovefb_mach_info *dmi);
@@ -1139,6 +1140,22 @@ static int dovefb_gfx_ioctl(struct fb_info *info, unsigned int cmd,
 	case DOVEFB_IOCTL_DUMP_REGS:
 		dovefb_dump_regs(dfli->info);
 		break;
+	case DOVEFB_IOCTL_GET_EDID_INFO:
+		if (copy_to_user(argp, &dfli->edid_info,
+					sizeof(struct _sEdidInfo)))
+			return -EFAULT;
+		dfli->edid_info.change = 0;
+		break;
+	case DOVEFB_IOCTL_GET_EDID_DATA:
+		if (copy_to_user(argp, dfli->raw_edid,
+				EDID_LENGTH * (dfli->edid_info.extension+1)))
+			return -EFAULT;
+		break;
+	case DOVEFB_IOCTL_SET_EDID_INTERVAL:
+		dfli->edid_info.interval = (arg>0) ? arg : DEFAULT_EDID_INTERVAL;
+		mod_timer(&dfli->get_edid_timer, jiffies + dfli->edid_info.interval * HZ);
+		break;
+
 	default:
 		;
 	}
@@ -1224,7 +1241,7 @@ static u8 *dovefb_get_edid(struct i2c_adapter *adapter, int address)
         return block;
 
 carp:
-        printk(KERN_ERR " EDID block %d invalid.\n", j);
+        //printk(KERN_ERR " EDID block %d invalid.\n", j);
 
 out:
         kfree(block);
@@ -1243,21 +1260,19 @@ static u8 *dove_read_edid(struct fb_info *fi, struct dovefb_mach_info *dmi)
 		return edid_data;
 
 #ifdef CONFIG_FB_DOVE_CLCD_EDID
-	if (info->edid_en) {
-		dove_i2c = i2c_get_adapter(dmi->ddc_i2c_adapter);
-		/*
-		 * Check match or not.
-		 */
-		if (dove_i2c)
-			printk(KERN_INFO "  o Found i2c adapter for EDID detection\n");
-		else {
-			printk(KERN_WARNING "Couldn't find any I2C bus for EDID"
-			       " provider\n");
-			return NULL;
-		}
-		/* Look for EDID data on the selected bus */
-		edid_data = dovefb_get_edid(dove_i2c,dmi->ddc_i2c_address);
+	dove_i2c = i2c_get_adapter(dmi->ddc_i2c_adapter);
+	/*
+	 * Check match or not.
+	 */
+	if (dove_i2c){
+		//printk(KERN_INFO "  o Found i2c adapter for EDID detection\n");
+	} else {
+		printk(KERN_WARNING "Couldn't find any I2C bus for EDID"
+		       " provider\n");
+		return NULL;
 	}
+	/* Look for EDID data on the selected bus */
+	edid_data = dovefb_get_edid(dove_i2c,dmi->ddc_i2c_address);
 #endif
 	return edid_data;
 }
@@ -1303,9 +1318,10 @@ static int dovefb_fill_edid(struct fb_info *fi,
 		} else {
 			ret = -2;
 		}
+		if (dfli->raw_edid) kfree(dfli->raw_edid);
+		dfli->raw_edid = edid;
 	}
 
-	kfree(edid);
 	return ret;
 }
 
@@ -1551,6 +1567,61 @@ int dovefb_gfx_resume(struct dovefb_layer_info *dfli)
 }
 #endif
 
+static void dynamic_get_edid(unsigned long data)
+{
+	struct dovefb_layer_info *dfli = (struct dovefb_layer_info *) data;
+
+	mod_timer(&dfli->get_edid_timer, jiffies + dfli->edid_info.interval * HZ);
+	schedule_work(&dfli->work_queue);
+}
+
+static bool is_new_edid(u8* new_edid, struct dovefb_layer_info *dfli)
+{
+	/*
+	 * check if EDID menufactor information is the same.
+	 */
+	int i;
+	if (!dfli->raw_edid) return true;
+
+	for (i = ID_MANUFACTURER_NAME; i < EDID_STRUCT_REVISION; i++) {
+		if ( *(new_edid + i) != *(dfli->raw_edid + i)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+static void get_edid_work(struct work_struct *work)
+{
+	struct dovefb_layer_info *dfli =
+		container_of(work, struct dovefb_layer_info, work_queue);
+	struct fb_info *fi = dfli->fb_info;
+	struct dovefb_mach_info *dmi = dfli->dev->platform_data;
+	char* edid_data = NULL;
+
+	edid_data = dove_read_edid(fi, dmi);
+
+	if (edid_data) {
+		if (is_new_edid(edid_data, dfli)) {
+			if (dfli->raw_edid) kfree(dfli->raw_edid);
+			dfli->raw_edid = edid_data;
+			dfli->edid_info.connect = 1;
+			dfli->edid_info.change = 1;
+			dfli->edid_info.extension = dfli->raw_edid[0x7e];
+		} else {
+			if (!dfli->edid_info.connect) {
+				dfli->edid_info.connect = 1;
+				dfli->edid_info.change = 1;
+				dfli->edid_info.extension = dfli->raw_edid[0x7e];
+			}
+			kfree(edid_data);
+		}
+	} else {
+		dfli->edid_info.connect = 0;
+		dfli->edid_info.extension = 0;
+	}
+}
+
 int dovefb_gfx_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 {
 	int ret;
@@ -1584,6 +1655,26 @@ int dovefb_gfx_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 	ret = dovefb_gfx_set_par(fi);
 	if (ret)
 		goto failed;
+
+	/*
+	 * init EDID information
+	 */
+	dfli->edid_info.connect = 0;
+	dfli->edid_info.change = 0;
+	dfli->edid_info.extension = 0;
+	dfli->edid_info.interval = DEFAULT_EDID_INTERVAL;
+
+	/*
+	 * Initialize dynamic get edid timer
+	 */
+	init_timer(&dfli->get_edid_timer);
+	dfli->get_edid_timer.expires = jiffies + HZ;
+	dfli->get_edid_timer.data = (unsigned long)dfli;
+	dfli->get_edid_timer.function = dynamic_get_edid;
+	add_timer(&dfli->get_edid_timer);
+
+	INIT_WORK(&dfli->work_queue, get_edid_work);
+
 
 	return 0;
 failed:

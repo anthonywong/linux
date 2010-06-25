@@ -93,6 +93,11 @@
 #define DOVEFB_IOCTL_SET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 21)
 #define DOVEFB_IOCTL_GET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 22)
 
+/* Dynamic get EDID data */
+#define DOVEFB_IOCTL_GET_EDID_INFO		_IO(DOVEFB_IOC_MAGIC, 23)
+#define DOVEFB_IOCTL_GET_EDID_DATA		_IO(DOVEFB_IOC_MAGIC, 24)
+#define DOVEFB_IOCTL_SET_EDID_INTERVAL		_IO(DOVEFB_IOC_MAGIC, 25)
+
 /* clear framebuffer: Makes resolution or color space changes look nicer */
 #define FBIO_CLEAR_FRAMEBUFFER			_IO(FB_IOC_MAGIC, 19)
 
@@ -169,6 +174,12 @@
 /* ---------------------------------------------- */
 /*              Data Structure                    */
 /* ---------------------------------------------- */
+struct _sEdidInfo {
+	int connect;			/* is monitor connected */
+	int change;			/* is edid data changed */
+	int extension;			/* the number of extension edid block */
+	int interval;			/* the interval to check edid */
+};
 /*
  * The follow structures are used to pass data from
  * user space into the kernel for the creation of
@@ -335,6 +346,11 @@ struct dovefb_layer_info {
 	unsigned int		pseudo_palette[16];
 	struct tasklet_struct	tasklet;
 	char			*mode_option;
+
+	struct timer_list	get_edid_timer;
+	unsigned char*		raw_edid;
+	struct _sEdidInfo	edid_info;
+	struct work_struct      work_queue;
 
 	int			pix_fmt;
 	unsigned		is_blanked:1;
