@@ -301,12 +301,12 @@ void __init dove_map_io(void)
 /*****************************************************************************
  * SDIO
  ****************************************************************************/
-#define DOVE_SD0_DATA1_GPIO	(32 + 11)
-#define DOVE_SD1_DATA1_GPIO	(32 + 17)
+#define DOVE_SD0_START_GPIO	40
+#define DOVE_SD1_START_GPIO	46
 
 
 struct sdhci_dove_int_wa sdio0_data = {
-	.gpio = DOVE_SD0_DATA1_GPIO,
+	.gpio = DOVE_SD0_START_GPIO + 3,
 	.func_select_bit = 0
 };
 
@@ -347,7 +347,7 @@ void __init dove_sdio0_init(void)
  * SDIO1
  ****************************************************************************/
 struct sdhci_dove_int_wa sdio1_data = {
-	.gpio = DOVE_SD1_DATA1_GPIO,
+	.gpio = DOVE_SD1_START_GPIO + 3,
 	.func_select_bit = 1
 };
 
@@ -385,35 +385,38 @@ void __init dove_sdio1_init(void)
 
 void __init dove_sd_card_int_wa_setup(int port)
 {
-	int	gpio = 0;
+	int	gpio = 0, i, irq = 0;
 	char	*name;
 
 	switch(port) {
 	case 0:
-		gpio = DOVE_SD0_DATA1_GPIO;
-		name = "sd0_data1";
+		gpio = DOVE_SD0_START_GPIO;
+		name = "sd0";
 		dove_sdio0.dev.platform_data = &sdio0_data;
-		sdio0_data.irq = gpio_to_irq(gpio);
+		irq = sdio0_data.irq = gpio_to_irq(sdio0_data.gpio);
 		break;
 	case 1:
-		gpio = DOVE_SD1_DATA1_GPIO;
-		name = "sd1_data1";
+		gpio = DOVE_SD1_START_GPIO;
+		name = "sd1";
 		dove_sdio1.dev.platform_data = &sdio1_data;
-		sdio1_data.irq = gpio_to_irq(gpio);
+		irq = sdio1_data.irq = gpio_to_irq(sdio1_data.gpio);
 		break;
 	default:
 		printk(KERN_ERR "dove_sd_card_int_wa_setup: bad port (%d)\n", 
 		       port);
 		return;
 	}
-
-	orion_gpio_set_valid(gpio, 1);
 	
-	if (gpio_request(gpio, name) != 0)
-		printk(KERN_ERR "dove: failed to config gpio for sd_data1\n");
+	for (i = gpio; i < (gpio + 6); i++) {
+		orion_gpio_set_valid(i, 1);
+		
+		if (gpio_request(i, name) != 0)
+			printk(KERN_ERR "dove: failed to config gpio (%d) for %s\n",
+			       i, name);
 
-	gpio_direction_input(gpio);
-	set_irq_type(gpio_to_irq(gpio), IRQ_TYPE_LEVEL_LOW);
+		gpio_direction_input(i);
+	}
+	set_irq_type(irq, IRQ_TYPE_LEVEL_LOW);
 }
 
 /*****************************************************************************
