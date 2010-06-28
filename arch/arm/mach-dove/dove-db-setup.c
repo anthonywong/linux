@@ -738,12 +738,12 @@ static struct dove_mpp_mode dove_db_b_mpp_modes[] __initdata = {
 
 	{ 40, MPP_SDIO0 }, /* will configure MPPs 40-45 */
 
-	{ 46, MPP_SDIO1 }, /* SD0 Group */
-	{ 47, MPP_SDIO1 }, /* SD0 Group */
-	{ 48, MPP_SDIO1 }, /* SD0 Group */
-	{ 49, MPP_SDIO1 }, /* SD0 Group */
-	{ 50, MPP_SDIO1 }, /* SD0 Group */
-	{ 51, MPP_SDIO1 }, /* SD0 Group */
+	{ 46, MPP_SDIO1 }, /* SD1 Group */
+	{ 47, MPP_SDIO1 }, /* SD1 Group */
+	{ 48, MPP_SDIO1 }, /* SD1 Group */
+	{ 49, MPP_SDIO1 }, /* SD1 Group */
+	{ 50, MPP_SDIO1 }, /* SD1 Group */
+	{ 51, MPP_SDIO1 }, /* SD1 Group */
 
         { 52, MPP_AUDIO1 }, /* AU1 Group */
         { 53, MPP_AUDIO1 }, /* AU1 Group */
