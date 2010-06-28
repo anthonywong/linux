@@ -124,7 +124,7 @@ static void sdhci_sdio_gpio_irq_enable(struct sdhci_host *host)
 		return;
 
 	mpp_ctrl4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
-	mpp_ctrl4 |= mv_host->dove_int_wa_info.func_select_bit << 1;
+	mpp_ctrl4 |= 1 << mv_host->dove_int_wa_info.func_select_bit;
 	writel(mpp_ctrl4, DOVE_MPP_CTRL4_VIRT_BASE);
 
 	mmiowb();
@@ -139,7 +139,7 @@ static void sdhci_sdio_gpio_irq_disable(struct sdhci_host *host)
 		return;
 
 	mpp_ctrl4 = readl(DOVE_MPP_CTRL4_VIRT_BASE);
-	mpp_ctrl4 &= ~(mv_host->dove_int_wa_info.func_select_bit << 1);
+	mpp_ctrl4 &= ~(1 << mv_host->dove_int_wa_info.func_select_bit);
 	writel(mpp_ctrl4, DOVE_MPP_CTRL4_VIRT_BASE);
 
 	mmiowb();
