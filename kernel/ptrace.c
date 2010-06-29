@@ -156,9 +156,8 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 		dumpable = get_dumpable(task->mm);
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
-	if (mode == PTRACE_MODE_ATTACH && ptrace_scope &&
-            !capable(CAP_SYS_PTRACE)) {
-		/* require ptrace target be a child of ptracer on attach */
+	if (ptrace_scope && !capable(CAP_SYS_PTRACE)) {
+		/* require ptrace target be a child of ptracer */
 		struct task_struct *tmp = task;
 		struct task_struct *curtemp = current;
 		int rc = 0;
