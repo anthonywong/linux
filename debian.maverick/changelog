@@ -1,4 +1,22 @@
-linux-maverick (2.6.35-6.7~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-6.9~lucid1) lucid-proposed; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Upstream] direct_splice_actor() should not use pos in sd
+    - LP: #588861
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Mon, 28 Jun 2010 12:35:49 -0700
+
+linux (2.6.35-6.8) maverick; urgency=low
+
+  [ Mathieu J. Poirier ]
+
+  * ARM: Adding regulator supply for vdds_sdi.
+    - LP: #597904
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Sun, 27 Jun 2010 16:34:43 -0700
+
+linux (2.6.35-6.7) maverick; urgency=low
 
   [ Alberto Milone ]
 
