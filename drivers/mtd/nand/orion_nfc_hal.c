@@ -37,12 +37,42 @@
 #define NFC_DPRINT(x) 		//printk x
 #define PRINT_LVL		KERN_DEBUG
 
-#define	CHIP_DELAY_TIMEOUT	(20 * HZ/10)
+#define	CHIP_DELAY_TIMEOUT		(20 * HZ/10)
 #define NFC_MAX_NUM_OF_DESCR	(33) /* worst case in 8K ganaged */
 #define NFC_8BIT1K_ECC_SPARE	(32)
 
 #define NFC_SR_MASK		(0xfff)
 #define NFC_SR_BBD_MASK		(NFC_SR_CS0_BBD_MASK | NFC_SR_CS1_BBD_MASK)
+
+
+char *cmd_text[]= {
+	"MV_NFC_CMD_READ_ID",
+	"MV_NFC_CMD_READ_STATUS",
+	"MV_NFC_CMD_ERASE",
+	"MV_NFC_CMD_MULTIPLANE_ERASE",
+	"MV_NFC_CMD_RESET",
+
+	"MV_NFC_CMD_CACHE_READ_SEQ",
+	"MV_NFC_CMD_CACHE_READ_RAND",
+	"MV_NFC_CMD_EXIT_CACHE_READ",
+	"MV_NFC_CMD_CACHE_READ_START",
+	"MV_NFC_CMD_READ_MONOLITHIC",
+	"MV_NFC_CMD_READ_MULTIPLE",
+	"MV_NFC_CMD_READ_NAKED",
+	"MV_NFC_CMD_READ_LAST_NAKED",
+	"MV_NFC_CMD_READ_DISPATCH",
+
+	"MV_NFC_CMD_WRITE_MONOLITHIC",
+	"MV_NFC_CMD_WRITE_MULTIPLE",
+	"MV_NFC_CMD_WRITE_NAKED",
+	"MV_NFC_CMD_WRITE_LAST_NAKED",
+	"MV_NFC_CMD_WRITE_DISPATCH",
+	"MV_NFC_CMD_WRITE_DISPATCH_START",
+	"MV_NFC_CMD_WRITE_DISPATCH_END",
+
+	"MV_NFC_CMD_COUNT"	/* This should be the last enum */
+
+};
 
 MV_U32 pg_sz[NFC_PAGE_SIZE_MAX_CNT] = {512, 2048, 4096, 8192, 16384};
 
@@ -67,8 +97,6 @@ enum {
 };
 
 struct orion_nfc_info {
-	struct nand_chip	nand_chip;
-
 	struct platform_device	 *pdev;
 
 	struct clk		*clk;
@@ -88,16 +116,20 @@ struct orion_nfc_info {
 
 	/* relate to the command */
 	unsigned int		state;
-
-	int			use_dma;	/* use DMA ? */
+	unsigned int		use_dma;	/* use DMA ? */
 
 	/* flash information */
+	unsigned int		tclk;		/* Clock supplied to NFC */
+	unsigned int		nfc_width;	/* Width of NFC 16/8 bits */
+	unsigned int		num_devs;	/* Number of NAND devices 
+						   (2 for ganged mode).   */
+	unsigned int		num_cs;		/* Number of NAND devices 
+						   chip-selects.	  */
 	MV_NFC_ECC_MODE		ecc_type;
 	enum nfc_page_size	page_size;
 	uint32_t 		page_per_block;	/* Pages per block (PG_PER_BLK) */	
 	uint32_t 		flash_width;	/* Width of Flash memory (DWIDTH_M) */
 	size_t	 		read_id_bytes;
-	uint32_t 		num_devs;
 
 	size_t			data_size;	/* data size in FIFO */
 	size_t			read_size;
@@ -392,7 +424,11 @@ static int prepare_read_prog_cmd(struct orion_nfc_info *info,
 
 	return 0;
 }
+int orion_nfc_wait_for_completion_timeout(struct orion_nfc_info *info, int timeout)
+{
+	return wait_for_completion_timeout(&info->cmd_complete, timeout);
 
+}
 static void orion_nfc_data_dma_irq(int irq, void *data)
 {
 	struct orion_nfc_info *info = data;
@@ -718,7 +754,7 @@ static int orion_nfc_do_cmd_dma(struct orion_nfc_info *info,
 	NFC_DPRINT((PRINT_LVL "After issue command %d - 0x%x.\n",
 				info->cmd, MV_REG_READ(NFC_STATUS_REG)));
 
-	ret = wait_for_completion_timeout(&info->cmd_complete, timeout);
+	ret = orion_nfc_wait_for_completion_timeout(info, timeout);
 	if (!ret) {
 		printk(KERN_ERR "Cmd %d execution timed out (0x%x) - cs %d.\n",
 				info->cmd, MV_REG_READ(NFC_STATUS_REG),
@@ -790,18 +826,18 @@ static int orion_nfc_error_check(struct orion_nfc_info *info)
 /* ==================================================================================================
  *           STEP  1		|   STEP  2   |   STEP  3   |   STEP  4   |   STEP  5   |   STEP 6
  *           COMMAND		|   WAIT FOR  |   CHK ERRS  |     PIO     |   WAIT FOR  |   CHK ERRS
- * =============================|=============|=============|=============|=============|============
+ * =========================|=============|=============|=============|=============|============
  *   READ MONOLITHIC		|   RDDREQ    |   UNCERR    |    READ     |     NONE    |    NONE
- *   READ NAKED			|   RDDREQ    |   UNCERR    |    READ     |     NONE    |    NONE
+ *   READ NAKED				|   RDDREQ    |   UNCERR    |    READ     |     NONE    |    NONE
  *   READ LAST NAKED		|   RDDREQ    |   UNCERR    |    READ     |     NONE    |    NONE
  *   WRITE MONOLITHIC		|   WRDREQ    |    NONE     |    WRITE    |     RDY     |    BBD
  *   WRITE DISPATCH START	|   CMDD      |    NONE     |    NONE     |     NONE    |    NONE
- *   WRITE NAKED		|   WRDREQ    |    NONE     |    WRITE    |     PAGED   |    NONE
+ *   WRITE NAKED			|   WRDREQ    |    NONE     |    WRITE    |     PAGED   |    NONE
  *   WRITE DISPATCH END		|   NONE      |    NONE     |    NONE     |     RDY     |    BBD
- *   ERASE			|   NONE      |    NONE     |    NONE     |     RDY     |    BBD
- *   READ ID			|   RDDREQ    |    NONE     |    READ     |     NONE    |    NONE
- *   READ STAT			|   RDDREQ    |    NONE     |    READ     |     NONE    |    NONE
- *   RESET			|   NONE      |    NONE     |    NONE     |     RDY     |    NONE
+ *   ERASE					|   NONE      |    NONE     |    NONE     |     RDY     |    BBD
+ *   READ ID				|   RDDREQ    |    NONE     |    READ     |     NONE    |    NONE
+ *   READ STAT				|   RDDREQ    |    NONE     |    READ     |     NONE    |    NONE
+ *   RESET					|   NONE      |    NONE     |    NONE     |     RDY     |    NONE
  */
 static int orion_nfc_do_cmd_pio(struct orion_nfc_info *info)
 {
@@ -850,7 +886,7 @@ static int orion_nfc_do_cmd_pio(struct orion_nfc_info *info)
 			mvNfcIntrSet(&info->nfcCtrl, orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p1, MV_TRUE);	
 			
 			/* STEP2: wait for interrupt */
-			if (!wait_for_completion_timeout(&info->cmd_complete, timeout)) {
+			if (!orion_nfc_wait_for_completion_timeout(info, timeout)) {
 				printk(KERN_ERR "command %d execution timed out (CS %d, NDCR=0x%x, NDSR=0x%x).\n",
 				       descInfo[i].cmd, info->nfcCtrl.currCs, MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG));
 				info->retcode = ERR_CMD_TO;
@@ -888,7 +924,7 @@ static int orion_nfc_do_cmd_pio(struct orion_nfc_info *info)
 			mvNfcIntrSet(&info->nfcCtrl, orion_nfc_cmd_info_lkup[descInfo[i].cmd].events_p2, MV_TRUE);			
 
 			/* STEP5: Wait for transaction to finish */
-			if (!wait_for_completion_timeout(&info->cmd_complete, timeout)) {
+			if (!orion_nfc_wait_for_completion_timeout(info, timeout)) {
 				printk(KERN_ERR "command %d execution timed out (NDCR=0x%08x, NDSR=0x%08x, NDECCCTRL=0x%08x)\n", descInfo[i].cmd, 
 						MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG), MV_REG_READ(NFC_ECC_CONTROL_REG));
 				info->retcode = ERR_DATA_TO;
@@ -944,13 +980,14 @@ static inline int is_buf_blank(uint8_t *buf, size_t len)
 static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 				int column, int page_addr)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	int ret;
 
 	info->data_size = 0;
 	info->state = STATE_READY;
 	info->chained_cmd = 0;
 	info->retcode = ERR_NONE;
+
 	init_completion(&info->cmd_complete);
 
 	switch (command) {
@@ -1093,7 +1130,7 @@ static void orion_nfc_cmdfunc(struct mtd_info *mtd, unsigned command,
 
 static uint8_t orion_nfc_read_byte(struct mtd_info *mtd)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	char retval = 0xFF;
 
 	if (info->buf_start < info->buf_count)
@@ -1104,7 +1141,7 @@ static uint8_t orion_nfc_read_byte(struct mtd_info *mtd)
 
 static u16 orion_nfc_read_word(struct mtd_info *mtd)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	u16 retval = 0xFFFF;
 
 	if (!(info->buf_start & 0x01) && info->buf_start < info->buf_count) {
@@ -1119,7 +1156,7 @@ static u16 orion_nfc_read_word(struct mtd_info *mtd)
 
 static void orion_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
 	memcpy(buf, info->data_buff + info->buf_start, real_len);
@@ -1129,7 +1166,7 @@ static void orion_nfc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 static void orion_nfc_write_buf(struct mtd_info *mtd,
 		const uint8_t *buf, int len)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	int real_len = min_t(size_t, len, info->buf_count - info->buf_start);
 
 	memcpy(info->data_buff + info->buf_start, buf, real_len);
@@ -1144,14 +1181,14 @@ static int orion_nfc_verify_buf(struct mtd_info *mtd,
 
 static void orion_nfc_select_chip(struct mtd_info *mtd, int chip)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	mvNfcSelectChip(&info->nfcCtrl, MV_NFC_CS_0 + chip);
 	return;
 }
 
 static int orion_nfc_waitfunc(struct mtd_info *mtd, struct nand_chip *this)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 
 	/* orion_nfc_send_command has waited for command complete */
 	if (this->state == FL_WRITING || this->state == FL_ERASING) {
@@ -1183,7 +1220,7 @@ static int orion_nfc_ecc_calculate(struct mtd_info *mtd,
 static int orion_nfc_ecc_correct(struct mtd_info *mtd,
 		uint8_t *dat, uint8_t *read_ecc, uint8_t *calc_ecc)
 {
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	/*
 	 * Any error include ERR_SEND_CMD, ERR_DBERR, ERR_BUSERR, we
 	 * consider it as a ecc error which will tell the caller the
@@ -1198,8 +1235,6 @@ static int orion_nfc_ecc_correct(struct mtd_info *mtd,
 
 static int orion_nfc_detect_flash(struct orion_nfc_info *info)
 {
-	struct platform_device *pdev = info->pdev;
-	struct nfc_platform_data *pdata = pdev->dev.platform_data;
 	MV_U32 my_page_size;
 
 	mvNfcFlashPageSizeGet(&info->nfcCtrl, &my_page_size, NULL);
@@ -1231,13 +1266,12 @@ static int orion_nfc_detect_flash(struct orion_nfc_info *info)
 			return -EINVAL;
 	}
 
-	info->flash_width = pdata->nfc_width;
+	info->flash_width = info->nfc_width;
 	if (info->flash_width != 16 && info->flash_width != 8)
 		return -EINVAL;
 
 	/* calculate flash information */
 	info->read_id_bytes = (pg_sz[info->page_size] >= 2048) ? 4 : 2;
-	info->num_devs = pdata->num_devs;
 
 	return 0;
 }
@@ -1281,7 +1315,7 @@ static uint8_t mv_mirror_pattern[] = {'1', 't', 'b', 'B', 'V', 'M' };
 
 static struct nand_bbt_descr mvbbt_main_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	8,
 	.len = 6,
 	.veroffs = 14,
@@ -1291,7 +1325,7 @@ static struct nand_bbt_descr mvbbt_main_descr = {
 
 static struct nand_bbt_descr mvbbt_mirror_descr = {
 	.options = NAND_BBT_LASTBLOCK | NAND_BBT_CREATE | NAND_BBT_WRITE
-		| NAND_BBT_2BIT | NAND_BBT_VERSION | NAND_BBT_PERCHIP,
+		| NAND_BBT_2BIT | NAND_BBT_VERSION,
 	.offs =	8,
 	.len = 6,
 	.veroffs = 14,
@@ -1334,47 +1368,43 @@ static int orion_nfc_markbad(struct mtd_info *mtd, loff_t ofs)
 }
 
 
-static void orion_nfc_init_mtd(struct mtd_info *mtd,
-				struct orion_nfc_info *info)
+static void orion_nfc_init_nand(struct nand_chip *nand, struct orion_nfc_info *info)
 {
-	struct nand_chip *this = &info->nand_chip;
-	struct nfc_platform_data *pdata = info->pdev->dev.platform_data;
-
-	if (info->flash_width == 16)
-		this->options 	= (NAND_USE_FLASH_BBT | NAND_BUSWIDTH_16);
+	if (info->nfc_width == 16)
+		nand->options 	= (NAND_USE_FLASH_BBT | NAND_BUSWIDTH_16);
 	else
-		this->options 	= NAND_USE_FLASH_BBT;
-	this->num_devs		= pdata->num_devs;
-	this->oobsize_ovrd	= ((CHUNK_SPR * CHUNK_CNT) + LST_CHUNK_SPR);
-	this->bb_location	= BB_BYTE_POS;
-	this->bb_page		= mvNfcBadBlockPageNumber(&info->nfcCtrl);
-	this->waitfunc		= orion_nfc_waitfunc;
-	this->select_chip	= orion_nfc_select_chip;
-	this->dev_ready		= orion_nfc_dev_ready;
-	this->cmdfunc		= orion_nfc_cmdfunc;
-	this->read_word		= orion_nfc_read_word;
-	this->read_byte		= orion_nfc_read_byte;
-	this->read_buf		= orion_nfc_read_buf;
-	this->write_buf		= orion_nfc_write_buf;
-	this->verify_buf	= orion_nfc_verify_buf;
-	this->block_markbad	= orion_nfc_markbad;
-	this->ecc.mode		= NAND_ECC_HW;
-	this->ecc.hwctl		= orion_nfc_ecc_hwctl;
-	this->ecc.calculate	= orion_nfc_ecc_calculate;
-	this->ecc.correct	= orion_nfc_ecc_correct;
-	this->ecc.size		= pg_sz[info->page_size];
-	this->ecc.layout	= ECC_LAYOUT;
-	this->bbt_td 		= &mvbbt_main_descr;
-	this->bbt_md 		= &mvbbt_mirror_descr;
-	this->badblock_pattern	= BB_INFO;
-	this->chip_delay 	= 25;
+		nand->options 	= NAND_USE_FLASH_BBT;
+	nand->num_devs		= info->num_devs;
+	nand->oobsize_ovrd	= ((CHUNK_SPR * CHUNK_CNT) + LST_CHUNK_SPR);
+	nand->bb_location	= BB_BYTE_POS;
+	nand->bb_page		= mvNfcBadBlockPageNumber(&info->nfcCtrl);
+	nand->waitfunc		= orion_nfc_waitfunc;
+	nand->select_chip	= orion_nfc_select_chip;
+	nand->dev_ready		= orion_nfc_dev_ready;
+	nand->cmdfunc		= orion_nfc_cmdfunc;
+	nand->read_word		= orion_nfc_read_word;
+	nand->read_byte		= orion_nfc_read_byte;
+	nand->read_buf		= orion_nfc_read_buf;
+	nand->write_buf		= orion_nfc_write_buf;
+	nand->verify_buf	= orion_nfc_verify_buf;
+	nand->block_markbad	= orion_nfc_markbad;
+	nand->ecc.mode		= NAND_ECC_HW;
+	nand->ecc.hwctl		= orion_nfc_ecc_hwctl;
+	nand->ecc.calculate	= orion_nfc_ecc_calculate;
+	nand->ecc.correct	= orion_nfc_ecc_correct;
+	nand->ecc.size		= pg_sz[info->page_size];
+	nand->ecc.layout	= ECC_LAYOUT;
+	nand->bbt_td 		= &mvbbt_main_descr;
+	nand->bbt_md 		= &mvbbt_mirror_descr;
+	nand->badblock_pattern	= BB_INFO;
+	nand->chip_delay 	= 25;
 }
 
 static int orion_nfc_probe(struct platform_device *pdev)
 {
 	struct nfc_platform_data *pdata;
 	struct orion_nfc_info *info;
-	struct nand_chip *this;
+	struct nand_chip *nand;
 	struct mtd_info *mtd;
 	struct resource *r;
 	int ret = 0, irq;
@@ -1389,30 +1419,43 @@ static int orion_nfc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	/* Set global parameters based on platform data */
-	//if (pdata->use_dma) use_dma = 1;
-
 	dev_info(&pdev->dev, "Initialize HAL based NFC in %dbit mode with DMA %s using %s ECC\n",
 			pdata->nfc_width, stat[pdata->use_dma], ecc_stat[pdata->ecc_type]);
 
-	mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct orion_nfc_info),
-			GFP_KERNEL);
+	/* Allocate all data: mtd_info -> nand_chip -> orion_nfc_info */
+	mtd = kzalloc(sizeof(struct mtd_info),	GFP_KERNEL);
 	if (!mtd) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+		dev_err(&pdev->dev, "failed to allocate memory for mtd_info\n");
 		return -ENOMEM;
 	}
 
-	info = (struct orion_nfc_info *)(&mtd[1]);
-	info->pdev = pdev;
+	info = kzalloc(sizeof(struct orion_nfc_info), GFP_KERNEL);
+	if (!info) {
+		dev_err(&pdev->dev, "failed to allocate memory for orion_nfc_info\n");
+		return -ENOMEM;
+	}
 
-	this = &info->nand_chip;
-	mtd->priv = info;
+	nand = kzalloc(sizeof(struct nand_chip), GFP_KERNEL);
+	if (!nand) {
+		dev_err(&pdev->dev, "failed to allocate memory for nand_chip\n");
+		return -ENOMEM;
+	}	
+
+	/* Hookup pointers */
+	info->pdev = pdev;
+	nand->priv = info;
+	mtd->priv = nand;
 	mtd->owner = THIS_MODULE;
 
 	/* Copy all necessary information from platform data */
 	info->use_dma = pdata->use_dma;
 	info->ecc_type = pdata->ecc_type;
+	info->nfc_width = pdata->nfc_width;
+	info->num_devs = pdata->num_devs;
+	info->num_cs = pdata->num_cs;
+	info->tclk = pdata->tclk;
 
+	/* Get the TCLK */
         info->clk = clk_get_sys("dove-nand", NULL);
         if (IS_ERR(info->clk)) {
 		dev_err(&pdev->dev, "failed to get nand clock\n");
@@ -1460,15 +1503,15 @@ static int orion_nfc_probe(struct platform_device *pdev)
 	}
 #endif
 	/* Initialize NFC HAL */
-	nfcInfo.ioMode = (pdata->use_dma ? MV_NFC_PDMA_ACCESS : MV_NFC_PIO_ACCESS);
-	nfcInfo.eccMode = pdata->ecc_type;
+	nfcInfo.ioMode = (info->use_dma ? MV_NFC_PDMA_ACCESS : MV_NFC_PIO_ACCESS);
+	nfcInfo.eccMode = info->ecc_type;
 		
-	if(pdata->num_devs == 1)
-		nfcInfo.ifMode = ((pdata->nfc_width == 8) ? MV_NFC_IF_1X8 : MV_NFC_IF_1X16);
+	if(info->num_devs == 1)
+		nfcInfo.ifMode = ((info->nfc_width == 8) ? MV_NFC_IF_1X8 : MV_NFC_IF_1X16);
 	else
 		nfcInfo.ifMode = MV_NFC_IF_2X8;
 	nfcInfo.autoStatusRead = MV_FALSE;
-	nfcInfo.tclk = pdata->tclk;
+	nfcInfo.tclk = info->tclk;
 	nfcInfo.readyBypass = MV_FALSE;
 	nfcInfo.osHandle = NULL;
 	nfcInfo.regsPhysAddr = DOVE_SB_REGS_PHYS_BASE;
@@ -1510,9 +1553,9 @@ static int orion_nfc_probe(struct platform_device *pdev)
 		goto fail_free_irq;
 	}
 
-	orion_nfc_init_mtd(mtd, info);
+	orion_nfc_init_nand(nand, info);
 
-	if (info->nand_chip.ecc.layout == NULL) {
+	if (nand->ecc.layout == NULL) {
 		dev_err(&pdev->dev, "Undefined ECC layout for selected nand device\n");
 		ret = -ENXIO;
 		goto fail_free_irq;
@@ -1520,7 +1563,7 @@ static int orion_nfc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mtd);
 
-	if (nand_scan(mtd, pdata->num_cs)) {
+	if (nand_scan(mtd, info->num_cs)) {
 		dev_err(&pdev->dev, "failed to scan nand\n");
 		ret = -ENXIO;
 		goto fail_free_irq;
@@ -1574,6 +1617,8 @@ fail_put_clk:
 	clk_put(info->clk);
 fail_free_mtd:
 	kfree(mtd);
+	kfree(nand);
+	kfree(info);
 	return ret;
 }
 
@@ -1672,4 +1717,4 @@ static void __exit orion_nfc_exit(void)
 module_exit(orion_nfc_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Dove NAND controller driver");
+MODULE_DESCRIPTION("Dove NAND controller driver")
