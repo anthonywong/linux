@@ -126,7 +126,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /**********/
 /* Macros */
 /**********/
-#define ns_clk(ns, clk)	(MV_U32)(((ns) * (clk / 1000000) / 1000) + 1)
+#define ns_clk(ns, ns2clk)	((ns % ns2clk) ? (MV_U32)((ns/ns2clk)+1) : (MV_U32)(ns/ns2clk))
 
 #define DBGPRINT(x) 	printk x
 #define DBGLVL	 	KERN_INFO
@@ -138,6 +138,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* Flash Timing Parameters */
 typedef struct {
 	/* Flash Timing */
+	MV_U32		tADL;		/* Address to write data delay */
 	MV_U32		tCH;  		/* Enable signal hold time */
 	MV_U32		tCS;  		/* Enable signal setup time */
 	MV_U32		tWH;  		/* ND_nWE high duration */
@@ -184,6 +185,7 @@ typedef struct {
 /* Defined Flash Types */
 MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 	{			/* ST 8Gb */
+		.tADL = 0,	/* tADL, Address to write data delay */
 		.tCH = 5,	/* tCH, Enable signal hold time */
 		.tCS = 20,	/* tCS, Enable signal setup time */
 		.tWH = 12,	/* tWH, ND_nWE high duration */
@@ -193,7 +195,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.tR = 25121, 	/* tR = tR+tRR+tWB+1, ND_nWE high to ND_nRE low for read - 25000+20+100+1 */
 		.tWHR = 60,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
 		.tAR = 10,	/* tAR, ND_ALE low to ND_nRE low delay */
-		.tRHW = 100,	/* tRHW, ND_nRE high to ND_nWE low delay */
+		.tRHW = 48,	/* tRHW, ND_nRE high to ND_nWE low delay */
 		.pgPrBlk = 64,	/* Pages per block - detected */
 		.pgSz = 2048,	/* Page size */
 		.oobSz = 64,	/* Spare size */ 
@@ -203,6 +205,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.bb_page = 63,	/* Manufacturer Bad block marking page in block */
 	}, 
 	{			/* ST 32Gb */
+		.tADL = 0,	/* tADL, Address to write data delay */
 		.tCH = 5,	/* tCH, Enable signal hold time */
 		.tCS = 20,	/* tCS, Enable signal setup time */
 		.tWH = 10,	/* tWH, ND_nWE high duration */
@@ -212,7 +215,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.tR = 25121, 	/* tR = tR+tRR+tWB+1, ND_nWE high to ND_nRE low for read - 25000+20+100+1 */
 		.tWHR = 80,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
 		.tAR = 10,	/* tAR, ND_ALE low to ND_nRE low delay */
-		.tRHW = 100,	/* tRHW, ND_nRE high to ND_nWE low delay */
+		.tRHW = 48,	/* tRHW, ND_nRE high to ND_nWE low delay */
 		.pgPrBlk = 64,	/* Pages per block - detected */
 		.pgSz = 4096,	/* Page size */
 		.oobSz = 128,	/* Spare size */ 
@@ -223,16 +226,17 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 	},
 
 	{			/* Samsung 16Gb */
-		.tCH = 5,	/* tCH, Enable signal hold time */
-		.tCS = 20,	/* tCS, Enable signal setup time */
+		.tADL = 90,	/* tADL, Address to write data delay */
+		.tCH = 0,	/* tCH, Enable signal hold time */
+		.tCS = 5,	/* tCS, Enable signal setup time */
 		.tWH = 10,	/* tWH, ND_nWE high duration */
-		.tWP = 15,	/* tWP, ND_nWE pulse time */
-		.tRH = 15,	/* tRH, ND_nRE high duration */
-		.tRP = 15,	/* tRP, ND_nRE pulse width */			
-		.tR = 60000, 	/* tR = data transfer from cell to register, maximum 60,000ns */
-		.tWHR = 60,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
-		.tAR = 10,	/* tAR, ND_ALE low to ND_nRE low delay */
-		.tRHW = 100,	/* tRHW, ND_nRE high to ND_nWE low delay */
+		.tWP = 12,	/* tWP, ND_nWE pulse time */
+		.tRH = 12,	/* tRH, ND_nRE high duration */
+		.tRP = 12,	/* tRP, ND_nRE pulse width */			
+		.tR = 49146, 	/* tR = data transfer from cell to register, maximum 60,000ns */
+		.tWHR = 66,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
+		.tAR = 66,	/* tAR, ND_ALE low to ND_nRE low delay */
+		.tRHW = 32,	/* tRHW, ND_nRE high to ND_nWE low delay 32 clocks */
 		.pgPrBlk = 128,	/* Pages per block - detected */
 		.pgSz = 2048,	/* Page size */
 		.oobSz = 64,	/* Spare size */ 
@@ -243,6 +247,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 	},
 
 	{			/* Samsung 32Gb */
+		.tADL = 0,	/* tADL, Address to write data delay */
 		.tCH = 5,	/* tCH, Enable signal hold time */
 		.tCS = 20,	/* tCS, Enable signal setup time */
 		.tWH = 10,	/* tWH, ND_nWE high duration */
@@ -252,7 +257,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.tR = 60000, 	/* tR = data transfer from cell to register, maximum 60,000ns */
 		.tWHR = 60,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
 		.tAR = 10,	/* tAR, ND_ALE low to ND_nRE low delay */
-		.tRHW = 100,	/* tRHW, ND_nRE high to ND_nWE low delay */
+		.tRHW = 48,	/* tRHW, ND_nRE high to ND_nWE low delay */
 		.pgPrBlk = 128,	/* Pages per block - detected */
 		.pgSz = 4096,	/* Page size */
 		.oobSz = 128,	/* Spare size */ 
@@ -263,6 +268,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 	},
 
 	{			/* Micron 64Gb */
+		.tADL = 0,	/* tADL, Address to write data delay */
 		.tCH = 20,	/* tCH, Enable signal hold time */
 		.tCS = 20,	/* tCS, Enable signal setup time */
 		.tWH = 45,	/* tWH, ND_nWE high duration */
@@ -272,7 +278,7 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.tR = 0, 	/* tR = data transfer from cell to register */
 		.tWHR = 90,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
 		.tAR = 65,	/* tAR, ND_ALE low to ND_nRE low delay */
-		.tRHW = 18,	/* tRHW, ND_nRE high to ND_nWE low delay */
+		.tRHW = 32,	/* tRHW, ND_nRE high to ND_nWE low delay */
 		.pgPrBlk = 256,	/* Pages per block - detected */
 		.pgSz = 8192,	/* Page size */
 		.oobSz = 448,	/* Spare size */ 
@@ -2102,24 +2108,40 @@ static MV_STATUS mvNfcReadIdNative(MV_NFC_CHIP_SEL cs, MV_U16 *id)
 static MV_STATUS mvNfcTimingSet(MV_U32 tclk, MV_NFC_FLASH_INFO *flInfo)
 {
 	MV_U32 reg;
+	MV_U32 clk2ns;
+
+	switch (tclk) {
+		case 166666667:
+			clk2ns = 6;
+			break;
+		case 200000000:
+			clk2ns = 5;
+			break;
+		case 250000000:
+			clk2ns = 4;
+			break;
+		default:
+			return MV_FAIL;
+	};
 
 	/* Configure the Timing-0 register */
 	reg = 0;
 	reg |= NFC_TMNG0_SEL_CNTR_MASK;
-	reg |= ((ns_clk(flInfo->tCH, tclk) << NFC_TMNG0_TCH_OFFS) & NFC_TMNG0_TCH_MASK);
-	reg |= ((ns_clk(flInfo->tCS, tclk) << NFC_TMNG0_TCS_OFFS) & NFC_TMNG0_TCS_MASK);
-	reg |= (((ns_clk(flInfo->tWH, tclk)-1) << NFC_TMNG0_TWH_OFFS) & NFC_TMNG0_TWH_MASK);
-	reg |= (((ns_clk(flInfo->tWP, tclk)-1) << NFC_TMNG0_TWP_OFFS) & NFC_TMNG0_TWP_MASK);
-	reg |= (((ns_clk(flInfo->tRH, tclk)-1) << NFC_TMNG0_TRH_OFFS) & NFC_TMNG0_TRH_MASK);
-	reg |= (((ns_clk(flInfo->tRP, tclk)-1) << NFC_TMNG0_TRP_OFFS) & NFC_TMNG0_TRP_MASK);
+	reg |= ((ns_clk(flInfo->tADL, clk2ns) << NFC_TMNG0_TADL_OFFS) & NFC_TMNG0_TADL_MASK);
+	reg |= ((ns_clk(flInfo->tCH, clk2ns) << NFC_TMNG0_TCH_OFFS) & NFC_TMNG0_TCH_MASK);
+	reg |= ((ns_clk(flInfo->tCS, clk2ns) << NFC_TMNG0_TCS_OFFS) & NFC_TMNG0_TCS_MASK);
+	reg |= ((ns_clk(flInfo->tWH, clk2ns) << NFC_TMNG0_TWH_OFFS) & NFC_TMNG0_TWH_MASK);
+	reg |= ((ns_clk(flInfo->tWP, clk2ns) << NFC_TMNG0_TWP_OFFS) & NFC_TMNG0_TWP_MASK);
+	reg |= ((ns_clk(flInfo->tRH, clk2ns) << NFC_TMNG0_TRH_OFFS) & NFC_TMNG0_TRH_MASK);
+	reg |= ((ns_clk(flInfo->tRP, clk2ns) << NFC_TMNG0_TRP_OFFS) & NFC_TMNG0_TRP_MASK);
 	MV_REG_WRITE(NFC_TIMING_0_REG, reg);
 
 	/* Configure the Timing-1 register */
 	reg = 0;
-	reg |= ((ns_clk(flInfo->tR, tclk) << NFC_TMNG1_TR_OFFS) & NFC_TMNG1_TR_MASK);
-	reg |= ((ns_clk(flInfo->tWHR, tclk) << NFC_TMNG1_TWHR_OFFS) & NFC_TMNG1_TWHR_MASK);
-	reg |= ((ns_clk(flInfo->tAR, tclk) << NFC_TMNG1_TAR_OFFS) & NFC_TMNG1_TAR_MASK);
-	reg |= ((ns_clk(flInfo->tRHW, tclk) << NFC_TMNG1_TRHW_OFFS) & NFC_TMNG1_TRHW_MASK);
+	reg |= ((ns_clk(flInfo->tR, clk2ns) << NFC_TMNG1_TR_OFFS) & NFC_TMNG1_TR_MASK);
+	reg |= ((ns_clk(flInfo->tWHR, clk2ns) << NFC_TMNG1_TWHR_OFFS) & NFC_TMNG1_TWHR_MASK);
+	reg |= ((ns_clk(flInfo->tAR, clk2ns) << NFC_TMNG1_TAR_OFFS) & NFC_TMNG1_TAR_MASK);
+	reg |= (((flInfo->tRHW / 16) << NFC_TMNG1_TRHW_OFFS) & NFC_TMNG1_TRHW_MASK);
 	reg |= NFC_TMNG1_WAIT_MODE_MASK;
 	MV_REG_WRITE(NFC_TIMING_1_REG, reg);
 	
