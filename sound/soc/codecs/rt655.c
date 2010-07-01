@@ -11,7 +11,7 @@
 #include "rt655.h"
 
 #define RT655_VERSION "0.2"
-#define RT655_DEBUG 1
+//#define RT655_DEBUG 1
 #if defined(RT655_DEBUG)
 #define DBG(format, arg...) \
 	printk(KERN_DEBUG format "\n", ## arg)
