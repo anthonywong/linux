@@ -32,10 +32,10 @@ static struct dentry *adi9889_dfs_regs;
 
 static const struct i2c_device_id adi9889_register_id[] = {
 	{ "adi9889_i2c", 0 },
-	{ "adi9889_edid_i2c", 0},
+	{ "adi9889_edid_i2c", 1},
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, adi9889_i2c_id);
+MODULE_DEVICE_TABLE(i2c, adi9889_register_id);
 static struct i2c_client *adi9889_i2c_client;
 
 #ifdef DEBUG
@@ -231,10 +231,10 @@ static int adi9889_i2c_probe(struct i2c_client *client,
 
 	printk ("Probing in %s, name %s, addr 0x%x\n",__FUNCTION__,client->name,client->addr);
 
-        if (client->addr == 0x39) {
+        if (id->driver_data == 0) {
 		memcpy(&adi9889_g_client, &client, sizeof(client));
 	}
-	else if (client->addr == 0x3f) {
+	else if (id->driver_data == 1) {
 		memcpy(&adi9889_edid_g_client, &client, sizeof(client));
 		return 0;
 	}
