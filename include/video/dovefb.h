@@ -94,7 +94,7 @@
 #define DOVEFB_IOCTL_GET_SRC_MODE		_IO(DOVEFB_IOC_MAGIC, 22)
 
 /* clear framebuffer: Makes resolution or color space changes look nicer */
-#define FBIO_CLEAR_FRAMEBUFFER              	_IO(FB_IOC_MAGIC, 19)
+#define FBIO_CLEAR_FRAMEBUFFER			_IO(FB_IOC_MAGIC, 19)
 
 /* Global alpha blend controls - Maintaining compatibility with existing
    user programs. */
@@ -334,7 +334,7 @@ struct dovefb_layer_info {
 	unsigned char		*hwc_buf;
 	unsigned int		pseudo_palette[16];
 	struct tasklet_struct	tasklet;
-	char 			*mode_option;
+	char			*mode_option;
 
 	int			pix_fmt;
 	unsigned		is_blanked:1;
@@ -374,7 +374,7 @@ struct dovefb_info {
 	struct fb_videomode		out_vmode;
 	int				fixed_output;
 
-	char 				*mode_option;
+	char				*mode_option;
 	struct clk			*clk;
 	int				use_external_refclk;
 	int				ext_refclk;

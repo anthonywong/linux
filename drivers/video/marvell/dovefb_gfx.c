@@ -93,7 +93,7 @@ static void set_external_lcd_clock(u32 clock_div, u32 is_half_div)
 	writel(reg, DOVE_GLOBAL_CONFIG_1);
 
 
-	/* Configure division factor (N = LCD_EXT_DIV[5:0], N<32) in 	*/
+	/* Configure division factor (N = LCD_EXT_DIV[5:0], N<32) in	*/
 	/* Config 1 Register.						*/
 	reg &= ~(0x3F << 10);
 	reg |= (clock_div << 10);
@@ -150,7 +150,7 @@ static void calc_best_clock_div(u32 tar_freq, u32 *axi_div,
 	u32 i, borders;
 	u64 rem;
 	u64 temp;
-	int override = 0; 	/* Used to mark special cases where the LCD */
+	int override = 0;	/* Used to mark special cases where the LCD */
 	int div_2_skip = 3;	/* divider value is not recommended.	    */
 				/* (in our case it's divider 3).	    */
 
@@ -330,7 +330,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 			divider_int = lcd_div;
 		} else {
 			divider_int = (dmi->sclk_clock + (needed_pixclk / 2)) / needed_pixclk;
-			
+
 			/* check whether divisor is too small. */
 			if (divider_int < 2) {
 				printk(KERN_WARNING "Warning: clock source is too slow."
@@ -338,7 +338,7 @@ static void set_clock_divider(struct dovefb_layer_info *dfli,
 				divider_int = 2;
 			}
 		}
-		
+
 		if (lcd_accurate_clock) {
 			set_external_lcd_clock(axi_div, is_ext);
 		} else {
@@ -455,7 +455,7 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 		unsigned int mask = DOVEFB_GFX_INT_MASK | DOVEFB_VSYNC_INT_MASK;
 
 		writel(irq_ena | mask, dfli->reg_base + SPU_IRQ_ENA);
-		
+
 		rc = wait_event_interruptible_timeout(dfli->w_intr_wq,
 						      atomic_read(&dfli->w_intr), 4);
 		if ( rc < 0) {
@@ -466,7 +466,7 @@ static int wait_for_vsync(struct dovefb_layer_info *dfli)
 				__func__, rc);
 		}
 
-		writel(irq_ena, 
+		writel(irq_ena,
 		       dfli->reg_base + SPU_IRQ_ENA);
 		atomic_set(&dfli->w_intr, 0);
 		return 0;
@@ -536,21 +536,21 @@ static void set_graphics_start(struct fb_info *fi, int xoffset, int yoffset)
 		 * Calc offset. (double offset).
 		 * frame0 point to odd line,
 		 * frame1 point to even line.
-		 */ 
+		 */
 		pixel_offset1 = pixel_offset0 + var->xres_virtual;
 		addr1 = dfli->fb_start_dma +
 			(pixel_offset1 * (var->bits_per_pixel >> 3));
-		
+
 		/*
 		 * Calc Pitch. (double pitch length)
 		 */
 		x = readl(dfli->reg_base + LCD_CFG_GRA_PITCH);
 		x = (x & ~0xFFFF) | ((var->xres_virtual * var->bits_per_pixel) >> 2);
-		
+
 	} else {
 		/*
 		 * Calc offset.
-		 */ 
+		 */
 		addr1 = addr0;
 
 		/*
@@ -603,7 +603,7 @@ static int set_frame_timings(const struct dovefb_layer_info *dfli,
 		hs = var->hsync_len;
 		vs = var->vsync_len;
 	}
-	
+
 	/*
 	 * Calc original size.
 	 */
@@ -632,7 +632,7 @@ static int set_frame_timings(const struct dovefb_layer_info *dfli,
 
 	writel((zoomed_h << 16) | zoomed_w,
 		dfli->reg_base + LCD_SPU_GZM_HPXL_VLN);
-	
+
 	writel((lem << 16) | rim, dfli->reg_base + LCD_SPU_H_PORCH);
 	writel((upm << 16) | lom, dfli->reg_base + LCD_SPU_V_PORCH);
 
@@ -977,8 +977,8 @@ int dovefb_gfx_handle_irq(u32 isr, struct dovefb_layer_info *dfli)
 		unsigned int vs_adj, x;
 		unsigned int active_w, h_fp;
 
-		active_w = 0xffff & readl(dfli->reg_base + LCD_SPU_V_H_ACTIVE); 
-		h_fp = 0xffff & readl(dfli->reg_base + LCD_SPU_H_PORCH); 
+		active_w = 0xffff & readl(dfli->reg_base + LCD_SPU_V_H_ACTIVE);
+		h_fp = 0xffff & readl(dfli->reg_base + LCD_SPU_H_PORCH);
 
 		/* interlace mode workaround. */
 		if (GRA_FRAME_IRQ0_ENA_MASK & isr) {
@@ -1394,7 +1394,7 @@ static void dovefb_list_vmode(const char *id, struct list_head *head)
 				m->yres + m->lower_margin,
 				m->yres + m->lower_margin + m->vsync_len,
 				m->yres + m->lower_margin + m->vsync_len + m->upper_margin);
-				
+
 	}
 }
 
@@ -1408,7 +1408,7 @@ static int dovefb_init_mode(struct fb_info *fi,
 	u32 total_w, total_h, refresh;
 	u64 div_result;
 	const struct fb_videomode *m;
-	
+
 	/*
 	 * Set default value
 	 */
@@ -1467,7 +1467,7 @@ static int dovefb_init_mode(struct fb_info *fi,
 			var->xres, var->yres);
 		fi->var.xres = 1024;
 		fi->var.yres = 768;
-	
+
 		m = fb_find_best_mode(&fi->var, &fi->modelist);
 		if (!m) {
 			printk("Can't find 1024x768 either!!!\n");
@@ -1543,7 +1543,7 @@ int dovefb_gfx_resume(struct dovefb_layer_info *dfli)
 				"dovefb_gfx_set_par().\n");
 		return -1;
 	}
-	
+
 	fb_set_suspend(fi, 0);
 	dovefb_blank(FB_BLANK_UNBLANK, fi);
 
@@ -1569,7 +1569,7 @@ int dovefb_gfx_init(struct dovefb_info *info, struct dovefb_mach_info *dmi)
 	 */
 	dovefb_set_mode(dfli, &fi->var, dmi->modes, dmi->pix_fmt, 0);
 
-	/* 
+	/*
 	 * configure GPIO's in order to enable the LCD panel to be ready for
 	 * reading the edid data
 	 */
