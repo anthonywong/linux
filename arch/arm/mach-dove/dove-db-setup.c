@@ -102,6 +102,56 @@ static struct dovefb_mach_info dove_db_lcd0_dmi = {
 //	.num_modes		= ARRAY_SIZE(video_modes),
 //	.modes			= video_modes,
 	.pix_fmt		= PIX_FMT_RGB888PACK,
+	.io_pin_allocation	= IOPAD_DUMB24,
+	.panel_rgb_type		= DUMB24_RGB888_0,
+	.panel_rgb_reverse_lanes= 0,
+	.gpio_output_data	= 0,
+	.gpio_output_mask	= 0,
+#ifndef CONFIG_FB_DOVE_CLCD0_I2C_DEFAULT_SETTING
+	.ddc_i2c_adapter	= CONFIG_FB_DOVE_CLCD0_I2C_CHANNEL,
+	.ddc_i2c_address	= CONFIG_FB_DOVE_CLCD0_I2C_ADDRESS,
+#else
+	.ddc_i2c_adapter	= 0,
+	.ddc_i2c_address        = 0x3f,
+#endif
+	.invert_composite_blank	= 0,
+	.invert_pix_val_ena	= 0,
+	.invert_pixclock	= 0,
+	.invert_vsync		= 0,
+	.invert_hsync		= 0,
+	.panel_rbswap		= 1,
+	.active			= 1,
+};
+
+static struct dovefb_mach_info dove_db_lcd0_vid_dmi = {
+	.id_ovly		= "Video Layer 0",
+	.sclk_clock		= LCD_SCLK,
+//	.num_modes		= ARRAY_SIZE(video_modes),
+//	.modes			= video_modes,
+	.pix_fmt		= PIX_FMT_RGB888PACK,
+	.io_pin_allocation	= IOPAD_DUMB24,
+	.panel_rgb_type		= DUMB24_RGB888_0,
+	.panel_rgb_reverse_lanes= 0,
+	.gpio_output_data	= 0,
+	.gpio_output_mask	= 0,
+	.ddc_i2c_adapter	= -1,
+	.invert_composite_blank	= 0,
+	.invert_pix_val_ena	= 0,
+	.invert_pixclock	= 0,
+	.invert_vsync		= 0,
+	.invert_hsync		= 0,
+	.panel_rbswap		= 1,
+	.active			= 0,
+	.enable_lcd0		= 0,
+};
+
+static struct dovefb_mach_info dove_db_fp_lcd0_dmi = {
+	.id_gfx			= "GFX Layer 0",
+	.id_ovly		= "Video Layer 0",
+	.sclk_clock		= LCD_SCLK,
+//	.num_modes		= ARRAY_SIZE(video_modes),
+//	.modes			= video_modes,
+	.pix_fmt		= PIX_FMT_RGB888PACK,
 #if defined(CONFIG_FB_DOVE_CLCD_DCONB_BYPASS0)
 	.io_pin_allocation	= IOPAD_DUMB24,
 	.panel_rgb_type		= DUMB24_RGB888_0,
@@ -122,7 +172,7 @@ static struct dovefb_mach_info dove_db_lcd0_dmi = {
 	.active			= 1,
 };
 
-static struct dovefb_mach_info dove_db_lcd0_vid_dmi = {
+static struct dovefb_mach_info dove_db_fp_lcd0_vid_dmi = {
 	.id_ovly		= "Video Layer 0",
 	.sclk_clock		= LCD_SCLK,
 //	.num_modes		= ARRAY_SIZE(video_modes),
@@ -241,9 +291,14 @@ static struct dovebl_platform_data dove_db_backlight_data = {
 
 void __init dove_db_clcd_init(void) {
 #ifdef CONFIG_FB_DOVE
-	clcd_platform_init(&dove_db_lcd0_dmi, &dove_db_lcd0_vid_dmi,
-			   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
-			   &dove_db_backlight_data);
+	if (front_panel)
+		clcd_platform_init(&dove_db_fp_lcd0_dmi, &dove_db_fp_lcd0_vid_dmi,
+				   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
+				   &dove_db_backlight_data);
+	else
+		clcd_platform_init(&dove_db_lcd0_dmi, &dove_db_lcd0_vid_dmi,
+				   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
+				   &dove_db_backlight_data);
 #endif /* CONFIG_FB_DOVE */
 }
 
