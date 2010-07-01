@@ -575,9 +575,9 @@ die_leave_ddr_active:
 	/*
 	 * Reset Debugger
 	 */
-	ldr	r0, die_general_cfg_reg
+	ldr	r0, die_battery_flaut_delay_reg
 	ldr	r1, [r0]
-	bic	r1, r1, #0x2
+	orr	r1, r1, #0x700
 	str	r1, [r0]
 
 	/*
@@ -599,8 +599,8 @@ die_term_ctrl_addr:
 	.word (PMU_SP_TERM_OFF_CTRL_ADDR)
 die_term_mask_addr:
 	.word (PMU_SP_TERM_OFF_MASK_ADDR)
-die_general_cfg_reg:
-	.word (DOVE_SB_REGS_VIRT_BASE + 0xE802C)
+die_battery_flaut_delay_reg:
+	.word (DOVE_SB_REGS_VIRT_BASE + 0xD8022)
 
 
 /***************************************************************
@@ -621,9 +621,9 @@ ENTRY(mvPmuSramDeepIdleExitFunc)
 	/*
 	 * UNReset Debugger
 	 */
-	ldr	r0, dix_general_cfg_reg
+	ldr	r0, dix_battery_flaut_delay_reg
 	ldr	r1, [r0]
-	orr	r1, r1, #0x2
+	bic	r1, r1, #0x700
 	str	r1, [r0]
 
 	/*
@@ -685,8 +685,8 @@ dix_term_mask_addr:
 	.word (PMU_SP_TERM_OFF_MASK_ADDR_PHYS)
 dix_ddr_sync_reg:
 	.word (0xF1800240)
-dix_general_cfg_reg:
-	.word (DOVE_SB_REGS_PHYS_BASE + 0xE802C)
+dix_battery_flaut_delay_reg:
+	.word (DOVE_SB_REGS_PHYS_BASE + 0xD8022)
 
 
 /***************************************************************
