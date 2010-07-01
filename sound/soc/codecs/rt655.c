@@ -66,7 +66,7 @@ static int rt655_soc_remove(struct platform_device *pdev);
 static int rt655_soc_suspend(struct platform_device *pdev);
 static int rt655_soc_resume(struct platform_device *pdev);
 
-static int rt655_channels=2;
+static int rt655_channels = 6;
 
 
 u16 Set_Codec_Reg_Init[][2]={
@@ -371,9 +371,8 @@ static int rt655_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-
+#if 0
 	switch (params_channels(params)) {
-
 		case 2:
 			
 			rt655_channels=2;
@@ -396,7 +395,11 @@ static int rt655_hw_params(struct snd_pcm_substream *substream,
 			break;
 
 	}
+#else
+			rt655_channels=6;
+			rt655_write_mask(codec,RT655_MULT_CHAN_CTRL,0x0030,0x0030);
 
+#endif
 	return 0;
 }
 
