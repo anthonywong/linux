@@ -539,6 +539,18 @@ static struct i2c_board_info __initdata idt = {
 };
 
 /*****************************************************************************
+ * I2C buses - ADI9889 HDMI to DVI converter
+ ****************************************************************************/
+static struct i2c_board_info __initdata adi9889[] = {
+	{
+		I2C_BOARD_INFO("adi9889_i2c", 0x3d),
+	},
+	{
+		I2C_BOARD_INFO("adi9889_edid_i2c", 0x3F),
+	},
+};
+
+/*****************************************************************************
  * NAND
  ****************************************************************************/
 static struct mtd_partition partition_dove[] = {
@@ -980,6 +992,7 @@ static void __init dove_db_init(void)
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
 	if (machine_is_dove_db_b())
 		i2c_register_board_info(0, &idt, 1);
+	i2c_register_board_info(0, adi9889, ARRAY_SIZE(adi9889));
 	spi_register_board_info(dove_db_spi_flash_info,
 				ARRAY_SIZE(dove_db_spi_flash_info));
 	if (front_panel)
