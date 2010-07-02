@@ -33,9 +33,6 @@
 #include <linux/miscdevice.h>
 #include <linux/ioctl.h>
 #include <linux/fs.h>
-#ifdef CONFIG_DOVE_VPU_USE_BMM
-#include <linux/io.h>
-#endif
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
@@ -877,9 +874,9 @@ static struct miscdevice bmm_misc = {
 	.fops	= &bmm_fops,
 };
 
+#ifndef CONFIG_DOVE_VPU_USE_BMM
 static int __bmm_init(void)
 {
-#ifndef CONFIG_DOVE_VPU_USE_BMM
 	struct page *page;
 	unsigned long addr, size;
 
@@ -904,7 +901,28 @@ static int __bmm_init(void)
 		addr += PAGE_SIZE;
 		size -= PAGE_SIZE;
 	}
+	return 0;
+}
+
+static void __bmm_exit(void)
+{
+	unsigned long addr, size;
+
+	pr_debug("BMM free memory\n");
+
+	addr = bmm_vaddr;
+	size = bmm_size;
+	while(size > 0) {
+		ClearPageReserved(virt_to_page(addr));
+		addr += PAGE_SIZE;
+		size -= PAGE_SIZE;
+	}
+
+	__free_pages(virt_to_page(bmm_vaddr), get_order(bmm_size));
+}
 #else
+static int __bmm_init(void)
+{
 	unsigned int vmeta_memory_start, gpu_memory_start=0xffffffff;
 	int vmeta_size, gpu_size=0;
 
@@ -921,34 +939,15 @@ static int __bmm_init(void)
 	bmm_size = vmeta_size + gpu_size;
 	bmm_size_mb = bmm_size / 1024 / 1024;
 	bmm_paddr = (vmeta_memory_start > gpu_memory_start) ? gpu_memory_start : vmeta_memory_start;
-	// mark here: because we don't use the bmm memory space in kernel
-	//bmm_vaddr = ioremap_nocache(bmm_paddr, bmm_size);
-#endif
-
 	return 0;
 }
 
 static void __bmm_exit(void)
 {
-#ifndef CONFIG_DOVE_VPU_GPU_USE_BMM
-	unsigned long addr, size;
-
-	pr_debug("BMM free memory\n");
-
-	addr = bmm_vaddr;
-	size = bmm_size;
-	while(size > 0) {
-		ClearPageReserved(virt_to_page(addr));
-		addr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-
-	__free_pages(virt_to_page(bmm_vaddr), get_order(bmm_size));
-#else
-	// mark here: because we don't use the bmm memory space in kernel
-	//iounmap(bmm_vaddr);
-#endif
+	return;
 }
+
+#endif
 
 /*
  *********************************************************************  
