@@ -55,6 +55,10 @@ static unsigned int front_panel = 0;
 module_param(front_panel, uint, 0);
 MODULE_PARM_DESC(front_panel, "set to 1 if the dove DB front panel connected");
 
+static unsigned int lcd2dvi = 0;
+module_param(lcd2dvi, uint, 0);
+MODULE_PARM_DESC(lcd2dvi, "set to 1 if the LCD2DVI connected");
+
 static unsigned int left_tact = 0;
 module_param(left_tact, uint, 0);
 MODULE_PARM_DESC(left_tact, "Use left tact as mouse");
@@ -594,7 +598,7 @@ static struct i2c_board_info __initdata idt = {
 };
 
 /*****************************************************************************
- * I2C buses - ADI9889 HDMI to DVI converter
+ * I2C buses - ADI9889 LCD to HDMI/DVI/VGA converter
  ****************************************************************************/
 static struct i2c_board_info __initdata adi9889[] = {
 	{
@@ -602,6 +606,9 @@ static struct i2c_board_info __initdata adi9889[] = {
 	},
 	{
 		I2C_BOARD_INFO("adi9889_edid_i2c", 0x3F),
+	},
+	{
+		I2C_BOARD_INFO("ths8200_i2c", 0x21),
 	},
 };
 
@@ -1047,7 +1054,8 @@ static void __init dove_db_init(void)
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
 	if (machine_is_dove_db_b())
 		i2c_register_board_info(0, &idt, 1);
-	i2c_register_board_info(0, adi9889, ARRAY_SIZE(adi9889));
+	if (lcd2dvi)
+		i2c_register_board_info(0, adi9889, ARRAY_SIZE(adi9889));
 	spi_register_board_info(dove_db_spi_flash_info,
 				ARRAY_SIZE(dove_db_spi_flash_info));
 	if (front_panel)
