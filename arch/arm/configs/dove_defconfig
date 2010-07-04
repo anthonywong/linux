@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.32.9-dove-5.2.1.1
-# Thu Jul  1 17:57:36 2010
+# Linux kernel version: 2.6.32.9-dove-5.2.1
+# Sun Jul  4 15:53:29 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1757,6 +1757,7 @@ CONFIG_BACKLIGHT_DOVE=y
 # CONFIG_CH7025_COMPOSITE is not set
 CONFIG_KG2_ANX7150=y
 CONFIG_ADI9889=y
+CONFIG_THS8200=y
 
 #
 # Console display driver support

@@ -40,4 +40,10 @@ config ADI9889
 	help
 	  ADI9889 device driver support.
 
+config THS8200
+       tristate "THS8200 support"
+
+       default y
+       help
+         THS8200 device driver support.
 endmenu
