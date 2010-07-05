@@ -23,6 +23,7 @@
 #define DOVE_REV_Y0			0x2
 #define DOVE_REV_Y1			0x3
 #define DOVE_REV_X0			0x4
+#define DOVE_REV_A0			0x6
 
 /*
  * Marvell Dove address maps.
