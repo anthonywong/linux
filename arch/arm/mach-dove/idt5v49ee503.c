@@ -303,18 +303,24 @@ static int idt5v49ee503_read_reg (idt_drv_info_t *idt_drv,
 				  unsigned char  addr,
 				  unsigned char  *val)
 {
+
 	int           rval;
 	unsigned char buf[3] = {0, addr, 0}; /* fist byte for WRITE is command (0)
 	                                        or ID byte for READ (ignored) */
-	rval = i2c_master_send(idt_drv->i2c_cl, buf, 2);
-	if (rval == 2)
-	{	
-		rval = i2c_master_recv(idt_drv->i2c_cl, buf, 2);
-		*val = buf[1];
-	} else
-		printk(KERN_ERR "idt: failed to read from register 0x%x (rc %d)\n", addr, rval);
+	struct i2c_msg msg[2];
 
-	
+	msg[0].addr = idt_drv->i2c_cl->addr;
+	msg[0].flags = 0;
+	msg[0].buf = buf;
+	msg[0].len = 2;
+
+	msg[1].addr = idt_drv->i2c_cl->addr;
+	msg[1].flags = I2C_M_RD;
+	msg[1].buf = buf;
+	msg[1].len = 2;
+
+	rval = i2c_transfer(idt_drv->i2c_cl->adapter, &msg[0], 2);
+	*val = buf[1];
 	return (rval != 2);
 
 } /* end of idt5v49ee503_read_reg */
