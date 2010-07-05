@@ -251,6 +251,8 @@ static char * __init dove_id(void)
 		return "MV88AP510-Y1";
 	if (rev == DOVE_REV_X0)
 		return "MV88AP510-X0";
+	if (rev == DOVE_REV_A0)
+		return "MV88AP510-A0";
 	else
 		return "MV88AP510-Rev-Unsupported";
 }
