@@ -826,7 +826,7 @@ static ssize_t idt5v49ee503_store(struct device *dev, struct device_attribute *a
 	}
 	cfg->clk_src_clkin = IDT_PRM_CLK_CRYSTAL;
 	cfg->clock_id = IDT_PLL_1;
-	cfg->out_id = IDT_OUT_ID_3;
+	cfg->out_id = IDT_OUT_ID_2;
 	cfg->cfg_id = IDT_CLK_CFG_0;
 	cfg->cfg_act = 1;
 		
@@ -842,6 +842,45 @@ exit:
 }
 
 static ssize_t idt5v49ee503_store2(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	idt_drv_info_t *idt_drv = i2c_get_clientdata(client);
+	idt_clock_cfg_t *cfg;
+	char *endp;
+	u64 val;
+
+	dev_dbg(dev, "idt5v49ee503_store() called on %s\n", attr->attr.name);
+
+	/* Decode input */
+	val = simple_strtoull(buf, &endp, 0);
+	if (buf == endp) {
+		dev_dbg(dev, "input string not a number\n");
+		return -EINVAL;
+	}
+	cfg = kzalloc(sizeof(idt_clock_cfg_t), GFP_KERNEL);
+	if (cfg == NULL) {
+		dev_dbg(dev, "failed to allocate memory\n");
+		return -EINVAL;
+	}
+	cfg->clk_src_clkin = IDT_PRM_CLK_CRYSTAL;
+	cfg->clock_id = IDT_PLL_2;
+	cfg->out_id = IDT_OUT_ID_3;
+	cfg->cfg_id = IDT_CLK_CFG_0;
+	cfg->cfg_act = 1;
+		
+	if (idt5v49ee503_set_freq(idt_drv, val, cfg)) {
+		dev_err(dev, "failed to set clock to %llu\n", val);
+		count = -EIO;
+		goto exit;
+	}
+	return count;
+exit:
+	kfree(cfg);
+	return count;
+}
+
+static ssize_t idt5v49ee503_storef(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(dev);
@@ -881,12 +920,14 @@ static ssize_t idt5v49ee503_store2(struct device *dev, struct device_attribute *
  * Simple register attributes
  */
 
-static DEVICE_ATTR(clk, S_IRUGO | S_IWUSR, idt5v49ee503_show, idt5v49ee503_store);
-static DEVICE_ATTR(clkf, S_IRUGO | S_IWUSR, idt5v49ee503_show, idt5v49ee503_store2);
+static DEVICE_ATTR(clk0, S_IRUGO | S_IWUSR, idt5v49ee503_show, idt5v49ee503_store);
+static DEVICE_ATTR(clk1, S_IRUGO | S_IWUSR, idt5v49ee503_show, idt5v49ee503_store2);
+static DEVICE_ATTR(clkf, S_IRUGO | S_IWUSR, idt5v49ee503_show, idt5v49ee503_storef);
 
 static const struct attribute_group idt5v49ee503_group = {
 	.attrs = (struct attribute *[]) {
-		&dev_attr_clk.attr,
+		&dev_attr_clk0.attr,
+		&dev_attr_clk1.attr,
 		&dev_attr_clkf.attr,
 		NULL,
 	},
