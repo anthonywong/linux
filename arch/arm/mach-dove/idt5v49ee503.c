@@ -279,6 +279,8 @@ static int idt5v49ee503_write_reg (idt_drv_info_t *idt_drv,
 	int rc = i2c_master_send(idt_drv->i2c_cl, buf, 3);
 //	printk("%s: addr %x val %x\n", __func__, addr, val);
 	if (rc != 3) {
+		printk(KERN_ERR "idt: failed to write 0x%x to register 0x%x (rc %d)\n", 
+		       val, addr, rc);
 		return -EIO;
 	}
 	return 0;
@@ -309,7 +311,10 @@ static int idt5v49ee503_read_reg (idt_drv_info_t *idt_drv,
 	{	
 		rval = i2c_master_recv(idt_drv->i2c_cl, buf, 2);
 		*val = buf[1];
-	}
+	} else
+		printk(KERN_ERR "idt: failed to read from register 0x%x (rc %d)\n", addr, rval);
+
+	
 	return (rval != 2);
 
 } /* end of idt5v49ee503_read_reg */
@@ -940,7 +945,7 @@ static int idt_clk_setrate(struct clk *clk, unsigned long rate)
 	cfg->out_id = out_id;
 	cfg->cfg_id = IDT_CLK_CFG_0;
 	cfg->cfg_act = 1;
-		
+	printk("set clk %d to %lu\n", clk->flags, rate);	
 	if (idt5v49ee503_set_freq(idt_drv_g, rate, cfg)) {
 		printk("idt clk: failed to set clock to %lu\n", rate);
 		rc = -EIO;
