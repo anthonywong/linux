@@ -70,7 +70,7 @@ typedef struct _idt_pll_reg_set_t
 	unsigned char N_mreg;	/* feedback divider MSB N[11:8] */
 	unsigned char N_mlshft;	/* N[11:8] nibble left-shift value */
 	unsigned char D_reg;	/* reference divider D[6:0]  */
-
+	unsigned char IP_reg;	/* Loop Filter  */
 } idt_pll_reg_set_t;
 
 /* Clock registers for MUX source configuration */
@@ -106,36 +106,36 @@ idt_drv_info_t *idt_drv_g;
 
 /* Registers addresses in clock programming tables */
 static idt_pll_reg_set_t idt5v49ee503_pll_regs[IDT_CLK_CFG_NUM][IDT_PLL_NUM] = {
-	/*  N[7:0]  N[11:8]  Nsh  D[6:0] */
-	{ { 0x18,   0x1C,    0,   0x10 }, /* PLL0 */
-	  { 0x30,   0x34,    0,   0x28 }, /* PLL1 */
-	  { 0x48,   0x4C,    0,   0x40 }, /* PLL2 */
-	  { 0x64,   0x34,    4,   0x5C }  /* PLL3 */
+	/*  N[7:0]  N[11:8]  Nsh  D[6:0] IP */
+	{ { 0x18,   0x1C,    0,   0x10    , 0xC}, /* PLL0 */
+	  { 0x30,   0x34,    0,   0x28    , 0x24}, /* PLL1 */
+	  { 0x48,   0x4C,    0,   0x40    , 0x3C}, /* PLL2 */
+	  { 0x64,   0x34,    4,   0x5C    , 0x58}  /* PLL3 */
 	}, /* CFG0 */
-	{ { 0x19,   0x1D,    0,   0x11 }, /* PLL0 */
-	  { 0x31,   0x35,    0,   0x29 }, /* PLL1 */
-	  { 0x49,   0x4D,    0,   0x41 }, /* PLL2 */
-	  { 0x65,   0x35,    4,   0x5D }  /* PLL3 */
+	{ { 0x19,   0x1D,    0,   0x11    , 0xD}, /* PLL0 */
+	  { 0x31,   0x35,    0,   0x29    , 0x25}, /* PLL1 */
+	  { 0x49,   0x4D,    0,   0x41    , 0x3D}, /* PLL2 */
+	  { 0x65,   0x35,    4,   0x5D    , 0x59}  /* PLL3 */
 	}, /* CFG1 */
-	{ { 0x1A,   0x1E,    0,   0x12 }, /* PLL0 */
-	  { 0x32,   0x36,    0,   0x2A }, /* PLL1 */
-	  { 0x4A,   0x4E,    0,   0x42 }, /* PLL2 */
-	  { 0x66,   0x36,    4,   0x5E }  /* PLL3 */
+	{ { 0x1A,   0x1E,    0,   0x12    , 0xE}, /* PLL0 */
+	  { 0x32,   0x36,    0,   0x2A    , 0x26}, /* PLL1 */
+	  { 0x4A,   0x4E,    0,   0x42    , 0x3E}, /* PLL2 */
+	  { 0x66,   0x36,    4,   0x5E    , 0x5A }  /* PLL3 */
 	}, /* CFG2 */
-	{ { 0x1B,   0x1F,    0,   0x13 }, /* PLL0 */
-	  { 0x33,   0x37,    0,   0x2B }, /* PLL1 */
-	  { 0x4B,   0x4F,    0,   0x43 }, /* PLL2 */
-	  { 0x67,   0x37,    4,   0x5F }  /* PLL3 */
+	{ { 0x1B,   0x1F,    0,   0x13    , 0xF}, /* PLL0 */
+	  { 0x33,   0x37,    0,   0x2B    , 0x27}, /* PLL1 */
+	  { 0x4B,   0x4F,    0,   0x43    , 0x3F }, /* PLL2 */
+	  { 0x67,   0x37,    4,   0x5F    , 0x5B}  /* PLL3 */
 	}, /* CFG3 */
-	{ { 0x16,   0x20,    0,   0x14 }, /* PLL0 */
-	  { 0x2E,   0x38,    0,   0x2C }, /* PLL1 */
-	  { 0x46,   0x50,    0,   0x44 }, /* PLL2 */
-	  { 0x62,   0x38,    4,   0x60 }  /* PLL3 */
+	{ { 0x16,   0x20,    0,   0x14    , 0xA}, /* PLL0 */
+	  { 0x2E,   0x38,    0,   0x2C    , 0x22}, /* PLL1 */
+	  { 0x46,   0x50,    0,   0x44    , 0x3A}, /* PLL2 */
+	  { 0x62,   0x38,    4,   0x60    , 0x56}  /* PLL3 */
 	}, /* CFG4 */
-	{ { 0x17,   0x21,    0,   0x15 }, /* PLL0 */
-	  { 0x2F,   0x39,    0,   0x2D }, /* PLL1 */
-	  { 0x47,   0x51,    0,   0x45 }, /* PLL2 */
-	  { 0x63,   0x39,    4,   0x61 }  /* PLL3 */
+	{ { 0x17,   0x21,    0,   0x15    , 0xB}, /* PLL0 */
+	  { 0x2F,   0x39,    0,   0x2D    , 0x23}, /* PLL1 */
+	  { 0x47,   0x51,    0,   0x45    , 0x3B}, /* PLL2 */
+	  { 0x63,   0x39,    4,   0x61    , 0x57}  /* PLL3 */
 	}  /* CFG5 */
 };
 
@@ -547,6 +547,12 @@ static int idt5v49ee503_write_cfg (idt_drv_info_t *idt_drv,
 	if (idt5v49ee503_write_reg(idt_drv,
 				   div_regs[div_id],
 				   div_val) != 0)
+		return -EIO;
+
+	/* Configure loop filter */
+	if (idt5v49ee503_write_reg(idt_drv,
+				   pll_regs[clock_cfg->clock_id].IP_reg,
+				   0x10) != 0)
 		return -EIO;
 
 	return 0;
