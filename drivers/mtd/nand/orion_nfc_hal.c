@@ -1625,7 +1625,7 @@ fail_free_mtd:
 static int orion_nfc_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -1648,7 +1648,7 @@ static int orion_nfc_remove(struct platform_device *pdev)
 static int orion_nfc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct mtd_info *mtd = (struct mtd_info *)platform_get_drvdata(pdev);
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 
 	if (info->state != STATE_READY) {
 		dev_err(&pdev->dev, "driver busy, state = %d\n", info->state);
@@ -1670,7 +1670,7 @@ static int orion_nfc_suspend(struct platform_device *pdev, pm_message_t state)
 static int orion_nfc_resume(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = (struct mtd_info *)platform_get_drvdata(pdev);
-	struct orion_nfc_info *info = mtd->priv;
+	struct orion_nfc_info *info = (struct orion_nfc_info *)((struct nand_chip *)mtd->priv)->priv;
 	MV_U32	i;
 
 	clk_enable(info->clk);
