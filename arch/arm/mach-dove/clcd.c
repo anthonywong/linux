@@ -36,10 +36,10 @@
 #include "gpp/mvGppRegs.h"
 #include <ctrlEnv/mvCtrlEnvRegs.h>
 
-static unsigned int lcd0_enable;
+unsigned int lcd0_enable;
 module_param(lcd0_enable, uint, 0);
 MODULE_PARM_DESC(lcd0_enable, "set to 1 to enable LCD0 output.");
-static unsigned int lcd1_enable = 1;
+unsigned int lcd1_enable = 1;
 module_param(lcd1_enable, uint, 0);
 MODULE_PARM_DESC(lcd1_enable, "set to 1 to enable LCD1 output.");
 unsigned int lcd_accurate_clock = 1;
