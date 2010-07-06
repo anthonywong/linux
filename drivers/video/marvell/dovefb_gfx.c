@@ -862,6 +862,12 @@ static int dovefb_blank(int blank, struct fb_info *fi)
 		dfli->checkbuf_timer_exist = 0;
 	}
 
+	if (dfli->info->use_external_refclk) {
+		if(dfli->is_blanked)
+			clk_disable(dfli->info->clk);
+		else
+			clk_enable(dfli->info->clk);
+	}
 	return 0;
 }
 
