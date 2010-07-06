@@ -692,7 +692,7 @@ int idt5v49ee503_sw_ctrl (idt_drv_info_t *idt_drv,
 				      IDT5V49EE503_SW_MODE_CTL_REG,
 				      sw_ctl != 0 ? 1 : 0);
 
-} /* end of idt5v49ee503_out_enable */
+} /* end of idt5v49ee503_sw_ctrl */
 
 /****************************************************************************** 
    Program clock with specific frequency from known fixed freqiencies
@@ -947,7 +947,6 @@ static const struct attribute_group idt5v49ee503_group = {
 
 static void  idt_clk_enable(struct clk *clk)
 {
-#if 0
 	idt_clock_id_t pll_id;
 	if (clk->flags == 0)
 		pll_id = IDT_PLL_1;
@@ -955,7 +954,7 @@ static void  idt_clk_enable(struct clk *clk)
 		pll_id = IDT_PLL_2;
 		
 	idt5v49ee503_pll_enable(idt_drv_g, pll_id , 1);
-#endif
+
 	return;
 }
 
@@ -1062,8 +1061,12 @@ static int idt5v49ee503_probe(struct i2c_client *client,
 	idt_drv_g = idt_drv;
 	idt_drv->i2c_cl = client;
 	i2c_set_clientdata(client, idt_drv);
-	rc = sysfs_create_group(&client->dev.kobj, &idt5v49ee503_group);
 
+	/* disable all pll's by default */
+	idt5v49ee503_write_reg(idt_drv,
+			       IDT5V49EE503_PLL_SUSPEND_REG,
+			       0);
+	rc = sysfs_create_group(&client->dev.kobj, &idt5v49ee503_group);
 	if (rc)
 		goto free;
 
