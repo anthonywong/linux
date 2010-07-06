@@ -59,6 +59,14 @@ static unsigned int lcd2dvi = 0;
 module_param(lcd2dvi, uint, 0);
 MODULE_PARM_DESC(lcd2dvi, "set to 1 if the LCD2DVI connected");
 
+static unsigned int lcd0_clk = 0;
+module_param(lcd0_clk, uint, 0);
+MODULE_PARM_DESC(lcd0_clk, "set to 0 to for internal clk, 1 for external clk#0, 2 for external clk#1");
+
+static unsigned int lcd1_clk = 0;
+module_param(lcd1_clk, uint, 0);
+MODULE_PARM_DESC(lcd1_clk, "set to 0 to for internal clk, 1 for external clk#0, 2 for external clk#1");
+
 static unsigned int left_tact = 0;
 module_param(left_tact, uint, 0);
 MODULE_PARM_DESC(left_tact, "Use left tact as mouse");
@@ -84,6 +92,9 @@ MODULE_PARM_DESC(dvs_enable, "if 1 then enable DVS");
 extern unsigned int useHalDrivers;
 extern char *useNandHal;
 
+
+extern unsigned int lcd0_enable;
+extern unsigned int lcd1_enable;
 /*
  * LCD input clock.
  */
@@ -103,6 +114,7 @@ static struct dovefb_mach_info dove_db_lcd0_dmi = {
 	.id_gfx			= "GFX Layer 0",
 	.id_ovly		= "Video Layer 0",
 	.sclk_clock		= LCD_SCLK,
+
 //	.num_modes		= ARRAY_SIZE(video_modes),
 //	.modes			= video_modes,
 	.pix_fmt		= PIX_FMT_RGB888PACK,
@@ -295,14 +307,58 @@ static struct dovebl_platform_data dove_db_backlight_data = {
 
 void __init dove_db_clcd_init(void) {
 #ifdef CONFIG_FB_DOVE
-	if (front_panel)
-		clcd_platform_init(&dove_db_fp_lcd0_dmi, &dove_db_fp_lcd0_vid_dmi,
-				   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
-				   &dove_db_backlight_data);
-	else
-		clcd_platform_init(&dove_db_lcd0_dmi, &dove_db_lcd0_vid_dmi,
-				   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
-				   &dove_db_backlight_data);
+	struct dovefb_mach_info *lcd0_dmi, *lcd0_vid_dmi;
+	if (front_panel) {
+		lcd0_dmi = &dove_db_fp_lcd0_dmi;
+		lcd0_vid_dmi = &dove_db_fp_lcd0_vid_dmi;
+	} else {
+		lcd0_dmi = &dove_db_lcd0_dmi;
+		lcd0_vid_dmi = &dove_db_lcd0_vid_dmi;
+	}
+	/* use external clock for LCD1 (VGA) by default when two lcd's enabled */
+	if (lcd0_enable && lcd1_enable) {
+		dove_db_lcd1_dmi.use_external_refclk = 1;
+		dove_db_lcd1_dmi.ext_refclk = 1;
+		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK1";
+	}
+
+	switch(lcd0_clk) {
+	case 0: //default
+		break;
+	case 1:
+		lcd0_dmi->use_external_refclk = 1;
+		lcd0_dmi->ext_refclk = 0;
+		lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK0";
+		break;
+	case 2:
+		lcd0_dmi->use_external_refclk = 1;
+		lcd0_dmi->ext_refclk = 1;
+		lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK1";
+		break;
+	default:
+		printk("error: invalid value(%d) for lcd0_clk patameter\n", lcd0_clk);
+	}
+
+	switch(lcd1_clk) {
+	case 0: //default
+		break;
+	case 1:
+		dove_db_lcd1_dmi.use_external_refclk = 1;
+		dove_db_lcd1_dmi.ext_refclk = 0;
+		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK0";
+		break;
+	case 2:
+		dove_db_lcd1_dmi.use_external_refclk = 1;
+		dove_db_lcd1_dmi.ext_refclk = 1;
+		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK1";
+		break;
+	default:
+		printk("error: invalid value(%d) for lcd0_clk patameter\n", lcd0_clk);
+	}
+	clcd_platform_init(lcd0_dmi, lcd0_vid_dmi,
+			   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
+			   &dove_db_backlight_data);
+
 #endif /* CONFIG_FB_DOVE */
 }
 
