@@ -805,6 +805,13 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	set_fs(fs);
 
 #ifdef CONFIG_MRVL_ERRATA_THUMB_VLDR
+	{
+		int id;
+		asm volatile("mrc p15, 0, %0, c0, c0, 0":"=r" (id));
+		if ((id & 0xf) >= 5) //This errata is not needed for revision >= 5
+			goto errata_end;
+	}
+
 	if (!fault && thumb_mode(regs) && ((instr & 0xff3f0e00) == 0xed1f0a00)) {
 		fault = do_alignment_thumb_vldr(addr, instr, regs);
 		if (fault == TYPE_DONE) {
@@ -812,6 +819,7 @@ do_alignment(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 			return 0;
 		}
 	}
+errata_end:
 #endif
 
 	if (fault) {
