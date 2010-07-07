@@ -61,11 +61,11 @@ MODULE_PARM_DESC(lcd2dvi, "set to 1 if the LCD2DVI connected");
 
 static unsigned int lcd0_clk = 0;
 module_param(lcd0_clk, uint, 0);
-MODULE_PARM_DESC(lcd0_clk, "set to 0 to for internal clk, 1 for external clk#0, 2 for external clk#1");
+MODULE_PARM_DESC(lcd0_clk, "set to 1 to force internal clk, 2 for external clk#0, 3 for external clk#1");
 
 static unsigned int lcd1_clk = 0;
 module_param(lcd1_clk, uint, 0);
-MODULE_PARM_DESC(lcd1_clk, "set to 0 to for internal clk, 1 for external clk#0, 2 for external clk#1");
+MODULE_PARM_DESC(lcd1_clk, "set to 1 to force internal clk, 2 for external clk#0, 3 for external clk#1");
 
 static unsigned int left_tact = 0;
 module_param(left_tact, uint, 0);
@@ -326,11 +326,14 @@ void __init dove_db_clcd_init(void) {
 	case 0: //default
 		break;
 	case 1:
+		lcd0_dmi->use_external_refclk = 0;
+		break;
+	case 2:
 		lcd0_dmi->use_external_refclk = 1;
 		lcd0_dmi->ext_refclk = 0;
 		lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK0";
 		break;
-	case 2:
+	case 3:
 		lcd0_dmi->use_external_refclk = 1;
 		lcd0_dmi->ext_refclk = 1;
 		lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK1";
@@ -343,11 +346,14 @@ void __init dove_db_clcd_init(void) {
 	case 0: //default
 		break;
 	case 1:
+		dove_db_lcd1_dmi.use_external_refclk = 0;
+		break;
+	case 2:
 		dove_db_lcd1_dmi.use_external_refclk = 1;
 		dove_db_lcd1_dmi.ext_refclk = 0;
 		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK0";
 		break;
-	case 2:
+	case 3:
 		dove_db_lcd1_dmi.use_external_refclk = 1;
 		dove_db_lcd1_dmi.ext_refclk = 1;
 		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK1";
