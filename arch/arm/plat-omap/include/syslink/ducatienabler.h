@@ -287,5 +287,5 @@ void unmap_ducati_virt_mem(u32 shm_virt_addr);
 int ducati_mem_map(u32 va, u32 da, u32 num_bytes, u32 map_attr);
 int ducati_mem_unmap(u32 da, u32 num_bytes);
 u32 user_va2pa(struct mm_struct *mm, u32 address);
-inline u32 ducati_mem_virtToPhys(u32 da);
+u32 ducati_mem_virtToPhys(u32 da);
 #endif /* _DDUCATIMMU_ENABLER_H_*/

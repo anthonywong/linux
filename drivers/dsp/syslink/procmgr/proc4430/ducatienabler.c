@@ -279,7 +279,7 @@ int ducati_mem_unmap(u32 da, u32 num_bytes)
  *  Remote virtual address to Physical address
  */
 
-inline u32 ducati_mem_virtToPhys(u32 da)
+u32 ducati_mem_virtToPhys(u32 da)
 {
 #if 0
 	/* FIXME: temp work around till L2MMU issue
