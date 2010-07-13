@@ -216,7 +216,7 @@ static void fec_stop(struct net_device *dev);
 #define FEC_MMFR_TA		(2 << 16)
 #define FEC_MMFR_DATA(v)	(v & 0xffff)
 
-#define FEC_MII_TIMEOUT		10
+#define FEC_MII_TIMEOUT		10000
 
 /* Transmitter timeout */
 #define TX_TIMEOUT (2 * HZ)
@@ -624,28 +624,12 @@ spin_unlock:
 /*
  * NOTE: a MII transaction is during around 25 us, so polling it...
  */
-static int fec_enet_mdio_poll(struct fec_enet_private *fep)
-{
-	int timeout = FEC_MII_TIMEOUT;
-
-	fep->mii_timeout = 0;
-
-	/* wait for end of transfer */
-	while (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_MII)) {
-		msleep(1);
-		if (timeout-- < 0) {
-			fep->mii_timeout = 1;
-			break;
-		}
-	}
-
-	return 0;
-}
-
 static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
 	struct fec_enet_private *fep = bus->priv;
+	int timeout = FEC_MII_TIMEOUT;
 
+	fep->mii_timeout = 0;
 
 	/* clear MII end of transfer bit*/
 	writel(FEC_ENET_MII, fep->hwp + FEC_IEVENT);
@@ -655,7 +639,15 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 		FEC_MMFR_PA(mii_id) | FEC_MMFR_RA(regnum) |
 		FEC_MMFR_TA, fep->hwp + FEC_MII_DATA);
 
-	fec_enet_mdio_poll(fep);
+	/* wait for end of transfer */
+	while (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_MII)) {
+		cpu_relax();
+		if (timeout-- < 0) {
+			fep->mii_timeout = 1;
+			printk(KERN_ERR "FEC: MDIO read timeout\n");
+			return -ETIMEDOUT;
+		}
+	}
 
 	/* return value */
 	return FEC_MMFR_DATA(readl(fep->hwp + FEC_MII_DATA));
@@ -665,6 +657,9 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 			   u16 value)
 {
 	struct fec_enet_private *fep = bus->priv;
+	int timeout = FEC_MII_TIMEOUT;
+
+	fep->mii_timeout = 0;
 
 	/* clear MII end of transfer bit*/
 	writel(FEC_ENET_MII, fep->hwp + FEC_IEVENT);
@@ -675,7 +670,15 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 		FEC_MMFR_TA | FEC_MMFR_DATA(value),
 		fep->hwp + FEC_MII_DATA);
 
-	fec_enet_mdio_poll(fep);
+	/* wait for end of transfer */
+	while (!(readl(fep->hwp + FEC_IEVENT) & FEC_ENET_MII)) {
+		cpu_relax();
+		if (timeout-- < 0) {
+			fep->mii_timeout = 1;
+			printk(KERN_ERR "FEC: MDIO write timeout\n");
+			return -ETIMEDOUT;
+		}
+	}
 
 	return 0;
 }
