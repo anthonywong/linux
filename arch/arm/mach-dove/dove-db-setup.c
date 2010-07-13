@@ -308,6 +308,10 @@ static struct dovebl_platform_data dove_db_backlight_data = {
 void __init dove_db_clcd_init(void) {
 #ifdef CONFIG_FB_DOVE
 	struct dovefb_mach_info *lcd0_dmi, *lcd0_vid_dmi;
+	u32 dev, rev;
+	
+	dove_pcie_id(&dev, &rev);
+
 	if (front_panel) {
 		lcd0_dmi = &dove_db_fp_lcd0_dmi;
 		lcd0_vid_dmi = &dove_db_fp_lcd0_vid_dmi;
@@ -315,51 +319,53 @@ void __init dove_db_clcd_init(void) {
 		lcd0_dmi = &dove_db_lcd0_dmi;
 		lcd0_vid_dmi = &dove_db_lcd0_vid_dmi;
 	}
-	/* use external clock for LCD1 (VGA) by default when two lcd's enabled */
-	if (lcd0_enable && lcd1_enable) {
-		dove_db_lcd1_dmi.use_external_refclk = 1;
-		dove_db_lcd1_dmi.ext_refclk = 1;
-		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK1";
-	}
-
-	switch(lcd0_clk) {
-	case 0: //default
-		break;
-	case 1:
-		lcd0_dmi->use_external_refclk = 0;
-		break;
-	case 2:
-		lcd0_dmi->use_external_refclk = 1;
-		lcd0_dmi->ext_refclk = 0;
-		lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK0";
-		break;
-	case 3:
-		lcd0_dmi->use_external_refclk = 1;
-		lcd0_dmi->ext_refclk = 1;
-		lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK1";
-		break;
-	default:
-		printk("error: invalid value(%d) for lcd0_clk patameter\n", lcd0_clk);
-	}
-
-	switch(lcd1_clk) {
-	case 0: //default
-		break;
-	case 1:
-		dove_db_lcd1_dmi.use_external_refclk = 0;
-		break;
-	case 2:
-		dove_db_lcd1_dmi.use_external_refclk = 1;
-		dove_db_lcd1_dmi.ext_refclk = 0;
-		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK0";
-		break;
-	case 3:
-		dove_db_lcd1_dmi.use_external_refclk = 1;
-		dove_db_lcd1_dmi.ext_refclk = 1;
-		dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK1";
-		break;
-	default:
-		printk("error: invalid value(%d) for lcd0_clk patameter\n", lcd0_clk);
+	if (rev >= DOVE_REV_A0) {
+		/* use external clock for LCD1 (VGA) by default when two lcd's enabled */
+		if (lcd0_enable && lcd1_enable) {
+			dove_db_lcd1_dmi.use_external_refclk = 1;
+			dove_db_lcd1_dmi.ext_refclk = 1;
+			dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK1";
+		}
+		
+		switch(lcd0_clk) {
+		case 0: //default
+			break;
+		case 1:
+			lcd0_dmi->use_external_refclk = 0;
+			break;
+		case 2:
+			lcd0_dmi->use_external_refclk = 1;
+			lcd0_dmi->ext_refclk = 0;
+			lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK0";
+			break;
+		case 3:
+			lcd0_dmi->use_external_refclk = 1;
+			lcd0_dmi->ext_refclk = 1;
+			lcd0_dmi->ext_refclk_name = "LCD_EXT_CLK1";
+			break;
+		default:
+			printk("error: invalid value(%d) for lcd0_clk patameter\n", lcd0_clk);
+		}
+		
+		switch(lcd1_clk) {
+		case 0: //default
+			break;
+		case 1:
+			dove_db_lcd1_dmi.use_external_refclk = 0;
+			break;
+		case 2:
+			dove_db_lcd1_dmi.use_external_refclk = 1;
+			dove_db_lcd1_dmi.ext_refclk = 0;
+			dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK0";
+			break;
+		case 3:
+			dove_db_lcd1_dmi.use_external_refclk = 1;
+			dove_db_lcd1_dmi.ext_refclk = 1;
+			dove_db_lcd1_dmi.ext_refclk_name = "LCD_EXT_CLK1";
+			break;
+		default:
+			printk("error: invalid value(%d) for lcd0_clk patameter\n", lcd0_clk);
+		}
 	}
 	clcd_platform_init(lcd0_dmi, lcd0_vid_dmi,
 			   &dove_db_lcd1_dmi, &dove_db_lcd1_vid_dmi,
