@@ -23,7 +23,7 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
-
+#include <mach/dove.h>
 
 #include "../codecs/rt655.h"
 #include "../pxa/pxa2xx-pcm.h"
@@ -69,11 +69,12 @@ struct platform_device rt655_codec_dev = {
 	.id             = 0,
 };
 
+extern u32 chip_rev;
 static int __init dove_db_b_init(void)
 {
 	int ret = 0;
 
-        if (!machine_is_dove_db_b())
+        if (!machine_is_dove_db_b() && !(machine_is_dove_db() && (chip_rev >= DOVE_REV_A0)))
                 return -ENODEV;
 
 	dove_ac97_snd_device = platform_device_alloc("soc-audio", 0);

@@ -235,11 +235,17 @@ static u32 dove_upstream_regs[DOVE_UPSTRM_BRDG_SIZE];
 /*
  * Identify device ID and revision.
  */
+u32 chip_dev, chip_rev;
+EXPORT_SYMBOL(chip_dev);
+EXPORT_SYMBOL(chip_rev);
+
 static char * __init dove_id(void)
 {
 	u32 dev, rev;
 
 	dove_pcie_id(&dev, &rev);
+	chip_dev = dev;
+	chip_rev = rev;
 
 	if (rev == DOVE_REV_Z0)
 		return "MV88AP510-Z0";
