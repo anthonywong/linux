@@ -939,7 +939,7 @@ static int __init dove_db_pm_init(void)
 
 	pmuInitInfo.batFltMngDis = MV_FALSE;				/* Keep battery fault enabled */
 	pmuInitInfo.exitOnBatFltDis = MV_FALSE;				/* Keep exit from STANDBY on battery fail enabled */
-	if (machine_is_dove_db()) {
+	if (machine_is_dove_db() && rev < DOVE_REV_A0) {
 
 		pmuInitInfo.sigSelctor[0] = PMU_SIGNAL_NC;
 		pmuInitInfo.sigSelctor[1] = PMU_SIGNAL_NC;
@@ -984,7 +984,7 @@ static int __init dove_db_pm_init(void)
 	pmuInitInfo.sigSelctor[14] = PMU_SIGNAL_NC;
 	pmuInitInfo.sigSelctor[15] = PMU_SIGNAL_NC;
 	pmuInitInfo.dvsDelay = 0x4200;				/* ~100us in 166MHz cc - delay for DVS change */
-	if (machine_is_dove_db_b())
+	if (machine_is_dove_db_b() || rev >= DOVE_REV_A0)
 		pmuInitInfo.ddrTermGpioNum = 2;			/* GPIO 2 used to disable terminations */
 	else
 		pmuInitInfo.ddrTermGpioNum = 16;			/* GPIO 16 used to disable terminations */
@@ -1020,12 +1020,16 @@ __initcall(dove_db_pm_init);
 //extern int __init pxa_init_dma_wins(struct mbus_dram_target_info * dram);
 static void __init dove_db_init(void)
 {
+	u32 dev, rev;
+
 	/*
 	 * Basic Dove setup. Needs to be called early.
 	 */
 	dove_init();
 
-	if (machine_is_dove_db_b()) {
+	dove_pcie_id(&dev, &rev);
+
+	if (machine_is_dove_db_b() || rev >= DOVE_REV_A0) {
 		dove_mpp_conf(dove_db_b_mpp_modes);
 		dove_db_b_giga_phy_gpio_setup();
 	} else
@@ -1120,7 +1124,7 @@ static void __init dove_db_init(void)
 
 	i2c_register_board_info(0, &i2c_a2d, 1);
 	i2c_register_board_info(0, dove_db_gpio_ext_info, 1);
-	if (machine_is_dove_db_b())
+	if (machine_is_dove_db_b() || rev >= DOVE_REV_A0)
 		i2c_register_board_info(0, &idt, 1);
 	if (lcd2dvi)
 		i2c_register_board_info(0, adi9889, ARRAY_SIZE(adi9889));

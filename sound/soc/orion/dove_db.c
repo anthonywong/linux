@@ -19,6 +19,7 @@
 #include "../codecs/ad1980.h"
 #include "../pxa/pxa2xx-pcm.h"
 #include "../pxa/pxa2xx-ac97.h"
+#include <mach/dove.h>
 
 static struct snd_soc_card dovedb;
 
@@ -57,11 +58,12 @@ static struct snd_soc_device dovedb_snd_devdata = {
 
 static struct platform_device *dovedb_snd_device;
 
+extern u32 chip_rev;
 static int __init dovedb_init(void)
 {
 	int ret;
 
-	if (!machine_is_dove_db() && !machine_is_dove_db_z0())
+	if (!(machine_is_dove_db() && (chip_rev < DOVE_REV_A0)) && !machine_is_dove_db_z0())
 		return -ENODEV;
 
 	dovedb_snd_device = platform_device_alloc("soc-audio", 0);
