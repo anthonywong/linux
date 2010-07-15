@@ -63,6 +63,7 @@ static void pmu_irq_ack(unsigned int irq)
 	int pin = irq_to_pmu(irq);
 	u32 u;
 
+	u = readl(PMU_INTERRUPT_CAUSE);
 	u = ~(1 << (pin & 31));
 	writel(u, PMU_INTERRUPT_CAUSE);
 }
