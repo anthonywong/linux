@@ -26,6 +26,7 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <asm/memory.h>
+#include <asm/system.h>
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
@@ -179,24 +180,39 @@ extern void _memset_io(volatile void __iomem *, int, size_t);
  * IO port primitives for more information.
  */
 #ifdef __mem_pci
-#define readb(c) ({ __u8  __v = __raw_readb(__mem_pci(c)); __v; })
-#define readw(c) ({ __u16 __v = le16_to_cpu((__force __le16) \
+#define readb_relaxed(c) ({ u8  __v = __raw_readb(__mem_pci(c)); __v; })
+#define readw_relaxed(c) ({ u16 __v = le16_to_cpu((__force __le16) \
 					__raw_readw(__mem_pci(c))); __v; })
-#define readl(c) ({ __u32 __v = le32_to_cpu((__force __le32) \
+#define readl_relaxed(c) ({ u32 __v = le32_to_cpu((__force __le32) \
 					__raw_readl(__mem_pci(c))); __v; })
-#define readb_relaxed(addr) readb(addr)
-#define readw_relaxed(addr) readw(addr)
-#define readl_relaxed(addr) readl(addr)
+
+#define writeb_relaxed(v,c)	((void)__raw_writeb(v,__mem_pci(c)))
+#define writew_relaxed(v,c)	((void)__raw_writew((__force u16) \
+					cpu_to_le16(v),__mem_pci(c)))
+#define writel_relaxed(v,c)	((void)__raw_writel((__force u32) \
+					cpu_to_le32(v),__mem_pci(c)))
+
+#ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
+#define readb(c)		({ u8  __v = readb_relaxed(c); rmb(); __v; })
+#define readw(c)		({ u16 __v = readw_relaxed(c); rmb(); __v; })
+#define readl(c)		({ u32 __v = readl_relaxed(c); rmb(); __v; })
+
+#define writeb(v,c)		({ wmb(); writeb_relaxed(v,c); })
+#define writew(v,c)		({ wmb(); writew_relaxed(v,c); })
+#define writel(v,c)		({ wmb(); writel_relaxed(v,c); })
+#else
+#define readb(c)		readb_relaxed(c)
+#define readw(c)		readw_relaxed(c)
+#define readl(c)		readl_relaxed(c)
+
+#define writeb(v,c)		writeb_relaxed(v,c)
+#define writew(v,c)		writew_relaxed(v,c)
+#define writel(v,c)		writel_relaxed(v,c)
+#endif
 
 #define readsb(p,d,l)		__raw_readsb(__mem_pci(p),d,l)
 #define readsw(p,d,l)		__raw_readsw(__mem_pci(p),d,l)
 #define readsl(p,d,l)		__raw_readsl(__mem_pci(p),d,l)
-
-#define writeb(v,c)		__raw_writeb(v,__mem_pci(c))
-#define writew(v,c)		__raw_writew((__force __u16) \
-					cpu_to_le16(v),__mem_pci(c))
-#define writel(v,c)		__raw_writel((__force __u32) \
-					cpu_to_le32(v),__mem_pci(c))
 
 #define writesb(p,d,l)		__raw_writesb(__mem_pci(p),d,l)
 #define writesw(p,d,l)		__raw_writesw(__mem_pci(p),d,l)
