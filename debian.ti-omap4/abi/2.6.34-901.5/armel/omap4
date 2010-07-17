@@ -2439,8 +2439,10 @@ EXPORT_SYMBOL vmlinux 0x00000000	ip_send_check
 EXPORT_SYMBOL vmlinux 0x00000000	ip_setsockopt
 EXPORT_SYMBOL vmlinux 0x00000000	ip_xfrm_me_harder
 EXPORT_SYMBOL vmlinux 0x00000000	ipu_pm_callback
+EXPORT_SYMBOL vmlinux 0x00000000	ipu_pm_finish
 EXPORT_SYMBOL vmlinux 0x00000000	ipu_pm_notifications
 EXPORT_SYMBOL vmlinux 0x00000000	ipu_pm_notify_callback
+EXPORT_SYMBOL vmlinux 0x00000000	ipu_pm_setup
 EXPORT_SYMBOL vmlinux 0x00000000	iput
 EXPORT_SYMBOL vmlinux 0x00000000	ipv4_config
 EXPORT_SYMBOL vmlinux 0x00000000	ipv4_specific
@@ -3032,6 +3034,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	omap2_mcbsp_transmitter_index
 EXPORT_SYMBOL vmlinux 0x00000000	omap_chip_is
 EXPORT_SYMBOL vmlinux 0x00000000	omap_clear_dma
 EXPORT_SYMBOL vmlinux 0x00000000	omap_clear_dma_sglist_mode
+EXPORT_SYMBOL vmlinux 0x00000000	omap_clk_get_by_name
 EXPORT_SYMBOL vmlinux 0x00000000	omap_disable_dma_irq
 EXPORT_SYMBOL vmlinux 0x00000000	omap_dispc_register_isr
 EXPORT_SYMBOL vmlinux 0x00000000	omap_dispc_unregister_isr
