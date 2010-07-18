@@ -1,4 +1,41 @@
-linux-maverick (2.6.35-8.13~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-9.14~lucid1) lucid-proposed; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * ubuntu: AUFS -- add BOM and automated update script
+  * ubuntu: AUFS -- update to b37c575759dc4535ccc03241c584ad5fe69e3b25
+
+  [ John Johansen ]
+
+  * [Config] Enable DRBD as a module
+
+  [ Kees Cook ]
+
+  * SAUCE: Yama: verify inode is symlink to avoid bind mounts
+    - LP: #604407
+
+  [ Leann Ogasawara ]
+
+  * [Config] Disable CONFIG_DRM_VMWGFX (staging driver)
+    - LP: #606139
+  * [Config] ports: Disable CONFIG_DRM_VMWGFX (staging driver)
+    - LP: #606139
+  * [Config] Enable CONFIG_DEBUG_STRICT_USER_COPY_CHECKS=y
+  * [Config] ports: Enable CONFIG_DEBUG_STRICT_USER_COPY_CHECKS=y
+
+  [ Lee Jones ]
+
+  * Stop ARM boards crashing when CUPS is loaded
+    - LP: #601226
+
+  [ Upstream Kernel Changes ]
+
+  * perf probe: Support tracing an entry of array
+  * perf probe: Support static and global variables
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 16 Jul 2010 14:38:17 -0700
+
+linux (2.6.35-8.13) maverick; urgency=low
 
   [ Kees Cook ]
 
