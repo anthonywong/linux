@@ -230,7 +230,6 @@ static int adi9889_i2c_probe(struct i2c_client *client,
                         const struct i2c_device_id *id)
 {
         int rc;
-	char edid_addr = 0xA0;
 
 	printk ("Probing in %s, name %s, addr 0x%x\n",__FUNCTION__,client->name,client->addr);
 
@@ -258,7 +257,6 @@ static int adi9889_i2c_probe(struct i2c_client *client,
 	AD9889_reset();
 	adi9889_early_setup();
 	disable_hdcp();
-	adi9889_write_function(AD9889_ADDRESS,0x43,&edid_addr,1);
 
 	adi9889_thread_struct = kthread_run (adi9889_thread, client, "adi9889_int_thread");
 
