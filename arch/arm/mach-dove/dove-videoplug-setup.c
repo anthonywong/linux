@@ -84,7 +84,13 @@ static struct dovefb_mach_info dove_videoplug_lcd0_dmi = {
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 0,// AVG 3,
 	.gpio_output_mask	= 0,// AVG 3,
+#ifndef CONFIG_FB_DOVE_CLCD0_I2C_DEFAULT_SETTING
+	.ddc_i2c_adapter	= CONFIG_FB_DOVE_CLCD0_I2C_CHANNEL,
+	.ddc_i2c_address	= CONFIG_FB_DOVE_CLCD0_I2C_ADDRESS,
+#else
 	.ddc_i2c_adapter	= 0,// AVG3,
+	.ddc_i2c_address	= 0x3f,
+#endif
 	.invert_composite_blank	= 0,
 	.invert_pix_val_ena	= 0,
 	.invert_pixclock	= 0,
