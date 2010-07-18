@@ -324,7 +324,14 @@ resume_after_mmu:
 	 */
 	mcr     p15, 0, r0, c7, c10, 4          @ drain write buffer
 	mcr     p15, 0, r0, c7, c10, 5          @ data memory barrier
+
+	/* invalidate the L2 entry of the temporary mapping */
+	orr	r4, r5, r1, lsl #2
+	bic	r4, r4, #0x1F
+	mcr	p15, 1, r4, c7, c7, 3
+
 	mcr	p15, 0, r0, c8, c7, 0		@ TLB invalidate
+	
 	mov	r13, r9
 	mov	pc, lr
 
