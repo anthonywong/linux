@@ -1207,15 +1207,14 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	hdmi_w1_video_config_interface(&VideoInterfaceParam);
 
 #if 0
-	/* hnagalla */
 	val = hdmi_read_reg(HDMI_WP, HDMI_WP_VIDEO_SIZE);
 
 	val &= 0x0FFFFFFF;
 	val |= ((0x1f) << 27); /* wakeup */
 	hdmi_write_reg(HDMI_WP, HDMI_WP_VIDEO_SIZE, val);
+#endif
 
 	hdmi_w1_audio_config();
-#endif
 
 	/****************************** CORE *******************************/
 	/************* configure core video part ********************************/
@@ -1232,7 +1231,7 @@ int hdmi_lib_enable(struct hdmi_config *cfg)
 	audio_cfg.fs = 0x02;
 	audio_cfg.if_fs = 0x00;
 	audio_cfg.n = 6144;
-	audio_cfg.cts = 74250;
+	audio_cfg.cts = 148500;
 
 	/* audio channel */
 	audio_cfg.if_sample_size = 0x0;
