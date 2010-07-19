@@ -10,7 +10,7 @@ include $(KSRC)/.config
 CFLAGS  := $(EXTRA_CFLAGS)
 
 ifndef CROSS_COMPILE
-CROSS_COMPILE := arm-none-linux-gnueabi-
+CROSS_COMPILE := arm-marvell-linux-gnueabi-
 endif
 
 CC := $(CROSS_COMPILE)gcc
