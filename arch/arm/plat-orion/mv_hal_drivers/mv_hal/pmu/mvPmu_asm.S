@@ -252,7 +252,8 @@ ENTRY(mvPmuSramResumeCP15)
 	and	r10, #0xF
         cmp     r10, #1
 
-	movne	r0, #0x1
+	mrcne   p15, 1, r0, c15, c2, 0          @ Auxiliary Function Reg
+	bicne	r0, #0x3 << 4
 	orrne	r0, r0, #CONFIG_CPU_WRITECO_CYCLE << 4  @ X0
 	mcrne	p15, 1, r0, c15, c2, 0		@ Write Marvell Auxiliary Function Reg
 #endif	
