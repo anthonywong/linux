@@ -73,14 +73,8 @@ static struct dovefb_mach_info dove_videoplug_lcd0_dmi = {
 //	.num_modes		= ARRAY_SIZE(video_modes),
 //	.modes			= video_modes,
 	.pix_fmt		= PIX_FMT_RGB888PACK,
-#if defined(CONFIG_FB_DOVE_CLCD_DCONB_BYPASS0)
 	.io_pin_allocation	= IOPAD_DUMB24,
 	.panel_rgb_type		= DUMB24_RGB888_0,
-#else
-#warning "Something wrong in the configuration. The above should be active"
-	.io_pin_allocation	= IOPAD_DUMB18GPIO,
-	.panel_rgb_type		= DUMB18_RGB666_0,
-#endif
 	.panel_rgb_reverse_lanes= 0,
 	.gpio_output_data	= 0,// AVG 3,
 	.gpio_output_mask	= 0,// AVG 3,
@@ -96,7 +90,7 @@ static struct dovefb_mach_info dove_videoplug_lcd0_dmi = {
 	.invert_pixclock	= 0,
 	.invert_vsync		= 0,
 	.invert_hsync		= 0,
-	.panel_rbswap		= 0,
+	.panel_rbswap		= 1,
 	.active			= 1,
 };
 
@@ -466,7 +460,6 @@ static void __init dove_videoplug_init(void)
 
 	/* sdio card interrupt workaround using GPIOs */
 	dove_sd_card_int_wa_setup(0);
-	dove_sd_card_int_wa_setup(1);
 
 
 #if defined(CONFIG_SND_DOVE_AC97)
@@ -520,8 +513,7 @@ static void __init dove_videoplug_init(void)
 	dove_i2c_exp_init(0);
 	dove_i2c_exp_init(1);
 	dove_sdhci_cam_mbus_init();
-//	dove_sdio0_init();
-//	dove_sdio1_init();
+	dove_sdio0_init();
 	dove_videoplug_nfc_init();
 	dove_videoplug_clcd_init();
 	dove_vmeta_init();
