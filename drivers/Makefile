@@ -9,6 +9,7 @@ obj-y				+= gpio/
 obj-$(CONFIG_PCI)		+= pci/
 obj-$(CONFIG_PARISC)		+= parisc/
 obj-$(CONFIG_RAPIDIO)		+= rapidio/
+obj-y				+= video/
 obj-y				+= idle/
 obj-$(CONFIG_ACPI)		+= acpi/
 obj-$(CONFIG_SFI)		+= sfi/
@@ -29,8 +30,6 @@ obj-y				+= char/
 
 # gpu/ comes after char for AGP vs DRM startup
 obj-y				+= gpu/
-# video/ needs to come after gpu for framebuffer fallback.
-obj-y				+= video/
 
 obj-$(CONFIG_CONNECTOR)		+= connector/
 
