@@ -70,6 +70,11 @@ static struct dovefb_mach_info dove_videoplug_lcd0_dmi = {
 	.id_gfx			= "GFX Layer 0",
 	.id_ovly		= "Video Layer 0",
 	.sclk_clock		= LCD_SCLK,
+
+	.use_external_refclk = 1, //enable using external clock
+	.ext_refclk = 1, // use clock 1
+	.ext_refclk_name = "LCD_EXT_CLK1", //use clock 1
+
 //	.num_modes		= ARRAY_SIZE(video_modes),
 //	.modes			= video_modes,
 	.pix_fmt		= PIX_FMT_RGB888PACK,
@@ -128,6 +133,14 @@ static struct dove_ssp_platform_data dove_ssp_platform_data = {
 
 void __init dove_videoplug_clcd_init(void) {
 #ifdef CONFIG_FB_DOVE
+	u32 dev, rev;
+	
+	dove_pcie_id(&dev, &rev);
+
+	/* LCD external clock supported only starting from rev A0 */
+	if (rev < DOVE_REV_A0)
+		dove_videoplug_lcd0_dmi.use_external_refclk = 0;
+
 	clcd_platform_init(&dove_videoplug_lcd0_dmi, &dove_videoplug_lcd0_vid_dmi,
 			   NULL, NULL, NULL);
 #endif /* CONFIG_FB_DOVE */
@@ -205,6 +218,13 @@ static struct i2c_board_info __initdata i2c_plug[] = {
 	{
 		I2C_BOARD_INFO("adi9889_edid_i2c", 0x3F),
 	},
+};
+
+/*****************************************************************************
+ * IDT clock 
+ ****************************************************************************/
+static struct i2c_board_info __initdata idt = {
+	I2C_BOARD_INFO("idt5v49ee503", 0x6A),
 };
 
 /*****************************************************************************
@@ -530,7 +550,7 @@ static void __init dove_videoplug_init(void)
 
 	i2c_register_board_info(0, i2c_plug, ARRAY_SIZE(i2c_plug));
 	i2c_register_board_info(0, &i2c_a2d, 1);
-
+	i2c_register_board_info(0, &idt, 1);
 	//i2c_register_board_info(0, dove_videoplug_gpio_ext_info, 1);
 	spi_register_board_info(dove_videoplug_spi_flash_info,
 				ARRAY_SIZE(dove_videoplug_spi_flash_info));
