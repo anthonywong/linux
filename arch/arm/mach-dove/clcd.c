@@ -626,7 +626,7 @@ int clcd_platform_init(struct dovefb_mach_info *lcd0_dmi_data,
 	}
 #endif
 
-	if (lcd0_enable && lcd1_enable && 
+	if (lcd0_enable && lcd1_enable && lcd0_dmi_data && lcd1_dmi_data &&
 	    (lcd0_dmi_data->use_external_refclk == 0) &&
 	    (lcd1_dmi_data->use_external_refclk == 0))
 		lcd_accurate_clock = 0;
