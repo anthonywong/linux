@@ -517,6 +517,7 @@ doc2001plus
 docecc
 docprobe
 dpt_i2o
+drbd
 drm
 drm_kms_helper
 ds1621
@@ -1275,6 +1276,7 @@ lp3971
 lpc_sch
 lpddr_cmds
 lpfc
+lru_cache
 lrw
 ltc4215
 ltc4245
@@ -2633,7 +2635,6 @@ vme_vmivme7805
 vmk80xx
 vmlfb
 vmware_balloon
-vmwgfx
 vmw_pvscsi
 vmxnet3
 vp27smpx

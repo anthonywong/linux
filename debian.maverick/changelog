@@ -1,4 +1,19 @@
-linux-maverick (2.6.35-9.14~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-10.15~lucid1) lucid-proposed; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * Revert "SAUCE: ensure vga16fb loads if no other driver claims the VGA
+    device"
+  * [Config] Enable CONFIG_M686=y
+    - LP: #592495
+
+  [ Upstream Kernel Changes ]
+
+  * tracing: Add alignment to syscall metadata declarations
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 20 Jul 2010 18:18:49 +0200
+
+linux (2.6.35-9.14) maverick; urgency=low
 
   [ Andy Whitcroft ]
 
