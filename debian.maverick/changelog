@@ -1,4 +1,27 @@
-linux-maverick (2.6.35-10.15~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-12.17~lucid1) lucid-proposed; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * rebase to v2.6.35-rc6
+  * [Config] update configs following rebase to v2.6.35-rc6
+  * [Config] update ports configs following rebase to v2.6.35-rc6
+  * SAUCE: [FTBS] armel: define KEY_F10 and KEYF11
+
+  [ Leann Ogasawara ]
+
+  * rebase to v2.6.35-rc6
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 23 Jul 2010 16:16:38 +0200
+
+linux (2.6.35-11.16) maverick; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * Bump ABI for new compiler update 
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 23 Jul 2010 10:24:58 +0200
+
+linux (2.6.35-10.15) maverick; urgency=low
 
   [ Leann Ogasawara ]
 
