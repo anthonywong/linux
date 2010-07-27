@@ -1,0 +1,7 @@
+linux-linaro (2.6.35-1000.0) maverick; urgency=low
+
+  [ John Rigby ]
+
+  * Initial Linaro linux tree
+
+ -- John Rigby <john.rigby@linaro.org>  Tue, 27 Jul 2010 11:34:30 -0600

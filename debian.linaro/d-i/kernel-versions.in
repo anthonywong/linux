@@ -1,0 +1,5 @@
+# arch	version		flavour		installedname			suffix	bdep
+#armel	PKGVER-ABINUM	versatile	PKGVER-ABINUM-versatile		-
+armel	PKGVER-ABINUM	omap		PKGVER-ABINUM-omap		-
+# Ports
+# arch	version		flavour		installedname			suffix	bdep
