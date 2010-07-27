@@ -1,3 +1,4 @@
+#include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -23,6 +24,9 @@ static int __init noexec_setup(char *str)
 		disable_nx = 0;
 	} else if (!strncmp(str, "off", 3)) {
 		disable_nx = 1;
+#ifdef CONFIG_X86_32
+		exec_shield = 0;
+#endif
 	}
 	x86_configure_nx();
 	return 0;
@@ -40,8 +44,18 @@ void __cpuinit x86_configure_nx(void)
 void __init x86_report_nx(void)
 {
 	if (!cpu_has_nx) {
+#ifdef CONFIG_X86_32
+		if (exec_shield)
+			printk(KERN_INFO "NX (Execute Disable) protection: "
+			       "approximated by x86 segment limits\n");
+		else
+			printk(KERN_INFO "NX (Execute Disable) protection: "
+			       "approximation disabled by kernel command "
+			       "line option\n");
+#else
 		printk(KERN_NOTICE "Notice: NX (Execute Disable) protection "
 		       "missing in CPU or disabled in BIOS!\n");
+#endif
 	} else {
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 		if (disable_nx) {

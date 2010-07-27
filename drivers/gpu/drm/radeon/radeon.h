@@ -243,7 +243,9 @@ struct radeon_bo {
 	struct list_head		list;
 	/* Protected by tbo.reserved */
 	u32				placements[3];
+	u32				busy_placements[3];
 	struct ttm_placement		placement;
+	struct ttm_placement		busy_placement;
 	struct ttm_buffer_object	tbo;
 	struct ttm_bo_kmap_obj		kmap;
 	unsigned			pin_count;
@@ -351,6 +353,7 @@ struct radeon_mc {
 	int			vram_mtrr;
 	bool			vram_is_ddr;
 	bool			igp_sideport_enabled;
+	u64                     gtt_base_align;
 };
 
 bool radeon_combios_sideport_present(struct radeon_device *rdev);
@@ -1032,6 +1035,9 @@ struct radeon_device {
 	uint32_t                        pcie_reg_mask;
 	radeon_rreg_t			pciep_rreg;
 	radeon_wreg_t			pciep_wreg;
+	/* io port */
+	void __iomem                    *rio_mem;
+	resource_size_t			rio_mem_size;
 	struct radeon_clock             clock;
 	struct radeon_mc		mc;
 	struct radeon_gart		gart;
@@ -1113,6 +1119,26 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 	}
 }
 
+static inline u32 r100_io_rreg(struct radeon_device *rdev, u32 reg)
+{
+	if (reg < rdev->rio_mem_size)
+		return ioread32(rdev->rio_mem + reg);
+	else {
+		iowrite32(reg, rdev->rio_mem + RADEON_MM_INDEX);
+		return ioread32(rdev->rio_mem + RADEON_MM_DATA);
+	}
+}
+
+static inline void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	if (reg < rdev->rio_mem_size)
+		iowrite32(v, rdev->rio_mem + reg);
+	else {
+		iowrite32(reg, rdev->rio_mem + RADEON_MM_INDEX);
+		iowrite32(v, rdev->rio_mem + RADEON_MM_DATA);
+	}
+}
+
 /*
  * Cast helper
  */
@@ -1151,6 +1177,8 @@ static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32
 		WREG32_PLL(reg, tmp_);				\
 	} while (0)
 #define DREG32_SYS(sqf, rdev, reg) seq_printf((sqf), #reg " : 0x%08X\n", r100_mm_rreg((rdev), (reg)))
+#define RREG32_IO(reg) r100_io_rreg(rdev, (reg))
+#define WREG32_IO(reg, v) r100_io_wreg(rdev, (reg), (v))
 
 /*
  * Indirect registers accessor
@@ -1413,6 +1441,13 @@ extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
 extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 extern int evergreen_irq_set(struct radeon_device *rdev);
+
+/* radeon_acpi.c */ 
+#if defined(CONFIG_ACPI) 
+extern int radeon_acpi_init(struct radeon_device *rdev); 
+#else 
+static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; } 
+#endif 
 
 /* evergreen */
 struct evergreen_mc_save {

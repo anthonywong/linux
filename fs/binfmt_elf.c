@@ -74,7 +74,7 @@ static struct linux_binfmt elf_format = {
 		.hasvdso	= 1
 };
 
-#define BAD_ADDR(x) ((unsigned long)(x) >= TASK_SIZE)
+#define BAD_ADDR(x) IS_ERR_VALUE(x)
 
 static int set_brk(unsigned long start, unsigned long end)
 {
@@ -701,6 +701,13 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			break;
 		}
 
+#ifdef CONFIG_X86_32
+	if (current->personality == PER_LINUX && (exec_shield & 2)) {
+		executable_stack = EXSTACK_DISABLE_X;
+		current->flags |= PF_RANDOMIZE;
+	}
+#endif
+
 	/* Some simple consistency checks for the interpreter */
 	if (elf_interpreter) {
 		retval = -ELIBBAD;
@@ -717,6 +724,15 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	if (retval)
 		goto out_free_dentry;
 
+#if defined(CONFIG_X86_32) && !defined(CONFIG_UML)
+	/*
+	 * Turn off the CS limit completely if exec-shield disabled or
+	 * NX active:
+	 */
+	if (!exec_shield || executable_stack != EXSTACK_DISABLE_X || (__supported_pte_mask & _PAGE_NX))
+		arch_add_exec_range(current->mm, -1);
+#endif
+
 	/* OK, This is the point of no return */
 	current->flags &= ~PF_FORKNOEXEC;
 	current->mm->def_flags = def_flags;
@@ -724,7 +740,11 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	/* Do this immediately, since STACK_TOP as used in setup_arg_pages
 	   may depend on the personality.  */
 	SET_PERSONALITY(loc->elf_ex);
-	if (elf_read_implies_exec(loc->elf_ex, executable_stack))
+	if (elf_read_implies_exec(loc->elf_ex, executable_stack)
+#ifdef CONFIG_X86_32
+	    && !(exec_shield & 2)
+#endif
+	   )
 		current->personality |= READ_IMPLIES_EXEC;
 
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
@@ -890,7 +910,7 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 					    interpreter,
 					    &interp_map_addr,
 					    load_bias);
-		if (!IS_ERR((void *)elf_entry)) {
+		if (!BAD_ADDR(elf_entry)) {
 			/*
 			 * load_elf_interp() returns relocation
 			 * adjustment
