@@ -172,7 +172,7 @@ config MACH_OMAP_3630SDP
 	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBP
 
-config OMAP4_ES1.0
+config OMAP4_ES1
 	bool "OMAP 4430 ES1.0"
 	depends on ARCH_OMAP4
 	select PL310_ERRATA_588369

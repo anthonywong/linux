@@ -44,6 +44,7 @@
 #include <plat/syntm12xx.h>
 #include <plat/mmc.h>
 #include <plat/omap4-keypad.h>
+#include <plat/emif.h>
 #include "hsmmc.h"
 
 #define ETH_KS8851_IRQ			34
@@ -577,6 +578,11 @@ static void __init omap_4430sdp_init_irq(void)
 	omap2_gp_clockevent_set_gptimer(1);
 #endif
 	gic_init_irq();
+	/*
+	 * FIXME: Extract the DDR data from board file and pass
+	 * it to the emif driver for reconfigertion
+	 */
+	omap_emif_early_init(NULL, NULL);
 }
 
 static struct omap_musb_board_data musb_board_data = {
