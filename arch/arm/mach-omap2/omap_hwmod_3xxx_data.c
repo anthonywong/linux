@@ -1785,7 +1785,7 @@ static struct omap_hwmod_class mmc_class = {
 /* MMC/SD/SDIO1 */
 
 static struct mmc_dev_attr mmc1_dev_attr = {
-	.flags = MMC_SUPPORT_18V | MMC_SUPPORT_3V,
+	.flags = MMC_SUPPORT_18V_3V,
 };
 
 static struct omap_hwmod_irq_info mmc1_mpu_irqs[] = {
@@ -1830,7 +1830,7 @@ static struct omap_hwmod omap3xxx_mmc1_hwmod = {
 /* MMC/SD/SDIO2 */
 
 static struct mmc_dev_attr mmc2_dev_attr = {
-	.flags = MMC_SUPPORT_18V,
+	.flags = MMC_SUPPORT_3V,
 };
 
 static struct omap_hwmod_irq_info mmc2_mpu_irqs[] = {
@@ -1874,7 +1874,9 @@ static struct omap_hwmod omap3xxx_mmc2_hwmod = {
 
 /* MMC/SD/SDIO3 */
 
-static struct mmc_dev_attr mmc3_dev_attr;
+static struct mmc_dev_attr mmc3_dev_attr = {
+	.flags = MMC_SUPPORT_3V,
+};
 
 static struct omap_hwmod_irq_info mmc3_mpu_irqs[] = {
 	{ .irq = INT_34XX_MMC3_IRQ, },

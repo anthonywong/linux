@@ -358,13 +358,11 @@ static struct omap2_hsmmc_info mmc[] = {
 		 * so the SIM card isn't used; else 4 bits.
 		 */
 		.wires		= 8,
-		.cd_type	= GPIO,
 		.gpio_wp	= 4,
 	},
 	{
 		.mmc		= 2,
 		.wires		= 8,
-		.cd_type	= GPIO,
 		.gpio_wp	= 7,
 	},
 	{}	/* Terminator */

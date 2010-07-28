@@ -3028,7 +3028,7 @@ static struct omap_hwmod omap44xx_mmc1_hwmod = {
 
 /* mmc2 */
 static struct mmc_dev_attr mmc2_dev_attr = {
-	.flags = MMC_SUPPORT_18V,
+	.flags = MMC_SUPPORT_3V,
 };
 
 static struct omap_hwmod_irq_info omap44xx_mmc2_irqs[] = {
@@ -3092,7 +3092,7 @@ static struct omap_hwmod omap44xx_mmc2_hwmod = {
 /* mmc3 */
 static struct omap_hwmod omap44xx_mmc3_hwmod;
 static struct mmc_dev_attr mmc3_dev_attr = {
-	.flags = MMC_SUPPORT_18V,
+	.flags = MMC_SUPPORT_3V,
 };
 static struct omap_hwmod_irq_info omap44xx_mmc3_irqs[] = {
 	{ .irq = 94 + OMAP44XX_IRQ_GIC_START },
@@ -3148,7 +3148,7 @@ static struct omap_hwmod omap44xx_mmc3_hwmod = {
 /* mmc4 */
 static struct omap_hwmod omap44xx_mmc4_hwmod;
 static struct mmc_dev_attr mmc4_dev_attr = {
-	.flags = MMC_SUPPORT_18V,
+	.flags = MMC_SUPPORT_3V,
 };
 static struct omap_hwmod_irq_info omap44xx_mmc4_irqs[] = {
 	{ .irq = 96 + OMAP44XX_IRQ_GIC_START },
@@ -3204,7 +3204,7 @@ static struct omap_hwmod omap44xx_mmc4_hwmod = {
 /* mmc5 */
 static struct omap_hwmod omap44xx_mmc5_hwmod;
 static struct mmc_dev_attr mmc5_dev_attr = {
-	.flags = MMC_SUPPORT_18V,
+	.flags = MMC_SUPPORT_3V,
 };
 static struct omap_hwmod_irq_info omap44xx_mmc5_irqs[] = {
 	{ .irq = 59 + OMAP44XX_IRQ_GIC_START },
