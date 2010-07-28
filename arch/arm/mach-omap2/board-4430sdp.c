@@ -604,8 +604,8 @@ static struct platform_device wl128x_device = {
 };
 
 static struct omap_dss_device *sdp4430_dss_devices[] = {
-        &sdp4430_lcd_device,
-        &sdp4430_lcd2_device,
+	&sdp4430_lcd_device,
+	&sdp4430_lcd2_device,
 #ifdef CONFIG_OMAP2_DSS_HDMI
 	&sdp4430_hdmi_device,
 #endif
@@ -629,12 +629,12 @@ static struct platform_device sdp4430_dss_device = {
 };
 
 static struct platform_device *sdp4430_devices[] __initdata = {
-        &sdp4430_dss_device,
-        &sdp4430_keypad_device,
-        &sdp4430_proximity_device,
-        &wl128x_device,
+	&sdp4430_dss_device,
+	&sdp4430_keypad_device,
+	&sdp4430_proximity_device,
 	&sdp4430_leds_gpio,
 	&sdp4430_leds_pwm,
+	&wl128x_device,
 };
 
 static struct omap_lcd_config sdp4430_lcd_config __initdata = {
@@ -768,7 +768,7 @@ static int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
 
 #ifdef CONFIG_TIWLAN_SDIO
 	/* The controller that is connected to the 128x device
-	should have the card detect gpio disabled. This is
+	should hould have the card detect gpio disabled. This is
 	achieved by initializing it with a negative value */
 	c[CONFIG_TIWLAN_MMC_CONTROLLER - 1].gpio_cd = -EINVAL;
 #endif
@@ -920,6 +920,7 @@ static struct twl4030_bci_platform_data sdp4430_bci_data = {
 	.max_bat_voltagemV		= 4200,
 	.low_bat_voltagemV		= 3300,
 };
+
 static struct twl4030_codec_data twl6040_codec = {
 	.audpwron_gpio  = 127,
 	.naudint_irq    = OMAP44XX_IRQ_SYS_2N,
@@ -940,9 +941,6 @@ static struct twl4030_platform_data sdp4430_twldata = {
 	.vaux1		= &sdp4430_vaux1,
 	.vaux2		= &sdp4430_vaux2,
 	.vaux3		= &sdp4430_vaux3,
-
-	/* children */
-	.codec		= &twl6040_codec,
 	.madc           = &sdp4430_gpadc_data,
 	.bci            = &sdp4430_bci_data,
 
@@ -1088,45 +1086,35 @@ fail1:
 	gpio_free(OMAP4_SFH7741_SENSOR_OUTPUT_GPIO);
 }
 
-static void __init omap4_display_init(void)
-{
-	void __iomem *phymux_base = NULL;
-	unsigned int dsimux = 0xFFFFFFFF;
-	phymux_base = ioremap(0x4A100000, 0x1000);
-	/* Turning on DSI PHY Mux*/
-	__raw_writel(dsimux, phymux_base+0x618);
-	dsimux = __raw_readl(phymux_base+0x618);
-}
-
 #ifdef CONFIG_TIWLAN_SDIO
 static void pad_config(unsigned long pad_addr, u32 andmask, u32 ormask)
 {
-        int val;
-        u32 *addr;
+	int val;
+	u32 *addr;
 
-        addr = (u32 *) ioremap(pad_addr, 4);
-        if (!addr) {
-                printk(KERN_ERR"OMAP_pad_config: ioremap failed with addr %lx\n",
-                        pad_addr);
-        return;
-        }
+	addr = (u32 *) ioremap(pad_addr, 4);
+	if (!addr) {
+		printk(KERN_ERR"OMAP_pad_config: ioremap failed with addr %lx\n",
+			pad_addr);
+	return;
+	}
 
-        val =  __raw_readl(addr);
-        val &= andmask;
-        val |= ormask;
-        __raw_writel(val, addr);
+	val =  __raw_readl(addr);
+	val &= andmask;
+	val |= ormask;
+	__raw_writel(val, addr);
 
-        iounmap(addr);
+	iounmap(addr);
 }
 
 void wlan_1283_config()
 {
-        pad_config(0x4A100078, 0xFFECFFFF, 0x00030000);
-        pad_config(0x4A10007C, 0xFFFFFFEF, 0x0000000B);
-        if (gpio_request(54, NULL) != 0)
-                printk(KERN_ERR "GPIO 54 request failed\n");
-        gpio_direction_output(54, 0);
-        return ;
+	pad_config(0x4A100078, 0xFFECFFFF, 0x00030000);
+	pad_config(0x4A10007C, 0xFFFFFFEF, 0x0000000B);
+	if (gpio_request(54, NULL) != 0)
+		printk(KERN_ERR "GPIO 54 request failed\n");
+	gpio_direction_output(54, 0);
+	return ;
 }
 #endif
 
@@ -1139,6 +1127,16 @@ static void omap_cma3000accl_init(void)
 	gpio_direction_input(OMAP4_CMA3000ACCL_GPIO);
 }
 
+static void __init omap4_display_init(void)
+{
+	void __iomem *phymux_base = NULL;
+	unsigned int dsimux = 0xFFFFFFFF;
+	phymux_base = ioremap(0x4A100000, 0x1000);
+	/* Turning on DSI PHY Mux*/
+	__raw_writel(dsimux, phymux_base+0x618);
+	dsimux = __raw_readl(phymux_base+0x618);
+}
+
 static void __init omap_4430sdp_init(void)
 {
 	int status;
@@ -1149,7 +1147,7 @@ static void __init omap_4430sdp_init(void)
 	omap_serial_init();
 	omap4_twl6030_hsmmc_init(mmc);
 #ifdef CONFIG_TIWLAN_SDIO
-        wlan_1283_config();
+	wlan_1283_config();
 #endif
 	/* OMAP4 SDP uses internal transceiver so register nop transceiver */
 	usb_nop_xceiv_register();
