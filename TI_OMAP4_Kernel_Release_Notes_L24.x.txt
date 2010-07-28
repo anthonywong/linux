@@ -1,9 +1,9 @@
-08 June 2010
+16 July 2010
 
 
 1.  Introduction
 ----------------
-This document accompanies OMAP(TM) Software Release L24.7 for Linux 2.6.34
+This document accompanies OMAP(TM) Software Release L24.8 for Linux 2.6.34
 on OMAP4430 SDP. The document specifies:
 	- Instructions for unpacking the release
 	- New features and features the release supports
@@ -24,7 +24,7 @@ The x-loader source can be obtained via GIT from:
   http://dev.omapzoom.org/?p=bootloader/x-loader.git;a=shortlog;h=refs/heads/omap4_dev
 
 The kernel source can be obtained via GIT from:
-  http://dev.omapzoom.org/?p=integration/kernel-omap4.git;a=shortlog;h=refs/heads/L24.7
+  http://dev.omapzoom.org/?p=integration/kernel-omap4.git;a=shortlog;h=refs/heads/L24.8
 
 Components that are supported in the release:
    X-loader, U-Boot, OS Kernel (SMP), Phoenix power IC, UART, GP Timer, GPIO, Watchdog,
@@ -188,7 +188,7 @@ While using a filesystem from MMC or eMMC, you may use params such as:
 removable cards may take a few seconds to be detected.
 
 Also note that 'root=/dev/mmcblkXp2' where "x" means 1 or 2 depending if you
-use MMC as default this should be 0 or eMMC should be 1.
+use MMC as default this should be 1 or eMMC should be 0.
 
 While using a filesystem via NFS, you may use params such as:
 'root=/dev/nfs rw nfsroot=&lt;serverip&gt;:&lt;mount-partition&gt;,nolock'
@@ -201,80 +201,8 @@ http://www.kernel.org/pub/linux/kernel/people/gregkh/lkn/lkn_pdf/ch09.pdf
 
 3.4 Using FB and V4L2 Display driver
 
-3.4.1 To enable secondary display
-
-Please use following set of commands after kernel bootup for setting
-secondary display ON.
-
-1) Enable secondary display (display1)
-	echo "1" > /sys/devices/platform/omapdss/display1/enabled
-2) Disable overlay1
-	echo "0" > /sys/devices/platform/omapdss/overlay1/enabled
-3) Attach secondary display as a manager for overlay1
-	echo "2lcd" > /sys/devices/platform/omapdss/overlay1/manager
-4) Enable overlay1
-	echo "1" > /sys/devices/platform/omapdss/overlay1/enabled
-
-3.4.2 Display specific bootargs options
-
-3.4.2.1 Enabling DSS DEBUG prints
-Add the following in bootargs "omapdss.debug=1"
-
-3.4.2.2 Enabling DSI TE SYNC
-Add the following in bootargs:
-panel-taal.dsi_te_sync=0 : we do not synchronize with the tearing interrupt
-panel-taal.dsi_te_sync is set to 1 by default
-
-3.4.3 Pico DLP support
-
-OMAP4 device supports a pico DLP and secondary LCD output on the secondary
-LCD manager (with the name of '2lcd').  The configuration of the display
-happens in a non-conventional way.
-
-3.4.3.1 After bootup:
-
-To configure output to either pico DLP or secondary LCD, set the overlay's
-manager to the secondary LCD manager:
-
-echo "0" > /sys/devices/platform/omapdss/overlay0/enabled
-echo "2lcd" > /sys/devices/platform/omapdss/overlay0/manager
-echo "1" > /sys/devices/platform/omapdss/overlay0/enabled
-
-3.4.3.2	Then enable the correct display to chose pico DLP or secondary LCD (default
-is secondary LCD).  Assuming display1 is secondary LCD, and display3 is
-pico DLP:
-
-echo "0" > /sys/devices/platform/omapdss/display1/enabled
-# set the secondary manager to pico DLP
-echo "pico_DLP" > /sys/devices/platform/omapdss/manager2/display 
-(This will set secondary manager to pico)
-echo "1" > /sys/devices/platform/omapdss/display3/enabled
-
-3.4.3.3	Now to switch back to secondary 
-echo "0" > /sys/devices/platform/omapdss/display3/enabled
-echo "2lcd" > /sys/devices/platform/omapdss/manager2/display
-echo "1" > /sys/devices/platform/omapdss/display1/enabled
-
-3.4.3.5 HDMI Hot plug detect
-echo 1 > /sys/devices/platform/omapdss/display2/hpd_enabled 
-# Press enter after plugging-in or plugging-out the HDMI cable
-# (Once you do this you should be able to plug in or plug out the HDMI cable
-# and it will detect and set the timing to default value set)
-
-3.4.3.6 HDMI EDID info
-
-3.4.3.6.1 To read EDID Timings : 
-cat /sys/devices/platform/omapdss/display2/cutsom_edid_timings
-
-3.4.3.6.2 To set EDID : 
-echo 41 > /sys/devices/platform/omapdss/display2/cutsom_edid_timings 
-# ie set to set HDMI timing 4 then set 41 , ie append 0 or 1 based on the timing.
-
-3.4.3.6.3 To set the timing to 1280 1024 for a DVI montior:
-#To set the timing to 1280 1024 for a DVI montior code will be 16(Hex value of 10)
-# and more will be 0 so set the EDID as follows :
-echo 160 > /sys/devices/platform/omapdss/display2/cutsom_edid_timings 
-
+For details please refer to:
+http://omappedia.org/wiki/Bootargs_for_enabling_display
 
 3.5 Enabling Power Management Features
 
@@ -368,10 +296,11 @@ aplay -D hd_audio file.wav
           The environment variables  are stored on RAW partition of size 1MB on eMMC 
           starting from sector 0x700 to sector 0x7FF.
 
-          Currently "saveenv" is replaced with "emmcsaveenv" and  has been modified so
-          as to make the user aware of the fact that the environment will be written to eMMC.
-          Also If the eMMC is already formatted and if any of the partition falls within sectors allocted 
-          for "env" and using the "emmcsaveenv" command will result in over writing the partition
+         Saveenv is restored back and the usage is as below:
+         -- Just typing saveenv prompts user to press 'y' or 'Y'  once user confirms
+             env is saved to eMMC or else throws message "Cannot save env to eMMC'
+         -- typing "saveenv -f"  doesn't forcefully updates env without user intervention
+
 
 - OS Kernel
 	OS Kernel (SMP)
@@ -438,27 +367,26 @@ NOTE:
 
 4.3 Postponed Features
 
-MMC/ADMA scatterlist support has been removed for this release (see OMAPS00219713). 
-For this release, MMC driver uses System DMA.
+-none
 
 4.4 Future Planned Features
 
 Refer to Program schedule.
 
 4.5 Defects Fixed in This Release
+OMAPS00216585	V4L2 Rotation ioctls rotate 90 degrees when set to 270 degress and vice versa
+OMAPS00219999	AVI checksum not set by HDMI driver: not working on some TVs
+OMAPS00216010	DSS display->sync function is not working properly on DSI panels
+OMAPS00211276	On L24.2, if all display are working there is flicker on one of the display
+OMAPS00219576	Kernel build error if DEBUG support is removed from OMAP2/3/4 Display Subsystem support
+OMAPS00219724   MMC: Warning seen occassionaly - kmmcd: blocked for 120 seconds
+OMAPS00219713   ADMA feature on external MMC/SD card results in kernel crash
+OMAPS00219659   u-boot regression in L24.6: not handling platforms not built with eMMC
 
-OMAPS00216899		Non Working Touchscreen Interface in Poky UI 
-OMAPS00216002		DSS function default_wait_vsync doesn't
-			distinguish between primary and secondary LCD panels
-OMAPS00215808		while running the video capture test case,
-			DSS driver starts throughing error on hyperterminal
-OMAPS00217332		USB does not work if SYSBOOT settings are such that USB is never attempted during bootup
-OMAPS00213844		[PT]: Warm reboot fails
 
 4.6 Open Defects
-
-
 OMAPS00219723		MMC: sometimes the order of detection of eMMC and external SD card is wrong
+OMAPS00221558		HSMMC : Copying same file twice on MMC and when run "cmp" will throw error
 OMAPS00219724		MMC: Warning seen occassionaly - kmmcd: blocked for 120 seconds
 OMAPS00219713		ADMA feature on external MMC/SD card results in kernel crash
 OMAPS00218060		omap-serial is not stable during bluetooth file transfer(sdp4430 to remote BT device) operation.
@@ -466,28 +394,36 @@ OMAPS00218589		MCBSP: for some word lengths the transmission fails.
 OMAPS00215651 		MUSB driver in host mode has problems with unaligned DMA
 OMAPS00215668 		MUSB driver in device mode has problems with unaligned DMA.
 OMAPS00219087		MUSB:  there is no MUSB_INTR_DISCONNECT interrupt on DETACH
-OMAPS00219663		1080p to WVGA downscaling of YUYV doesnot work
 OMAPS00217993		Display on Primary LCD does not wakeup when 
 			USB is active
-OMAPS00216592		There is no way available for dynamically 
-			setting/resetting dithering bit
-OMAPS00216010		DSS display->sync function is not working properly
-			on DSI panels
-OMAPS00219666		90 and 270 video rotations are interchanged
-OMAPS00219667		SQCIF resolution does not work on OMAP4430 SDP
-OMAPS00215230		1680x1050 resolution DVI monitor gives SYNC LOST
-			with HDMI on L24.4
 OMAPS00219671		serial driver issue
-OMAPS00219674		Use workqueue in interrupt handler for Hot plug
-			detect in HDMI
+OMAPS00219663		1080p to WVGA downscaling of YUYV does not work
+OMAPS00221067		omaplfb relies on the FB2OFB definition, which is not defined by the headers of the Ubuntu kernel headers
+OMAPS00220816		PicoDLP shows a junk buffer at the bottom of the frame
+OMAPS00219789		V4L2 error observed when rendering frames from Video decode testcases
+OMAPS00219388		Secondary display corruption with L24.6
+OMAPS00218554		HDMI panel shows tearing when 3 different 3D apps are executed
+OMAPS00218312		PT_FUNCTIONAL: HDMI output not working properly with a HDMI Video Capture PCI card
+OMAPS00216592		There is no way available for dynamically setting/resetting dithering bit
+OMAPS00213906		180 degree rotation of yuv format shows a bluish tinge
+OMAPS00221554		watchdog: the timeout and set not working
+OMAPS00221542 		Timers: the clock is not able to switch the test code needs to be fixed to request correct clock.
 
 4.7 Open Change Requests
 None
 
 4.8 Rejected Defects
+OMAPS00219666		90 and 270 video rotations are interchanged (Duplicate defect)
+OMAPS00220581		L_JPEGDEC_FUNCTIONAL_001: multiple dark lines are seen when image is displayed
+OMAPS00216361		Distinguish omap v4l2 display device between omap3 and omap4 driver
+OMAPS00213840		sometimes QBUF ioctl() doesn't return in threaded application
+OMAPS00218813		60fps drops to 30fps only when 1080p-WVGA rescaling in DSS
+OMAPS00217970		Tearing effect on display in Android
+OMAPS00215672		Video DQBUF function takes more than 1s (framedone timeout) when called the first time for playing 1080p on DSI
 OMAPS00213907		With omapfb.numfb=1 in bootargs , the rest of pipelines are not given to v4l2
 
 4.9 Postponed Defects
+OMAPS00216446 Disabling "auto update" on DSI would impact the V4l2 drivers that have the ISRs hooked up for FRAMEDONE already.
 
 
 4.10 Limitations
