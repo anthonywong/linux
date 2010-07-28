@@ -1955,18 +1955,23 @@ static int __devinit abe_twl6040_codec_probe(struct platform_device *pdev)
 	struct twl6040_data *priv;
 	int audpwron, naudint;
 	int ret = 0;
+	u8 icrev;
 
 	priv = kzalloc(sizeof(struct twl6040_data), GFP_KERNEL);
 	if (priv == NULL)
 		return -ENOMEM;
 
-	if (twl_codec) {
+	twl_i2c_read_u8(TWL_MODULE_AUDIO_VOICE, &icrev, TWL6040_REG_ASICREV);
+
+	if (twl_codec && (icrev > 0))
 		audpwron = twl_codec->audpwron_gpio;
-		naudint = twl_codec->naudint_irq;
-	} else {
+	else
 		audpwron = -EINVAL;
+
+	if (twl_codec)
+		naudint = twl_codec->naudint_irq;
+	else
 		naudint = 0;
-	}
 
 	priv->audpwron = audpwron;
 	priv->naudint = naudint;
