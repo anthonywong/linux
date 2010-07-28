@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <plat/cpu.h>
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -97,7 +98,7 @@ static void debug_writel(unsigned long val)
 	omap_smc1(0x100, val);
 }
 
-static inline void l2x0_flush_line(unsigned long addr)
+static inline void debug_l2x0_flush_line(unsigned long addr)
 {
 	void __iomem *base = l2x0_base;
 
@@ -107,12 +108,7 @@ static inline void l2x0_flush_line(unsigned long addr)
 	cache_wait(base + L2X0_INV_LINE_PA, 1);
 	writel(addr, base + L2X0_INV_LINE_PA);
 }
-#else
-
-/* Optimised out for non-errata case */
-static inline void debug_writel(unsigned long val)
-{
-}
+#endif
 
 static inline void l2x0_flush_line(unsigned long addr)
 {
@@ -120,7 +116,6 @@ static inline void l2x0_flush_line(unsigned long addr)
 	cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
 	writel(addr, base + L2X0_CLEAN_INV_LINE_PA);
 }
-#endif
 
 static void l2x0_cache_sync(void)
 {
@@ -149,20 +144,42 @@ static void l2x0_inv_range(unsigned long start, unsigned long end)
 	unsigned long flags;
 
 	l2x0_lock(&l2x0_lock, flags);
-	if (start & (CACHE_LINE_SIZE - 1)) {
-		start &= ~(CACHE_LINE_SIZE - 1);
-		debug_writel(0x03);
-		l2x0_flush_line(start);
-		debug_writel(0x00);
-		start += CACHE_LINE_SIZE;
-	}
 
-	if (end & (CACHE_LINE_SIZE - 1)) {
-		end &= ~(CACHE_LINE_SIZE - 1);
-		debug_writel(0x03);
-		l2x0_flush_line(end);
-		debug_writel(0x00);
+#ifdef CONFIG_PL310_ERRATA_588369
+	/* Duplicate code to optimize ERRATA_588369 implementation
+	 * for OMAP4 dynamic support of ES1.0 and ES2.0.
+	 * To be reverted when CONFIG_OMAP4_ES1 is removed.
+	 */
+	if (omap_rev() == OMAP4430_REV_ES1_0) {
+		if (start & (CACHE_LINE_SIZE - 1)) {
+			start &= ~(CACHE_LINE_SIZE - 1);
+			debug_writel(0x03);
+			debug_l2x0_flush_line(start);
+			debug_writel(0x00);
+			start += CACHE_LINE_SIZE;
+		}
+
+		if (end & (CACHE_LINE_SIZE - 1)) {
+			end &= ~(CACHE_LINE_SIZE - 1);
+			debug_writel(0x03);
+			debug_l2x0_flush_line(end);
+			debug_writel(0x00);
+		}
+	} else {
+#endif
+		if (start & (CACHE_LINE_SIZE - 1)) {
+			start &= ~(CACHE_LINE_SIZE - 1);
+			l2x0_flush_line(start);
+			start += CACHE_LINE_SIZE;
+		}
+
+		if (end & (CACHE_LINE_SIZE - 1)) {
+			end &= ~(CACHE_LINE_SIZE - 1);
+			l2x0_flush_line(end);
+		}
+#ifdef CONFIG_PL310_ERRATA_588369
 	}
+#endif
 
 	while (start < end) {
 		unsigned long blk_end = block_end(start, end);
@@ -214,21 +231,45 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
 
 	l2x0_lock(&l2x0_lock, flags);
 	start &= ~(CACHE_LINE_SIZE - 1);
-	while (start < end) {
-		unsigned long blk_end = block_end(start, end);
+#ifdef CONFIG_PL310_ERRATA_588369
+	/* Duplicate code to optimize ERRATA_588369 implementation
+	 * for OMAP4 dynamic support of ES1.0 and ES2.0.
+	 * To be reverted when CONFIG_OMAP4_ES1 is removed.
+	 */
+	if (omap_rev() == OMAP4430_REV_ES1_0) {
+		while (start < end) {
+			unsigned long blk_end = block_end(start, end);
 
-		debug_writel(0x03);
-		while (start < blk_end) {
-			l2x0_flush_line(start);
-			start += CACHE_LINE_SIZE;
-		}
-		debug_writel(0x00);
+			debug_writel(0x03);
+			while (start < blk_end) {
+				debug_l2x0_flush_line(start);
+				start += CACHE_LINE_SIZE;
+			}
+			debug_writel(0x00);
 
-		if (blk_end < end) {
-			l2x0_unlock(&l2x0_lock, flags);
-			l2x0_lock(&l2x0_lock, flags);
+			if (blk_end < end) {
+				l2x0_unlock(&l2x0_lock, flags);
+				l2x0_lock(&l2x0_lock, flags);
+			}
 		}
+	} else {
+#endif
+		while (start < end) {
+			unsigned long blk_end = block_end(start, end);
+
+			while (start < blk_end) {
+				l2x0_flush_line(start);
+				start += CACHE_LINE_SIZE;
+			}
+
+			if (blk_end < end) {
+				l2x0_unlock(&l2x0_lock, flags);
+				l2x0_lock(&l2x0_lock, flags);
+			}
+		}
+#ifdef CONFIG_PL310_ERRATA_588369
 	}
+#endif
 	cache_wait(base + L2X0_CLEAN_INV_LINE_PA, 1);
 	cache_sync();
 	l2x0_unlock(&l2x0_lock, flags);

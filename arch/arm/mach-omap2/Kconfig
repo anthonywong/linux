@@ -179,6 +179,7 @@ config OMAP4_ES1
 	select ERRATA_OMAP4_AXI2OCP
 	help
 	Say Y if using OMAP4430 ES1.0 samples
+	Adds dynamic support of OMAP4430 ES1.0.
 
 config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
