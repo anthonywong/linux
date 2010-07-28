@@ -1121,20 +1121,10 @@ static int omap_hsmmc_switch_opcond(struct omap_hsmmc_host *host, int vdd)
 {
 	u32 reg_val = 0;
 	int ret;
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-					struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	/* Disable the clocks */
 	pm_runtime_put_sync(host->dev);
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_idle(pdev);
-#endif/*CONFIG_PM_RUNTIME*/
+
 	if (host->got_dbclk)
 		clk_disable(host->dbclk);
 
@@ -1146,13 +1136,7 @@ static int omap_hsmmc_switch_opcond(struct omap_hsmmc_host *host, int vdd)
 		ret = mmc_slot(host).set_power(host->dev, host->slot_id, 1,
 					       vdd);
 	pm_runtime_get_sync(host->dev);
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_enable(pdev);
-#endif/*CONFIG_PM_RUNTIME*/
+
 	if (host->got_dbclk)
 		clk_enable(host->dbclk);
 
@@ -1721,20 +1705,8 @@ enum {ENABLED = 0, DISABLED, CARDSLEEP, REGSLEEP, OFF};
 /* Handler for [ENABLED -> DISABLED] transition */
 static int omap_hsmmc_enabled_to_disabled(struct omap_hsmmc_host *host)
 {
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-					struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	pm_runtime_put_sync(host->dev);
-#ifndef CONFIG_PM_RUNTIME
-	omap_hsmmc_context_save(host);
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_idle(pdev);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	host->dpm_state = DISABLED;
 
@@ -1750,24 +1722,11 @@ static int omap_hsmmc_enabled_to_disabled(struct omap_hsmmc_host *host)
 static int omap_hsmmc_disabled_to_sleep(struct omap_hsmmc_host *host)
 {
 	int err, new_state;
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-					struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	if (!mmc_try_claim_host(host->mmc))
 		return 0;
 
 	pm_runtime_get_sync(host->dev);
-
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_enable(pdev);
-	omap_hsmmc_context_restore(host);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	if (mmc_card_can_sleep(host->mmc)) {
 		err = mmc_card_sleep(host->mmc);
@@ -1785,13 +1744,7 @@ static int omap_hsmmc_disabled_to_sleep(struct omap_hsmmc_host *host)
 					 new_state == CARDSLEEP);
 	/* FIXME: turn off bus power and perhaps interrupts too */
 	pm_runtime_put_sync(host->dev);
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_idle(pdev);
-#endif/*CONFIG_PM_RUNTIME*/
+
 	host->dpm_state = new_state;
 
 	mmc_release_host(host->mmc);
@@ -1845,20 +1798,8 @@ static int omap_hsmmc_sleep_to_off(struct omap_hsmmc_host *host)
 /* Handler for [DISABLED -> ENABLED] transition */
 static int omap_hsmmc_disabled_to_enabled(struct omap_hsmmc_host *host)
 {
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-					struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
 	pm_runtime_get_sync(host->dev);
 
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_enable(pdev);
-	omap_hsmmc_context_restore(host);
-#endif
 	host->dpm_state = ENABLED;
 
 	dev_dbg(mmc_dev(host->mmc), "DISABLED -> ENABLED\n");
@@ -1869,23 +1810,11 @@ static int omap_hsmmc_disabled_to_enabled(struct omap_hsmmc_host *host)
 /* Handler for [SLEEP -> ENABLED] transition */
 static int omap_hsmmc_sleep_to_enabled(struct omap_hsmmc_host *host)
 {
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-					struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
 	if (!mmc_try_claim_host(host->mmc))
 		return 0;
 
 	pm_runtime_get_sync(host->dev);
 
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_enable(pdev);
-	omap_hsmmc_context_restore(host);
-#endif
 	if (mmc_slot(host).set_sleep)
 		mmc_slot(host).set_sleep(host->dev, host->slot_id, 0,
 			 host->vdd, host->dpm_state == CARDSLEEP);
@@ -1905,20 +1834,8 @@ static int omap_hsmmc_sleep_to_enabled(struct omap_hsmmc_host *host)
 /* Handler for [OFF -> ENABLED] transition */
 static int omap_hsmmc_off_to_enabled(struct omap_hsmmc_host *host)
 {
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-					struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
 	pm_runtime_get_sync(host->dev);
 
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_enable(pdev);
-	omap_hsmmc_context_restore(host);
-#endif
 	omap_hsmmc_conf_bus_power(host);
 	mmc_power_restore_host(host->mmc);
 
@@ -1981,21 +1898,7 @@ static int omap_hsmmc_enable_simple(struct mmc_host *mmc)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-				struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
-
 	pm_runtime_get_sync(host->dev);
-
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_enable(pdev);
-	omap_hsmmc_context_restore(host);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	dev_dbg(mmc_dev(host->mmc), "enabled\n");
 	return 0;
@@ -2005,21 +1908,7 @@ static int omap_hsmmc_disable_simple(struct mmc_host *mmc, int lazy)
 {
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-				struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
-
 	pm_runtime_put_sync(host->dev);
-#ifndef CONFIG_PM_RUNTIME
-	omap_hsmmc_context_save(host);
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_idle(pdev);
-#endif/*CONFIG_PM_RUNTIME*/
-
 	dev_dbg(mmc_dev(host->mmc), "idle\n");
 	return 0;
 }
@@ -2051,10 +1940,6 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 	struct mmc_host *mmc = s->private;
 	struct omap_hsmmc_host *host = mmc_priv(mmc);
 	int context_loss = 0;
-#ifndef CONFIG_PM_RUNTIME
-	struct platform_device *pdev = container_of(host->dev,
-					struct platform_device, dev);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	if (host->pdata->get_context_loss_count)
 		context_loss = host->pdata->get_context_loss_count(host->dev);
@@ -2075,13 +1960,6 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 	}
 
 	pm_runtime_get_sync(host->dev);
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_enable(pdev);
-#endif/*CONFIG_PM_RUNTIME*/
 
 	seq_printf(s, "SYSCONFIG:\t0x%08x\n",
 			OMAP_HSMMC_READ(host->base, SYSCONFIG));
@@ -2100,13 +1978,6 @@ static int omap_hsmmc_regs_show(struct seq_file *s, void *data)
 
 	pm_runtime_put_sync(host->dev);
 
-#ifndef CONFIG_PM_RUNTIME
-	/*
-	 * If runtime PM is not enabled, ensure clocks are always enabled.
-	 * Use H/w Mod FW.
-	 */
-	omap_device_idle(pdev);
-#endif/*CONFIG_PM_RUNTIME*/
 	return 0;
 }
 
@@ -2206,13 +2077,9 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 	INIT_WORK(&host->mmc_carddetect_work, omap_hsmmc_detect);
-	if (mmc_slot(host).power_saving) {
-#ifdef CONFIG_PM
+	if (mmc_slot(host).power_saving)
 		mmc->ops	= &omap_hsmmc_ps_ops;
-#else
-		mmc->ops	= &omap_hsmmc_ops;
-#endif
-	} else
+	else
 		mmc->ops	= &omap_hsmmc_ops;
 
 	/*
