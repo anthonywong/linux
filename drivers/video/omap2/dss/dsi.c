@@ -411,7 +411,7 @@ static void dsi_perf_show(enum omap_dsi_index ix,
 #else
 #define dsi_perf_mark_setup(x)
 #define dsi_perf_mark_start(x)
-#define dsi_perf_show(x, x)
+#define dsi_perf_show(x, y)
 #endif
 
 static void print_irq_status(u32 status)
