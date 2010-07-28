@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.34
-# Wed Jul  7 19:36:29 2010
+# Wed Jul  7 19:56:18 2010
 #
 CONFIG_ARM=y
 CONFIG_HAVE_PWM=y
@@ -689,7 +689,7 @@ CONFIG_INPUT_MISC=y
 # CONFIG_INPUT_CM109 is not set
 # CONFIG_INPUT_TWL4030_PWRBUTTON is not set
 # CONFIG_INPUT_TWL4030_VIBRA is not set
-# CONFIG_INPUT_UINPUT is not set
+CONFIG_INPUT_UINPUT=y
 # CONFIG_INPUT_GPIO_ROTARY_ENCODER is not set
 CONFIG_INPUT_SFH7741=y
 CONFIG_INPUT_CMA3000_I2C=y
