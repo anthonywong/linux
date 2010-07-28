@@ -25,6 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/input/sfh7741.h>
+#include <linux/leds.h>
 
 #include <mach/hardware.h>
 #include <mach/omap4-common.h>
@@ -49,11 +50,62 @@
 #define ETH_KS8851_IRQ			34
 #define ETH_KS8851_POWER_ON		48
 #define ETH_KS8851_QUART		138
+#define OMAP4_CMA3000ACCL_GPIO		186
 
 #define OMAP4_SFH7741_SENSOR_OUTPUT_GPIO	184
 #define OMAP4_SFH7741_ENABLE_GPIO		188
+
 static void omap_prox_activate(int state);
 static int omap_prox_read(void);
+
+static struct gpio_led sdp4430_gpio_leds[] = {
+	{
+		.name	= "omap4:green:debug0",
+		.gpio	= 61,
+	},
+	{
+		.name	= "omap4:green:debug1",
+		.gpio	= 30,
+	},
+	{
+		.name	= "omap4:green:debug2",
+		.gpio	= 7,
+	},
+	{
+		.name	= "omap4:green:debug3",
+		.gpio	= 8,
+	},
+	{
+		.name	= "omap4:green:debug4",
+		.gpio	= 50,
+	},
+	{
+		.name	= "omap4:blue:user",
+		.gpio	= 169,
+	},
+	{
+		.name	= "omap4:red:user",
+		.gpio	= 170,
+	},
+	{
+		.name	= "omap4:green:user",
+		.gpio	= 139,
+	},
+
+};
+
+static struct gpio_led_platform_data sdp4430_led_data = {
+	.leds	= sdp4430_gpio_leds,
+	.num_leds	= ARRAY_SIZE(sdp4430_gpio_leds),
+};
+
+static struct platform_device sdp4430_leds_gpio = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &sdp4430_led_data,
+	},
+};
 
 static struct sfh7741_platform_data omap_sfh7741_data = {
 		.irq = OMAP_GPIO_IRQ(OMAP4_SFH7741_SENSOR_OUTPUT_GPIO),
@@ -69,8 +121,6 @@ static struct platform_device sdp4430_proximity_device = {
 		.platform_data = &omap_sfh7741_data,
 	},
 };
-
-#define OMAP4_CMA3000ACCL_GPIO		186
 
 static int sdp4430_keymap[] = {
 	KEY(0, 0, KEY_E),
@@ -558,6 +608,7 @@ static struct platform_device *sdp4430_devices[] __initdata = {
         &sdp4430_keypad_device,
         &sdp4430_proximity_device,
         &wl128x_device,
+	&sdp4430_leds_gpio,
 };
 
 static struct omap_lcd_config sdp4430_lcd_config __initdata = {
