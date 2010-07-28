@@ -158,6 +158,16 @@
 #define TWL6030_TOGGLE2			0x91
 #define TWL6030_TOGGLE3			0x92
 
+/*TWL6030 MMC registers */
+#define TWL6030_MMCCTRL			0xEE
+#define VMMC_AUTO_OFF			(0x1 << 3)
+#define SW_FC				(0x1 << 2)
+#define STS_MMC				0x1
+
+#define TWL6030_CFG_INPUT_PUPD3		0xF2
+#define MMC_PU				(0x1 << 3)
+#define MMC_PD				(0x1 << 2)
+
 #define TWL4030_CLASS_ID 		0x4030
 #define TWL6030_CLASS_ID 		0x6030
 unsigned int twl_rev(void);
@@ -188,6 +198,12 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
 int twl6030_interrupt_unmask(u8 bit_mask, u8 offset);
 int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
+
+/* Card detect Configuration for MMC1 Controller on OMAP4 */
+int twl6030_mmc_card_detect_config(void);
+
+/* MMC1 Controller on OMAP4 uses Phoenix irq for Card detect */
+int twl6030_mmc_card_detect(struct device *dev, int slot);
 
 int twl6030_register_notifier(struct notifier_block *nb,
 				unsigned int events);
