@@ -49,6 +49,7 @@
 #include "hsmmc.h"
 #include "pm.h"
 #include "omap3-opp.h"
+#include "smartreflex-class3.h"
 
 #define CONFIG_DISABLE_HFCLK 1
 
@@ -806,6 +807,7 @@ static void __init omap_3430sdp_init(void)
 	sdp3430_display_init();
 	enable_board_wakeup_source();
 	usb_ehci_init(&ehci_pdata);
+	sr_class3_init();
 }
 
 static void __init omap_3430sdp_map_io(void)
