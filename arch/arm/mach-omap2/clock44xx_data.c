@@ -1422,7 +1422,7 @@ static const struct clksel sgx_clk_mux_sel[] = {
 
 /* Merged sgx_clk_mux into gfx */
 static struct clk gfx_fck = {
-	.name		= "gfx_fck",
+	.name		= "gpu_fck",
 	.parent		= &dpll_core_m7_ck,
 	.clksel		= sgx_clk_mux_sel,
 	.init		= &omap2_init_clksel_parent,
@@ -1801,7 +1801,7 @@ static struct clk iva_ick = {
 };
 
 static struct clk keyboard_fck = {
-	.name		= "keyboard_fck",
+	.name		= "kbd_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_WKUP_KEYBOARD_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
@@ -2105,7 +2105,7 @@ static struct clk ocp_wp1_ick = {
 };
 
 static struct clk pdm_fck = {
-	.name		= "pdm_fck",
+	.name		= "mcpdm_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM1_ABE_PDM_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
@@ -2145,7 +2145,7 @@ static struct clk sha2md51_fck = {
 };
 
 static struct clk sl2_ick = {
-	.name		= "sl2_ick",
+	.name		= "sl2if_ick",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_IVAHD_SL2_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
@@ -2175,7 +2175,7 @@ static struct clk slimbus2_fck = {
 };
 
 static struct clk sr_core_fck = {
-	.name		= "sr_core_fck",
+	.name		= "smartreflex_core_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_ALWON_SR_CORE_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
@@ -2185,7 +2185,7 @@ static struct clk sr_core_fck = {
 };
 
 static struct clk sr_iva_fck = {
-	.name		= "sr_iva_fck",
+	.name		= "smartreflex_iva_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_ALWON_SR_IVA_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
@@ -2195,7 +2195,7 @@ static struct clk sr_iva_fck = {
 };
 
 static struct clk sr_mpu_fck = {
-	.name		= "sr_mpu_fck",
+	.name		= "smartreflex_mpu_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_ALWON_SR_MPU_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
@@ -2265,7 +2265,7 @@ static struct clk unipro1_fck = {
 };
 
 static struct clk usb_host_fck = {
-	.name		= "usb_host_fck",
+	.name		= "usb_host_hs_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_L3INIT_USB_HOST_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
@@ -2285,7 +2285,7 @@ static struct clk usb_host_fs_fck = {
 };
 
 static struct clk usb_otg_ick = {
-	.name		= "usb_otg_ick",
+	.name		= "usb_otg_hs_ick",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_L3INIT_USB_OTG_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
@@ -2295,7 +2295,7 @@ static struct clk usb_otg_ick = {
 };
 
 static struct clk usb_tll_ick = {
-	.name		= "usb_tll_ick",
+	.name		= "usb_tll_hs_ick",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_L3INIT_USB_TLL_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
@@ -2325,7 +2325,7 @@ static struct clk usim_ick = {
 };
 
 static struct clk wdt2_fck = {
-	.name		= "wdt2_fck",
+	.name		= "wd_timer2_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_WKUP_WDT2_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
@@ -2335,7 +2335,7 @@ static struct clk wdt2_fck = {
 };
 
 static struct clk wdt3_fck = {
-	.name		= "wdt3_fck",
+	.name		= "wd_timer3_fck",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM1_ABE_WDT3_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
