@@ -479,6 +479,12 @@ static int fm_v4l2_vidioc_s_frequency(struct file *file, void *priv,
 	int ret;
 	FMDRV_API_START();
 
+	/* As per V4L2 specifications user sends the frequency
+	 * in units of 62.5 Hz. But FM chip expects it in units of 1 KHz
+	 * so freq->frequency = ((freq * 62.5)/1000) KHz
+	 */
+	freq->frequency = (unsigned int)((freq->frequency * 625)/10000);
+
 	ret = fm_core_set_frequency(freq->frequency);
 	if (ret) {
 		FMDRV_API_EXIT(ret);
