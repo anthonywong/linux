@@ -49,7 +49,7 @@
 #ifdef CONFIG_ARCH_OMAP1
 #define NO_DM_TIMERS		8
 #else
-#define NO_DM_TIMERS		12
+#define NO_DM_TIMERS		11
 #endif
 
 struct omap_dm_timer;
