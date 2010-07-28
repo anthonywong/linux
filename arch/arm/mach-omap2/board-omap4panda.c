@@ -59,6 +59,9 @@ static int panda_panel_enable_hdmi(struct omap_dss_device *dssdev)
 	gpio_set_value(HDMI_GPIO_60, 1);
 	gpio_set_value(HDMI_GPIO_41, 1);
 	gpio_set_value(HDMI_GPIO_60, 0);
+	gpio_set_value(HDMI_GPIO_41, 0);
+	gpio_set_value(HDMI_GPIO_60, 1);
+	gpio_set_value(HDMI_GPIO_41, 1);
 
 	return 0;
 }
@@ -135,9 +138,7 @@ static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
 		.wires		= 8,
-		.cd_type	= NON_GPIO,
 		.gpio_wp	= -EINVAL,
-		.power_saving   = true,
 	},
 	{
 		.mmc		= 2,
@@ -145,9 +146,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= -EINVAL,
 		.nonremovable   = true,
-		.power_saving   = true,
 	},
-#if 1
 	{
 		.mmc            = 3,
 		.wires          = -EINVAL,
@@ -160,7 +159,6 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_cd        = -EINVAL,
 		.gpio_wp        = -EINVAL,
 	},
-#endif
 	{
 		.mmc            = 5,
 		.wires          = 8,
@@ -195,13 +193,14 @@ static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 				struct platform_device, dev);
 	struct omap_mmc_platform_data *pdata = dev->platform_data;
 
-	/* MMC1 Card detect Configuration */
+	/* Setting MMC1 Card detect Irq */
 	if (pdev->id == 0) {
-		ret = omap4_hsmmc1_card_detect_config();
-		if (ret < 0)
-			pr_err("Unable to configure Card detect for MMC1\n");
+		ret = twl6030_mmc_card_detect_config();
+		if (ret)
+			pr_err("Failed configuring MMC1 card detect\n");
 		pdata->slots[0].card_detect_irq = TWL6030_IRQ_BASE +
 						MMCDETECT_INTR_OFFSET;
+		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
 	}
 	return ret;
 }
@@ -361,14 +360,8 @@ static struct regulator_init_data panda_vusb = {
 };
 
 static struct twl4030_codec_data twl6040_codec = {
-#ifdef CONFIG_OMAP4_AUDIO_PWRON
 	.audpwron_gpio  = 127,
-#else
-	/* provide GPIO number above the valid value
-	 * to mean there is no GPIO connected. */
-	.audpwron_gpio  = 1024,
 	.naudint_irq    = OMAP44XX_IRQ_SYS_2N,
-#endif
 };
 
 static struct twl4030_madc_platform_data panda_gpadc_data = {
@@ -398,11 +391,11 @@ static struct twl4030_platform_data panda_twldata = {
 	.vaux1		= &panda_vaux1,
 	.vaux2		= &panda_vaux2,
 	.vaux3		= &panda_vaux3,
+	.madc           = &panda_gpadc_data,
+	.bci            = &panda_bci_data,
 
 	/* children */
 	.codec		= &twl6040_codec,
-	.madc           = &panda_gpadc_data,
-	.bci            = &panda_bci_data,
 };
 
 static struct bq2415x_platform_data panda_bqdata = {
