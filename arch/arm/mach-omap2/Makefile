@@ -63,6 +63,11 @@ endif
 
 endif
 
+# CPU Frequency
+ifeq ($(CONFIG_CPU_FREQ),y)
+obj-$(CONFIG_ARCH_OMAP3)		+= cpufreq34xx.o
+endif
+
 # PRCM
 obj-$(CONFIG_ARCH_OMAP2)		+= cm.o
 obj-$(CONFIG_ARCH_OMAP3)		+= cm.o
