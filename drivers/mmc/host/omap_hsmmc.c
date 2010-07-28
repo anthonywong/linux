@@ -1688,6 +1688,12 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			host->vdd = 0;
 			break;
 		case MMC_POWER_UP:
+			/* Observed that ios-vdd is set to 7 which is 1.6V
+			 * and since Minimum voltage provided to eMMC is 2.6
+			 * Hardcoding ios->vdd to 15
+			 */
+			if (host->id == OMAP_MMC2_DEVID)
+				ios->vdd = 15;
 			mmc_slot(host).set_power(host->dev, host->slot_id,
 						 1, ios->vdd);
 			host->vdd = ios->vdd;
