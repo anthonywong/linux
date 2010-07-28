@@ -1359,6 +1359,18 @@ CONFIG_SYSLINK_USE_SYSMGR=y
 CONFIG_OMAP_IOMMU_DEBUG_MODULE=y
 
 #
+# RAR Register Driver
+#
+# CONFIG_RAR_REGISTER is not set
+CONFIG_IIO=y
+# CONFIG_IIO_RING_BUFFER is not set
+# CONFIG_IIO_TRIGGER is not set
+
+# Magnetometer sensors
+#
+CONFIG_SENSORS_HMC5843=y
+
+#
 # File systems
 #
 CONFIG_EXT2_FS=y
