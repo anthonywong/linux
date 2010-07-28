@@ -258,7 +258,7 @@ static int __init sdp4430_keypad_init(void)
 	unsigned int length = 0, id = 0;
 	int hw_mod_name_len = 16;
 	char oh_name[hw_mod_name_len];
-	char *name = "omap4-keypad";
+	char *name = "kbd";
 
 	length = snprintf(oh_name, hw_mod_name_len, "kbd");
 
