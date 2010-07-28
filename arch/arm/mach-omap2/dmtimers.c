@@ -54,9 +54,10 @@ struct clk *omap2_dm_source_clocks[2];
 static const char *omap2_dm_source_names[] __initdata = {
 	"sys_clkin_ck",
 	"sys_32k_ck",
+	"syc_clk_div_ck",
 	NULL
 };
-static struct clk *omap2_dm_source_clocks[2];
+static struct clk *omap2_dm_source_clocks[3];
 #endif
 
 void omap2_dm_timer_enable(struct platform_device *pdev)
