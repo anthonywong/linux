@@ -299,8 +299,8 @@ struct bts_action_delay {
 #define FM_RX_VOLUME_GAIN_STEP		0x370
 
 /* Mute modes */
-#define FM_MUTE_ON			 0
-#define	FM_MUTE_OFF			 1
+#define	FM_MUTE_OFF			0
+#define	FM_MUTE_ON			1
 #define	FM_MUTE_ATTENUATE		 2
 
 #define FM_RX_MUTE_UNMUTE_MODE		 0x00
