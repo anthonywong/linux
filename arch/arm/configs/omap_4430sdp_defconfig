@@ -1,9 +1,10 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.34
-# Wed Jun  2 15:00:51 2010
+# Wed Jul  7 13:16:21 2010
 #
 CONFIG_ARM=y
+CONFIG_HAVE_PWM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
 CONFIG_GENERIC_GPIO=y
 CONFIG_GENERIC_TIME=y
@@ -262,6 +263,7 @@ CONFIG_OMAP_PM_NOOP=y
 #
 # CONFIG_WIFI_CONTROL_FUNC is not set
 # CONFIG_TIWLAN_SDIO is not set
+# CONFIG_OMAP4_ES1 is not set
 CONFIG_MACH_OMAP_4430SDP=y
 # CONFIG_ERRATA_OMAP4_AXI2OCP is not set
 
@@ -535,6 +537,8 @@ CONFIG_MISC_DEVICES=y
 # CONFIG_ISL29003 is not set
 # CONFIG_SENSORS_TSL2550 is not set
 CONFIG_SENSORS_BH1780=y
+# CONFIG_DS1682 is not set
+# CONFIG_TI_DAC7512 is not set
 CONFIG_BMP085=y
 # CONFIG_DS1682 is not set
 # CONFIG_TI_DAC7512 is not set
@@ -640,6 +644,7 @@ CONFIG_KEYBOARD_ATKBD=y
 # CONFIG_KEYBOARD_LKKBD is not set
 # CONFIG_KEYBOARD_GPIO is not set
 # CONFIG_KEYBOARD_MATRIX is not set
+# CONFIG_KEYBOARD_LM8323 is not set
 # CONFIG_KEYBOARD_MAX7359 is not set
 # CONFIG_KEYBOARD_NEWTON is not set
 # CONFIG_KEYBOARD_OPENCORES is not set
@@ -1266,10 +1271,17 @@ CONFIG_LEDS_CLASS=y
 #
 # LED drivers
 #
+# CONFIG_LEDS_PCA9532 is not set
 CONFIG_LEDS_GPIO=y
 CONFIG_LEDS_GPIO_PLATFORM=y
+# CONFIG_LEDS_LP3944 is not set
+# CONFIG_LEDS_PCA955X is not set
+# CONFIG_LEDS_DAC124S085 is not set
 CONFIG_LEDS_PWM=y
-
+# CONFIG_LEDS_REGULATOR is not set
+# CONFIG_LEDS_BD2802 is not set
+# CONFIG_LEDS_LT3593 is not set
+# CONFIG_LEDS_TRIGGERS is not set
 # CONFIG_ACCESSIBILITY is not set
 CONFIG_RTC_LIB=y
 CONFIG_RTC_CLASS=y
@@ -1366,9 +1378,33 @@ CONFIG_IIO=y
 # CONFIG_IIO_RING_BUFFER is not set
 # CONFIG_IIO_TRIGGER is not set
 
+#
+# Accelerometers
+#
+# CONFIG_KXSD9 is not set
+# CONFIG_LIS3L02DQ is not set
+
+#
+# Analog to digital convertors
+#
+# CONFIG_MAX1363 is not set
+
+#
+# Light sensors
+#
+# CONFIG_SENSORS_TSL2563 is not set
+
+#
 # Magnetometer sensors
 #
 CONFIG_SENSORS_HMC5843=y
+
+#
+# Triggers - standalone
+#
+# CONFIG_RAMZSWAP is not set
+# CONFIG_BATMAN_ADV is not set
+# CONFIG_STRIP is not set
 
 #
 # File systems
