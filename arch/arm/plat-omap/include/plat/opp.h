@@ -24,8 +24,6 @@ enum opp_t {
 	OPP_DSP,
 	OPP_TYPES_MAX
 };
-#else
-#error "You need to populate the OPP types for OMAP chip type."
 #endif
 
 /**
