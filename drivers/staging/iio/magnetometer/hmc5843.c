@@ -130,6 +130,7 @@ static const unsigned short normal_i2c[] = { HMC5843_I2C_ADDRESS,
 /* Each client has this additional data */
 struct hmc5843_data {
 	struct iio_dev	*indio_dev;
+	struct mutex lock;
 	u8		rate;
 	u8		meas_conf;
 	u8		operating_mode;
@@ -156,13 +157,17 @@ static ssize_t hmc5843_read_measurement(struct device *dev,
 	struct i2c_client *client = to_i2c_client(indio_dev->dev.parent);
 	s16 coordinate_val;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	struct hmc5843_data *data = indio_dev->dev_data;
 	s32 result;
+
+	mutex_lock(&data->lock);
 
 	result = i2c_smbus_read_byte_data(client, HMC5843_STATUS_REG);
 	while (!(result & DATA_READY))
 		result = i2c_smbus_read_byte_data(client, HMC5843_STATUS_REG);
 
 	result = i2c_smbus_read_word_data(client, this_attr->address);
+	mutex_unlock(&data->lock);
 	if (result < 0)
 		return -EINVAL;
 
@@ -175,6 +180,7 @@ static IIO_DEV_ATTR_MAGN_Y(hmc5843_read_measurement,
 		HMC5843_DATA_OUT_Y_MSB_REG);
 static IIO_DEV_ATTR_MAGN_Z(hmc5843_read_measurement,
 		HMC5843_DATA_OUT_Z_MSB_REG);
+
 /*
  * From the datasheet
  * 0 - Continuous-Conversion Mode: In continuous-conversion mode, the
@@ -211,6 +217,7 @@ static ssize_t hmc5843_set_operating_mode(struct device *dev,
 	unsigned long operating_mode = 0;
 	s32 status;
 	int error;
+	mutex_lock(&data->lock);
 	error = strict_strtoul(buf, 10, &operating_mode);
 	if (error)
 		return error;
@@ -220,11 +227,16 @@ static ssize_t hmc5843_set_operating_mode(struct device *dev,
 
 	status = i2c_smbus_write_byte_data(client, this_attr->address,
 					operating_mode);
-	if (status)
-		return -EINVAL;
-
+	if (status) {
+		count = -EINVAL;
+		goto exit;
+	}
 	data->operating_mode = operating_mode;
+
+exit:
+	mutex_unlock(&data->lock);
 	return count;
+
 }
 static IIO_DEVICE_ATTR(operating_mode,
 			S_IWUSR | S_IRUGO,
@@ -234,7 +246,7 @@ static IIO_DEVICE_ATTR(operating_mode,
 
 /*
  * API for setting the measurement configuration to
- * Normal, Positive bias and Negitive bias
+ * Normal, Positive bias and Negative bias
  * From the datasheet
  *
  * Normal measurement configuration (default): In normal measurement
@@ -279,10 +291,17 @@ static ssize_t hmc5843_set_measurement_configuration(struct device *dev,
 	int error = strict_strtoul(buf, 10, &meas_conf);
 	if (error)
 		return error;
+	mutex_lock(&data->lock);
+
 	dev_dbg(dev, "set mode to %lu\n", meas_conf);
-	if (hmc5843_set_meas_conf(client, meas_conf))
-		return -EINVAL;
+	if (hmc5843_set_meas_conf(client, meas_conf)) {
+		count = -EINVAL;
+		goto exit;
+	}
 	data->meas_conf = meas_conf;
+
+exit:
+	mutex_unlock(&data->lock);
 	return count;
 }
 static IIO_DEVICE_ATTR(meas_conf,
@@ -303,7 +322,6 @@ static IIO_DEVICE_ATTR(meas_conf,
  * 5		| 20
  * 6		| 50
  * 7		| Not used
- *
  */
 static IIO_CONST_ATTR_AVAIL_SAMP_FREQ("0.5 1 2 5 10 20 50");
 
@@ -350,9 +368,14 @@ static ssize_t set_sampling_frequency(struct device *dev,
 		return -EINVAL;
 
 	dev_dbg(dev, "set rate to %lu\n", rate);
-	if (hmc5843_set_rate(client, rate) == -EINVAL)
-		return -EINVAL;
+	if (hmc5843_set_rate(client, rate)) {
+		count = -EINVAL;
+		goto exit;
+	}
 	data->rate = rate;
+
+exit:
+	mutex_unlock(&data->lock);
 	return count;
 }
 
@@ -375,6 +398,7 @@ static IIO_DEVICE_ATTR(sampling_frequency,
 			show_sampling_frequency,
 			set_sampling_frequency,
 			HMC5843_CONFIG_REG_A);
+
 /*
  * From Datasheet
  *	Nominal gain settings
@@ -412,7 +436,7 @@ static ssize_t set_range(struct device *dev,
 	struct hmc5843_data *data = i2c_get_clientdata(client);
 	unsigned long range = 0;
 	int error;
-
+	mutex_lock(&data->lock);
 	error = strict_strtoul(buf, 10, &range);
 	if (error)
 		return error;
@@ -423,13 +447,13 @@ static ssize_t set_range(struct device *dev,
 
 	data->range = range;
 	range = range << RANGE_GAIN_OFFSET;
-	if (i2c_smbus_write_byte_data(client, this_attr->address, range) ==
-									-EINVAL)
-		return -EINVAL;
+	if (i2c_smbus_write_byte_data(client, this_attr->address, range))
+		count = -EINVAL;
 
+	mutex_unlock(&data->lock);
 	return count;
-}
 
+}
 static IIO_DEVICE_ATTR(magn_range,
 			S_IWUSR | S_IRUGO,
 			show_range,
@@ -445,8 +469,10 @@ static ssize_t show_gain(struct device *dev,
 	struct hmc5843_data *data = i2c_get_clientdata(client);
 	return sprintf(buf, "%d\n", regval_to_counts_per_mg[data->range]);
 }
-static IIO_DEVICE_ATTR(magn_gain, S_IRUGO, show_gain, NULL , 0);
-
+static IIO_DEVICE_ATTR(magn_gain,
+			S_IRUGO,
+			show_gain,
+			NULL , 0);
 
 static struct attribute *hmc5843_attributes[] = {
 	&iio_dev_attr_meas_conf.dev_attr.attr,
@@ -492,6 +518,7 @@ static void hmc5843_init_client(struct i2c_client *client)
 	hmc5843_set_rate(client, data->rate);
 	hmc5843_configure(client, data->operating_mode);
 	i2c_smbus_write_byte_data(client, HMC5843_CONFIG_REG_B, data->range);
+	mutex_init(&data->lock);
 	pr_info("HMC5843 initialized\n");
 }
 
