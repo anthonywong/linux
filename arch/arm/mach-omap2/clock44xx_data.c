@@ -114,7 +114,7 @@ static struct clk virt_38400000_ck = {
 };
 
 static const struct clksel_rate div_1_0_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_4430 },
+	{ .div = 1, .val = 0, .flags = RATE_IN_4430 | DEFAULT_RATE },
 	{ .div = 0 },
 };
 
@@ -124,32 +124,32 @@ static const struct clksel_rate div_1_1_rates[] = {
 };
 
 static const struct clksel_rate div_1_2_rates[] = {
-	{ .div = 1, .val = 2, .flags = RATE_IN_4430 },
+	{ .div = 1, .val = 2, .flags = RATE_IN_4430 | DEFAULT_RATE },
 	{ .div = 0 },
 };
 
 static const struct clksel_rate div_1_3_rates[] = {
-	{ .div = 1, .val = 3, .flags = RATE_IN_4430 },
+	{ .div = 1, .val = 3, .flags = RATE_IN_4430 | DEFAULT_RATE },
 	{ .div = 0 },
 };
 
 static const struct clksel_rate div_1_4_rates[] = {
-	{ .div = 1, .val = 4, .flags = RATE_IN_4430 },
+	{ .div = 1, .val = 4, .flags = RATE_IN_4430 | DEFAULT_RATE },
 	{ .div = 0 },
 };
 
 static const struct clksel_rate div_1_5_rates[] = {
-	{ .div = 1, .val = 5, .flags = RATE_IN_4430 },
+	{ .div = 1, .val = 5, .flags = RATE_IN_4430 | DEFAULT_RATE },
 	{ .div = 0 },
 };
 
 static const struct clksel_rate div_1_6_rates[] = {
-	{ .div = 1, .val = 6, .flags = RATE_IN_4430 },
+	{ .div = 1, .val = 6, .flags = RATE_IN_4430 | DEFAULT_RATE },
 	{ .div = 0 },
 };
 
 static const struct clksel_rate div_1_7_rates[] = {
-	{ .div = 1, .val = 7, .flags = RATE_IN_4430 },
+	{ .div = 1, .val = 7, .flags = RATE_IN_4430 | DEFAULT_RATE },
 	{ .div = 0 },
 };
 
