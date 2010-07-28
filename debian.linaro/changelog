@@ -1,3 +1,11 @@
+linux-linaro (2.6.35-1000.2) maverick; urgency=low
+
+  [ John Rigby ]
+
+  * Bump upload number to workaround launchpad upload rejection
+
+ -- John Rigby <john.rigby@linaro.org>  Wed, 28 Jul 2010 11:20:13 -0600
+
 linux-linaro (2.6.35-1000.1) maverick; urgency=low
 
   [ Linaro Kernel Changes ]
