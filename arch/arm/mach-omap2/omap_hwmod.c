@@ -1449,6 +1449,119 @@ int omap_hwmod_reset(struct omap_hwmod *oh)
 }
 
 /**
+ * _lookup_reset - reset the hwmod
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line in the context of this hwmod
+ *
+ * Return the bit position of the reset line that match the
+ * input name. Return -ENOENT if not found.
+ */
+u8 _lookup_reset(struct omap_hwmod *oh, const char *name)
+{
+	int i;
+
+	for (i = 0; i < oh->rst_lines_cnt; i++) {
+		const char *rst_line = oh->rst_lines[i].name;
+		if (!strcmp(rst_line, name)) {
+			u8 shift = oh->rst_lines[i].rst_shift;
+			pr_debug("omap_hwmod: %s: _lookup_reset: %s: %d\n",
+				 oh->name, rst_line, shift);
+
+			return shift;
+		}
+	}
+
+	return -ENOENT;
+}
+
+/**
+ * omap_hwmod_reset_assert - assert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to lookup and assert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.
+ */
+int omap_hwmod_reset_assert(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+	u32 v, mask;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_reset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	mask = 1 << shift;
+	prm_rmw_reg_bits(mask, mask, oh->prcm.omap4.rstctrl_reg);
+	v = __raw_readl(oh->prcm.omap4.rstctrl_reg);
+	pr_debug("omap_hwmod_reset_assert: %s [0x%08x] %d\n", name, v, shift);
+
+	return 0;
+}
+
+/**
+ * omap_hwmod_reset_deassert - deassert the HW reset line of submodules
+ * contained in the hwmod module.
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and deassert
+ *
+ * Some IP like dsp, ipu or iva contain processor that require
+ * an HW reset line to be assert / deassert in order to enable fully
+ * the IP.
+ */
+int omap_hwmod_reset_deassert(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+	u32 v, mask;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_reset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	mask = 1 << shift;
+	prm_rmw_reg_bits(mask, 0, oh->prcm.omap4.rstctrl_reg);
+	v = __raw_readl(oh->prcm.omap4.rstctrl_reg);
+	pr_debug("omap_hwmod_reset_deassert: %s [0x%08x] %d\n", name, v, shift);
+
+	return 0;
+}
+
+/**
+ * omap_hwmod_hw_reset_state - read the HW reset line state of submodules
+ * contained in the hwmod module
+ * @oh: struct omap_hwmod *
+ * @name: name of the reset line to look up and read
+ *
+ * Return the state of the reset line.
+ */
+int omap_hwmod_hw_reset_state(struct omap_hwmod *oh, const char *name)
+{
+	u8 shift;
+	u32 v, mask;
+
+	if (!oh)
+		return -EINVAL;
+
+	shift = _lookup_reset(oh, name);
+	if (IS_ERR_VALUE(shift))
+		return shift;
+
+	mask = 1 << shift;
+	v = prm_read_bits_shift(oh->prcm.omap4.rstctrl_reg, mask);
+	pr_debug("omap_hwmod_hw_reset_state: %s[%d]: %d\n", name, shift, v);
+
+	return v;
+}
+
+/**
  * omap_hwmod_count_resources - count number of struct resources needed by hwmod
  * @oh: struct omap_hwmod *
  * @res: pointer to the first element of an array of struct resource to fill
