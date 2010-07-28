@@ -1299,8 +1299,10 @@ static void omap_hsmmc_dma_cb(int lch, u16 ch_status, void *data)
 {
 	struct omap_hsmmc_host *host = data;
 
-	if (ch_status & OMAP2_DMA_MISALIGNED_ERR_IRQ)
-		dev_dbg(mmc_dev(host->mmc), "MISALIGNED_ADRS_ERR\n");
+	if (!(ch_status & 0x20)) {
+		dev_dbg(mmc_dev(host->mmc), "invalid ch stat %x\n", ch_status);
+		return;
+	}
 
 	if (host->dma_ch < 0)
 		return;
