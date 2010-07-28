@@ -103,7 +103,7 @@
  * If !CONFIG_CPU_USE_DOMAINS, the following permissions are changed:
  *  110x   1   1   1	r/o	r/o
  *  11x0   1   1   1	r/o	r/o
-  */
+ */
 	.macro	armv6_mt_table pfx
 \pfx\()_mt_table:
 	.long	0x00						@ L_PTE_MT_UNCACHED
