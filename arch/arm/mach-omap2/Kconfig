@@ -183,6 +183,7 @@ config OMAP4_ES1
 config MACH_OMAP_4430SDP
 	bool "OMAP 4430 SDP board"
 	depends on ARCH_OMAP4
+	select HAVE_PWM
 
 config MACH_OMAP4_PANDA
 	bool "OMAP4 based Panda board"
