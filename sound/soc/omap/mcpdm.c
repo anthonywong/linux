@@ -33,6 +33,8 @@
 #include <linux/irq.h>
 #include <linux/pm_runtime.h>
 
+#include <plat/cpu.h>
+
 #include "mcpdm.h"
 
 static struct omap_mcpdm *mcpdm;
@@ -360,11 +362,11 @@ int omap_mcpdm_request(void)
 		goto err;
 	}
 
-#ifndef CONFIG_OMAP4_ES1
-	ctrl = omap_mcpdm_read(MCPDM_CTRL);
-	ctrl |= WD_EN;
-	omap_mcpdm_write(MCPDM_CTRL, ctrl);
-#endif
+	if (omap_rev() != OMAP4430_REV_ES1_0) {
+		ctrl = omap_mcpdm_read(MCPDM_CTRL);
+		ctrl |= WD_EN;
+		omap_mcpdm_write(MCPDM_CTRL, ctrl);
+	}
 
 	return 0;
 
