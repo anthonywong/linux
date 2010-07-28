@@ -1480,15 +1480,6 @@ static s32 __init tiler_init(void)
 	struct tcm *sita = NULL;
 	struct tmm *tmm_pat = NULL;
 
-	/**
-	  * Array of physical pages for PAT programming, which must be a 16-byte
-	  * aligned physical address
-	*/
-	dmac_va = dma_alloc_coherent(NULL, TILER_WIDTH * TILER_HEIGHT *
-					sizeof(*dmac_va), &dmac_pa, GFP_ATOMIC);
-	if (!dmac_va)
-		return -ENOMEM;
-
 	/* Allocate tiler container manager (we share 1 on OMAP4) */
 	div_pt.x = TILER_WIDTH;   /* hardcoded default */
 	div_pt.y = (3 * TILER_HEIGHT) / 4;
@@ -1505,6 +1496,15 @@ static s32 __init tiler_init(void)
 	TMM_SET(TILFMT_16BIT, tmm_pat);
 	TMM_SET(TILFMT_32BIT, tmm_pat);
 	TMM_SET(TILFMT_PAGE, tmm_pat);
+
+	/**
+	  * Array of physical pages for PAT programming, which must be a 16-byte
+	  * aligned physical address
+	*/
+	dmac_va = dma_alloc_coherent(NULL, TILER_WIDTH * TILER_HEIGHT *
+					sizeof(*dmac_va), &dmac_pa, GFP_ATOMIC);
+	if (!dmac_va)
+		return -ENOMEM;
 
 	tiler_device = kmalloc(sizeof(*tiler_device), GFP_KERNEL);
 	if (!tiler_device || !sita || !tmm_pat) {
