@@ -994,9 +994,6 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 
 	v = omap2_clkdm_clktrctrl_read(clkdm);
 
-	if (cpu_is_omap44xx() && v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO)
-		return 0;
-
 	if ((cpu_is_omap34xx() && v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ||
 	    (cpu_is_omap24xx() && v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO)) {
 		/* Disable HW transitions when we are changing deps */
@@ -1009,6 +1006,19 @@ int omap2_clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk)
 
 	pwrdm_wait_transition(clkdm->pwrdm.ptr);
 	pwrdm_clkdm_state_switch(clkdm);
+
+	return 0;
+}
+
+int omap2_clkdm_clk_enable_post(struct clockdomain *clkdm, struct clk *clk)
+{
+	int v;
+
+	v = omap2_clkdm_clktrctrl_read(clkdm);
+
+	if ((v == OMAP34XX_CLKSTCTRL_FORCE_WAKEUP) &&
+				(clkdm->flags & CLKDM_CAN_HWSUP))
+		_omap2_clkdm_set_hwsup(clkdm, 1);
 
 	return 0;
 }
@@ -1058,9 +1068,6 @@ int omap2_clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 		return 0;
 
 	v = omap2_clkdm_clktrctrl_read(clkdm);
-
-	if (cpu_is_omap44xx() && v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO)
-		return 0;
 
 	if ((cpu_is_omap34xx() && v == OMAP34XX_CLKSTCTRL_ENABLE_AUTO) ||
 	    (cpu_is_omap24xx() && v == OMAP24XX_CLKSTCTRL_ENABLE_AUTO)) {
