@@ -1361,8 +1361,8 @@ static struct clk dss_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk ducati_ick = {
-	.name		= "ducati_ick",
+static struct clk ipu_ick = {
+	.name		= "ipu_ick",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_DUCATI_DUCATI_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
@@ -1790,8 +1790,8 @@ static struct clk iss_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk ivahd_ick = {
-	.name		= "ivahd_ick",
+static struct clk iva_ick = {
+	.name		= "iva_ick",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_IVAHD_IVAHD_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
@@ -2204,8 +2204,8 @@ static struct clk sr_mpu_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk tesla_ick = {
-	.name		= "tesla_ick",
+static struct clk dsp_ick = {
+	.name		= "dsp_ick",
 	.ops		= &clkops_omap2_dflt,
 	.enable_reg	= OMAP4430_CM_TESLA_TESLA_CLKCTRL,
 	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
@@ -2552,7 +2552,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"dmic_sync_mux_ck",		&dmic_sync_mux_ck,	CK_443X),
 	CLK(NULL,	"dmic_fck",			&dmic_fck,	CK_443X),
 	CLK(NULL,	"dss_fck",			&dss_fck,	CK_443X),
-	CLK(NULL,	"ducati_ick",			&ducati_ick,	CK_443X),
+	CLK(NULL,	"ipu_ick",			&ipu_ick,	CK_443X),
 	CLK(NULL,	"emif1_ick",			&emif1_ick,	CK_443X),
 	CLK(NULL,	"emif2_ick",			&emif2_ick,	CK_443X),
 	CLK(NULL,	"fdif_fck",			&fdif_fck,	CK_443X),
@@ -2582,7 +2582,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK("i2c_omap.3",	"fck",				&i2c3_fck,	CK_443X),
 	CLK("i2c_omap.4",	"fck",				&i2c4_fck,	CK_443X),
 	CLK(NULL,	"iss_fck",			&iss_fck,	CK_443X),
-	CLK(NULL,	"ivahd_ick",			&ivahd_ick,	CK_443X),
+	CLK(NULL,	"iva_ick",			&iva_ick,	CK_443X),
 	CLK(NULL,	"keyboard_fck",			&keyboard_fck,	CK_443X),
 	CLK(NULL,	"l3_instr_interconnect_ick",	&l3_instr_interconnect_ick,	CK_443X),
 	CLK(NULL,	"l3_interconnect_3_ick",	&l3_interconnect_3_ick,	CK_443X),
@@ -2616,7 +2616,7 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"sr_core_fck",			&sr_core_fck,	CK_443X),
 	CLK(NULL,	"sr_iva_fck",			&sr_iva_fck,	CK_443X),
 	CLK(NULL,	"sr_mpu_fck",			&sr_mpu_fck,	CK_443X),
-	CLK(NULL,	"tesla_ick",			&tesla_ick,	CK_443X),
+	CLK(NULL,	"dsp_ick",			&dsp_ick,	CK_443X),
 	CLK(NULL,	"uart1_fck",			&uart1_fck,	CK_443X),
 	CLK(NULL,	"uart2_fck",			&uart2_fck,	CK_443X),
 	CLK(NULL,	"uart3_fck",			&uart3_fck,	CK_443X),

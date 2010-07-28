@@ -82,6 +82,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include <plat/omap_device.h>
 #include <plat/omap_hwmod.h>
@@ -575,6 +576,44 @@ int omap_device_shutdown(struct platform_device *pdev)
 		omap_hwmod_shutdown(oh);
 
 	od->_state = OMAP_DEVICE_STATE_SHUTDOWN;
+
+	return ret;
+}
+
+/**
+ * omap_device_reset - reset an omap_device
+ * @pdev: struct platfrom_device * to reset
+ * @name: name used to identify the reset line
+ * @duration: time in us during which reset has to be asserted
+ *
+ * Assert a reset line, identified by name, for the requested
+ * omap_device, and deassert the line after waiting for the
+ * specified amount of time in us. Specifying the time as 0
+ * makes sure the reset line is kept asserted.
+ */
+int omap_device_reset(struct platform_device *pdev,
+		const char *name, u8 timeout)
+{
+	int ret = 0, i;
+	struct omap_device *od;
+	struct omap_hwmod *oh;
+
+	od = _find_by_pdev(pdev);
+
+	if (od->_state == OMAP_DEVICE_STATE_IDLE) {
+		WARN(1,
+		     "omap_device: %s.%d: %s() called from invalid state %d\n",
+		     od->pdev.name, od->pdev.id, __func__, od->_state);
+		return -EINVAL;
+	}
+
+	for (i = 0, oh = *od->hwmods; i < od->hwmods_cnt; i++, oh++) {
+		ret = omap_hwmod_reset_assert(oh, name);
+		if (timeout) {
+			udelay(timeout);
+			ret = omap_hwmod_reset_deassert(oh, name);
+		}
+	}
 
 	return ret;
 }
