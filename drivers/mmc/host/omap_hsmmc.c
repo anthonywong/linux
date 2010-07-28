@@ -2214,8 +2214,13 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 	INIT_WORK(&host->mmc_carddetect_work, omap_hsmmc_detect);
+
 	if (mmc_slot(host).power_saving)
+#ifdef CONFIG_PM_RUNTIME
 		mmc->ops	= &omap_hsmmc_ps_ops;
+#else
+		mmc->ops	= &omap_hsmmc_ops;
+#endif
 	else
 		mmc->ops	= &omap_hsmmc_ops;
 
