@@ -1074,6 +1074,31 @@ void omap_hwmod_writel(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 	__raw_writel(v, oh->_rt_va + reg_offs);
 }
 
+/* Read a PRM register, AND it, and shift the result down to bit 0 */
+u32 prm_read_bits_shift(void __iomem *reg, u32 mask)
+{
+	u32 v;
+
+	v = __raw_readl(reg);
+	v &= mask;
+	v >>= __ffs(mask);
+
+	return v;
+}
+
+/* Read-modify-write a register in a PRM module. Caller must lock */
+u32 prm_rmw_reg_bits(u32 mask, u32 bits, void __iomem *reg)
+{
+	u32 v;
+
+	v = __raw_readl(reg);
+	v &= ~mask;
+	v |= bits;
+	__raw_writel(v, reg);
+
+	return v;
+}
+
 int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode)
 {
 	u32 v;
