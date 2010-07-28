@@ -306,6 +306,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 	u16			fifo_count = 0, csr;
 	int			use_dma = 0;
 	struct musb_hw_ep	*hw_ep = musb_ep->hw_ep;
+	struct dma_controller	*c = musb->dma_controller;
 	/* we shouldn't get here while DMA is active ... but we do ... */
 	if (dma_channel_status(musb_ep->dma) == MUSB_DMA_STATUS_BUSY) {
 		DBG(4, "dma pending...\n");
@@ -336,8 +337,7 @@ static void txstate(struct musb *musb, struct musb_request *req)
 			csr);
 
 #ifndef	CONFIG_MUSB_PIO_ONLY
-	struct dma_controller	*c = musb->dma_controller;
-	if (is_cppi_enabled() && !musb_ep->dma) {
+	if (is_dma_capable() && !musb_ep->dma) {
 
 		/*
 		 * allocate dma channel if not allocated
