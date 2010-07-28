@@ -60,7 +60,7 @@ struct bmp085_data {
 	u32 raw_temperature;
 	u32 raw_pressure;
 	unsigned char oversampling_setting;
-	unsigned long last_temp_measurement;
+	u32 last_temp_measurement;
 	s32 b6; /* calculated temperature correction coefficient */
 };
 
@@ -144,7 +144,7 @@ static s32 bmp085_update_raw_pressure(struct bmp085_data *data)
 	}
 
 	/* wait for the end of conversion */
-	msleep(2+(3 << data->oversampling_setting<<1));
+	msleep(2+(3 << data->oversampling_setting));
 
 	/* copy data into a u32 (4 bytes), but skip the first byte. */
 	status = i2c_smbus_read_i2c_block_data(data->client,
