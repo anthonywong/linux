@@ -28,8 +28,6 @@
 
 /* SysLink device specific headers */
 #include "../procmgr/proc4430/proc4430.h"
-#include "../ipu_pm/ipu_pm.h"
-
 
 /* Module level headers */
 #include <multiproc.h>
@@ -946,8 +944,7 @@ void platform_start_callback(void *arg)
 				goto notify_ducatidrv_create_fail;
 			}
 		}
-		/* BEGIN PM */
-
+#ifdef CONFIG_SYSLINK_DUCATI_PM
 		/* Ducati PwrMgmt events */
 		/* Only registered for APPM3 FIXME?*/
 
@@ -956,7 +953,7 @@ void platform_start_callback(void *arg)
 				platform_notifydrv_handle,
 				proc_id,/*DUCATI_PROC*/
 				PM_RESOURCE,/*PWR_MGMT_EVENT*/
-				(notify_callback_fxn)ipu_pm_callback,
+				(notify_callback_fxn)proc4430_drv_pm_callback,
 				(void *)NULL);
 			if (status < 0)
 				goto pm_register_fail;
@@ -964,14 +961,16 @@ void platform_start_callback(void *arg)
 				platform_notifydrv_handle,
 				proc_id,/*DUCATI_PROC*/
 				PM_NOTIFICATION,/*PWR_MGMT_EVENT*/
-				(notify_callback_fxn)ipu_pm_notify_callback,
+				(notify_callback_fxn)
+					proc4430_drv_pm_notify_callback,
 				(void *)NULL);
 			if (status < 0) {
 				status = notify_unregister_event(
 				platform_notifydrv_handle,
 				proc_id,/*DUCATI_PROC*/
 				PM_RESOURCE,/*PWR_MGMT_EVENT*/
-				(notify_callback_fxn)ipu_pm_notify_callback,
+				(notify_callback_fxn)
+					proc4430_drv_pm_notify_callback,
 				(void *)NULL);
 				if (status < 0)
 					printk(KERN_INFO
@@ -984,6 +983,7 @@ void platform_start_callback(void *arg)
 
 		}
 		/* END PM */
+#endif
 
 		/* The notify is created only once and used for Sys and App */
 		if (index == SMHEAP_SRINDEX_APPM3)
@@ -1296,6 +1296,7 @@ multiproc_fail:
 proc_invalid_id:
 	printk(KERN_ERR "platform_load_callback failed invalid"
 			" proc_id [0x%x]\n", proc_id);
+#ifdef CONFIG_SYSLINK_DUCATI_PM
 	goto exit;
 pm_register_fail:
 	printk(KERN_ERR "pm register events failed");
@@ -1427,22 +1428,23 @@ void platform_stop_callback(void *arg)
 		else
 			platform_notifydrv_handle_sysm3 = NULL;
 
-		/* BEGIN PM */
-
+#ifdef CONFIG_SYSLINK_DUCATI_PM
+		/* PM */
 		if (index == SMHEAP_SRINDEX_APPM3) {
 			status = notify_unregister_event(
 				platform_notifydrv_handle,
 				proc_id,/*DUCATI_PROC*/
 				PM_RESOURCE,/*PWR_MGMT_EVENT*/
-				(notify_callback_fxn)ipu_pm_callback,
+				(notify_callback_fxn)proc4430_drv_pm_callback,
 				(void *)NULL);
 			if (status < 0)
-				printk(KERN_INFO "ERROR UNREGISTERING PM EVENT\n");
+				printk(KERN_INFO "*****ERROR UNREGISTERING PM EVENT\n");
 			status = notify_unregister_event(
 				platform_notifydrv_handle,
 				proc_id,/*DUCATI_PROC*/
 				PM_NOTIFICATION,/*PWR_MGMT_EVENT*/
-				(notify_callback_fxn)ipu_pm_notify_callback,
+				(notify_callback_fxn)
+					proc4430_drv_pm_notify_callback,
 				(void *)NULL);
 			if (status < 0)
 				printk(KERN_INFO "ERROR UNREGISTERING PM EVENT\n");
@@ -1450,7 +1452,7 @@ void platform_stop_callback(void *arg)
 			ipu_pm_finish();
 		}
 		/* END PM */
-
+#endif
 		if (platform_notifydrv_handle_sysm3 == NULL &&
 				platform_notifydrv_handle_appm3 == NULL) {
 			status = notify_ducatidrv_delete(
