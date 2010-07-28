@@ -193,16 +193,9 @@ struct omap_hsmmc_host {
 static int omap_hsmmc_card_detect(struct device *dev, int slot)
 {
 	struct omap_mmc_platform_data *mmc = dev->platform_data;
-	struct platform_device *pdev = container_of(dev,
-					struct platform_device, dev);
-	int ret = -ENOSYS;
 
-	if (mmc->slots[0].cd_type == GPIO)
-		/* NOTE: assumes card detect signal is active-low */
-		ret = !gpio_get_value_cansleep(mmc->slots[0].switch_pin);
-	else
-		ret = twl6030_mmc_card_detect(pdev->id, slot);
-	return ret;
+	/* NOTE: assumes card detect signal is active-low */
+	return !gpio_get_value_cansleep(mmc->slots[0].switch_pin);
 }
 
 static int omap_hsmmc_get_wp(struct device *dev, int slot)
@@ -492,6 +485,8 @@ static int omap_hsmmc_gpio_init(struct omap_mmc_platform_data *pdata)
 	int ret;
 
 	if (gpio_is_valid(pdata->slots[0].switch_pin)) {
+		pdata->suspend = omap_hsmmc_suspend_cdirq;
+		pdata->resume = omap_hsmmc_resume_cdirq;
 		if (pdata->slots[0].cover)
 			pdata->slots[0].get_cover_state =
 					omap_hsmmc_get_cover_state;
@@ -528,16 +523,6 @@ err_free_cd:
 err_free_sp:
 		gpio_free(pdata->slots[0].switch_pin);
 	return ret;
-}
-
-static int omap_hsmmc_non_gpio_init(struct omap_mmc_platform_data *pdata)
-{
-
-	if (pdata->slots[0].switch_pin > 0) {
-		pdata->slots[0].card_detect = omap_hsmmc_card_detect;
-		pdata->slots[0].card_detect_irq = pdata->slots[0].switch_pin;
-	}
-	return 0;
 }
 
 static void omap_hsmmc_gpio_free(struct omap_mmc_platform_data *pdata)
@@ -2036,11 +2021,7 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -EBUSY;
 
-	if (pdata->slots[0].cd_type == GPIO)
-		ret = omap_hsmmc_gpio_init(pdata);
-	else
-		ret =  omap_hsmmc_non_gpio_init(pdata);
-
+	ret = omap_hsmmc_gpio_init(pdata);
 	if (ret)
 		goto err;
 
@@ -2211,8 +2192,6 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 				"Unable to grab MMC CD IRQ\n");
 			goto err_irq_cd;
 		}
-		pdata->suspend = omap_hsmmc_suspend_cdirq;
-		pdata->resume = omap_hsmmc_resume_cdirq;
 	}
 
 #ifdef CONFIG_TIWLAN_SDIO

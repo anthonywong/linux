@@ -38,7 +38,6 @@
 #include <plat/board.h>
 #include <plat/common.h>
 #include <plat/gpmc.h>
-#include <plat/mmc.h>
 
 #include <asm/delay.h>
 #include <plat/control.h>
@@ -364,7 +363,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.mmc		= 1,
 		.wires		= 4,
 		.gpio_cd	= -EINVAL,
-		.cd_type	= GPIO,
 		.gpio_wp	= -EINVAL,
 	},
 	{}	/* Terminator */

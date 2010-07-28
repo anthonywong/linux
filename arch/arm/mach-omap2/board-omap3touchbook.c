@@ -48,7 +48,6 @@
 #include <plat/nand.h>
 #include <plat/usb.h>
 #include <plat/timer-gp.h>
-#include <plat/mmc.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -127,7 +126,6 @@ static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
 		.wires		= 8,
-		.cd_type	= GPIO,
 		.gpio_wp	= 29,
 	},
 	{}	/* Terminator */

@@ -50,9 +50,6 @@
 
 #define OMAP_MMC_MAX_SLOTS	2
 
-#define NON_GPIO		0
-#define GPIO			1
-
 /* omap_hwmod integration data */
 #define MMC_SUPPORT_18V			(1 << 0)
 #define MMC_SUPPORT_3V			(1 << 1)
@@ -133,7 +130,6 @@ struct omap_mmc_platform_data {
 		unsigned vcc_aux_disable_is_sleep:1;
 
 		int switch_pin;			/* gpio (card detect) */
-		unsigned cd_type:1;		/* GPIO or NON_GPIO */
 		int gpio_wp;			/* gpio (write protect) */
 
 		int (*set_bus_mode)(struct device *dev, int slot, int bus_mode);

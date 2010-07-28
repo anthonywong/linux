@@ -42,7 +42,6 @@
 #include <plat/common.h>
 #include <plat/mcspi.h>
 #include <plat/display.h>
-#include <plat/mmc.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
@@ -374,7 +373,6 @@ static struct omap2_hsmmc_info mmc[] = {
 		.mmc		= 1,
 		.wires		= 4,
 		.gpio_cd	= -EINVAL,
-		.cd_type	= GPIO,
 		.gpio_wp	= 63,
 	},
 	{}	/* Terminator */

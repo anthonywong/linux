@@ -223,29 +223,6 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset)
 }
 EXPORT_SYMBOL(twl6030_interrupt_mask);
 
-int twl6030_mmc_card_detect(int host_id, int slot)
-{
-	int ret = -ENOSYS;
-	u8 read_reg;
-
-	switch (host_id) {
-	case 0:
-		/*
-		 * BIT0 of REG_MMC_CTRL
-		 * 0 - Card not present ,1 - Card present
-		 */
-		ret = twl_i2c_read_u8(TWL6030_MODULE_ID0,
-			&read_reg, TWL6030_MMCCTRL);
-		if (ret >= 0)
-			ret = read_reg & STS_MMC;
-		break;
-	default:
-		pr_err("Unkown MMC controller %d in %s\n", host_id, __func__);
-	}
-	return ret;
-}
-EXPORT_SYMBOL(twl6030_mmc_card_detect);
-
 int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end)
 {
 

@@ -37,7 +37,6 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <plat/gpmc-smc91x.h>
-#include <plat/mmc.h>
 
 #include "hsmmc.h"
 
@@ -187,7 +186,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.mmc		= 1,
 		.wires		= 4,
 		.gpio_cd	= -EINVAL,
-		.cd_type	= GPIO,
 		.gpio_wp	= -EINVAL,
 		.ext_clock	= 1,
 	},

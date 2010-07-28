@@ -32,7 +32,6 @@
 #include <plat/gpmc.h>
 #include <plat/onenand.h>
 #include <plat/gpmc-smc91x.h>
-#include <plat/mmc.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -257,7 +256,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.wires		= 4,
 		.cover_only	= true,
 		.gpio_cd	= 160,
-		.cd_type	= GPIO,
 		.gpio_wp	= -EINVAL,
 		.power_saving	= true,
 	},
@@ -266,7 +264,6 @@ static struct omap2_hsmmc_info mmc[] __initdata = {
 		.mmc		= 2,
 		.wires		= 8, /* See also rx51_mmc2_remux */
 		.gpio_cd	= -EINVAL,
-		.cd_type	= GPIO,
 		.gpio_wp	= -EINVAL,
 		.nonremovable	= true,
 		.power_saving	= true,
