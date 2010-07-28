@@ -109,7 +109,7 @@ config SND_OMAP_SOC_HDMI
 	  Say Y if you want to add support for HDMI interface on SDP4430
 
 config SND_OMAP_VOICE_TEST
-	tristate "SoC Audio support for test Voice Call"
+	bool "SoC Audio support for test Voice Call"
 	depends on TWL4030_CORE && SND_OMAP_SOC && (MACH_OMAP_4430SDP || MACH_OMAP4_PANDA)
 	help
 	 Say Y if you want to test modem voice call
