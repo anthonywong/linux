@@ -562,59 +562,6 @@ void hdmi_exit(void)
 	iounmap(hdmi.base_pll);
 	iounmap(hdmi.base_phy);
 }
-/* FIXME These are raw writes to GPIO , standard GPIO calls are made
-in board-4430sdp.c file but as the GPIO read is not correctly working
-this is retained and needs to be fixed */
-static void hdmi_gpio_config(int enable)
-{
-	u32 val;
-
-	if (enable) {
-		/* PAD0_HDMI_HPD_PAD1_HDMI_CEC */
-		omap_writel(0x01180118, 0x4A100098);
-		/* PAD0_HDMI_DDC_SCL_PAD1_HDMI_DDC_SDA */
-		omap_writel(0x01180118 , 0x4A10009C);
-		/* CONTROL_HDMI_TX_PHY */
-		omap_writel(0x10000000, 0x4A100610);
-
-		/* GPIO 41 line being muxed */
-		val = omap_readl(0x4A100060);
-		val = FLD_MOD(val, 3, 18, 16);
-		omap_writel(val, 0x4A100060);
-
-		/* GPIO 60 line being muxed */
-		val = omap_readl(0x4A100088);
-		val = FLD_MOD(val, 1, 19, 19);
-		val = FLD_MOD(val, 3, 2, 0);
-		omap_writel(0x3, 0x4A100088);
-
-		/* DATA_OUT */
-		val = omap_readl(0x4805513c);
-		val = FLD_MOD(val, 1, 29, 27);
-		val = FLD_MOD(val, 1, 10, 7);
-		omap_writel(val, 0x4805513c);
-
-		/* GPIO_OE */
-		val = omap_readl(0x48055134);
-		val = FLD_MOD(val, 0, 28, 28);
-		val = FLD_MOD(val, 0, 9, 9);
-		omap_writel(val, 0x48055134);
-
-		/* GPIO_SETDATAOUT */
-		val = omap_readl(0x48055194);
-		val = FLD_MOD(val, 1, 28, 28);
-		val = FLD_MOD(val, 1, 9, 9);
-		omap_writel(val, 0x48055194);
-
-		mdelay(120);
-	} else {
-		/* GPIO_OE */
-		val = omap_readl(0x48055134);
-		val = FLD_MOD(val, 1, 28, 28);
-		val = FLD_MOD(val, 1, 9, 9);
-		omap_writel(val, 0x48055134);
-	}
-}
 
 static int hdmi_power_on(struct omap_dss_device *dssdev)
 {
@@ -738,7 +685,10 @@ static irqreturn_t hdmi_irq_handler(int irq, void *arg)
 		printk(KERN_INFO "Display disabled");
 		hdmi_power_off(dssdev);
 		hpd_mode = 1;
-		hdmi_gpio_config(1);
+
+		if (dssdev->platform_disable)
+			dssdev->platform_disable(dssdev);
+
 		hdmi_min_enable();
 	}
 
@@ -756,12 +706,8 @@ static void hdmi_power_off(struct omap_dss_device *dssdev)
 
 	HDMI_W1_SetWaitPllPwrState(HDMI_WP, HDMI_PLLPWRCMD_ALLOFF);
 
-	/* FIXME Gpio config is retained and platform disable which does
-	standard GPIO calls is temporarily commented until GPIO read
-	problem is fixed */
-	hdmi_gpio_config(0);
-	/*if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);*/
+	if (dssdev->platform_disable)
+		dssdev->platform_disable(dssdev);
 
 	edid_set = 0;
 	hdmi_enable_clocks(0);
@@ -793,7 +739,15 @@ static int hdmi_enable_display(struct omap_dss_device *dssdev)
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	hdmi_gpio_config(1);
+	/* PAD0_HDMI_HPD_PAD1_HDMI_CEC */
+	omap_writel(0x01180118, 0x4A100098);
+	/* PAD0_HDMI_DDC_SCL_PAD1_HDMI_DDC_SDA */
+	omap_writel(0x01180118 , 0x4A10009C);
+	/* CONTROL_HDMI_TX_PHY */
+	omap_writel(0x10000000, 0x4A100610);
+
+	if (dssdev->platform_enable)
+		dssdev->platform_enable(dssdev);
 
 	r = hdmi_power_on(dssdev);
 	if (r) {
@@ -830,7 +784,16 @@ static int hdmi_enable_hpd(struct omap_dss_device *dssdev)
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	hdmi_gpio_config(1);
+	/* PAD0_HDMI_HPD_PAD1_HDMI_CEC */
+	omap_writel(0x01180118, 0x4A100098);
+	/* PAD0_HDMI_DDC_SCL_PAD1_HDMI_DDC_SDA */
+	omap_writel(0x01180118 , 0x4A10009C);
+	/* CONTROL_HDMI_TX_PHY */
+	omap_writel(0x10000000, 0x4A100610);
+
+	if (dssdev->platform_enable)
+		dssdev->platform_enable(dssdev);
+
 	hpd_mode = 1;
 	r = hdmi_min_enable();
 	if (r) {
@@ -912,7 +875,15 @@ static int hdmi_display_resume(struct omap_dss_device *dssdev)
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	hdmi_gpio_config(1);
+	/* PAD0_HDMI_HPD_PAD1_HDMI_CEC */
+	omap_writel(0x01180118, 0x4A100098);
+	/* PAD0_HDMI_DDC_SCL_PAD1_HDMI_DDC_SDA */
+	omap_writel(0x01180118 , 0x4A10009C);
+	/* CONTROL_HDMI_TX_PHY */
+	omap_writel(0x10000000, 0x4A100610);
+
+	if (dssdev->platform_enable)
+		dssdev->platform_enable(dssdev);
 
 	r = hdmi_power_on(dssdev);
 	if (r) {
