@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/i2c/twl.h>
 #include <linux/clk.h>
+#include <linux/pm_runtime.h>
 
 #include <plat/omap_hwmod.h>
 #include <plat/omap_device.h>
@@ -1172,8 +1173,7 @@ static int abe_mm_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct twl6040_data *priv = codec->private_data;
 	struct twl4030_codec_data *pdata = codec->dev->platform_data;
-	struct platform_device *pdev = container_of(codec->dev,
-					struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(codec->dev);
 
 	if (!priv->sysclk) {
 		dev_err(codec->dev,
@@ -1343,8 +1343,7 @@ static void abe_mm_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct twl6040_data *priv = codec->private_data;
 	struct twl4030_codec_data *pdata = codec->dev->platform_data;
-	struct platform_device *pdev = container_of(codec->dev,
-					struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(codec->dev);
 
         if (!substream->stream) {
                 abe_disable_data_transfer(MM_DL_PORT);
@@ -1516,8 +1515,7 @@ static void abe_tones_shutdown(struct snd_pcm_substream *substream,
         struct snd_soc_codec *codec = socdev->card->codec;
         struct twl6040_data *priv = codec->private_data;
         struct twl4030_codec_data *pdata = codec->dev->platform_data;
-        struct platform_device *pdev = container_of(codec->dev,
-                                        struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(codec->dev);
 
         if (!substream->stream) {
                 abe_disable_data_transfer(TONES_DL_PORT);
@@ -1546,8 +1544,7 @@ static int abe_voice_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct twl6040_data *priv = codec->private_data;
 	struct twl4030_codec_data *pdata = codec->dev->platform_data;
-	struct platform_device *pdev = container_of(codec->dev,
-					struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(codec->dev);
 
 	if (!priv->sysclk) {
 		dev_err(codec->dev,
@@ -1742,8 +1739,7 @@ static void abe_voice_shutdown(struct snd_pcm_substream *substream,
         struct snd_soc_codec *codec = socdev->card->codec;
         struct twl6040_data *priv = codec->private_data;
         struct twl4030_codec_data *pdata = codec->dev->platform_data;
-        struct platform_device *pdev = container_of(codec->dev,
-                                        struct platform_device, dev);
+	struct platform_device *pdev = to_platform_device(codec->dev);
 
         if (!substream->stream) {
                 abe_disable_data_transfer(VX_DL_PORT);
