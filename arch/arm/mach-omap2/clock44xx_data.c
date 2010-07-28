@@ -1515,6 +1515,7 @@ static struct clk gpt1_fck = {
 	.clksel		= abe_dpll_bypass_clk_mux_sel,
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP4430_CM_WKUP_TIMER1_CLKCTRL,
+	.flags		= ENABLE_ON_INIT,
 	.clksel_mask	= OMAP4430_CLKSEL_MASK,
 	.ops		= &clkops_omap2_dflt,
 	.recalc		= &omap2_clksel_recalc,

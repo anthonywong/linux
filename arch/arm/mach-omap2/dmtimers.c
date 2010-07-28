@@ -100,7 +100,8 @@ unsigned long omap2_dm_timer_set_clk(struct platform_device *pdev, int source)
 		clk_disable(odev->hwmods[0]->_clk);
 		ret = clk_set_parent(odev->hwmods[0]->_clk,
 				omap2_dm_source_clocks[source]);
-		WARN(ret, " omap2 dmtimers: Not able to change the \
+		if (ret)
+			pr_err(" omap2 dmtimers: Not able to change the \
 				fclk source\n");
 		clk_enable(odev->hwmods[0]->_clk);
 		/*
