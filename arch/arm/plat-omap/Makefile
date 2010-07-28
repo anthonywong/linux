@@ -4,7 +4,7 @@
 
 # Common support
 obj-y := common.o sram.o clock.o devices.o dma.o mux.o gpio.o \
-	 usb.o fb.o io.o hdmi_lib.o
+	 usb.o fb.o io.o hdmi_lib.o timer-32k-sync.o
 obj-m :=
 obj-n :=
 obj-  :=
