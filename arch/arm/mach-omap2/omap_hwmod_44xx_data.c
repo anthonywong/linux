@@ -893,6 +893,11 @@ static struct omap_hwmod_irq_info omap44xx_dsp_irqs[] = {
 	{ .irq = 28 + OMAP44XX_IRQ_GIC_START },
 };
 
+static struct omap_hwmod_rst_info omap44xx_dsp_resets[] = {
+	{ .name = "dsp", .rst_shift = 0 },
+	{ .name = "mmu_cache", .rst_shift = 1 },
+};
+
 /* dsp -> iva */
 static struct omap_hwmod_ocp_if omap44xx_dsp__iva = {
 	.master		= &omap44xx_dsp_hwmod,
@@ -935,10 +940,13 @@ static struct omap_hwmod omap44xx_dsp_hwmod = {
 	.class		= &omap44xx_dsp_hwmod_class,
 	.mpu_irqs	= omap44xx_dsp_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_dsp_irqs),
+	.rst_lines	= omap44xx_dsp_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(omap44xx_dsp_resets),
 	.main_clk	= "dsp_ick",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_reg = OMAP4430_CM_TESLA_TESLA_CLKCTRL,
+			.rstctrl_reg = OMAP4430_RM_TESLA_RSTCTRL,
 		},
 	},
 	.slaves		= omap44xx_dsp_slaves,
@@ -2049,6 +2057,18 @@ static struct omap_hwmod_irq_info omap44xx_ipu_irqs[] = {
 	{ .irq = 100 + OMAP44XX_IRQ_GIC_START },
 };
 
+static struct omap_hwmod_rst_info omap44xx_ipu_c0_resets[] = {
+	{ .name = "cpu0", .rst_shift = 0 },
+};
+
+static struct omap_hwmod_rst_info omap44xx_ipu_c1_resets[] = {
+	{ .name = "cpu1", .rst_shift = 1 },
+};
+
+static struct omap_hwmod_rst_info omap44xx_ipu_resets[] = {
+	{ .name = "mmu_cache", .rst_shift = 2 },
+};
+
 /* ipu master ports */
 static struct omap_hwmod_ocp_if *omap44xx_ipu_masters[] = {
 	&omap44xx_ipu__l3_main_2,
@@ -2067,15 +2087,47 @@ static struct omap_hwmod_ocp_if *omap44xx_ipu_slaves[] = {
 	&omap44xx_l3_main_2__ipu,
 };
 
+/* Pseudo hwmod for reset control purpose only */
+static struct omap_hwmod omap44xx_ipu_c0_hwmod = {
+	.name           = "ipu_c0",
+	.class          = &omap44xx_ipu_hwmod_class,
+	.rst_lines      = omap44xx_ipu_c0_resets,
+	.rst_lines_cnt  = ARRAY_SIZE(omap44xx_ipu_c0_resets),
+	.prcm = {
+	       .omap4 = {
+		       .rstctrl_reg = OMAP4430_RM_DUCATI_RSTCTRL,
+	       },
+	},
+	.omap_chip      = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
+/* Pseudo hwmod for reset control purpose only */
+static struct omap_hwmod omap44xx_ipu_c1_hwmod = {
+	.name           = "ipu_c1",
+	.class          = &omap44xx_ipu_hwmod_class,
+	.rst_lines      = omap44xx_ipu_c1_resets,
+	.rst_lines_cnt  = ARRAY_SIZE(omap44xx_ipu_c1_resets),
+	.prcm = {
+	       .omap4 = {
+		       .rstctrl_reg = OMAP4430_RM_DUCATI_RSTCTRL,
+	       },
+	       },
+	.omap_chip      = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
+};
+
+
 static struct omap_hwmod omap44xx_ipu_hwmod = {
 	.name		= "ipu",
 	.class		= &omap44xx_ipu_hwmod_class,
 	.mpu_irqs	= omap44xx_ipu_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_ipu_irqs),
+	.rst_lines	= omap44xx_ipu_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(omap44xx_ipu_resets),
 	.main_clk	= "ipu_ick",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_reg = OMAP4430_CM_DUCATI_DUCATI_CLKCTRL,
+			.rstctrl_reg = OMAP4430_RM_DUCATI_RSTCTRL,
 		},
 	},
 	.slaves		= omap44xx_ipu_slaves,
@@ -2166,6 +2218,12 @@ static struct omap_hwmod_irq_info omap44xx_iva_irqs[] = {
 	{ .name = "sync_1", .irq = 103 + OMAP44XX_IRQ_GIC_START },
 };
 
+static struct omap_hwmod_rst_info omap44xx_iva_resets[] = {
+	{ .name = "seq0", .rst_shift = 0 },
+	{ .name = "seq1", .rst_shift = 1 },
+	{ .name = "logic", .rst_shift = 2 },
+};
+
 /* iva -> sl2if */
 static struct omap_hwmod_ocp_if omap44xx_iva__sl2if = {
 	.master		= &omap44xx_iva_hwmod,
@@ -2200,10 +2258,13 @@ static struct omap_hwmod omap44xx_iva_hwmod = {
 	.class		= &omap44xx_iva_hwmod_class,
 	.mpu_irqs	= omap44xx_iva_irqs,
 	.mpu_irqs_cnt	= ARRAY_SIZE(omap44xx_iva_irqs),
+	.rst_lines	= omap44xx_iva_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(omap44xx_iva_resets),
 	.main_clk	= "iva_ick",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_reg = OMAP4430_CM_IVAHD_IVAHD_CLKCTRL,
+			.rstctrl_reg = OMAP4430_RM_IVAHD_RSTCTRL,
 		},
 	},
 	.slaves		= omap44xx_iva_slaves,
@@ -4833,7 +4894,7 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	/* dmic class */
 /*	&omap44xx_dmic_hwmod, */
 	/* dsp class */
-/*	&omap44xx_dsp_hwmod, */
+	&omap44xx_dsp_hwmod,
 	/* dss class */
 /*	&omap44xx_dss_hwmod, */
 	/* elm class */
@@ -4862,11 +4923,13 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_i2c3_hwmod,
 	&omap44xx_i2c4_hwmod,
 	/* ipu class */
-/*	&omap44xx_ipu_hwmod, */
+	&omap44xx_ipu_hwmod,
+	&omap44xx_ipu_c0_hwmod,
+	&omap44xx_ipu_c1_hwmod,
 	/* iss class */
 /*	&omap44xx_iss_hwmod, */
 	/* iva class */
-/*	&omap44xx_iva_hwmod, */
+	&omap44xx_iva_hwmod,
 	/* kbd class */
 	&omap44xx_kbd_hwmod,
 	/* mailbox class */
