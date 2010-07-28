@@ -2949,7 +2949,7 @@ static struct omap_hwmod omap44xx_mcspi4_hwmod = {
 
 static struct omap_hwmod_class_sysconfig omap44xx_mmc_sysc = {
 	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
+	.sysc_offs	= 0x0110,
 	.syss_offs	= 0x0114,
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_EMUFREE |
 			   SYSC_HAS_SOFTRESET | SYSC_HAS_MIDLEMODE),
@@ -2979,7 +2979,7 @@ static struct omap_hwmod_dma_info omap44xx_mmc1_sdma_chs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mmc1_addrs[] = {
 	{
-		.pa_start	= 0x4809c000 + 0x100,
+		.pa_start	= 0x4809c000,
 		.pa_end		= 0x4809c3ff,
 		.flags		= ADDR_TYPE_RT
 	},
@@ -3042,7 +3042,7 @@ static struct omap_hwmod_dma_info omap44xx_mmc2_sdma_chs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mmc2_addrs[] = {
 	{
-		.pa_start	= 0x480b4000 + 0x100,
+		.pa_start	= 0x480b4000,
 		.pa_end		= 0x480b43ff,
 		.flags		= ADDR_TYPE_RT
 	},
@@ -3105,7 +3105,7 @@ static struct omap_hwmod_dma_info omap44xx_mmc3_sdma_chs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mmc3_addrs[] = {
 	{
-		.pa_start	= 0x480ad000 + 0x100,
+		.pa_start	= 0x480ad000,
 		.pa_end		= 0x480ad3ff,
 		.flags		= ADDR_TYPE_RT
 	},
@@ -3161,7 +3161,7 @@ static struct omap_hwmod_dma_info omap44xx_mmc4_sdma_chs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mmc4_addrs[] = {
 	{
-		.pa_start	= 0x480d1000 + 0x100,
+		.pa_start	= 0x480d1000,
 		.pa_end		= 0x480d13ff,
 		.flags		= ADDR_TYPE_RT
 	},
@@ -3217,7 +3217,7 @@ static struct omap_hwmod_dma_info omap44xx_mmc5_sdma_chs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_mmc5_addrs[] = {
 	{
-		.pa_start	= 0x480d5000 + 0x100,
+		.pa_start	= 0x480d5000,
 		.pa_end		= 0x480d53ff,
 		.flags		= ADDR_TYPE_RT
 	},
