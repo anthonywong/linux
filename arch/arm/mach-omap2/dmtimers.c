@@ -52,7 +52,7 @@ const char *omap2_dm_source_names[] __initdata = {
 struct clk *omap2_dm_source_clocks[2];
 #elif defined(CONFIG_ARCH_OMAP4)
 static const char *omap2_dm_source_names[] __initdata = {
-	"sys_ck",
+	"sys_clkin_ck",
 	"sys_32k_ck",
 	NULL
 };
@@ -404,7 +404,15 @@ fail:
 			pdata->omap_dm_get_timer_clk = omap2_dm_timer_get_fclk;
 			pdata->io_base = oh->_rt_va;
 			pdata->irq = oh->mpu_irqs[0].irq;
-
+			pdata->dmtimer_ip_type = oh->class->rev;
+			/* Update Highlander offsets for GPTimer [3-9, 11-12].
+			 * The offset1 & offset2 will be zero on OMAP3 and
+			 * OMAP4 millisecond timers (GPT1, GPT2, GPT10).
+			 */
+			if (pdata->dmtimer_ip_type == 2) {
+				pdata->offset1 = 0x10;
+				pdata->offset2 = 0x14;
+			}
 			od = omap_device_build(name, i, oh,
 					pdata, sizeof(*pdata),
 					omap2_dmtimer_latency,

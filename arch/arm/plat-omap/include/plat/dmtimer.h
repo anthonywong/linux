@@ -63,6 +63,9 @@ struct omap_dm_timer_plat_info {
 	struct clk* (*omap_dm_get_timer_clk) (struct platform_device *pdev);
 	void __iomem *io_base;
 	int irq;
+	int dmtimer_ip_type;
+	int offset1;
+	int offset2;
 };
 
 struct omap_dm_timer *omap_dm_timer_request(void);
@@ -95,6 +98,6 @@ unsigned int omap_dm_timer_read_counter(struct omap_dm_timer *timer);
 void omap_dm_timer_write_counter(struct omap_dm_timer *timer, unsigned int value);
 
 int omap_dm_timers_active(void);
-
+void omap_dm_timer_set_int_disable(struct omap_dm_timer *, unsigned int);
 
 #endif /* __ASM_ARCH_DMTIMER_H */
