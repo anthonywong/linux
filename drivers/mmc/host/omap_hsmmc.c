@@ -2096,6 +2096,11 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	host->dpm_state = DISABLED;
 
 	pm_runtime_enable(host->dev);
+
+#ifndef CONFIG_PM_RUNTIME
+	/* TODO Once HWMOD takes care of enabling clks in init remove this */
+	omap_device_enable(pdev);
+#endif
 	if (mmc_host_enable(host->mmc) != 0)
 		goto err1;
 
