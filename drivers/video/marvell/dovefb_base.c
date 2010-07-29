@@ -930,7 +930,7 @@ static void dovefb_config_vga_calibration(struct dovefb_info *info)
 {
 	if (info->id == 1) {
 //		u32 portB_config = readl(DOVE_LCD1_CONFIG_VIRT);
-		writel(0, DOVE_LCD1_CONFIG_VIRT);
+		writel(0x90, DOVE_LCD1_CONFIG_VIRT);
 	}
 }
 
