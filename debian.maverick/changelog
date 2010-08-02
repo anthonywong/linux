@@ -1,4 +1,12 @@
-linux-maverick (2.6.35-13.18~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-14.19~lucid1) lucid-proposed; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * rebase to v2.6.35
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Sun, 01 Aug 2010 10:35:56 -0700
+
+linux (2.6.35-13.18) maverick; urgency=low
 
   [ Andy Whitcroft ]
 
