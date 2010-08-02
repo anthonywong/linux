@@ -51,7 +51,7 @@ void __init dove_pcie_id(u32 *dev, u32 *rev)
 static int dove_pcie_clk_out_config(int nr)
 {
 	u32 reg = readl(DOVE_PCIE_PORT_CONTROL);
-	reg |= 3 << nr;
+	reg |= 3 << (nr * 2);
 	writel(reg, DOVE_PCIE_PORT_CONTROL);
 }
 
