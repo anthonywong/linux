@@ -152,7 +152,7 @@ proc_dump_cp15_read(char *page, char **start, off_t off, int count, int *eof,
 		     "Enabled" : "Disabled");
 
 	p += sprintf(p, "    L2 Cache Way 7-4 \t: %s\n", (value & (1 << 21)) ?
-		     "Enabled" : "Disabled");
+		     "Disabled" : "Enabled");
 		
 	p += sprintf(p, "    L2 ECC\t: %s\n", (value & (1 << 23)) ?
 		     "Enabled" : "Disabled");
