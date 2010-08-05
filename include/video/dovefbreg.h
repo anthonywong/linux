@@ -154,6 +154,9 @@
 #define     CFG_ALPHA_V(v)			(v)
 #define     CFG_ALPHA_V_MASK			0x000000FF
 
+/* LCD General Configuration Register */
+#define LCD_CFG_RDREG4F				0x013C
+
 /* SPI Read Data Register */
 #define LCD_SPU_SPI_RXDATA			0x0140
 

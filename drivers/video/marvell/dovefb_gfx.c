@@ -1359,6 +1359,8 @@ static int dovefb_fill_edid(struct fb_info *fi,
 
 static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 {
+	unsigned int x;
+
 	writel(0x80000001, dfli->reg_base + LCD_CFG_SCLK_DIV);
 	writel(0x00000000, dfli->reg_base + LCD_SPU_BLANKCOLOR);
 	/* known h/w issue. The bit [18:19] might
@@ -1372,6 +1374,18 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 	writel(CFG_CSB_256x32(0x1)|CFG_CSB_256x24(0x1)|CFG_CSB_256x8(0x1),
 		dfli->reg_base + LCD_SPU_SRAM_PARA1);
 	writel(0x2032FF81, dfli->reg_base + LCD_SPU_DMA_CTRL1);
+
+	/*
+	 * Fix me: to avoid jiggling issue for high resolution in
+	 * dual display, we set watermark to affect LCD AXI read
+	 * from MC (default 0x80). Lower watermark means LCD will
+	 * do DMA read more often.
+	 */
+	x = readl(dfli->reg_base + LCD_CFG_RDREG4F);
+	x &= ~0xFF;
+	x |= 0x20;
+	writel(x, dfli->reg_base + LCD_CFG_RDREG4F);
+
 	return;
 }
 
