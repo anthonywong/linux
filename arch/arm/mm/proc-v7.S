@@ -245,7 +245,7 @@ __v7_setup:
         mrc     p15, 0, r10, c0, c0, 0          @ Main ID Y0 or not
         and     r10, #0xF
         cmp     r10, #5
-	orrlt  	r0, r0, #(1<<15)		@ Disable VFP/WMMX dual issue
+	orr  	r0, r0, #(1<<15)		@ Disable VFP/WMMX dual issue
         cmp     r10, #1
 	orrle   r0, r0, #(1<<21)		@ X0 - Enable L2 Cache Way 7-4 
 	mcr p15, 1, r0, c15, c1, 0
