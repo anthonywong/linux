@@ -30,6 +30,7 @@
 #define TTB_IRGN_WT	((1 << 0) | (0 << 6))
 #define TTB_IRGN_WB	((1 << 0) | (1 << 6))
 
+
 #ifndef CONFIG_SMP
 /* PTWs cacheable, inner WB not shareable, outer WB not shareable */
 #define TTB_FLAGS	TTB_IRGN_WB|TTB_RGN_OC_WB
@@ -369,11 +370,8 @@ __v7_setup:
 	cmp	r0, #1
 	ldreq	r6, =0x40e840e8
 #endif
-#ifdef	CONFIG_CPU_WA_ENABLE
-	bic	r6, r6, #0x80
+#ifdef	CONFIG_CPU_L2WAONLY_ENABLE
 	bic	r6, r6, #0x800000
-#elif	CONFIG_CPU_L1WAONLY_ENABLE
-	bic	r6, r6, #0x80
 #endif
 	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
 	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
