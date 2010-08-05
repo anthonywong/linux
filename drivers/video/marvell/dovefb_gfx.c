@@ -1382,8 +1382,13 @@ static void dovefb_set_defaults(struct dovefb_layer_info *dfli)
 	 * do DMA read more often.
 	 */
 	x = readl(dfli->reg_base + LCD_CFG_RDREG4F);
+	/* watermark */
 	x &= ~0xFF;
 	x |= 0x20;
+	/* Disable LCD SRAM Read Wait State to resolve HWC32 make
+	 * system hang while use external clock.
+	 */
+	x &= ~(1<<11);
 	writel(x, dfli->reg_base + LCD_CFG_RDREG4F);
 
 	return;
