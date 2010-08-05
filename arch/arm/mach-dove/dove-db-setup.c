@@ -463,12 +463,9 @@ static struct orion_i2s_platform_data i2s0_data = {
 	.i2s_rec	= 1,
 };
 
-#if 1
 static struct mv643xx_eth_platform_data dove_db_ge00_data = {
-	.phy_addr	= MV643XX_ETH_PHY_ADDR_DEFAULT,
+	.phy_addr	= 1,
 };
-
-#endif
 
 static struct mv_sata_platform_data dove_db_sata_data = {
         .n_ports        = 1,
