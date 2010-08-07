@@ -1,4 +1,27 @@
-linux-maverick (2.6.35-14.19~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-14.20~lucid1) lucid-proposed; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * update Vcs-Git to point to maverick repo
+  * debian -- include the debian packaging in the -source package
+    - LP: #608674
+  * select debian source format 1.0
+  * add support for building selected stages of kernel
+    - LP: #603087
+  * cleanup conditional dependancy handling
+    - LP: #603087
+
+  [ Upstream Kernel Changes ]
+
+  * ALSA: hda - Handle missing NID 0x1b on ALC259 codec
+    - LP: #582199, #586418, #588031
+  * ALSA: hda - Handle pin NID 0x1a on ALC259/269
+    - LP: #582199, #586418, #588031
+  * sched: Revert nohz_ratelimit() for now
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 03 Aug 2010 08:46:47 -0700
+
+linux (2.6.35-14.19) maverick; urgency=low
 
   [ Leann Ogasawara ]
 
