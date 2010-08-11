@@ -1,4 +1,24 @@
-linux-maverick (2.6.35-14.20~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-15.21~lucid1) lucid-proposed; urgency=low
+
+  [ Luke Yelavich ]
+
+  * [Config] CONFIG_SND_USB_UA101=m for all architectures
+
+  [ Upstream Kernel Changes ]
+
+  * Input: introduce MT event slots
+  * Input: document the MT event slot protocol
+  * (pre-stable) sched: Revert nohz_ratelimit() for now
+  * (pre-stable) drm/radeon/kms: add missing copy from user
+    - LP: #606081
+
+  [ Leann Ogasawara ]
+
+  * rebase to v2.6.35.1
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Mon, 09 Aug 2010 09:24:04 -0700
+
+linux (2.6.35-14.20) maverick; urgency=low
 
   [ Andy Whitcroft ]
 
