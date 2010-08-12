@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -193,19 +193,41 @@ gcoHAL_SetDepthOnly(
 	IN gctBOOL Enable
 	);
 
+gceSTATUS
+gcoHAL_QueryShaderCaps(
+	IN gcoHAL Hal,
+	OUT gctUINT * VertexUniforms,
+	OUT gctUINT * FragmentUniforms,
+	OUT gctUINT * Varyings
+	);
+
+gceSTATUS
+gcoHAL_QueryTextureCaps(
+	IN gcoHAL Hal,
+	OUT gctUINT * MaxWidth,
+	OUT gctUINT * MaxHeight,
+	OUT gctUINT * MaxDepth,
+	OUT gctBOOL * Cubic,
+	OUT gctBOOL * NonPowerOfTwo,
+	OUT gctUINT * VertexSamplers,
+	OUT gctUINT * PixelSamplers
+	);
+
+gceSTATUS
+gcoHAL_QueryStreamCaps(
+	IN gcoHAL Hal,
+	OUT gctUINT32 * MaxAttributes,
+	OUT gctUINT32 * MaxStreamSize,
+	OUT gctUINT32 * NumberOfStreams,
+	OUT gctUINT32 * Alignment
+	);
+
 /******************************************************************************\
 ********************************* gcoSURF Object ********************************
 \******************************************************************************/
 
 /*----------------------------------------------------------------------------*/
 /*--------------------------------- gcoSURF 3D --------------------------------*/
-
-typedef enum _gceORIENTATION
-{
-	gcvORIENTATION_TOP_BOTTOM,
-	gcvORIENTATION_BOTTOM_TOP,
-}
-gceORIENTATION;
 
 /* Copy surface. */
 gceSTATUS
@@ -307,20 +329,6 @@ gceSTATUS
 gcoSURF_SetResolvability(
 	IN gcoSURF Surface,
 	IN gctBOOL Resolvable
-	);
-
-/* Set surface orientation. */
-gceSTATUS
-gcoSURF_SetOrientation(
-	IN gcoSURF Surface,
-	IN gceORIENTATION Orientation
-	);
-
-/* Query surface orientation. */
-gceSTATUS
-gcoSURF_QueryOrientation(
-	IN gcoSURF Surface,
-	OUT gceORIENTATION * Orientation
 	);
 
 /******************************************************************************\
@@ -446,6 +454,8 @@ typedef enum _gceCLEAR
 	gcvCLEAR_COLOR				= 0x1,
 	gcvCLEAR_DEPTH				= 0x2,
 	gcvCLEAR_STENCIL			= 0x4,
+	gcvCLEAR_HZ					= 0x8,
+	gcvCLEAR_HAS_VAA			= 0x10,
 }
 gceCLEAR;
 
@@ -744,7 +754,7 @@ gco3D_SetDepthRangeF(
 	);
 
 /* Set last pixel enable */
-gceSTATUS 
+gceSTATUS
 gco3D_SetLastPixelEnable(
 	IN gco3D Engine,
 	IN gctBOOL Enable
@@ -1257,6 +1267,13 @@ gcoTEXTURE_AddMipMapFromClient(
 	);
 
 gceSTATUS
+gcoTEXTURE_AddMipMapFromSurface(
+	IN gcoTEXTURE Texture,
+	IN gctINT     Level,
+	IN gcoSURF    Surface
+	);
+
+gceSTATUS
 gcoTEXTURE_SetAddressingMode(
 	IN gcoTEXTURE Texture,
 	IN gceTEXTURE_WHICH Which,
@@ -1451,7 +1468,7 @@ gcoSTREAM_Reserve(
 	IN gcoSTREAM Stream,
 	IN gctSIZE_T Bytes
 	);
-	
+
 gceSTATUS
 gcoSTREAM_Flush(
 	IN gcoSTREAM Stream
@@ -1502,13 +1519,13 @@ typedef struct _gcsVERTEX_ATTRIBUTES
 }
 gcsVERTEX_ATTRIBUTES;
 
-gceSTATUS 
+gceSTATUS
 gcoVERTEX_Construct(
-	IN gcoHAL Hal, 
+	IN gcoHAL Hal,
 	OUT gcoVERTEX * Vertex
 	);
 
-gceSTATUS 
+gceSTATUS
 gcoVERTEX_Destroy(
 	IN gcoVERTEX Vertex
 	);

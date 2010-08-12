@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -580,11 +580,25 @@ gcoOS_ProfileEnd(
 	IN gctCONST_STRING Title
 	);
 
+gctINT32 
+gcoOS_GetMilliTime(
+    void
+    );
+
+char* gcoOS_GetProgramName(char* buf, int size);
+
 #if MRVL_BENCH
 
 /*
 ** Check point for timer.
 ** To add new profiling point, modify below two members:
+gceSTATUS
+gcoOS_SetProfileSetting(
+        IN gcoOS Os,
+        IN gctBOOL Enable,
+        IN gctCONST_STRING FileName
+        );
+
 */
 typedef enum _apiBenchIndex  {
 	APIBENCH_INDEX_FRAME,
@@ -594,6 +608,13 @@ typedef enum _apiBenchIndex  {
 	APIBENCH_INDEX_UPDATESTATE,
 	APIBENCH_INDEX_UPDATESTATE1,
 	APIBENCH_INDEX_SWAPBUFFERS,
+	APIBENCH_INDEX_DRAWIMAGE,
+	APIBENCH_INDEX_SWTEXTUREUPLOAD,	
+	APIBENCH_INDEX_DIRECTTEXTURE,	
+	APIBENCH_INDEX_GLEGLIMAGETEXTURE,
+	APIBENCH_INDEX_DRAWTEX,
+	APIBENCH_INDEX_BUFFERDATA,
+	APIBENCH_INDEX_BUFFERSUBDATA,
 	APIBENCH_INDEX_MAX
 }apiBenchIndex;
 
@@ -605,6 +626,13 @@ typedef enum _apiBenchIndex  {
 	"UpdateState",		\
 	"UpdateState1",		\
 	"eglSwapBuffers",	\
+	"DrawImage",        \
+	"SWTextureUpload",  \
+	"uploadDirectTexture", \
+	"glEGLImageTexture2D", \
+	"glDrawTex", \
+	"glBufferData", \
+	"glBufferSubData", \
 }
 
 /*
@@ -657,44 +685,44 @@ typedef struct _gcoAPIBENCH
 #define PROFILE_DRIVER_FRAME_PRINT		50
 
 
-void gcoOS_APIBenchStart(
-	IN gcoOS Os,
+void gcoDUMP_APIBenchStart(
+	IN gcoHAL Hal,
 	IN gctUINT32 timerIndex
 	);
 
-void gcoOS_APIBenchEnd(
-	IN gcoOS Os,
+void gcoDUMP_APIBenchEnd(
+	IN gcoHAL Hal,
 	IN gctUINT32 timerIndex
 	);
 
-void gcoOS_APIBenchPrint(
-	IN gcoOS Os
+void gcoDUMP_APIBenchPrint(
+	IN gcoHAL Hal
 	);
 
-void gcoOS_APIBenchInit(
-	IN gcoOS Os
+void gcoDUMP_APIBenchInit(
+	IN gcoHAL Hal
 	);
 
-void gcoOS_APIBenchFrame(
-	IN gcoOS Os
+void gcoDUMP_APIBenchFrame(
+	IN gcoHAL Hal
 	);
 
-void gcoOS_APIBenchCommand(
-	IN gcoOS Os,
+void gcoDUMP_APIBenchCommand(
+	IN gcoHAL Hal,
 	IN gctUINT32 size
 	);
 
-void gcoOS_APIBenchCommit(
-	IN gcoOS Os
+void gcoDUMP_APIBenchCommit(
+	IN gcoHAL Hal
 	);
 
-void gcoOS_APIBenchStateEnd(
-	IN gcoOS Os,
+void gcoDUMP_APIBenchStateEnd(
+	IN gcoHAL Hal,
 	IN gctUINT32 stateIndex
 	);
 
-void gcoOS_APIBenchStateStart(
-	IN gcoOS Os,
+void gcoDUMP_APIBenchStateStart(
+	IN gcoHAL Hal,
 	IN gctUINT32 stateIndex
 	);
 
@@ -738,7 +766,7 @@ gcoOS_AtomDecrement(
     OUT gctINT32_PTR OldValue
 	);
 
-gctHANDLE 
+gctHANDLE
 gcoOS_GetCurrentProcessID(
 	void
 	);
@@ -808,6 +836,15 @@ typedef enum _gceCOMPONENT_CONTROL
 	gcvCOMPONENT_ODD			= 0x80
 }
 gceCOMPONENT_CONTROL;
+
+
+typedef enum _gceORIENTATION
+{
+	gcvORIENTATION_TOP_BOTTOM,
+	gcvORIENTATION_BOTTOM_TOP,
+}
+gceORIENTATION;
+
 
 /* Construct a new gcoSURF object. */
 gceSTATUS
@@ -959,20 +996,6 @@ gcoSURF_Blend(
 	IN gceSURF_BLEND_MODE Mode
 	);
 
-/* Quick static surface initialization. */
-gceSTATUS
-gcoSURF_WrapUserBuffer(
-	IN gcoHAL Hal,
-	IN gceSURF_TYPE Type,
-	IN gceSURF_FORMAT Format,
-	IN gctINT Width,
-	IN gctINT Height,
-	IN gctINT Stride,
-	IN gctCONST_POINTER Buffer,
-	IN gctINT Index,
-	OUT gcoSURF * Surface
-	);
-
 /* Create a new gcoSURF wrapper object. */
 gceSTATUS
 gcoSURF_ConstructWrapper(
@@ -999,6 +1022,57 @@ gcoSURF_SetWindow(
 	IN gctUINT Y,
 	IN gctUINT Width,
 	IN gctUINT Height
+	);
+
+/* Increase reference count of the surface. */
+gceSTATUS
+gcoSURF_ReferenceSurface(
+	IN gcoSURF Surface
+	);
+
+/* Get surface reference count. */
+gceSTATUS
+gcoSURF_QueryReferenceCount(
+	IN gcoSURF Surface,
+	OUT gctINT32 * ReferenceCount
+	);
+
+/* Set surface orientation. */
+gceSTATUS
+gcoSURF_SetOrientation(
+	IN gcoSURF Surface,
+	IN gceORIENTATION Orientation
+	);
+
+/* Query surface orientation. */
+gceSTATUS
+gcoSURF_QueryOrientation(
+	IN gcoSURF Surface,
+	OUT gceORIENTATION * Orientation
+	);
+
+
+//#define DUMP_SURFACE     0
+
+/* Dump a buffer to a BMP file */
+int gcoOS_DumpBMP(
+                  IN gctPOINTER dumpBase,
+                  IN gctINT dumpWidth,
+                  IN gctINT dumpHeight,
+                  IN gctINT dumpStride,
+                  IN gctINT dumpBpp, 
+                  IN gceSURF_FORMAT format,
+                  IN gceORIENTATION orientation,
+                  IN gctCONST_STRING fileName
+                  );
+
+
+/* Dump surface to a BMP file. */
+gceSTATUS
+gcoSURF_DumpSurface(
+	IN gcoSURF Surface, 
+	IN gctBOOL bCheckOrientation,
+	IN gctCONST_STRING fileName
 	);
 
 
@@ -1224,7 +1298,7 @@ gcoOS_DebugTrace(
 **
 **	gcmDUMP
 **
-**		Print a dump message. 
+**		Print a dump message.
 **
 **	ARGUMENTS:
 **
@@ -1233,11 +1307,11 @@ gcoOS_DebugTrace(
 **		...			Optional arguments.
 */
 
-#if gcdDUMP
 void gcoOS_Print(
 	IN gctSTRING Message,
 	...
 	);
+#if gcdDUMP
 #  define gcmDUMP				gcoOS_Print
 #elif defined UNDER_CE
 #  define gcmDUMP				__noop
@@ -1247,9 +1321,40 @@ void gcoOS_Print(
 
 /*******************************************************************************
 **
+**	gcmDUMP_DATA
+**
+**		Add data to the dump.
+**
+**	ARGUMENTS:
+**
+**		gctSTRING Tag
+**			Tag for dump.
+**
+**		gctPOINTER Logical
+**			Logical address of buffer.
+**
+**		gctSIZE_T Bytes
+**			Number of bytes.
+*/
+
+#if gcdDUMP
+void gcfDumpData(
+	IN gctSTRING Tag,
+	IN gctPOINTER Logical,
+	IN gctSIZE_T Bytes
+	);
+#  define gcmDUMP_DATA			gcfDumpData
+#elif defined UNDER_CE
+#  define gcmDUMP_DATA			__noop
+#else
+#  define gcmDUMP_DATA(...)
+#endif
+
+/*******************************************************************************
+**
 **	gcmDUMP_BUFFER
 **
-**		Print a buffer to the dump. 
+**		Print a buffer to the dump.
 **
 **	ARGUMENTS:
 **
@@ -1288,7 +1393,7 @@ void gcfDumpBuffer(
 **
 **	gcmTRACE_RELEASE
 **
-**		Print a message to the shader debugger. 
+**		Print a message to the shader debugger.
 **
 **	ARGUMENTS:
 **
@@ -1298,7 +1403,7 @@ void gcfDumpBuffer(
 
 #define gcmTRACE_RELEASE				gcoOS_DebugShaderTrace
 
-void 
+void
 gcoOS_DebugShaderTrace(
     IN char* Message,
     ...
@@ -1397,7 +1502,14 @@ gcoOS_SetDebugShaderFileType(
 	gcoOS_Verify(
 		IN gceSTATUS _Status
 		);
-#	define gcmVERIFY_OK(func) gcoOS_Verify(func)
+#	define gcmVERIFY_OK(func) \
+		do \
+		{ \
+			gceSTATUS __status__ = (func); \
+			gcoOS_Verify(__status__); \
+			gcmASSERT(__status__ == gcvSTATUS_OK); \
+		} \
+		while (gcvFALSE)
 #else
 #	define gcmVERIFY_OK(func) func
 #endif
@@ -1582,8 +1694,60 @@ gcoOS_SetDebugShaderFileType(
 #	define gcmVERIFY_ARGUMENT(arg)
 #endif
 
+
+void gcoOS_Log(IN unsigned int filter, IN char* msg, 
+			...
+			);
+
+void gcoOS_SetLogFilter(IN unsigned int filter);
+
+
+// Logging service 
+#define _GFX_LOG_ERROR_         0x00000001
+#define _GFX_LOG_WARNING_       0x00000002    
+#define _GFX_LOG_EGL_API_       0x00000004
+#define _GFX_LOG_NATIVE_API_    0x00000008
+#define _GFX_LOG_OES_API_       0x00000010
+#define _GFX_LOG_VG_API_        0x00000020
+#define _GFX_LOG_CONFIG_        0x00000040  
+#define _GFX_LOG_INFO_          0x00000080
+#define _GFX_LOG_ALL_           0xffffffff
+
+
+#if MRVL_ENABLE_EGL_API_LOG
+#define EGL_API_LOG(x)		    gcoOS_Log x
+#else
+#define EGL_API_LOG(x)
+#endif
+#define EGL_LOG(x)              gcoOS_Log x
+
+
+#if MRVL_ENABLE_OES1_API_LOG
+#define OES11_API_LOG(x)		gcoOS_Log x
+#else
+#define OES11_API_LOG(x)
+#endif
+#define OES11_LOG(x)            gcoOS_Log x                   
+
+#if MRVL_ENABLE_OES2_API_LOG
+#define OES20_API_LOG(x)		gcoOS_Log x
+#else
+#define OES20_API_LOG(x)
+#endif
+#define OES20_LOG               gcoOS_Log x
+
+#if MRVL_ENABLE_OVG_API_LOG
+#define OVG_API_LOG(x)		    gcoOS_Log x
+#else
+#define OVG_API_LOG(x)
+#endif
+#define OVG_LOG(x)              gcoOS_Log x               
+
+
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* __gchal_base_h_ */
+

@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -36,7 +36,7 @@ extern "C" {
 ******************************* I/O Control Codes ******************************
 \******************************************************************************/
 
-#define gcvHAL_CLASS			"galcore"
+#define gcvHAL_CLASS					"galcore"
 #define IOCTL_GCHAL_INTERFACE			30000
 #define IOCTL_GCHAL_KERNEL_INTERFACE	30001
 
@@ -90,6 +90,9 @@ typedef enum _gceHAL_COMMAND_CODES
     gcvHAL_READ_REGISTER,
     gcvHAL_WRITE_REGISTER,
 
+	gcvHAL_GET_PROFILE_SETTING,
+	gcvHAL_SET_PROFILE_SETTING,
+
     gcvHAL_READ_ALL_PROFILE_REGISTERS,
 	gcvHAL_PROFILE_REGISTERS_2D,
 
@@ -100,12 +103,20 @@ typedef enum _gceHAL_COMMAND_CODES
 	gcvHAL_GET_BASE_ADDRESS,
 
 	gcvHAL_SET_IDLE,
+
+	/* Queries. */
+	gcvHAL_QUERY_KERNEL_SETTINGS,
+
+	/* Reset. */
+	gcvHAL_RESET,
 }
 gceHAL_COMMAND_CODES;
 
 /******************************************************************************\
 ****************************** Interface Structure *****************************
 \******************************************************************************/
+
+#define gcmMAX_PROFILE_FILE_NAME	128
 
 typedef struct _gcsHAL_INTERFACE
 {
@@ -404,40 +415,42 @@ typedef struct _gcsHAL_INTERFACE
 		}
 		UnmapUserMemory;
 
+#if !USE_NEW_LINUX_SIGNAL
 		/* gcsHAL_USER_SIGNAL  */
 		struct _gcsHAL_USER_SIGNAL
 		{
 			/* Command. */
 			gceUSER_SIGNAL_COMMAND_CODES command;
-			
+
 			/* Signal ID. */
 			IN OUT gctINT				id;
-		
+
 			/* Reset mode. */
 			IN gctBOOL					manualReset;
-		
+
 			/* Wait timedout. */
 			IN gctUINT32				wait;
-		
+
 			/* State. */
 			IN gctBOOL					state;
 		}
 		UserSignal;
+#endif
 
 		/* gcvHAL_SIGNAL. */
 		struct _gcsHAL_SIGNAL
 		{
 			/* Signal handle to signal. */
 			IN gctSIGNAL				signal;
-			
-			/* Aux signal handle to signal. */
+
+			/* Reserved. */
 			IN gctSIGNAL				auxSignal;
 
 			/* Process owning the signal. */
 			IN gctHANDLE				process;
 
             /* Event generated from where of pipeline */
-            IN gceKERNEL_WHERE          fromWhere;              
+            IN gceKERNEL_WHERE          fromWhere;
 		}
 		Signal;
 
@@ -504,15 +517,37 @@ typedef struct _gcsHAL_INTERFACE
 		    IN gctUINT32			data;
 	    }
 	    WriteRegisterData;
-        
+
+		/* gcvHAL_GET_PROFILE_SETTING */
+		struct _gcsHAL_GET_PROFILE_SETTING
+		{
+			/* Enable profiling */
+			OUT gctBOOL				enable;
+
+			/* The profile file name */
+			OUT gctCHAR				fileName[gcmMAX_PROFILE_FILE_NAME];
+		}
+		GetProfileSetting;
+
+		/* gcvHAL_SET_PROFILE_SETTING */
+		struct _gcsHAL_SET_PROFILE_SETTING
+		{
+			/* Enable profiling */
+			IN gctBOOL				enable;
+
+			/* The profile file name */
+			IN gctCHAR				fileName[gcmMAX_PROFILE_FILE_NAME];
+		}
+		SetProfileSetting;
+
         /* gcvHAL_READ_ALL_PROFILE_REGISTERS */
         struct _gcsHAL_READ_ALL_PROFILE_REGISTERS
         {
 		    /* Data read. */
-		    OUT gctINT32_PTR hwProfile;
+			OUT struct _gcoHWProfile		hwProfile;
         }
         RegisterProfileData;
-        
+
         /* gcvHAL_PROFILE_REGISTERS_2D */
         struct _gcsHAL_PROFILE_REGISTERS_2D
         {
@@ -537,6 +572,14 @@ typedef struct _gcsHAL_INTERFACE
 		    OUT gceCHIPPOWERSTATE state;
         }
         QueryPowerManagement;
+
+		/* gcvHAL_QUERY_KERNEL_SETTINGS */
+		struct _gcsHAL_QUERY_KERNEL_SETTINGS
+		{
+			/* Settings.*/
+			OUT gcsKERNEL_SETTINGS settings;
+		}
+		QueryKernelSettings;
     }
 	u;
 }

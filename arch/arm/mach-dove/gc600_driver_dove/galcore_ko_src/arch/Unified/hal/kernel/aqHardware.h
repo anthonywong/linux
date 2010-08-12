@@ -47,9 +47,12 @@ struct _gcoHARDWARE
     gceCHIPMODEL    	    	chipModel;
     gctUINT32	    	    	chipRevision;
     gctUINT32	    	    	chipFeatures;
-	gctUINT32	    	    	chipMinorFeatures;
+	gctUINT32	    	    	chipMinorFeatures0;
+	gctUINT32	    	    	chipMinorFeatures1;
     gctBOOL 	    	    	allowFastClear;
+	gctBOOL						allowCompression;
 	gctUINT32					powerBaseAddress;
+	gctBOOL						extraEventStates;
 
 	gctUINT32					streamCount;
 	gctUINT32					registerMax;
@@ -59,7 +62,7 @@ struct _gcoHARDWARE
 	gctUINT32					vertexOutputBufferSize;
 
     /* Chip status */
-    gceCHIPPOWERSTATE          chipPowerState;
+    gceCHIPPOWERSTATE			chipPowerState;
 };
 
 #endif /* __aqhardware_h_ */

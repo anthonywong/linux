@@ -56,6 +56,8 @@ OS_KERNEL_DIR   := hal/os/linux/kernel
 ARCH_KERNEL_DIR := arch/$(notdir $(AQARCH))/hal/kernel
 HAL_KERNEL_DIR  := hal/kernel
 
+EXTRA_CFLAGS += -Werror
+
 OBJS := $(OS_KERNEL_DIR)/Driver.o \
         $(OS_KERNEL_DIR)/Device.o \
         $(OS_KERNEL_DIR)/Debug.o \
@@ -133,6 +135,8 @@ endif
 
 ifeq ($(ENABLE_ARM_L2_CACHE), 1)
 EXTRA_CFLAGS += -DENABLE_ARM_L2_CACHE=1
+else
+EXTRA_CFLAGS += -DENABLE_ARM_L2_CACHE=0
 endif
 
 ifeq ($(CONFIG_DOVE_GPU), 1)
@@ -153,6 +157,30 @@ ifeq ($(ENABLE_GPU_CLOCK_BY_DRIVER), 1)
 EXTRA_CFLAGS += -DENABLE_GPU_CLOCK_BY_DRIVER=1
 else
 EXTRA_CFLAGS += -DENABLE_GPU_CLOCK_BY_DRIVER=0
+endif
+
+ifeq ($(USE_VDK), 1)
+        EXTRA_CFLAGS += -DUSE_VDK=1 -DUSE_SW_FB=$(USE_SW_FB)
+else
+        EXTRA_CFLAGS += -DUSE_VDK=0 -DUSE_SW_FB=$(USE_SW_FB)
+endif
+
+ifeq ($(USE_FB_DOUBLE_BUFFER), 1)
+        EXTRA_CFLAGS += -DUSE_FB_DOUBLE_BUFFER=1
+else
+        EXTRA_CFLAGS += -DUSE_FB_DOUBLE_BUFFER=0
+endif
+
+ifeq ($(USE_NEW_LINUX_SIGNAL), 1)
+        EXTRA_CFLAGS += -DUSE_NEW_LINUX_SIGNAL=1
+else
+        EXTRA_CFLAGS += -DUSE_NEW_LINUX_SIGNAL=0
+endif
+
+ifeq ($(MRVL_NATIVE_IMAGE_KHR_FOR_CHROME),1)
+    EXTRA_CFLAGS += -DMRVL_NATIVE_IMAGE_KHR_FOR_CHROME=1
+else
+    EXTRA_CFLAGS += -DMRVL_NATIVE_IMAGE_KHR_FOR_CHROME=0
 endif
 
 EXTRA_CFLAGS += -I$(AQROOT)/hal/inc
