@@ -237,6 +237,10 @@ static struct i2c_board_info __initdata dove_rd_avng_i2c_bus0_devs[] = {
 		I2C_BOARD_INFO("rt5623", 0x1a),
 	},
 	{
+		I2C_BOARD_INFO("ec_key_i2c", 0x2c),
+		.irq = IRQ_DOVE_GPIO_START,
+	},
+	{
 		I2C_BOARD_INFO("bma020", 0x38),
 		.irq = IRQ_DOVE_GPIO_16_23,
 	},

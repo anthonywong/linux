@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.32.9-dove-5.1.0
-# Sun Apr 18 17:34:41 2010
+# Linux kernel version: 2.6.32.9-dove-5.1.0.2
+# Thu Apr  8 10:42:28 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -293,6 +293,7 @@ CONFIG_SATA_DEBUG_ON_ERROR=y
 # CONFIG_MV_GPIO_KEY is not set
 # CONFIG_MV_TOUCH_KEY is not set
 # CONFIG_MV_TOUCH_SLIDER is not set
+CONFIG_MV_EC_KEY=y
 # CONFIG_MV_DBG_TRACE is not set
 CONFIG_PLAT_ORION=y
 

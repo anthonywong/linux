@@ -20,4 +20,12 @@ config MV_TOUCH_SLIDER
 	  This selects the Marvell Touch Slider driver
 	  say Y or M here.
 	  If unsure, say N.
+
+config MV_EC_KEY
+	tristate "Marvell EC Key driver"
+	---help---
+	  This selects the Marvell EC Key driver
+	  say Y or M here.
+	  If unsure, say N.
+
 endmenu
