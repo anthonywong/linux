@@ -38,9 +38,17 @@ USE_3D_VG		=1
 ABI             ?= 0
 ANDROID         ?= 0
 EGL_API_ANDROID ?= 0
-EGL_API_ECLAIR  ?= 0
+ANDROID_VERSION_ECLAIR  ?= 0
 ENUM_WORKAROUND ?= 0
 ENDIANNESS		?= 0
+QNX             ?= 0
+LINUX_OABI		?= 0
+
+ifeq ($(LINUX_OABI), 1)
+ABI             ?= 0
+else
+ABI             ?= aapcs-linux
+endif
 
 ################################################################
 # Toolchain.
@@ -59,7 +67,7 @@ STRIP  := $(CROSS_COMPILE)strip
 # Make command.
 
 MAKE     = make --makefile=Makefile.linux
-DRV_MAKE = make --makefile=Kbuild
+DRV_MAKE ?= make --makefile=Kbuild
 
 ################################################################
 # Resource.
@@ -122,33 +130,45 @@ endif
 ifeq ($(ENDIANNESS), 0)
 else
     CFLAGS += -m$(ENDIANNESS)
+	LFLAGS += -m$(ENDIANNESS)
+	PFLAGS += -m$(ENDIANNESS)
 endif
 
 ifeq ($(ANDROID), 1)
-ifeq ($(ARCH_TYPE), arm)
+    USE_VDK = 0
+
+    ifeq ($(ARCH_TYPE), arm)
 	CFLAGS += -I$(ANDROID_HOME)/bionic/libstdc++/include -I$(ANDROID_HOME)/bionic/libc/arch-arm/include -I$(ANDROID_HOME)/bionic/libc/include -I$(ANDROID_HOME)/bionic/libc/kernel/common/ -I$(ANDROID_HOME)/bionic/libc/kernel/arch-arm -I$(ANDROID_HOME)/bionic/libm/include -I$(ANDROID_HOME)/bionic/libm/include/arch/arm -I$(ANDROID_HOME)/bionic/libthread_db/include -I$(ANDROID_HOME)/system/core/include -I$(ANDROID_HOME)/frameworks/base/include 
-	CFLAGS += -DANDROID -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ -fno-short-enums
+        CFLAGS += -DANDROID -D__ARM_ARCH_5__ -D__ARM_ARCH_5T__ -D__ARM_ARCH_5E__ -D__ARM_ARCH_5TE__ -fno-short-enums
+    endif
+
+    ifeq ($(ARCH_TYPE), xburst)
+        CFLAGS += -I$(ANDROID_HOME)/bionic/libstdc++/include -I$(ANDROID_HOME)/bionic/libc/arch-xburst/include -I$(ANDROID_HOME)/bionic/libc/include -I$(ANDROID_HOME)/bionic/libc/kernel/common/ -I$(ANDROID_HOME)/bionic/libc/kernel/arch-xburst -I$(ANDROID_HOME)/bionic/libm/include -I$(ANDROID_HOME)/bionic/libm/include/mips -I$(ANDROID_HOME)/bionic/libthread_db/include
+    endif
+
+    ifeq ($(EGL_API_ANDROID), 1)
+        CFLAGS += -DEGL_API_ANDROID
+    endif
+
+    ifeq ($(ANDROID_VERSION_ECLAIR), 1)
+        CFLAGS += -DANDROID_VERSION_ECLAIR
+    endif
 endif
 
-ifeq ($(ARCH_TYPE), xburst)
-	CFLAGS += -I$(ANDROID_HOME)/bionic/libstdc++/include -I$(ANDROID_HOME)/bionic/libc/arch-xburst/include -I$(ANDROID_HOME)/bionic/libc/include -I$(ANDROID_HOME)/bionic/libc/kernel/common/ -I$(ANDROID_HOME)/bionic/libc/kernel/arch-xburst -I$(ANDROID_HOME)/bionic/libm/include -I$(ANDROID_HOME)/bionic/libm/include/mips -I$(ANDROID_HOME)/bionic/libthread_db/include
+ifeq ($(QNX), 1)
+	CFLAGS += -D__QNXNTO__   
+else
+	CFLAGS += -DLINUX
 endif
 
-USE_VDK = 0
-STATIC_LINK = 1
-ifeq ($(EGL_API_ANDROID), 1)
-	CFLAGS += -DEGL_API_ANDROID
-endif
-ifeq ($(EGL_API_ECLAIR), 1)
-	CFLAGS += -I$(ANDROID_HOME)/frameworks/base/include/ui -I$(ANDROID_HOME)/hardware/libhardware/include
-	CFLAGS += -DEGL_API_ECLAIR
-endif
+ifeq ($(LINUX_OABI), 1)
+	CFLAGS += -DLINUX_OABI
 endif
 
 ifeq ($(FLAREON),1)
-	CFLAGS += -Wall -DLINUX -D_REENTRANT -fno-strict-aliasing
+	CFLAGS += -Wall -D_REENTRANT -fno-strict-aliasing
 else
-	CFLAGS += -Wall -DLINUX -D_REENTRANT -fno-strict-aliasing
+	CFLAGS += -Wall -D_REENTRANT -fno-strict-aliasing
 endif
 
 ifeq ($(CPU_TYPE), 0)
@@ -166,7 +186,7 @@ endif
 ifeq ($(DEBUG), 1)
 	CFLAGS += -g -fPIC -O0 -DDEBUG -D_DEBUG
 else
-	CFLAGS += -O2 -fPIC -Werror
+	CFLAGS += -O2 -fPIC
 endif
 
 ifeq ($(EGL_API_FB), 1)
@@ -189,6 +209,18 @@ else
 	CFLAGS += -DUSE_FB_DOUBLE_BUFFER=0
 endif
 
+ifeq ($(USE_NEW_LINUX_SIGNAL), 1)
+	CFLAGS += -DUSE_NEW_LINUX_SIGNAL=1
+else
+	CFLAGS += -DUSE_NEW_LINUX_SIGNAL=0
+endif
+
+ifeq ($(MRVL_NATIVE_IMAGE_KHR_FOR_CHROME),1)
+    CFLAGS += -DMRVL_NATIVE_IMAGE_KHR_FOR_CHROME=1
+else
+    CFLAGS += -DMRVL_NATIVE_IMAGE_KHR_FOR_CHROME=0
+endif
+
 CXXFLAGS += -fno-short-enums
 
 ################################################################################
@@ -198,7 +230,6 @@ CFLAGS += -DVIVANTE_PROFILER=1
 else
 CFLAGS += -DVIVANTE_PROFILER=0
 endif
-
 
 ################################################################
 # Module directories.
@@ -227,10 +258,13 @@ else
 SC2X_LIB_DIR    := $(GLES2X_DIR)/slc/glslang/MachineIndependent/compiler
 endif
 
+GCU_DIR		:= $(AQROOT)/gcu/proj/linux
+
 # applications
+EGL_TEST_DIR	:= $(AQROOT)/test/egl
 ES11_TEST_DIR   := $(AQROOT)/test/es11/Linux
 ES2X_TEST_DIR   := $(AQROOT)/test/es20
-ES2X_EXTERN_DIR := $(AQROOT)/test/es20/extern/PublicSDK
+ES2X_EXTERN_DIR := $(AQROOT)/test/es20/extern
 ES20_TEST_DIR   := $(AQROOT)/sdk/samples/es20
 
 ifeq ($(USE_VDK), 0)
@@ -269,6 +303,7 @@ MM07U_DIR       := $(ES2X_TEST_DIR)/3DMarkMobileES2_Update
 SM20_DIR        := $(AQROOT)/test/es20/SimulationMark_ES_2.0
 KANZI_DIR       := $(AQROOT)/test/es20/Kanzi_UI_demo/Kanzi_UI_src
 AB20_DIR        := $(ES2X_TEST_DIR)/Automotive
+JRC_DIR         := $(ES2X_TEST_DIR)/JRC
 GFX_TEST_DIR    := $(AQROOT)/test/gfx
 ES11_UNIT_DIR   := $(AQROOT)/test/es11/common/UnitTest
 ES11_EXTERN_DIR := $(AQROOT)/test/es11/extern
@@ -284,5 +319,6 @@ TEXTURE7_DIR    := $(ES2X_TEST_DIR)/texture7
 ACTINIUM_DIR    := $(ES2X_TEST_DIR)/actinium
 VVLAUNCHER_DIR  := $(ES2X_TEST_DIR)/vv_launcher
 
+VIDEOCUBE_DIR	:= $(AQROOT)/test/es11/extern/VideoCube
 
 

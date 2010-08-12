@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -42,6 +42,7 @@ typedef enum _gceCHIPMODEL
 	gcv600  = 0x0600,
 	gcv700  = 0x0700,
 	gcv800  = 0x0800,
+	gcv860  = 0x0860,
 	gcv1000 = 0x1000,
 }
 gceCHIPMODEL;
@@ -88,6 +89,12 @@ typedef enum _gceFEATURE
 	gcvFEATURE_SHADER_HAS_TRIG,
 	gcvFEATURE_VAA,
 	gcvFEATURE_HZ,
+	gcvFEATURE_CORRECT_STENCIL,
+	gcvFEATURE_VG20,
+	gcvFEATURE_VG_FILTER,
+	gcvFEATURE_VG21,
+	gcvFEATURE_VG_DOUBLE_BUFFER,
+	gcvFEATURE_MC20,
 }
 gceFEATURE;
 
@@ -114,6 +121,7 @@ typedef enum _gceSURF_TYPE
 	gcvSURF_TILE_STATUS,
 	gcvSURF_MASK,
 	gcvSURF_SCISSOR,
+	gcvSURF_HIERARCHICAL_DEPTH,
 	gcvSURF_NUM_TYPES, /* Make sure this is the last one! */
 
 	/* Combinations. */

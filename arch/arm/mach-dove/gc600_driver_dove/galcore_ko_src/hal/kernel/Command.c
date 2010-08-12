@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -56,10 +56,10 @@ static gceSTATUS _NewQueue(
     gctSIZE_T bytes;
 
     /* Allocate new command queue. */
-    status = gcoOS_AllocateNonPagedMemory(Command->os, 
-										 gcvFALSE, 
+    status = gcoOS_AllocateNonPagedMemory(Command->os,
+										 gcvFALSE,
 										 &Command->pageSize,
-                                         &physical, 
+                                         &physical,
 										 &logical);
 
     if (status < 0)
@@ -334,11 +334,11 @@ gceSTATUS gcoCOMMAND_Start(
 	/* Append WAIT/LINK. */
     bytes = Command->pageSize;
 	gcmERR_RETURN(
-		gcoHARDWARE_WaitLink(hardware, 
-							 Command->logical, 
-							 0, 
+		gcoHARDWARE_WaitLink(hardware,
+							 Command->logical,
+							 0,
 							 &bytes,
-							 &Command->wait, 
+							 &Command->wait,
 							 &Command->waitSize));
 
     /* Adjust offset. */
@@ -347,7 +347,7 @@ gceSTATUS gcoCOMMAND_Start(
 	/* Enable command processor. */
 	gcmERR_RETURN(
 		gcoHARDWARE_Execute(hardware,
-							Command->logical, 
+							Command->logical,
 							bytes));
 
 	/* Command queue is running. */
@@ -378,6 +378,7 @@ gceSTATUS gcoCOMMAND_Stop(
 {
     gcoHARDWARE hardware;
 	gceSTATUS status;
+//	gctUINT32 idle;
 
 	/* Verify the arguments. */
 	gcmVERIFY_OBJECT(Command, gcvOBJ_COMMAND);
@@ -397,7 +398,13 @@ gceSTATUS gcoCOMMAND_Stop(
 		gcoHARDWARE_End(hardware,
 						Command->wait,
 						&Command->waitSize));
-
+    
+    /* There is no need to wait here */
+#if 0
+	/* Wait for idle. */
+	gcmERR_RETURN(
+		gcoHARDWARE_GetIdle(hardware, gcvTRUE, &idle));
+#endif
 	/* Command queue is no longer running. */
 	Command->running = gcvFALSE;
 
@@ -511,6 +518,12 @@ gcoCOMMAND_Commit(
 
 	/* Verify the arguments. */
 	gcmVERIFY_OBJECT(Command, gcvOBJ_COMMAND);
+
+#if gcdNULL_DRIVER == 2
+	/* return success if gcdNULL_DRIVER == 2 */
+	return gcvSTATUS_OK;
+#endif
+
 	gcmVERIFY_OK(_AddMap(Command->os,
 						 CommandBuffer,
 						 sizeof(struct _gcoCMDBUF),
@@ -551,7 +564,7 @@ gcoCOMMAND_Commit(
 		&&  (context->id != Command->currentContext)
 		)
 		{
-			gcmVERIFY_OK(_AddMap(Command->os, 
+			gcmVERIFY_OK(_AddMap(Command->os,
 								 context->logical,
 								 bytes,
 								 &logical,
@@ -724,8 +737,8 @@ gcoCOMMAND_Commit(
 			gcoHARDWARE_WaitLink(hardware,
 								 gcvNULL,
 								 Command->offset,
-								 &bytes, 
-								 gcvNULL, 
+								 &bytes,
+								 gcvNULL,
 								 gcvNULL));
 
 		lastRun = bytes;
@@ -1059,7 +1072,7 @@ gceSTATUS gcoCOMMAND_Execute(
 								 (gctUINT8 *) Command->logical + offset,
 								 offset,
 								 &bytes,
-								 &wait, 
+								 &wait,
 								 &waitBytes));
 
         if (Command->newQueue)
@@ -1137,12 +1150,15 @@ gceSTATUS gcoCOMMAND_Stall(
     gctUINT8 * buffer;
     gctSIZE_T bufferSize;
     gctBOOL acquired = gcvFALSE;
-#ifdef _DEBUG
 	gctUINT32 counter = 0;
-#endif
 
     /* Verify the arguments. */
     gcmVERIFY_OBJECT(Command, gcvOBJ_COMMAND);
+
+#if gcdNULL_DRIVER == 2
+	/* return success if gcdNULL_DRIVER == 2 */
+	return gcvSTATUS_OK;
+#endif
 
     /* Extract the gcoOS object pointer. */
     os = Command->os;
@@ -1178,9 +1194,9 @@ gceSTATUS gcoCOMMAND_Stall(
         						   &requested));
 
         /* Reserve space in the command queue. */
-        gcmERR_BREAK(gcoCOMMAND_Reserve(Command, 
-								    requested, 
-									(gctPOINTER *) &buffer, 
+        gcmERR_BREAK(gcoCOMMAND_Reserve(Command,
+								    requested,
+									(gctPOINTER *) &buffer,
 									&bufferSize));
 
         /* Command queue has been acquired. */
@@ -1214,20 +1230,28 @@ gceSTATUS gcoCOMMAND_Stall(
             /* Wait a little bit as not to consume the entire CPU resource. */
             gcmVERIFY_OK(gcoOS_Delay(os, 1));
 
-#ifdef _DEBUG
-			if ((++counter % 100) == 0)
+			if ((++counter % 500) == 0)
 			{
+#if defined _DEBUG
 				gctUINT32 idle;
 
 				/* Read idle register. */
-				gcmVERIFY_OK(gcoHARDWARE_GetIdle(Command->kernel->hardware,
-										     &idle));
+				gcmVERIFY_OK(
+					gcoHARDWARE_GetIdle(Command->kernel->hardware,
+										gcvFALSE,
+										&idle));
 
-				gcmTRACE_ZONE(gcvLEVEL_WARNING, gcvZONE_COMMAND,
-						   "gcoCOMMAND_Stall: Idle register = 0x%08X",
-						   idle);
-			}
+				gcmTRACE_ZONE(
+					gcvLEVEL_WARNING, gcvZONE_COMMAND,
+					"gcoCOMMAND_Stall: Idle register = 0x%08X",
+					idle);
+
+                gcoOS_Log(_GFX_LOG_WARNING_, "%s : %d : idle register = 0x%08x \n", 
+                            __FUNCTION__, __LINE__, idle);                
 #endif
+				gcmVERIFY_OK(
+					gcoOS_MemoryBarrier(os, gcvNULL));
+			}
         }
 
         /* Success. */

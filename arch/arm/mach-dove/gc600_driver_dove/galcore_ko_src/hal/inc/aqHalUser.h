@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -35,7 +35,6 @@
 
 #include "gcHAL_Base.h"
 #include "gcHAL_2D.h"
-
 
 #include "gcHAL_3D.h"
 
@@ -287,7 +286,8 @@ gceSTATUS
 gcoHARDWARE_EnableTileStatus(
 	IN gcoHARDWARE Hardware,
 	IN gcsSURF_INFO_PTR Surface,
-	IN gctUINT32 TileStatusAddress
+	IN gctUINT32 TileStatusAddress,
+	IN gcsSURF_NODE_PTR HzTileStatus
 	);
 
 /* Disable tile status for a surface. */
@@ -302,6 +302,7 @@ gcoHARDWARE_DisableTileStatus(
 gceSTATUS
 gcoHARDWARE_FlushTileStatus(
 	IN gcoHARDWARE Hardware,
+	IN gcsSURF_INFO_PTR Surface,
 	IN gctBOOL Decompress
 	);
 
@@ -746,7 +747,7 @@ gcoHARDWARE_SetOriginFraction(
 	);
 
 /* Load 256-entry color table for INDEX8 source surfaces. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_LoadPalette(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT FirstIndex,
@@ -756,35 +757,35 @@ gcoHARDWARE_LoadPalette(
 	);
 
 /* Setup the source pixel swizzle. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetSourceSwizzle(
 	IN gcoHARDWARE Hardware,
 	IN gceSURF_SWIZZLE Swizzle
 	);
 
 /* Setup the source pixel UV swizzle. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetSourceSwizzleUV(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT32 SwizzleUV
 	);
 
 /* Setup the source global color value in ARGB8 format. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetSourceGlobalColor(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT32 Color
 	);
 
 /* Setup the target global color value in ARGB8 format. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetTargetGlobalColor(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT32 Color
 	);
 
 /* Setup the source and target pixel multiply modes. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetMultiplyModes(
 	IN gcoHARDWARE Hardware,
 	IN gce2D_PIXEL_COLOR_MULTIPLY_MODE SrcPremultiplySrcAlpha,
@@ -794,7 +795,7 @@ gcoHARDWARE_SetMultiplyModes(
 	);
 
 /* Setup the source, target and pattern transparency modes. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetTransparencyModes(
 	IN gcoHARDWARE Hardware,
 	IN gce2D_TRANSPARENCY SrcTransparency,
@@ -802,10 +803,10 @@ gcoHARDWARE_SetTransparencyModes(
 	IN gce2D_TRANSPARENCY PatTransparency
 	);
 
-/* Setup the source, target and pattern transparency modes. 
+/* Setup the source, target and pattern transparency modes.
    Used only for have backward compatibility.
 */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetAutoTransparency(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT8 FgRop,
@@ -813,7 +814,7 @@ gcoHARDWARE_SetAutoTransparency(
 	);
 
 /* Setup the source color key value in ARGB8 format. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetSourceColorKeyRange(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT32 ColorLow,
@@ -839,7 +840,7 @@ gceSTATUS gcoHARDWARE_SaveTransparencyColor(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT32 Color32
 	);
-	
+
 /* Set clipping rectangle. */
 gceSTATUS
 gcoHARDWARE_SetClipping(
@@ -862,7 +863,7 @@ gcoHARDWARE_SetTargetFormat(
 	);
 
 /* Setup the destination color key value in ARGB8 format. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_SetTargetColorKeyRange(
 	IN gcoHARDWARE Hardware,
 	IN gctUINT32 ColorLow,
@@ -903,7 +904,7 @@ gcoHARDWARE_LoadColorPattern(
 	);
 
 /* Calculate stretch factor. */
-gctUINT32 
+gctUINT32
 gcoHARDWARE_GetStretchFactor(
 	IN gctINT32 SrcSize,
 	IN gctINT32 DestSize
@@ -966,7 +967,7 @@ gcoHARDWARE_StartDE(
 	IN gctUINT32 BgRop
 	);
 
-/* Start a DE command to draw one or more Lines, 
+/* Start a DE command to draw one or more Lines,
    with a common or individual color. */
 gceSTATUS
 gcoHARDWARE_StartDELine(
@@ -1063,7 +1064,7 @@ gcoHARDWARE_DisableAlphaBlend(
 	IN gcoHARDWARE Hardware
 	);
 
-/* Set the GPU clock cycles, after which the idle 2D engine 
+/* Set the GPU clock cycles, after which the idle 2D engine
    will trigger a flush. */
 gceSTATUS
 gcoHARDWARE_SetAutoFlushCycles(
@@ -1071,7 +1072,7 @@ gcoHARDWARE_SetAutoFlushCycles(
 	IN gctUINT32 Cycles
 	);
 
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_ColorConvertToARGB8(
 	IN gceSURF_FORMAT Format,
 	IN gctUINT32 NumColors,
@@ -1079,7 +1080,7 @@ gcoHARDWARE_ColorConvertToARGB8(
 	OUT gctUINT32_PTR Color32
 	);
 
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_ColorConvertFromARGB8(
 	IN gceSURF_FORMAT Format,
 	IN gctUINT32 NumColors,
@@ -1087,7 +1088,7 @@ gcoHARDWARE_ColorConvertFromARGB8(
 	OUT gctUINT32_PTR Color
 	);
 
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_ColorPackFromARGB8(
 	IN gceSURF_FORMAT Format,
 	IN gctUINT32 Color32,
@@ -1380,9 +1381,17 @@ gcoHARDWARE_ClearTileStatus(
 	IN gcoHARDWARE Hardware,
 	IN gcsSURF_INFO_PTR Surface,
 	IN gctUINT32 Address,
+	IN gctSIZE_T Bytes,
 	IN gceSURF_TYPE Type,
 	IN gctUINT32 ClearValue,
 	IN gctUINT8 ClearMask
+	);
+
+gceSTATUS
+gco3D_ClearHzTileStatus(
+	IN gco3D Engine,
+	IN gcsSURF_INFO_PTR Surface,
+	IN gcsSURF_NODE_PTR TileStatus
 	);
 
 gceSTATUS

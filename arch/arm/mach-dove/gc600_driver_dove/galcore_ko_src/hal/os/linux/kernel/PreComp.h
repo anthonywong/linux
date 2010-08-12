@@ -39,15 +39,17 @@
 #include <linux/dma-mapping.h>
 #include <linux/kthread.h>
 
+#ifdef ANDROID
+#include <linux/earlysuspend.h>
+#endif
+
 #ifdef MODVERSIONS
 #  include <linux/modversions.h>
 #endif
 #include <asm/io.h>
 #include <asm/uaccess.h>
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 #include <linux/clk.h>
-#endif 
 
 #define NTSTRSAFE_NO_CCH_FUNCTIONS
 #include "aqHal.h"
@@ -56,9 +58,7 @@
 #include "Device.h"
 #include "Os.h"
 
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-//#define FIND_TASK_BY_PID(x) pid_task(x, PIDTYPE_PID)
 #define FIND_TASK_BY_PID(x) pid_task(find_vpid(x), PIDTYPE_PID)
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 #define FIND_TASK_BY_PID(x) find_task_by_vpid(x)
@@ -86,6 +86,5 @@ GetOrder(
     
 	return order;
 }
-
 
 
