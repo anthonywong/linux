@@ -542,6 +542,8 @@ gcoHARDWARE_InitializeHardware(
 							Hardware->powerBaseAddress +
 							0x00100,
 							data));
+	    gcmONERROR(
+		    gcoOS_Delay(Hardware->os, 1));
     }
 		
 #endif
@@ -2691,6 +2693,10 @@ gcoHARDWARE_SetPowerManagementState(
 	return gcvSTATUS_OK;
 
 OnError:
+
+	/* Save new power state. */
+	Hardware->chipPowerState = State;
+
 	gcmTRACE(gcvLEVEL_ERROR,
 			 "ERROR: gcoHARDWARE_SetPowerManagementState has error %d.",
 			 status);
