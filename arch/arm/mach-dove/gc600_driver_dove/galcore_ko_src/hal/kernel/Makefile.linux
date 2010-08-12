@@ -44,7 +44,7 @@ INCLUDE += -I$(AQROOT)/hal/inc
 INCLUDE += -I$(AQROOT)/hal/user
 INCLUDE += -I$(AQARCH)/hal/kernel
 
-CFLAGS += $(INCLUDE)
+CFLAGS += $(INCLUDE) -Werror
 
 ################################################################################
 # Describe object files.

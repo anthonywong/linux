@@ -277,3 +277,6 @@ gcoOS_Verify(
 	gk_LastError = Status;
 	//gcmASSERT(Status == gcvSTATUS_OK);
 }
+
+
+

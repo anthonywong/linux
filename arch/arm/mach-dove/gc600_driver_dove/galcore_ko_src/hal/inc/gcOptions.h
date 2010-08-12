@@ -101,11 +101,16 @@
 /*
 	gcdDUMP
 
-	Thias define is used to turn on dumping for playback.
+	This define is used to turn on dumping for playback.
 */
 #ifndef gcdDUMP
 #  define gcdDUMP					0
 #endif
+
+/*
+	gcdNULL_DRIVER
+*/
+#define gcdNULL_DRIVER				0
 
 /*
     MRVL_TAVOR_PV2_PATCH
@@ -114,13 +119,12 @@
 */
 #define MRVL_TAVOR_PV2_PATCH                0
 
-
 /*
-    MRVL_TAVOR_PV2_DISABLE_FASTCLEAR
-    
-    Disable fastclear for TavorPV2
+	gcdENABLE_TIMEOUT_DETECTION
+
+	Enable timeout detection.
 */
-#define MRVL_TAVOR_PV2_DISABLE_FASTCLEAR    0
+#define gcdENABLE_TIMEOUT_DETECTION	0
 
 
 /*
@@ -130,9 +134,14 @@
 
 
 /*
+    MRVL_LOW_POWER_MODE_DEBUG
+*/
+#define MRVL_LOW_POWER_MODE_DEBUG           0
+
+/*
     MRVL Utility Options
 */
-#define MRVL_FORCE_MSAA_ON                  0
+#define MRVL_FORCE_MSAA_ON                  1
 
 /*
     MRVL_SWAP_BUFFER_IN_EVERY_DRAW
@@ -155,28 +164,56 @@
 /* Disable swap worker thread */
 #define MRVL_DISABLE_SWAP_THREAD			0
 
+/* API log enable */
+#define MRVL_ENABLE_API_LOG				    0
+#define MRVL_ENABLE_EGL_API_LOG			    0
+#define MRVL_ENABLE_OES1_API_LOG			0
+#define MRVL_ENABLE_OES2_API_LOG			0
+#define MRVL_ENABLE_OVG_API_LOG			    0
+
+/* Optimization for Eclair UI */
+#define MRVL_OPTI_ANDROID_IMAGE             1
+
+/* if pmem is enabled and cacheable, enable it */
+#define MRVL_CACHEABLE_PMEM                 1
+
+
+#define MRVL_OPTI_COMPOSITOR                0
+#define MRVL_OPTI_COMPOSITOR_DEBUG          0
+
+#if MRVL_OPTI_COMPOSITOR
+#define MRVL_DISABLE_FASTCLEAR              1
+#define MRVL_OPTI_COMPOSITOR_FRAME_LOCK     0   
+#else
+#define MRVL_DISABLE_FASTCLEAR              1
+#define MRVL_OPTI_COMPOSITOR_FRAME_LOCK     0   
+#endif 
+
 
 /*
     Definitions for vendor, renderer and version strings
 */
 #define _VENDOR_STRING_             "Marvell Technology Group Ltd"
 
-#define _EGL_VERSION_STRING_        "EGL 1.3 Ver0.8.0.1123";      
+#define _EGL_VERSION_STRING_        "EGL 1.3 Ver0.8.0.1550";      
 
 #if defined(COMMON_LITE)
-#define _OES11_VERSION_STRING_      "OpenGL ES-CL 1.1 Ver0.8.0.1123";
+#define _OES11_VERSION_STRING_      "OpenGL ES-CL 1.1 Ver0.8.0.1550";
 #else
-#define _OES11_VERSION_STRING_      "OpenGL ES-CM 1.1 Ver0.8.0.1123";
+#define _OES11_VERSION_STRING_      "OpenGL ES-CM 1.1 Ver0.8.0.1550";
 #endif
 
-#define _OES20_VERSION_STRING_      "OpenGL ES 2.0 Ver0.8.0.1123";
-#define _GLSL_ES_VERSION_STRING_    "OpenGL ES GLSL ES 1.00 Ver0.8.0.1123"
+#define _OES20_VERSION_STRING_      "OpenGL ES 2.0 Ver0.8.0.1550";
+#define _GLSL_ES_VERSION_STRING_    "OpenGL ES GLSL ES 1.00 Ver0.8.0.1550"
 
-#define _OPENVG_VERSION_STRING_     "OpenVG 1.1 Ver0.8.0.1123"
+#define _OPENVG_VERSION_STRING_     "OpenVG 1.1 Ver0.8.0.1550"
 
-#define _GAL_VERSION_STRING_        "GAL Ver0.8.0.1123"
+#define _GAL_VERSION_STRING_        "GAL Ver0.8.0.1550"
 
 #endif /* __gcoptions_h_ */
+
+
+
 
 
 

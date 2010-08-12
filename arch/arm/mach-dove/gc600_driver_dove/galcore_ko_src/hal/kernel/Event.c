@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -113,7 +113,7 @@ _GetEvent(
 			return gcvSTATUS_OK;
 		}
 	}
-	
+
 	/* Resume interrupt */
 	gcmVERIFY_OK(gcoOS_ResumeInterrupt(Event->os));
 
@@ -348,7 +348,7 @@ gceSTATUS gcoEVENT_Destroy(
 **			Pointer to a variable receiving the number of bytes copied into the
 **			command buffer.
 */
-gceSTATUS 
+gceSTATUS
 gcoEVENT_Schedule(
 	IN gcoEVENT Event,
 	IN gceEVENT_TYPE Type,
@@ -421,7 +421,7 @@ gcoEVENT_Schedule(
 								Data->Signal.process,
 								(CommandBufferSize == gcvNULL));
 		break;
-	
+
 	case gcvEVENT_UNLOCK:
 		/* Unlock. */
 		status = gcoEVENT_Unlock(Event,
@@ -843,7 +843,7 @@ gcoEVENT_FreeVideoMemory(
 
 		/* Append it to the queue. */
 	status = gcoEVENT_Append(Event, id, &interface);
-	
+
 	if (gcmIS_ERROR(status))
 	{
 		/* Error. */
@@ -1536,52 +1536,13 @@ gcoEVENT_Notify(
 		switch (event->type)
 		{
 		case gcvEVENT_SIGNAL:
-			if (event->data.Signal.auxSignal != gcvNULL)
-			{
-				/* Map the aux signal into kernel space. */
-				gcmVERIFY_OK(gcoOS_MapSignal(Event->os,
-											 event->data.Signal.auxSignal,
-											 event->data.Signal.process,
-											 &signal));
+			/* Set signal. */
+			gcmERR_BREAK(
+				gcoOS_UserSignal(Event->os,
+								 event->data.Signal.signal,
+								 event->data.Signal.process));
 
-				if (signal == gcvNULL)
-				{
-					/* Signal. */
-					gcmVERIFY_OK(gcoOS_Signal(Event->os,
-											  event->data.Signal.auxSignal, 
-											  gcvTRUE));
-				}
-				else
-				{
-					/* Signal. */
-					gcmVERIFY_OK(gcoOS_Signal(Event->os, signal, gcvTRUE));
-
-					/* Destroy the mapped signal. */
-					gcmVERIFY_OK(gcoOS_DestroySignal(Event->os, signal));
-				}
-			}
-
-			/* Map the signal into kernel space. */
-			gcmVERIFY_OK(gcoOS_MapSignal(Event->os,
-										 event->data.Signal.signal,
-										 event->data.Signal.process,
-										 &signal));
-
-			if (signal == gcvNULL)
-			{
-				/* Signal. */
-				gcmVERIFY_OK(gcoOS_Signal(Event->os,
-										  event->data.Signal.signal, 
-										  gcvTRUE));
-			}
-			else
-			{
-				/* Signal. */
-				gcmVERIFY_OK(gcoOS_Signal(Event->os, signal, gcvTRUE));
-
-				/* Destroy the mapped signal. */
-				gcmVERIFY_OK(gcoOS_DestroySignal(Event->os, signal));
-			}
+			gcmASSERT(event->data.Signal.auxSignal == gcvNULL);
 
 			/* Success. */
 			status = gcvSTATUS_OK;
@@ -1589,9 +1550,9 @@ gcoEVENT_Notify(
 
 		case gcvEVENT_UNLOCK:
 			/* Unlock. */
-			gcmVERIFY_OK(gcoVIDMEM_Unlock(event->data.Unlock.node, 
-										  event->data.Unlock.type, 
-										  gcvNULL, 
+			gcmVERIFY_OK(gcoVIDMEM_Unlock(event->data.Unlock.node,
+										  event->data.Unlock.type,
+										  gcvNULL,
 										  gcvNULL));
 
 			/* Success. */
@@ -1614,7 +1575,7 @@ gcoEVENT_Notify(
 										   event->data.UnmapUserMemory.info,
 										   event->data.UnmapUserMemory.address);
 			break;
-			
+
 		case gcvEVENT_FREE_NON_PAGED_MEMORY:
 			/* Free non-paged memory. */
 			status = gcoOS_FreeNonPagedMemory(
@@ -1649,7 +1610,7 @@ gcoEVENT_Notify(
 
 			/* Write data. */
 			gcmVERIFY_OK(gcoOS_WriteMemory(Event->os,
-										   logical, 
+										   logical,
 										   event->data.WriteData.data));
 
 			/* Unmap the physical memory. */
@@ -1708,7 +1669,7 @@ gcoEVENT_Append(
 		/* Initiailze the event record. */
 		event->next  = gcvNULL;
 		event->event = *Interface;
-		
+
 		if (Event->queues[Id].head == gcvNULL)
 		{
 			/* Mark haead of new queue. */
@@ -1832,7 +1793,7 @@ gcoEVENT_Commit(
 
 		/* Loop while there are records in the queue. */
         newCommand = gcvFALSE;
-        
+
 		while (Queue != gcvNULL && !newCommand)
 		{
 			gcsQUEUE_PTR record, next;
@@ -1856,14 +1817,14 @@ gcoEVENT_Commit(
                         newCommand = gcvTRUE;
                     }
                     break;
-                    
+
                 case gcvHAL_FREE_VIDEO_MEMORY:
                     if (record->interface.u.FreeVideoMemory.node->VidMem.memory->object.type != gcvOBJ_VIDMEM)
                     {
                         newCommand = gcvTRUE;
                     }
                     break;
-				
+
 				default:
 					break;
                 }
@@ -1879,9 +1840,15 @@ gcoEVENT_Commit(
 												(gctPOINTER *) record));
 			Queue = next;
 		}
-        
+
         if (gcmIS_ERROR(status)) break;
 
+#if gcdNULL_DRIVER == 2
+		/* Call gcoEVENT_Interrupt and gcoEVENT_Notify directly if gcdNULL_DRIVER == 2 */
+		gcmERR_BREAK(gcoEVENT_Interrupt(Event, 1 << id));
+
+		gcmERR_BREAK(gcoEVENT_Notify(Event, 0));
+#else
 		/* Get the size of the hardware event. */
 		gcmERR_BREAK(gcoHARDWARE_Event(Event->kernel->hardware,
 									   gcvNULL,
@@ -1904,6 +1871,7 @@ gcoEVENT_Commit(
 
 		/* Execute the hardware event. */
 		gcmERR_BREAK(gcoCOMMAND_Execute(Event->kernel->command, bytes));
+#endif
 	}
 	while (Queue != gcvNULL);
 
@@ -1918,7 +1886,7 @@ gcoEVENT_Commit(
 			gcmVERIFY_OK(gcoCOMMAND_Release(Event->kernel->command));
 		}
 	}
-	
+
 	/* Return the status. */
 	return status;
 }
@@ -1931,7 +1899,7 @@ gcoEVENT_Interrupt(
 {
 	/* Verify the arguments. */
 	gcmVERIFY_OBJECT(Event, gcvOBJ_EVENT);
-	
+
 	/* Loop while there are interrupts to handle. */
 	while (Data != 0)
 	{
@@ -1960,7 +1928,7 @@ gcoEVENT_Interrupt(
 
 		/* Make sure we have a valid interrupt. */
 		gcmASSERT((queue != gcvNULL) && (queue->head != gcvNULL));
-		
+
 		if (queue->head != gcvNULL)
 		{
 			if (Event->head == gcvNULL)
@@ -1997,7 +1965,7 @@ gcoEVENT_Notify(
 
 	/* Verify the arguments. */
 	gcmVERIFY_OBJECT(Event, gcvOBJ_EVENT);
-	
+
 	/* Suspend interrupt */
 	gcmVERIFY_OK(gcoOS_SuspendInterrupt(Event->os));
 
@@ -2006,7 +1974,6 @@ gcoEVENT_Notify(
 	{
 		gcsEVENT_PTR event;
 		gctPOINTER logical;
-		gctSIGNAL signal;
 
 		/* Unlink head from chain. */
 		event = Event->head;
@@ -2027,7 +1994,7 @@ gcoEVENT_Notify(
 				event->event.u.FreeNonPagedMemory.physical,
 				event->event.u.FreeNonPagedMemory.logical));
 			break;
-			
+
 		case gcvHAL_FREE_CONTIGUOUS_MEMORY:
 			/* Unmap the user memory. */
 			gcmERR_BREAK(gcoOS_FreeContiguous(
@@ -2036,7 +2003,7 @@ gcoEVENT_Notify(
 				event->event.u.FreeContiguousMemory.logical,
 				event->event.u.FreeContiguousMemory.bytes));
 			break;
-			
+
 		case gcvHAL_FREE_VIDEO_MEMORY:
 			/* Free video memory. */
 			gcmERR_BREAK(gcoVIDMEM_Free(event->event.u.FreeVideoMemory.node));
@@ -2052,7 +2019,7 @@ gcoEVENT_Notify(
 
 			/* Write data. */
 			gcmERR_BREAK(gcoOS_WriteMemory(Event->os,
-										   logical, 
+										   logical,
 										   event->event.u.WriteData.data));
 
 			/* Unmap the physical memory. */
@@ -2067,56 +2034,17 @@ gcoEVENT_Notify(
 										  event->event.u.UnlockVideoMemory.type,
 										  gcvNULL));
 			break;
-		
+
 		case gcvHAL_SIGNAL:
-			if (event->event.u.Signal.auxSignal != gcvNULL)
-			{
-				/* Map the aux signal into kernel space. */
-				gcmERR_BREAK(gcoOS_MapSignal(Event->os,
-											 event->event.u.Signal.auxSignal,
-											 event->event.u.Signal.process,
-											 &signal));
+			/* Set signal. */
+			gcmERR_BREAK(
+				gcoOS_UserSignal(Event->os,
+								 event->event.u.Signal.signal,
+								 event->event.u.Signal.process));
 
-				if (signal == gcvNULL)
-				{
-					/* Signal. */
-					gcmERR_BREAK(gcoOS_Signal(Event->os,
-											  event->event.u.Signal.auxSignal, 
-											  gcvTRUE));
-				}
-				else
-				{
-					/* Signal. */
-					gcmERR_BREAK(gcoOS_Signal(Event->os, signal, gcvTRUE));
-
-					/* Destroy the mapped signal. */
-					gcmERR_BREAK(gcoOS_DestroySignal(Event->os, signal));
-				}
-			}
-
-			/* Map the signal into kernel space. */
-			gcmERR_BREAK(gcoOS_MapSignal(Event->os,
-										 event->event.u.Signal.signal,
-										 event->event.u.Signal.process,
-										 &signal));
-
-			if (signal == gcvNULL)
-			{
-				/* Signal. */
-				gcmERR_BREAK(gcoOS_Signal(Event->os,
-										  event->event.u.Signal.signal, 
-										  gcvTRUE));
-			}
-			else
-			{
-				/* Signal. */
-				gcmERR_BREAK(gcoOS_Signal(Event->os, signal, gcvTRUE));
-
-				/* Destroy the mapped signal. */
-				gcmERR_BREAK(gcoOS_DestroySignal(Event->os, signal));
-			}
+			gcmASSERT(event->event.u.Signal.auxSignal == gcvNULL);
 			break;
-			
+
 		case gcvHAL_UNMAP_USER_MEMORY:
 			/* Unmap the user memory. */
 			status = gcoOS_UnmapUserMemory(Event->os,
@@ -2125,7 +2053,7 @@ gcoEVENT_Notify(
 										   event->event.u.UnmapUserMemory.info,
 										   event->event.u.UnmapUserMemory.address);
 			break;
-		
+
 		case gcvHAL_SET_IDLE:
 			/* Grab the conmmand queue mutex. */
 			gcmVERIFY_OK(gcoOS_AcquireMutex(Event->os,
@@ -2135,11 +2063,13 @@ gcoEVENT_Notify(
 			/* Set idle if no new commitments */
 			if (Event->lastCommitStamp == Event->kernel->command->commitStamp)
 			{
-				Event->kernel->command->idle = gcvTRUE;
-
-				gcmVERIFY_OK(gcoOS_NotifyIdle(Event->os, gcvTRUE));
+                if(Event->kernel->command->idle == gcvFALSE)
+                {
+    				Event->kernel->command->idle = gcvTRUE;
+    				gcmVERIFY_OK(gcoOS_NotifyIdle(Event->os, gcvTRUE));
+                }
 			}
-					
+
 			/* Release the command queue mutex. */
 			gcmVERIFY_OK(gcoOS_ReleaseMutex(Event->os, Event->kernel->command->mutexQueue));
 
@@ -2186,7 +2116,7 @@ gcoEVENT_TryToSetIdle(
 
 	/* Initialize the flag */
 	setIdle = gcvFALSE;
-	
+
 	/* Grab the queue mutex. */
 	gcmVERIFY_OK(gcoOS_AcquireMutex(Event->os,
 									Event->mutexQueue,
@@ -2194,7 +2124,7 @@ gcoEVENT_TryToSetIdle(
 
 	/* Suspend interrupt */
 	gcmVERIFY_OK(gcoOS_SuspendInterrupt(Event->os));
-	
+
 	if (Event->lastCommitStamp != Event->kernel->command->commitStamp)
 	{
 		setIdle = gcvTRUE;
@@ -2209,7 +2139,7 @@ gcoEVENT_TryToSetIdle(
 			}
 		}
 	}
-	
+
 	/* Resume interrupt */
 	gcmVERIFY_OK(gcoOS_ResumeInterrupt(Event->os));
 
@@ -2231,9 +2161,9 @@ gcoEVENT_TryToSetIdle(
 					   &requested));
 
 		/* Reserve space in the command queue. */
-		gcmVERIFY_OK(gcoCOMMAND_Reserve(Event->kernel->command, 
-						requested, 
-						(gctPOINTER *) &buffer, 
+		gcmVERIFY_OK(gcoCOMMAND_Reserve(Event->kernel->command,
+						requested,
+						(gctPOINTER *) &buffer,
 						&bufferSize));
 
 		/* Append the EVENT command to write data into the boolean. */
@@ -2243,9 +2173,9 @@ gcoEVENT_TryToSetIdle(
 									&bytes,
 									gcvKERNEL_PIXEL,
 									gcvTRUE));
-		
+
 		Event->lastCommitStamp = Event->kernel->command->commitStamp + 1;
-	
+
 		/* Append the reserved commands to the command queue. */
 		gcmVERIFY_OK(gcoCOMMAND_Execute(Event->kernel->command, requested));
 	}
@@ -2254,3 +2184,4 @@ gcoEVENT_TryToSetIdle(
 	return gcvSTATUS_OK;
 }
 #endif /* USE_EVENT_QUEUE */
+

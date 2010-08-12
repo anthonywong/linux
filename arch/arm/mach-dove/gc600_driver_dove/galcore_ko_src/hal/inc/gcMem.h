@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -32,9 +32,9 @@
 **  Usage:
 
 	The macros to declare MemPool type and functions are
-	gcmMEM_DeclareFSMemPool (Type, TypeName, Prefix, Static)
-	gcmMEM_DeclareVSMemPool (Type, TypeName, Prefix, Static)
-	gcmMEM_DeclareAFSMemPool(Type, TypeName, Prefix, Static)
+	gcmMEM_DeclareFSMemPool (Type, TypeName, Prefix)
+	gcmMEM_DeclareVSMemPool (Type, TypeName, Prefix)
+	gcmMEM_DeclareAFSMemPool(Type, TypeName, Prefix)
 
 	The data structures for MemPool are
 	typedef struct _gcsMEM_FS_MEM_POOL *	gcsMEM_FS_MEM_POOL;
@@ -59,9 +59,9 @@
 	// At top level, declear allocate and free functions.
 	// The first argument is the data type.
 	// The second armument is the short name used in the fuctions.
-	gcmMEM_DeclareFSMemPool(struct gcsNode, Node, , static);
+	gcmMEM_DeclareFSMemPool(struct gcsNode, Node, );
 
-	// The previous macro creates two static functions,
+	// The previous macro creates two inline functions,
 	// _AllocateNode and _FreeNode.
 
 	// In function or struct
@@ -92,9 +92,9 @@
 	// At top level, declear allocate and free functions.
 	// The first argument is the data type, and the second one is the short name
 	// used in the fuctions.
-	gcmMEM_DeclareAFSMemPool(struct gcsNode, NodeArray, gcfOpt,);
+	gcmMEM_DeclareAFSMemPool(struct gcsNode, NodeArray, gcfOpt);
 
-	// The previous macro creates two functions,
+	// The previous macro creates two inline functions,
 	// gcfOpt_AllocateNodeArray and gcfOpt_FreeNodeArray.
 
 	// In function or struct
@@ -129,7 +129,7 @@
 #ifndef USE_LOCAL_MEMORY_POOL
 /*
     USE_LOCAL_MEMORY_POOL
-    
+
     This define enables the local memory management to improve performance.
 */
 #define USE_LOCAL_MEMORY_POOL		1
@@ -146,43 +146,72 @@ typedef struct _gcsMEM_AFS_MEM_POOL *	gcsMEM_AFS_MEM_POOL;
 **							Memory Pool Macros
 *******************************************************************************/
 #if USE_LOCAL_MEMORY_POOL
-#define gcmMEM_DeclareFSMemPool(Type, TypeName, Prefix, Static) \
-Static gceSTATUS \
+#define gcmMEM_DeclareFSMemPool(Type, TypeName, Prefix) \
+gcmINLINE gceSTATUS \
 Prefix##_Allocate##TypeName( \
 	gcsMEM_FS_MEM_POOL		MemPool, \
 	Type **					Pointer \
 	) \
 { \
-	gceSTATUS				status = gcvSTATUS_OK; \
+	return(gcfMEM_FSMemPoolGetANode(MemPool, (gctPOINTER *) Pointer)); \
+} \
  \
+gcmINLINE gceSTATUS \
+Prefix##_CAllocate##TypeName( \
+	gcsMEM_FS_MEM_POOL		MemPool, \
+	Type **					Pointer \
+	) \
+{ \
+	gceSTATUS				status; \
 	gcmERR_RETURN(gcfMEM_FSMemPoolGetANode(MemPool, (gctPOINTER *) Pointer)); \
+	gcmVERIFY_OK(gcoOS_ZeroMemory(*(gctPOINTER *) Pointer, gcmSIZEOF(Type))); \
 	return gcvSTATUS_OK; \
 } \
  \
-Static gceSTATUS \
+gcmINLINE gceSTATUS \
 Prefix##_Free##TypeName( \
 	gcsMEM_FS_MEM_POOL		MemPool, \
 	Type *					Pointer \
 	) \
 { \
 	return(gcfMEM_FSMemPoolFreeANode(MemPool, (gctPOINTER) Pointer)); \
+} \
+ \
+gcmINLINE gceSTATUS \
+Prefix##_Free##TypeName##List( \
+	gcsMEM_FS_MEM_POOL		MemPool, \
+	Type *					FirstPointer, \
+	Type *					LastPointer \
+	) \
+{ \
+	return(gcfMEM_FSMemPoolFreeAList(MemPool, (gctPOINTER) FirstPointer, (gctPOINTER) LastPointer)); \
 }
 
-#define gcmMEM_DeclareVSMemPool(Type, TypeName, Prefix, Static) \
-Static gceSTATUS \
+#define gcmMEM_DeclareVSMemPool(Type, TypeName, Prefix) \
+gcmINLINE gceSTATUS \
 Prefix##_Allocate##TypeName( \
 	gcsMEM_FS_MEM_POOL		MemPool, \
 	Type **					Pointer, \
 	gctUINT					Size \
 	) \
 { \
-	gceSTATUS				status = gcvSTATUS_OK; \
+	return(gcfMEM_VSMemPoolGetANode(MemPool, Size, (gctPOINTER *) Pointer)); \
+} \
  \
+gcmINLINE gceSTATUS \
+Prefix##_CAllocate##TypeName( \
+	gcsMEM_FS_MEM_POOL		MemPool, \
+	Type **					Pointer, \
+	gctUINT					Size \
+	) \
+{ \
+	gceSTATUS				status; \
 	gcmERR_RETURN(gcfMEM_VSMemPoolGetANode(MemPool, Size, (gctPOINTER *) Pointer)); \
+	gcmVERIFY_OK(gcoOS_ZeroMemory(*(gctPOINTER *) Pointer, size)); \
 	return gcvSTATUS_OK; \
 } \
  \
-Static gceSTATUS \
+gcmINLINE gceSTATUS \
 Prefix##_Free##TypeName( \
 	gcsMEM_FS_MEM_POOL		MemPool, \
 	Type *					Pointer \
@@ -191,20 +220,31 @@ Prefix##_Free##TypeName( \
 	return(gcfMEM_VSMemPoolFreeANode(MemPool, (gctPOINTER) Pointer)); \
 }
 
-#define gcmMEM_DeclareAFSMemPool(Type, TypeName, Prefix, Static) \
-Static gceSTATUS \
+#define gcmMEM_DeclareAFSMemPool(Type, TypeName, Prefix) \
+gcmINLINE gceSTATUS \
 Prefix##_Allocate##TypeName( \
 	gcsMEM_AFS_MEM_POOL		MemPool, \
 	Type **					Pointer, \
 	gctUINT					Count \
 	) \
 { \
-	gceSTATUS				status = gcvSTATUS_OK; \
+	return(gcfMEM_AFSMemPoolGetANode(MemPool, Count, (gctPOINTER *) Pointer)); \
+} \
+ \
+gcmINLINE gceSTATUS \
+Prefix##_CAllocate##TypeName( \
+	gcsMEM_AFS_MEM_POOL		MemPool, \
+	Type **					Pointer, \
+	gctUINT					Count \
+	) \
+{ \
+	gceSTATUS				status; \
 	gcmERR_RETURN(gcfMEM_AFSMemPoolGetANode(MemPool, Count, (gctPOINTER *) Pointer)); \
+	gcmVERIFY_OK(gcoOS_ZeroMemory(*(gctPOINTER *) Pointer, Count * gcmSIZEOF(Type))); \
 	return gcvSTATUS_OK; \
 } \
  \
-Static gceSTATUS \
+gcmINLINE gceSTATUS \
 Prefix##_Free##TypeName( \
 	gcsMEM_AFS_MEM_POOL		MemPool, \
 	Type *					Pointer \
@@ -215,14 +255,25 @@ Prefix##_Free##TypeName( \
 
 #else
 
-#define gcmMEM_DeclareFSMemPool(Type, TypeName, Prefix, Static) \
-Static gceSTATUS \
+#define gcmMEM_DeclareFSMemPool(Type, TypeName, Prefix) \
+gcmINLINE gceSTATUS \
 Prefix##_Allocate##TypeName( \
 	gcsMEM_FS_MEM_POOL		MemPool, \
 	Type **					Pointer \
 	) \
 { \
-	gceSTATUS				status = gcvSTATUS_OK; \
+	return(gcoOS_Allocate(MemPool->os, \
+							gcmSIZEOF(Type), \
+							(gctPOINTER *) Pointer)); \
+} \
+ \
+gcmINLINE gceSTATUS \
+Prefix##_CAllocate##TypeName( \
+	gcsMEM_FS_MEM_POOL		MemPool, \
+	Type **					Pointer \
+	) \
+{ \
+	gceSTATUS				status; \
 	gcmERR_RETURN(gcoOS_Allocate(MemPool->os, \
 							gcmSIZEOF(Type), \
 							(gctPOINTER *) Pointer)); \
@@ -230,7 +281,7 @@ Prefix##_Allocate##TypeName( \
 	return gcvSTATUS_OK; \
 } \
  \
-Static gceSTATUS \
+gcmINLINE gceSTATUS \
 Prefix##_Free##TypeName( \
 	gcsMEM_FS_MEM_POOL		MemPool, \
 	Type *					Pointer \
@@ -239,15 +290,27 @@ Prefix##_Free##TypeName( \
 	return(gcoOS_Free(MemPool->os, Pointer)); \
 }
 
-#define gcmMEM_DeclareVSMemPool(Type, TypeName, Prefix, Static) \
-Static gceSTATUS \
+#define gcmMEM_DeclareVSMemPool(Type, TypeName, Prefix) \
+gcmINLINE gceSTATUS \
 Prefix##_Allocate##TypeName( \
 	gcsMEM_VS_MEM_POOL		MemPool, \
 	Type **					Pointer, \
 	gctUINT					Size \
 	) \
 { \
-	gceSTATUS				status = gcvSTATUS_OK; \
+	return(gcoOS_Allocate(MemPool->os, \
+							Size, \
+							(gctPOINTER *) Pointer)); \
+} \
+ \
+gcmINLINE gceSTATUS \
+Prefix##_CAllocate##TypeName( \
+	gcsMEM_VS_MEM_POOL		MemPool, \
+	Type **					Pointer, \
+	gctUINT					Size \
+	) \
+{ \
+	gceSTATUS				status; \
 	gcmERR_RETURN(gcoOS_Allocate(MemPool->os, \
 							Size, \
 							(gctPOINTER *) Pointer)); \
@@ -255,7 +318,7 @@ Prefix##_Allocate##TypeName( \
 	return gcvSTATUS_OK; \
 } \
  \
-Static gceSTATUS \
+gcmINLINE gceSTATUS \
 Prefix##_Free##TypeName( \
 	gcsMEM_VS_MEM_POOL		MemPool, \
 	Type *					Pointer \
@@ -264,15 +327,27 @@ Prefix##_Free##TypeName( \
 	return(gcoOS_Free(MemPool->os, Pointer)); \
 }
 
-#define gcmMEM_DeclareAFSMemPool(Type, TypeName, Prefix, Static) \
-Static gceSTATUS \
+#define gcmMEM_DeclareAFSMemPool(Type, TypeName, Prefix) \
+gcmINLINE gceSTATUS \
 Prefix##_Allocate##TypeName( \
 	gcsMEM_AFS_MEM_POOL		MemPool, \
 	Type **					Pointer, \
 	gctUINT					Count \
 	) \
 { \
-	gceSTATUS				status = gcvSTATUS_OK; \
+	return(gcoOS_Allocate(MemPool->os, \
+							Count * gcmSIZEOF(Type), \
+							(gctPOINTER *) Pointer)); \
+} \
+ \
+gcmINLINE gceSTATUS \
+Prefix##_CAllocate##TypeName( \
+	gcsMEM_AFS_MEM_POOL		MemPool, \
+	Type **					Pointer, \
+	gctUINT					Count \
+	) \
+{ \
+	gceSTATUS				status; \
 	gcmERR_RETURN(gcoOS_Allocate(MemPool->os, \
 							Count * gcmSIZEOF(Type), \
 							(gctPOINTER *) Pointer)); \
@@ -280,7 +355,7 @@ Prefix##_Allocate##TypeName( \
 	return gcvSTATUS_OK; \
 } \
  \
-Static gceSTATUS \
+gcmINLINE gceSTATUS \
 Prefix##_Free##TypeName( \
 	gcsMEM_AFS_MEM_POOL		MemPool, \
 	Type *					Pointer \
@@ -316,6 +391,13 @@ gceSTATUS
 gcfMEM_FSMemPoolFreeANode(
 	IN gcsMEM_FS_MEM_POOL	MemPool,
 	IN gctPOINTER			Node
+	);
+
+gceSTATUS
+gcfMEM_FSMemPoolFreeAList(
+	IN gcsMEM_FS_MEM_POOL	MemPool,
+	IN gctPOINTER			FirstNode,
+	IN gctPOINTER			LastNode
 	);
 
 gceSTATUS
@@ -372,3 +454,4 @@ gcfMEM_AFSMemPoolFreeANode(
 	);
 
 #endif /* __gcmem_h_ */
+

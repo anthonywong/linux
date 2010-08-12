@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -254,13 +254,6 @@ gco2D_FlushBrush(
 	IN gceSURF_FORMAT Format
 	);
 
-/* Flush the brush. */
-gceSTATUS
-gco2D_FlushBrushEx(
-	IN gco2D Engine,
-	IN gcoBRUSH Brush
-	);
-
 /* Program the specified solid color brush. */
 gceSTATUS
 gco2D_LoadSolidBrush(
@@ -268,14 +261,6 @@ gco2D_LoadSolidBrush(
 	IN gceSURF_FORMAT Format,
 	IN gctUINT32 ColorConvert,
 	IN gctUINT32 Color,
-	IN gctUINT64 Mask
-	);
-
-/* Program the specified solid color32 brush. */
-gceSTATUS
-gco2D_LoadSolidBrushEx(
-	IN gco2D Engine,
-	IN gctUINT32 Color32,
 	IN gctUINT64 Mask
 	);
 
@@ -292,17 +277,6 @@ gco2D_SetMonochromeSource(
 	IN gctUINT32 BgColor
 	);
 
-/* Configure monochrome source. */
-gceSTATUS
-gco2D_SetMonochromeSourceEx(
-	IN gco2D Engine,
-	IN gctUINT8 MonoTransparency,
-	IN gceSURF_MONOPACK DataPack,
-	IN gctBOOL CoordRelative,
-	IN gctUINT32 FgColor32,
-	IN gctUINT32 BgColor32
-	);
-	
 /* Configure color source. */
 gceSTATUS
 gco2D_SetColorSource(
@@ -317,10 +291,31 @@ gco2D_SetColorSource(
 	IN gctUINT32 TransparencyColor
 	);
 
+/* Configure color source extension for full rotation. */
 gceSTATUS
 gco2D_SetColorSourceEx(
 	IN gco2D Engine,
-	IN gcoSURF Source,
+	IN gctUINT32 Address,
+	IN gctUINT32 Stride,
+	IN gceSURF_FORMAT Format,
+	IN gceSURF_ROTATION Rotation,
+	IN gctUINT32 SurfaceWidth,
+	IN gctUINT32 SurfaceHeight,
+	IN gctBOOL CoordRelative,
+	IN gceSURF_TRANSPARENCY Transparency,
+	IN gctUINT32 TransparencyColor
+	);
+
+/* Configure color source. */
+gceSTATUS
+gco2D_SetColorSourceAdvanced(
+	IN gco2D Engine,
+	IN gctUINT32 Address,
+	IN gctUINT32 Stride,
+	IN gceSURF_FORMAT Format,
+	IN gceSURF_ROTATION Rotation,
+	IN gctUINT32 SurfaceWidth,
+	IN gctUINT32 SurfaceHeight,
 	IN gctBOOL CoordRelative
 	);
 
@@ -335,13 +330,18 @@ gco2D_SetMaskedSource(
 	IN gceSURF_MONOPACK MaskPack
 	);
 
-/* Configure masked color source. */
+/* Configure masked color source extension for full rotation. */
 gceSTATUS
 gco2D_SetMaskedSourceEx(
 	IN gco2D Engine,
-	IN gcoSURF Source,
+	IN gctUINT32 Address,
+	IN gctUINT32 Stride,
+	IN gceSURF_FORMAT Format,
 	IN gctBOOL CoordRelative,
-	IN gceSURF_MONOPACK MaskPack
+	IN gceSURF_MONOPACK MaskPack,
+	IN gceSURF_ROTATION Rotation,
+	IN gctUINT32 SurfaceWidth,
+	IN gctUINT32 SurfaceHeight
 	);
 
 /* Setup the source rectangle. */
@@ -368,10 +368,15 @@ gco2D_SetTarget(
 	IN gctUINT32 SurfaceWidth
 	);
 
+/* Configure destination extension for full rotation. */
 gceSTATUS
 gco2D_SetTargetEx(
 	IN gco2D Engine,
-	IN gcoSURF Target
+	IN gctUINT32 Address,
+	IN gctUINT32 Stride,
+	IN gceSURF_ROTATION Rotation,
+	IN gctUINT32 SurfaceWidth,
+	IN gctUINT32 SurfaceHeight
 	);
 
 /* Calculate and program the stretch factors. */
@@ -384,7 +389,7 @@ gco2D_SetStretchFactors(
 
 /* Calculate and program the stretch factors based on the rectangles. */
 gceSTATUS
-gco2D_SetStretchFactorsEx(
+gco2D_SetStretchRectFactors(
 	IN gco2D Engine,
 	IN gcsRECT_PTR SrcRect,
 	IN gcsRECT_PTR DestRect
@@ -400,15 +405,6 @@ gco2D_ConstructSingleColorBrush(
 	gcoBRUSH * Brush
 	);
 
-/* Create a new solid color gcoBRUSH object. */
-gceSTATUS
-gco2D_ConstructSingleColorBrushEx(
-	IN gco2D Engine,
-	IN gctUINT32 Color32,
-	IN gctUINT64 Mask,
-	gcoBRUSH * Brush
-	);
-
 /* Create a new monochrome gcoBRUSH object. */
 gceSTATUS
 gco2D_ConstructMonochromeBrush(
@@ -418,19 +414,6 @@ gco2D_ConstructMonochromeBrush(
 	IN gctUINT32 ColorConvert,
 	IN gctUINT32 FgColor,
 	IN gctUINT32 BgColor,
-	IN gctUINT64 Bits,
-	IN gctUINT64 Mask,
-	gcoBRUSH * Brush
-	);
-
-/* Create a new monochrome gcoBRUSH object. */
-gceSTATUS
-gco2D_ConstructMonochromeBrushEx(
-	IN gco2D Engine,
-	IN gctUINT32 OriginX,
-	IN gctUINT32 OriginY,
-	IN gctUINT32 FgColor32,
-	IN gctUINT32 BgColor32,
 	IN gctUINT64 Bits,
 	IN gctUINT64 Mask,
 	gcoBRUSH * Brush
@@ -456,7 +439,20 @@ gco2D_Clear(
 	IN gcsRECT_PTR Rect,
 	IN gctUINT32 Color32,
 	IN gctUINT8 FgRop,
-	IN gctUINT8 BgRop
+	IN gctUINT8 BgRop,
+	IN gceSURF_FORMAT DestFormat
+	);
+
+
+gceSTATUS
+gco2D_ClearEx(
+	IN gco2D Engine,
+	IN gctUINT32 RectCount,
+	IN gcsRECT_PTR Rect,
+	IN gctUINT32 Color32,
+	IN gctUINT8 FgRop,
+	IN gctUINT8 BgRop,
+	IN gceSURF_FORMAT DestFormat
 	);
 
 /* Draw one or more Bresenham lines. */
@@ -471,27 +467,16 @@ gco2D_Line(
 	IN gceSURF_FORMAT DestFormat
 	);
 
-/* Draw one or more Bresenham lines. */
+/* Draw one or more Bresenham lines based on the 32-bit color. */
 gceSTATUS
-gco2D_LineEx(
+gco2D_ColorLine(
 	IN gco2D Engine,
 	IN gctUINT32 LineCount,
 	IN gcsRECT_PTR Position,
 	IN gctUINT32 Color32,
 	IN gctUINT8 FgRop,
-	IN gctUINT8 BgRop
-	);
-
-/* Draw one or more Bresenham lines 
-   with a color specified for each line. */
-gceSTATUS
-gco2D_ColorLines(
-	IN gco2D Engine,
-	IN gctUINT32 LineCount,
-	IN gcsRECT_PTR Position,
-	IN gctUINT32_PTR Color32,
-	IN gctUINT8 FgRop,
-	IN gctUINT8 BgRop
+	IN gctUINT8 BgRop,
+	IN gceSURF_FORMAT DestFormat
 	);
 
 /* Generic blit. */
@@ -504,18 +489,8 @@ gco2D_Blit(
 	IN gctUINT8 BgRop,
 	IN gceSURF_FORMAT DestFormat
 	);
-	
-/* Generic blit. */
-gceSTATUS
-gco2D_BlitEx(
-	IN gco2D Engine,
-	IN gctUINT32 RectCount,
-	IN gcsRECT_PTR Rect,
-	IN gctUINT8 FgRop,
-	IN gctUINT8 BgRop
-	);
 
-/* Generic blit. */
+/* Batch blit. */
 gceSTATUS
 gco2D_BatchBlit(
 	IN gco2D Engine,
@@ -523,7 +498,8 @@ gco2D_BatchBlit(
 	IN gcsRECT_PTR SrcRect,
 	IN gcsRECT_PTR DestRect,
 	IN gctUINT8 FgRop,
-	IN gctUINT8 BgRop
+	IN gctUINT8 BgRop,
+	IN gceSURF_FORMAT DestFormat
 	);
 
 /* Stretch blit. */
@@ -535,27 +511,6 @@ gco2D_StretchBlit(
 	IN gctUINT8 FgRop,
 	IN gctUINT8 BgRop,
 	IN gceSURF_FORMAT DestFormat
-	);
-	
-/* Stretch blit. */
-gceSTATUS
-gco2D_StretchBlitEx(
-	IN gco2D Engine,
-	IN gctUINT32 RectCount,
-	IN gcsRECT_PTR Rect,
-	IN gctUINT8 FgRop,
-	IN gctUINT8 BgRop
-	);
-
-/* Stretch blit. */
-gceSTATUS
-gco2D_StretchBatchBlit(
-	IN gco2D Engine,
-	IN gctUINT32 RectCount,
-	IN gcsRECT_PTR SrcRect,
-	IN gcsRECT_PTR DestRect,
-	IN gctUINT8 FgRop,
-	IN gctUINT8 BgRop
 	);
 
 /* Monochrome blit. */
@@ -571,20 +526,6 @@ gco2D_MonoBlit(
 	IN gctUINT32 FgRop,
 	IN gctUINT32 BgRop,
 	IN gceSURF_FORMAT DestFormat
-	);
-
-/* Monochrome blit. */
-gceSTATUS
-gco2D_MonoBlitEx(
-	IN gco2D Engine,
-	IN gctPOINTER StreamBits,
-	IN gcsPOINT_PTR StreamSize,
-	IN gcsRECT_PTR StreamRect,
-	IN gceSURF_MONOPACK SrcStreamPack,
-	IN gceSURF_MONOPACK DestStreamPack,
-	IN gcsRECT_PTR DestRect,
-	IN gctUINT32 FgRop,
-	IN gctUINT32 BgRop
 	);
 
 /* Set kernel size. */
@@ -647,13 +588,27 @@ gco2D_FilterBlit(
 	IN gcsRECT_PTR DestSubRect
 	);
 
-/* Filter blit. */
+/* Filter blit extension for full rotation. */
 gceSTATUS
 gco2D_FilterBlitEx(
 	IN gco2D Engine,
-	IN gcoSURF Source,
-	IN gcoSURF Target,
+	IN gctUINT32 SrcAddress,
+	IN gctUINT SrcStride,
+	IN gctUINT32 SrcUAddress,
+	IN gctUINT SrcUStride,
+	IN gctUINT32 SrcVAddress,
+	IN gctUINT SrcVStride,
+	IN gceSURF_FORMAT SrcFormat,
+	IN gceSURF_ROTATION SrcRotation,
+	IN gctUINT32 SrcSurfaceWidth,
+	IN gctUINT32 SrcSurfaceHeight,
 	IN gcsRECT_PTR SrcRect,
+	IN gctUINT32 DestAddress,
+	IN gctUINT DestStride,
+	IN gceSURF_FORMAT DestFormat,
+	IN gceSURF_ROTATION DestRotation,
+	IN gctUINT32 DestSurfaceWidth,
+	IN gctUINT32 DestSurfaceHeight,
 	IN gcsRECT_PTR DestRect,
 	IN gcsRECT_PTR DestSubRect
 	);
@@ -674,9 +629,9 @@ gco2D_EnableAlphaBlend(
 	IN gceSURF_PIXEL_COLOR_MODE DstColorMode
 	);
 
-/* Enable alpha blending engine in the hardware and disengage the ROP engine. */
+/* Enable alpha blending engine in the hardware. */
 gceSTATUS
-gco2D_EnableAlphaBlendEx(
+gco2D_EnableAlphaBlendAdvanced(
 	IN gco2D Engine,
 	IN gceSURF_PIXEL_ALPHA_MODE SrcAlphaMode,
 	IN gceSURF_PIXEL_ALPHA_MODE DstAlphaMode,
@@ -742,14 +697,6 @@ gco2D_LoadPalette(
 	IN gctBOOL ColorConvert
 	);
 
-gceSTATUS
-gco2D_LoadPaletteEx(
-	IN gco2D Engine,
-	IN gctUINT FirstIndex,
-	IN gctUINT IndexCount,
-	IN gctPOINTER ColorTable32
-	);
-
 /* Enable/disable 2D BitBlt mirrorring. */
 gceSTATUS
 gco2D_SetBitBlitMirror(
@@ -760,7 +707,7 @@ gco2D_SetBitBlitMirror(
 
 /* Set the transparency for source, destination and pattern. */
 gceSTATUS
-gco2D_SetTransparencyModes(
+gco2D_SetTransparencyAdvanced(
 	IN gco2D Engine,
 	IN gce2D_TRANSPARENCY SrcTransparency,
 	IN gce2D_TRANSPARENCY DstTransparency,
@@ -769,50 +716,32 @@ gco2D_SetTransparencyModes(
 
 /* Set the source color key. */
 gceSTATUS
-gco2D_SetSourceColorKey(
+gco2D_SetSourceColorKeyAdvanced(
 	IN gco2D Engine,
-	IN gctUINT8 ColorKeyA,
-	IN gctUINT8 ColorKeyR,
-	IN gctUINT8 ColorKeyG,
-	IN gctUINT8 ColorKeyB
+	IN gctUINT32 ColorKey
 	);
 
 /* Set the source color key range. */
 gceSTATUS
-gco2D_SetSourceColorKeyRange(
+gco2D_SetSourceColorKeyRangeAdvanced(
 	IN gco2D Engine,
-	IN gctUINT8 ColorKeyLowA,
-	IN gctUINT8 ColorKeyLowR,
-	IN gctUINT8 ColorKeyLowG,
-	IN gctUINT8 ColorKeyLowB,
-	IN gctUINT8 ColorKeyHighA,
-	IN gctUINT8 ColorKeyHighR,
-	IN gctUINT8 ColorKeyHighG,
-	IN gctUINT8 ColorKeyHighB
+	IN gctUINT32 ColorKeyLow,
+	IN gctUINT32 ColorKeyHigh
 	);
 
 /* Set the target color key. */
 gceSTATUS
-gco2D_SetTargetColorKey(
+gco2D_SetTargetColorKeyAdvanced(
 	IN gco2D Engine,
-	IN gctUINT8 ColorKeyA,
-	IN gctUINT8 ColorKeyR,
-	IN gctUINT8 ColorKeyG,
-	IN gctUINT8 ColorKeyB
+	IN gctUINT32 ColorKey
 	);
 
 /* Set the target color key range. */
 gceSTATUS
-gco2D_SetTargetColorKeyRange(
+gco2D_SetTargetColorKeyRangeAdvanced(
 	IN gco2D Engine,
-	IN gctUINT8 ColorKeyLowA,
-	IN gctUINT8 ColorKeyLowR,
-	IN gctUINT8 ColorKeyLowG,
-	IN gctUINT8 ColorKeyLowB,
-	IN gctUINT8 ColorKeyHighA,
-	IN gctUINT8 ColorKeyHighR,
-	IN gctUINT8 ColorKeyHighG,
-	IN gctUINT8 ColorKeyHighB
+	IN gctUINT32 ColorKeyLow,
+	IN gctUINT32 ColorKeyHigh
 	);
 
 /* Set the YUV color space mode. */
@@ -823,20 +752,20 @@ gco2D_SetYUVColorMode(
 	);
 
 /* Setup the source global color value in ARGB8 format. */
-gceSTATUS gco2D_SetSourceGlobalColor(
+gceSTATUS gco2D_SetSourceGlobalColorAdvanced(
 	IN gco2D Engine,
 	IN gctUINT32 Color32
 	);
 
 /* Setup the target global color value in ARGB8 format. */
-gceSTATUS gco2D_SetTargetGlobalColor(
+gceSTATUS gco2D_SetTargetGlobalColorAdvanced(
 	IN gco2D Engine,
 	IN gctUINT32 Color32
 	);
 
 /* Setup the source and target pixel multiply modes. */
-gceSTATUS 
-gco2D_SetPixelMultiplyModes(
+gceSTATUS
+gco2D_SetPixelMultiplyModeAdvanced(
 	IN gco2D Engine,
 	IN gce2D_PIXEL_COLOR_MULTIPLY_MODE SrcPremultiplySrcAlpha,
 	IN gce2D_PIXEL_COLOR_MULTIPLY_MODE DstPremultiplyDstAlpha,
@@ -845,7 +774,7 @@ gco2D_SetPixelMultiplyModes(
 	);
 
 /* Set the GPU clock cycles after which the idle engine will keep auto-flushing. */
-gceSTATUS 
+gceSTATUS
 gco2D_SetAutoFlushCycles(
 	IN gco2D Engine,
 	IN gctUINT32 Cycles
@@ -854,7 +783,7 @@ gco2D_SetAutoFlushCycles(
 /* Read the profile registers available in the 2D engine and sets them in the profile.
    The function will also reset the pixelsRendered counter every time.
 */
-gceSTATUS 
+gceSTATUS
 gco2D_ProfileEngine(
 	IN gco2D Engine,
 	OPTIONAL gco2D_PROFILE_PTR Profile

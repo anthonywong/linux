@@ -61,9 +61,28 @@ struct _gcoKERNEL
 	/* Require to notify idle status */
 	gctBOOL						notifyIdle;
 
+	/* Number of attached clients. */
+	gctUINT						clients;
+
+#if VIVANTE_PROFILER
+	/* Enable profiling */
+	gctBOOL						profileEnable;
+
+	/* The profile file name */
+	gctCHAR						profileFileName[gcmMAX_PROFILE_FILE_NAME];
+#endif
+
     /* Pointer to reversion string */
     gctCONST_STRING             version;
 
+#if MRVL_LOW_POWER_MODE_DEBUG
+    /* The buffer to pool the output message before entering D2
+    ** these message can be output after exiting D2
+    */
+    char*                       kernelMSG;
+    /* The length of kernelMSG */
+    gctINT32                    msgLen;
+#endif    
         
 };
 
@@ -291,5 +310,19 @@ struct _gcoMMU
 	gctUINT32					entryCount;
 	gctUINT32					entry;
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+gceSTATUS
+gcoKERNEL_AttachProcess(
+	IN gcoKERNEL Kernel,
+	IN gctBOOL Attach
+	);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* __aqhalint_h_ */

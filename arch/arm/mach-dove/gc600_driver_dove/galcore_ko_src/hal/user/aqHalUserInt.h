@@ -1,16 +1,16 @@
 /****************************************************************************
-*  
+*
 *    Copyright (c) 2002 - 2008 by Vivante Corp.  All rights reserved.
-*  
+*
 *    The material in this file is confidential and contains trade secrets
 *    of Vivante Corporation. This is proprietary information owned by
-*    Vivante Corporation. No part of this work may be disclosed, 
-*    reproduced, copied, transmitted, or used in any way for any purpose, 
+*    Vivante Corporation. No part of this work may be disclosed,
+*    reproduced, copied, transmitted, or used in any way for any purpose,
 *    without the express written permission of Vivante Corporation.
-*  
+*
 *****************************************************************************
-*  
-*  
+*
+*
 *****************************************************************************/
 
 
@@ -60,11 +60,16 @@ struct _gcoHAL
     gcsPROFILER             profiler;
 #endif
 
-    /* Process handle */ 
-    gctHANDLE               process;        
+    /* Process handle */
+    gctHANDLE               process;
 
     /* Pointer to version string */
     gctCONST_STRING         version;
+
+#if MRVL_BENCH
+	/* timer object for bench mark */
+	gcoAPIBENCH	apiBench;
+#endif
 };
 
 
@@ -135,10 +140,12 @@ typedef struct _gcsSURF_INFO
 	gcsRECT					rect;
 	gctUINT					alignedWidth;
 	gctUINT					alignedHeight;
+	gctBOOL					is16Bit;
 
 	/* Rotation flag. */
 	gceSURF_ROTATION		rotation;
 	gceORIENTATION			orientation;
+
 	/* Surface stride and size. */
 	gctUINT					stride;
 	gctUINT					size;
@@ -154,11 +161,15 @@ typedef struct _gcsSURF_INFO
 
 	/* Samples. */
 	gcsSAMPLES				samples;
+	gctBOOL					vaa;
 
 	/* Tile status. */
 	gctBOOL					tileStatusDisabled;
 	gctBOOL					superTiled;
 	gctUINT32				clearValue;
+
+	/* Hierarchical Z buffer pointer. */
+	gcsSURF_NODE			hzNode;
 }
 gcsSURF_INFO;
 
@@ -180,6 +191,7 @@ struct _gcoSURF
 
     /* Video memory node for tile status. */
     gcsSURF_NODE			tileStatusNode;
+	gcsSURF_NODE			hzTileStatusNode;
 
 	/* Surface color type. */
 	gceSURF_COLOR_TYPE      colorType;
@@ -191,13 +203,8 @@ struct _gcoSURF
 	gctPOINTER				logical;
 	gctUINT32				physical;
 
-#if USE_SURFACE_PRELOCKING
-	/* Lock counter */
-	gctINT32				lockCount;
-
-	/* Lock counter for tile status buffer */
-	gctINT32				tileStatusLockCount;
-#endif /* USE_SURFACE_PRELOCKING */
+	/* Reference count of surface. */
+	gctINT32				referenceCount;
 };
 
 /******************************************************************************\

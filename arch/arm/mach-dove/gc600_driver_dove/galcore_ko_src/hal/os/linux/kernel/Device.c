@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -51,15 +51,15 @@ gcoGALDEVICE_AllocateMemory(
 	gcmVERIFY_ARGUMENT(Physical != NULL);
 	gcmVERIFY_ARGUMENT(PhysAddr != NULL);
 
-	status = gcoOS_AllocateContiguous(Device->os, 
+	status = gcoOS_AllocateContiguous(Device->os,
 					  gcvFALSE,
-					  &Bytes, 
-					  Physical, 
+					  &Bytes,
+					  Physical,
 					  Logical);
 
 	if (gcmIS_ERROR(status))
 	{
-		gcmTRACE_ZONE(gcvLEVEL_ERROR, 
+		gcmTRACE_ZONE(gcvLEVEL_ERROR,
 				gcvZONE_DRIVER,
     			"[galcore] gcoGALDEVICE_AllocateMemory: error status->0x%x\n",
 			   status);
@@ -68,7 +68,7 @@ gcoGALDEVICE_AllocateMemory(
 	}
 
 	*PhysAddr = ((PLINUX_MDL)*Physical)->dmaHandle - Device->baseAddress;
-	gcmTRACE_ZONE(gcvLEVEL_INFO, 
+	gcmTRACE_ZONE(gcvLEVEL_INFO,
 				gcvZONE_DRIVER,
     			"[galcore] gcoGALDEVICE_AllocateMemory: phys_addr->0x%x phsical->0x%x Logical->0x%x\n",
                (gctUINT32)*Physical,
@@ -82,14 +82,14 @@ gcoGALDEVICE_AllocateMemory(
 gceSTATUS
 gcoGALDEVICE_FreeMemory(
 	IN gcoGALDEVICE Device,
-	IN gctPOINTER Logical, 
+	IN gctPOINTER Logical,
 	IN gctPHYS_ADDR Physical)
 {
 	gcmVERIFY_ARGUMENT(Device != NULL);
 
     return gcoOS_FreeContiguous(Device->os,
-					Physical, 
-					Logical, 
+					Physical,
+					Logical,
 					((PLINUX_MDL)Physical)->numPages*PAGE_SIZE);
 }
 
@@ -100,13 +100,13 @@ irqreturn_t isrRoutine(int irq, void *ctxt)
 
     /* Call kernel interrupt notification. */
     if (gcoKERNEL_Notify(device->kernel,
-						gcvNOTIFY_INTERRUPT, 
+						gcvNOTIFY_INTERRUPT,
 						gcvTRUE) == gcvSTATUS_OK)
     {
 		device->dataReady = gcvTRUE;
-		
+
 		up(&device->sema);
-		
+
 		handled = 1;
     }
 
@@ -117,30 +117,31 @@ int threadRoutine(void *ctxt)
 {
     gcoGALDEVICE device = (gcoGALDEVICE)ctxt;
 
-	gcmTRACE_ZONE(gcvLEVEL_INFO, 
+	gcmTRACE_ZONE(gcvLEVEL_INFO,
 				gcvZONE_DRIVER,
 				"Starting isr Thread with extension->0x%x\n",
 				(gctUINT32)device);
 
 	while (1)
 	{
+
 		if(down_interruptible(&device->sema) == 0)
 		{
-		    device->dataReady = gcvFALSE;
-		
-    		if (device->killThread == gcvTRUE)
-    		{
-    			return 0;
-    		}
+		device->dataReady = gcvFALSE;
 
-            /* Wait for the interrupt. */
-    		if (kthread_should_stop())
-    		{
-    			return 0;
-    		}
-		
-    		gcoKERNEL_Notify(device->kernel, gcvNOTIFY_INTERRUPT, gcvFALSE);
-        }
+		if (device->killThread == gcvTRUE)
+		{
+			return 0;
+		}
+
+        /* Wait for the interrupt. */
+		if (kthread_should_stop())
+		{
+			return 0;
+		}
+
+		gcoKERNEL_Notify(device->kernel, gcvNOTIFY_INTERRUPT, gcvFALSE);
+    }
     }
 
     return 0;
@@ -192,28 +193,28 @@ gcoGALDEVICE_Setup_ISR(
 	ret = dove_gpio_request (DOVE_GPIO0_7, &gc500_handle);
 #else
 	ret = request_irq(Device->irqLine,
-				isrRoutine, 
-				0,
+				isrRoutine,
+				IRQF_DISABLED,
 				"galcore interrupt service",
 				Device);
 #endif
 
 
 	if (ret != 0) {
-		gcmTRACE_ZONE(gcvLEVEL_INFO, 
+		gcmTRACE_ZONE(gcvLEVEL_INFO,
 				gcvZONE_DRIVER,
             	"[galcore] gcoGALDEVICE_Setup_ISR: "
 				"Could not register irq line->%d\n",
 				Device->irqLine);
 
-		Device->isrInitialized = gcvFALSE;	
-		
+		Device->isrInitialized = gcvFALSE;
+
 		return gcvSTATUS_GENERIC_IO;
 	}
-        
+
 	Device->isrInitialized = gcvTRUE;
-	
-	gcmTRACE_ZONE(gcvLEVEL_INFO, 
+
+	gcmTRACE_ZONE(gcvLEVEL_INFO,
 				gcvZONE_DRIVER,
             	"[galcore] gcoGALDEVICE_Setup_ISR: "
 				"Setup the irq line->%d\n",
@@ -289,18 +290,18 @@ gcoGALDEVICE_Start_Thread(
 	)
 {
 	gcmVERIFY_ARGUMENT(Device != NULL);
-   
+
 	/* start the kernel thread */
-    Device->threadCtxt = kthread_run(threadRoutine, 
-					Device, 
+    Device->threadCtxt = kthread_run(threadRoutine,
+					Device,
 					"galcore daemon thread");
-			
+
 	Device->threadInitialized = gcvTRUE;
-	gcmTRACE_ZONE(gcvLEVEL_INFO, 
+	gcmTRACE_ZONE(gcvLEVEL_INFO,
 					gcvZONE_DRIVER,
 					"[galcore] gcoGALDEVICE_Start_Thread: "
 					"Stat the daemon thread.\n");
-    
+
 	return gcvSTATUS_OK;
 }
 
@@ -336,7 +337,7 @@ gcoGALDEVICE_Stop_Thread(
 	{
 		Device->killThread = gcvTRUE;
 		up(&Device->sema);
-	
+
 		kthread_stop(Device->threadCtxt);
 	}
 
@@ -375,6 +376,17 @@ gcoGALDEVICE_Start(
 	/* setup the isr routine */
 	gcmVERIFY_OK(gcoGALDEVICE_Setup_ISR(Device));
 
+    /*
+       gcvPOWER_SUSPEND will stop GC and disable 2D/3D clk.
+       Since frequency scaling is enabled, disable 2D/3D clk will gain little
+       but lead to potential issue. I prefer not change power state here.
+    */
+#if 0
+	/* Switch to SUSPEND power state. */
+	gcmVERIFY_OK(
+		gcoHARDWARE_SetPowerManagementState(Device->kernel->hardware,
+											gcvPOWER_SUSPEND));
+#endif
 	return gcvSTATUS_OK;
 }
 
@@ -405,6 +417,15 @@ gcoGALDEVICE_Stop(
 {
     gcmVERIFY_ARGUMENT(Device != NULL);
 
+    /*
+       There is not need to change power state here
+    */
+#if 0
+	/* Switch to ON power state. */
+	gcmVERIFY_OK(
+		gcoHARDWARE_SetPowerManagementState(Device->kernel->hardware,
+											gcvPOWER_ON));
+#endif
     if (Device->isrInitialized)
     {
     	gcoGALDEVICE_Release_ISR(Device);
@@ -441,7 +462,9 @@ gcoGALDEVICE_Construct(
     IN gctSIZE_T ContiguousSize,
     IN gctSIZE_T BankSize,
     IN gctINT FastClear,
+	IN gctINT Compression,
 	IN gctUINT32 BaseAddress,
+	IN gctINT Signal,
     OUT gcoGALDEVICE *Device
     )
 {
@@ -487,33 +510,34 @@ gcoGALDEVICE_Construct(
 
     	    return gcvSTATUS_OUT_OF_RESOURCES;
         }
-	
+
     	physical += RegisterMemSize;
 
-		gcmTRACE_ZONE(gcvLEVEL_INFO, 
+		gcmTRACE_ZONE(gcvLEVEL_INFO,
 					gcvZONE_DRIVER,
         			"[galcore] gcoGALDEVICE_Construct: "
 					"RegisterBase after mapping Address->0x%x is 0x%x\n",
-               		(gctUINT32)RegisterMemBase, 
+               		(gctUINT32)RegisterMemBase,
 					(gctUINT32)device->registerBase);
     }
-	
+
 	/* construct the gcoOS object */
 	device->baseAddress = BaseAddress;
     gcmVERIFY_OK(gcoOS_Construct(device, &device->os));
 
     /* construct the gcoKERNEL object. */
     gcmVERIFY_OK(gcoKERNEL_Construct(device->os, device, &device->kernel));
-    
+
     gcmVERIFY_OK(gcoHARDWARE_SetFastClear(device->kernel->hardware,
-    					  FastClear));
+    					  				  FastClear,
+										  Compression));
 
     /* query the ceiling of the system memory */
-    gcmVERIFY_OK(gcoHARDWARE_QuerySystemMemory(device->kernel->hardware, 
+    gcmVERIFY_OK(gcoHARDWARE_QuerySystemMemory(device->kernel->hardware,
 					&device->systemMemorySize,
                     &device->systemMemoryBaseAddress));
 
-	gcmTRACE_ZONE(gcvLEVEL_INFO, 
+	gcmTRACE_ZONE(gcvLEVEL_INFO,
 					gcvZONE_DRIVER,
 					"[galcore] gcoGALDEVICE_Construct: "
     				"Will be trying to allocate contiguous memory of 0x%x bytes\n",
@@ -533,7 +557,9 @@ gcoGALDEVICE_Construct(
 	device->isrInitialized = gcvFALSE;
 	device->dataReady = gcvFALSE;
 	device->irqLine = IrqLine;
-    
+
+	device->signal = Signal;
+
 	/* query the amount of video memory */
     gcmVERIFY_OK(gcoHARDWARE_QueryMemory(device->kernel->hardware,
                     &device->internalSize,
@@ -566,7 +592,7 @@ gcoGALDEVICE_Construct(
             device->internalPhysical  = (gctPHYS_ADDR)physical;
             device->internalLogical   = (gctPOINTER)ioremap_nocache(
 					physical, device->internalSize);
-			
+
             gcmASSERT(device->internalLogical != NULL);
 
 			physical += device->internalSize;
@@ -594,7 +620,7 @@ gcoGALDEVICE_Construct(
             device->externalPhysical = (gctPHYS_ADDR)physical;
             device->externalLogical = (gctPOINTER)ioremap_nocache(
 					physical, device->externalSize);
-            
+
 			gcmASSERT(device->externalLogical != NULL);
 
 			physical += device->externalSize;
@@ -660,11 +686,11 @@ gcoGALDEVICE_Construct(
 
 				gcmVERIFY_OK(gcoGALDEVICE_FreeMemory(
 					device,
-					device->contiguousBase, 
+					device->contiguousBase,
 					device->contiguousPhysical
 					));
 
-				device->contiguousBase = NULL; 
+				device->contiguousBase = NULL;
 			}
 
 			device->contiguousSize -= (4 << 20);
@@ -675,7 +701,7 @@ gcoGALDEVICE_Construct(
 		/* Create the contiguous memory heap. */
 		status = gcoVIDMEM_Construct(
 			device->os,
-			ContiguousBase | device->systemMemoryBaseAddress,
+			(ContiguousBase - device->baseAddress) | device->systemMemoryBaseAddress,
 			ContiguousSize,
 			64,
 			BankSize,
@@ -715,7 +741,7 @@ gcoGALDEVICE_Construct(
 	}
 
     *Device = device;
-
+    
     printk("\n[galcore] real contiguouSize = 0x%08x \n",  (gctUINT32)(device->contiguousSize));
     
     gcmTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,
@@ -761,7 +787,7 @@ gcoGALDEVICE_Destroy(
     {
         /* destroy the internal heap */
         gcmVERIFY_OK(gcoVIDMEM_Destroy(Device->internalVidMem));
-        
+
 		/* unmap the internal memory */
 		iounmap(Device->internalLogical);
     }
@@ -779,7 +805,7 @@ gcoGALDEVICE_Destroy(
     {
         /* Destroy the contiguous heap */
         gcmVERIFY_OK(gcoVIDMEM_Destroy(Device->contiguousVidMem));
-	
+
 	if (Device->contiguousMapped)
 	{
     	    gcmTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_DRIVER,

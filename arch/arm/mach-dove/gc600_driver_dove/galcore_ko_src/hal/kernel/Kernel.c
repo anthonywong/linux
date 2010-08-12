@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -24,7 +24,6 @@
 
 
 #include "PreComp.h"
-
 /******************************************************************************\
 ******************************* gcoKERNEL API Code ******************************
 \******************************************************************************/
@@ -49,6 +48,13 @@
 **			Pointer to a variable that will hold the pointer to the gcoKERNEL
 **			object.
 */
+
+#ifdef ANDROID
+#define DEFAULT_PROFILE_FILE_NAME	"/sdcard/vprofiler.xml"
+#else
+#define DEFAULT_PROFILE_FILE_NAME	"vprofiler.xml"
+#endif
+
 gceSTATUS gcoKERNEL_Construct(
 	IN gcoOS Os,
 	IN gctPOINTER Context,
@@ -66,6 +72,13 @@ gceSTATUS gcoKERNEL_Construct(
 	gcmERR_RETURN(
 		gcoOS_Allocate(Os, sizeof(struct _gcoKERNEL), (gctPOINTER *) &kernel));
 
+#if MRVL_LOW_POWER_MODE_DEBUG
+    gcmERR_RETURN(
+		gcoOS_Allocate(Os, 0x100000, (gctPOINTER *) &kernel->kernelMSG));
+
+    kernel->msgLen = 0;
+#endif
+
 	/* Zero the object pointers. */
 	kernel->hardware = gcvNULL;
 	kernel->command  = gcvNULL;
@@ -78,6 +91,9 @@ gceSTATUS gcoKERNEL_Construct(
 
 	/* Save context. */
 	kernel->context = Context;
+
+	/* No clients attached. */
+	kernel->clients = 0;
 
 	/* Construct the gcoHARDWARE object. */
 	gcmONERROR(
@@ -102,8 +118,21 @@ gceSTATUS gcoKERNEL_Construct(
 	gcmONERROR(
 		gcoMMU_Construct(kernel, 32 << 10, &kernel->mmu));
 
-	/* Return pointer to the gcoKERNEL object. */
-	kernel->notifyIdle = gcvFALSE;
+	kernel->notifyIdle = gcvTRUE;//gcvFALSE;
+
+#if VIVANTE_PROFILER
+	/* Initialize profile setting */
+#if defined ANDROID
+	kernel->profileEnable = gcvFALSE;
+#else
+	kernel->profileEnable = gcvTRUE;
+#endif
+
+	gcmVERIFY_OK(
+		gcoOS_MemCopy(kernel->profileFileName,
+					DEFAULT_PROFILE_FILE_NAME,
+					  gcmSIZEOF(DEFAULT_PROFILE_FILE_NAME) + 1));
+#endif
 
 	/* Return pointer to the gcoKERNEL object. */
 	*Kernel = kernel;
@@ -131,6 +160,11 @@ OnError:
 	}
 
     kernel->version = _GAL_VERSION_STRING_;
+
+#if MRVL_LOW_POWER_MODE_DEBUG
+	gcmVERIFY_OK(
+		gcoOS_Free(Os, kernel->kernelMSG));
+#endif
 
 	gcmVERIFY_OK(
 		gcoOS_Free(Os, kernel));
@@ -175,6 +209,11 @@ gceSTATUS gcoKERNEL_Destroy(
 
 	/* Mark the gcoKERNEL object as unknown. */
 	Kernel->object.type = gcvOBJ_UNKNOWN;
+
+#if MRVL_LOW_POWER_MODE_DEBUG
+    gcmVERIFY_OK(
+		gcoOS_Free(Kernel->os, Kernel->kernelMSG));
+#endif
 
 	/* Free the gcoKERNEL object. */
 	gcmVERIFY_OK(gcoOS_Free(Kernel->os, Kernel));
@@ -230,9 +269,9 @@ _AllocateMemory(
 	case gcvPOOL_UNIFIED:
 		pool = gcvPOOL_SYSTEM;
 		break;
-	
-	default: 
-		break;	
+
+	default:
+		break;
 	}
 
 	do
@@ -287,7 +326,14 @@ _AllocateMemory(
 		}
 		else if (pool == gcvPOOL_SYSTEM)
 		{
+            static int count= 1;
 			/* Advance to virtual memory. */
+            if (count == 1)
+            {
+				gcmTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_KERNEL,
+					"Try to allocate virtual memory!\n");
+                count = 0;
+            }
 			pool = gcvPOOL_VIRTUAL;
 		}
 		else
@@ -357,7 +403,7 @@ gceSTATUS gcoKERNEL_Dispatch(
 		/* Map interface structure into kernel address space. */
 		status = gcoOS_MapUserPointer(Kernel->os,
 									  Interface,
-									  sizeof(gcsHAL_INTERFACE),
+									  gcmSIZEOF(gcsHAL_INTERFACE),
 									  (gctPOINTER *)&kernelInterface);
 
 		if (gcmIS_ERROR(status))
@@ -371,12 +417,13 @@ gceSTATUS gcoKERNEL_Dispatch(
 	}
 
 	/* Dispatch on command. */
-	switch (Interface->command)
+	switch (kernelInterface->command)
 	{
 	case gcvHAL_GET_BASE_ADDRESS:
 		/* Get base address. */
-		status = gcoOS_GetBaseAddress(Kernel->os,
-									  &kernelInterface->u.GetBaseAddress.baseAddress);
+		status = gcoOS_GetBaseAddress(
+			Kernel->os,
+			&kernelInterface->u.GetBaseAddress.baseAddress);
 		break;
 
 	case gcvHAL_QUERY_VIDEO_MEMORY:
@@ -598,9 +645,11 @@ gceSTATUS gcoKERNEL_Dispatch(
 
     case gcvHAL_COMMIT:
         /* Commit a command and context buffer. */
-        gcmERR_BREAK(gcoCOMMAND_Commit(Kernel->command,
-						               kernelInterface->u.Commit.commandBuffer,
-							           kernelInterface->u.Commit.contextBuffer));
+        gcmERR_BREAK(
+			gcoCOMMAND_Commit(
+				Kernel->command,
+				kernelInterface->u.Commit.commandBuffer,
+				kernelInterface->u.Commit.contextBuffer));
         break;
 
     case gcvHAL_STALL:
@@ -627,9 +676,10 @@ gceSTATUS gcoKERNEL_Dispatch(
 			kernelInterface->u.UnmapUserMemory.address);
 		break;
 
+#if !USE_NEW_LINUX_SIGNAL
 	case gcvHAL_USER_SIGNAL:
 		/* Dispatch depends on the user signal subcommands. */
-		switch(kernelInterface->u.UserSignal.command) 
+		switch(kernelInterface->u.UserSignal.command)
 		{
 		case gcvUSER_SIGNAL_CREATE:
 			/* Create a signal used in the user space. */
@@ -666,6 +716,7 @@ gceSTATUS gcoKERNEL_Dispatch(
 			break;
 		}
         break;
+#endif
 
     case gcvHAL_SET_POWER_MANAGEMENT_STATE:
 		/* Set the power management state. */
@@ -702,22 +753,65 @@ gceSTATUS gcoKERNEL_Dispatch(
 		/* Read all 3D profile registers. */
         status = gcoHARDWARE_QueryProfileRegisters(
 			Kernel->hardware,
-			kernelInterface->u.RegisterProfileData.hwProfile);
+			(gctINT32_PTR)&kernelInterface->u.RegisterProfileData.hwProfile);
 #else
         status = gcvSTATUS_OK;
 #endif
         break;
 
     case gcvHAL_PROFILE_REGISTERS_2D:
+#if VIVANTE_PROFILER
 		/* Read all 2D profile registers. */
         status = gcoHARDWARE_ProfileEngine2D(
 			Kernel->hardware,
 			kernelInterface->u.RegisterProfileData2D.hwProfile2D);
+#else
+        status = gcvSTATUS_OK;
+#endif
         break;
+
+	case gcvHAL_GET_PROFILE_SETTING:
+#if VIVANTE_PROFILER
+	/* Get profile setting */
+	kernelInterface->u.GetProfileSetting.enable = Kernel->profileEnable;
+
+	gcmVERIFY_OK(gcoOS_MemCopy(kernelInterface->u.GetProfileSetting.fileName,
+					Kernel->profileFileName,
+					gcmMAX_PROFILE_FILE_NAME));
+#endif
+
+        status = gcvSTATUS_OK;
+        break;
+
+	case gcvHAL_SET_PROFILE_SETTING:
+#if VIVANTE_PROFILER
+	/* Set profile setting */
+	Kernel->profileEnable = kernelInterface->u.SetProfileSetting.enable;
+
+	gcmVERIFY_OK(gcoOS_MemCopy(Kernel->profileFileName,
+					kernelInterface->u.SetProfileSetting.fileName,
+					gcmMAX_PROFILE_FILE_NAME));
+#endif
+
+        status = gcvSTATUS_OK;
+	break;
+
+	case gcvHAL_QUERY_KERNEL_SETTINGS:
+		/* Get kernel settings. */
+		status = gcoKERNEL_QuerySettings(
+			Kernel,
+			&kernelInterface->u.QueryKernelSettings.settings);
+		break;
+
+	case gcvHAL_RESET:
+		/* Reset the hardware. */
+		status = gcoHARDWARE_Reset(Kernel->hardware);
+		break;
 
 	default:
 		/* Invalid command. */
 		status = gcvSTATUS_INVALID_ARGUMENT;
+		break;
 	}
 
 	/* Save status. */
@@ -726,11 +820,63 @@ gceSTATUS gcoKERNEL_Dispatch(
 	if (FromUser)
 	{
 		/* Unmap interface from kernel address space. */
-		gcmVERIFY_OK(gcoOS_UnmapUserPointer(Kernel->os, 
-											Interface, 
-											sizeof(gcsHAL_INTERFACE), 
-											kernelInterface));
+		gcmVERIFY_OK(
+			gcoOS_UnmapUserPointer(Kernel->os,
+								   Interface,
+								   gcmSIZEOF(gcsHAL_INTERFACE),
+								   kernelInterface));
 	}
+
+	/* Return the status. */
+	return status;
+}
+
+gceSTATUS
+gcoKERNEL_AttachProcess(
+	IN gcoKERNEL Kernel,
+	IN gctBOOL Attach
+	)
+{
+	gceSTATUS status;
+
+	/* Verify the arguments. */
+	gcmVERIFY_OBJECT(Kernel, gcvOBJ_KERNEL);
+
+	if (Attach)
+	{
+		if (Kernel->clients == 0)
+		{
+			/* First client attached, switch to ON power state. */
+			gcmONERROR(
+				gcoHARDWARE_SetPowerManagementState(Kernel->hardware,
+													gcvPOWER_ON));
+		}
+
+		/* Increment the number of clients attached. */
+		Kernel->clients += 1;
+	}
+
+	else
+	{
+		/* Decrement the number of clients attached. */
+		Kernel->clients -= 1;
+
+		if (Kernel->clients == 0)
+		{
+			/* Last client detached, switch to SUSPEND power state. */
+			gcmONERROR(
+				gcoHARDWARE_SetPowerManagementState(Kernel->hardware,
+													gcvPOWER_SUSPEND));
+		}
+	}
+
+	/* Success. */
+	return gcvSTATUS_OK;
+
+OnError:
+	gcmTRACE(gcvLEVEL_ERROR,
+			 "ERROR: gcoKERNEL_AttachProcess has error %d.",
+			 status);
 
 	/* Return the status. */
 	return status;

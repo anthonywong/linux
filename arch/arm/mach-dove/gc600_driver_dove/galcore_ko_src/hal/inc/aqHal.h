@@ -1,21 +1,21 @@
 /****************************************************************************
-*  
+*
 *    Copyright (C) 2002 - 2008 by Vivante Corp.
-*  
+*
 *    This program is free software; you can redistribute it and/or modify
 *    it under the terms of the GNU General Public Lisence as published by
 *    the Free Software Foundation; either version 2 of the license, or
 *    (at your option) any later version.
-*  
+*
 *    This program is distributed in the hope that it will be useful,
 *    but WITHOUT ANY WARRANTY; without even the implied warranty of
 *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 *    GNU General Public Lisence for more details.
-*  
+*
 *    You should have received a copy of the GNU General Public License
 *    along with this program; if not write to the Free Software
 *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*  
+*
 *****************************************************************************/
 
 
@@ -34,6 +34,16 @@ extern "C" {
 #include "aqHalEnum.h"
 #include "gcHAL_Base.h"
 #include "gcProfiler.h"
+
+/******************************************************************************\
+********************************* Inline Macro *********************************
+\******************************************************************************/
+
+#if defined(LINUX)
+#	define gcmINLINE inline
+#else
+#	define gcmINLINE __inline
+#endif
 
 /******************************************************************************\
 ******************************* Alignment Macros *******************************
@@ -124,6 +134,14 @@ typedef struct _gcsOBJECT
 }
 gcsOBJECT;
 
+/* Kernel settings. */
+typedef struct _gcsKERNEL_SETTINGS
+{
+	/* Used RealTime signal between kernel and user. */
+	gctINT signal;
+}
+gcsKERNEL_SETTINGS;
+
 /*******************************************************************************
 **
 **	gcmVERIFY_OBJECT
@@ -158,6 +176,18 @@ gcsOBJECT;
 /******************************************************************************\
 ********************************** gcoOS Object *********************************
 \******************************************************************************/
+
+/* Query the video memory. */
+gceSTATUS
+gcoOS_QueryVideoMemory(
+	IN gcoOS Os,
+	OUT gctPHYS_ADDR * InternalAddress,
+	OUT gctSIZE_T * InternalSize,
+	OUT gctPHYS_ADDR * ExternalAddress,
+	OUT gctSIZE_T * ExternalSize,
+	OUT gctPHYS_ADDR * ContiguousAddress,
+	OUT gctSIZE_T * ContiguousSize
+	);
 
 /* Allocate memory from the heap. */
 gceSTATUS
@@ -429,6 +459,20 @@ gcoOS_NotifyIdle(
 	IN gctBOOL Idle
 	);
 
+gceSTATUS
+gcoOS_SetConstraint(
+	IN gcoOS Os,
+	IN gctBOOL enableDVFM,
+	IN gctBOOL enableLPM
+	);
+
+gceSTATUS
+gcoOS_UnSetConstraint(
+	IN gcoOS Os,
+	IN gctBOOL enableDVFM,
+	IN gctBOOL enableLPM
+	);
+
 /******************************************************************************\
 ********************************** Signal Object *********************************
 \******************************************************************************/
@@ -503,6 +547,16 @@ gcoOS_UnmapUserMemory(
 	IN gctUINT32 Address
 	);
 
+#ifdef ANDROID_VERSION_ECLAIR
+gceSTATUS
+gcoOS_FlushCache(
+    int fd,
+    int offset,
+    int size 
+    );
+#endif
+
+#if !USE_NEW_LINUX_SIGNAL
 /* Create signal to be used in the user space. */
 gceSTATUS
 gcoOS_CreateUserSignal(
@@ -532,6 +586,15 @@ gcoOS_SignalUserSignal(
 	IN gcoOS Os,
 	IN gctINT SignalID,
 	IN gctBOOL State
+	);
+#endif /* USE_NEW_LINUX_SIGNAL */
+
+/* Set a signal owned by a process. */
+gceSTATUS
+gcoOS_UserSignal(
+	IN gcoOS Os,
+	IN gctSIGNAL Signal,
+	IN gctHANDLE Process
 	);
 
 /******************************************************************************\
@@ -784,6 +847,12 @@ gcoKERNEL_Notify(
 	IN gctBOOL Data
 	);
 
+gceSTATUS
+gcoKERNEL_QuerySettings(
+	IN gcoKERNEL Kernel,
+	OUT gcsKERNEL_SETTINGS * Settings
+	);
+
 /******************************************************************************\
 ******************************* gcoHARDWARE Object ******************************
 \******************************************************************************/
@@ -1004,6 +1073,7 @@ gcoHARDWARE_FlushMMU(
 gceSTATUS
 gcoHARDWARE_GetIdle(
 	IN gcoHARDWARE Hardware,
+	IN gctBOOL Wait,
 	OUT gctUINT32 * Data
 	);
 
@@ -1020,7 +1090,8 @@ gcoHARDWARE_Flush(
 gceSTATUS
 gcoHARDWARE_SetFastClear(
     IN gcoHARDWARE Hardware,
-    IN gctINT Enable
+    IN gctINT Enable,
+	IN gctINT Compression
     );
 
 gceSTATUS
@@ -1043,7 +1114,7 @@ gcoHARDWARE_QueryPowerManagementState(
     );
 
 /* Profile 2D Engine. */
-gceSTATUS 
+gceSTATUS
 gcoHARDWARE_ProfileEngine2D(
 	IN gcoHARDWARE Hardware,
 	OUT gco2D_PROFILE_PTR Profile
@@ -1055,9 +1126,8 @@ gcoHARDWARE_InitializeHardware(
 	);
 
 gceSTATUS
-gcoHARDWARE_NotifyPower(
-    IN gcoHARDWARE Hardware,
-	IN gctBOOL PowerOn
+gcoHARDWARE_Reset(
+	IN gcoHARDWARE Hardware
 	);
 
 /******************************************************************************\
@@ -1179,7 +1249,7 @@ typedef union _gcuEVENT_DATA
 		IN gctHANDLE			process;
 
         /* Event generated from where of pipeline */
-        IN gceKERNEL_WHERE      fromWhere;                
+        IN gceKERNEL_WHERE      fromWhere;
 	}
 	Signal;
 
@@ -1540,15 +1610,15 @@ struct _gcSHADER_PROFILER
 
 /* Initialize the gcProfiler. */
 gceSTATUS
-gcsPROFILER_Initialize( 
+gcsPROFILER_Initialize(
     IN gcoHAL Hal,
-    void* Fptr 
+    void* Fptr
     );
 
 /* Destroy the gcProfiler. */
 gceSTATUS
-gcsPROFILER_Destroy( 
-    IN gcoHAL Hal 
+gcsPROFILER_Destroy(
+    IN gcoHAL Hal
     );
 
 /* Call to signal end of frame. */
