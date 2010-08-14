@@ -125,9 +125,7 @@ static int mmm_input_mapped(struct hid_device *hdev, struct hid_input *hi,
  */
 static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 {
-	struct mmm_finger *oldest = 0;
-	bool pressed = false, released = false;
-	int i;
+	int i, index = -1;
 
 	/*
 	 * we need to iterate on all fingers to decide if we have a press
@@ -149,45 +147,20 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR,
 						wide ? f->h : f->w);
 			input_mt_sync(input);
-			/*
-			 * touchscreen emulation: maintain the age rank
-			 * of this finger, decide if we have a press
-			 */
-			if (f->rank == 0) {
-				f->rank = ++(md->num);
-				if (f->rank == 1)
-					pressed = true;
-			}
-			if (f->rank == 1)
-				oldest = f;
-		} else {
-			/* this finger took off the screen */
-			/* touchscreen emulation: maintain age rank of others */
-			int j;
 
-			for (j = 0; j < 10; ++j) {
-				struct mmm_finger *g = &md->f[j];
-				if (g->rank > f->rank) {
-					g->rank--;
-					if (g->rank == 1)
-						oldest = g;
-				}
-			}
-			f->rank = 0;
-			--(md->num);
-			if (md->num == 0)
-				released = true;
+			if (index < 0)
+				index = i;
 		}
 		f->valid = 0;
 	}
 
 	/* touchscreen emulation */
-	if (oldest) {
-		if (pressed)
-			input_event(input, EV_KEY, BTN_TOUCH, 1);
-		input_event(input, EV_ABS, ABS_X, oldest->x);
-		input_event(input, EV_ABS, ABS_Y, oldest->y);
-	} else if (released) {
+	if (index >= 0) {
+		struct mmm_finger *f = &md->f[index];
+		input_event(input, EV_KEY, BTN_TOUCH, 1);
+		input_event(input, EV_ABS, ABS_X, f->x);
+		input_event(input, EV_ABS, ABS_Y, f->y);
+	} else {
 		input_event(input, EV_KEY, BTN_TOUCH, 0);
 	}
 }
