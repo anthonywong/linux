@@ -1,4 +1,34 @@
-linux-maverick (2.6.35-15.21~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-16.22~lucid1) lucid-proposed; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * debian -- more agressivly clean up after depmod on purge
+    - LP: #618591
+
+  [ Henrik Rydberg ]
+
+  * SAUCE: hid: 3m: Simplify touchsreen emulation logic
+
+  [ Leann Ogasawara ]
+
+  * ubuntu: iscsitarget -- version 1.4.20.2
+  * ubuntu: rtl8192se -- update to version 0017.0507.2010
+  * rebase to v2.6.35.2
+  * [Config] update configs following rebase to v2.6.35.2
+  * [Config] update ports configs following rebase to v2.6.35.2
+
+  [ Luke Yelavich ]
+
+  * [Config] Enable new firewire stack on powerpc
+
+  [ Mathieu J. Poirier ]
+
+  * SAUCE: (drop after 2.6.35) ARM: Using gpmc function to init nand flash.
+    - LP: #608266
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 12 Aug 2010 09:58:01 -0700
+
+linux (2.6.35-15.21) maverick; urgency=low
 
   [ Luke Yelavich ]
 
