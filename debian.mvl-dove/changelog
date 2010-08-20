@@ -1,8 +1,8 @@
-linux-mvl-dove (2.6.32-208.22) lucid-proposed; urgency=low
+linux-mvl-dove (2.6.32-209.25) lucid-proposed; urgency=low
 
-  [ Brad Figg ]
+  [ Stefan Bader ]
 
-  * Rebased to 2.6.32-24.40
+  * Rebased to 2.6.32-24.42
 
   [ Eric Miao ]
 
@@ -213,7 +213,7 @@ linux-mvl-dove (2.6.32-208.22) lucid-proposed; urgency=low
   * dove: update support for the SB videoplug board
     - LP: #611634
 
-  [ Ubuntu: 2.6.32-24.40 ]
+  [ Ubuntu: 2.6.32-24.42 ]
 
   * (pre-stable) drm/i915: add PANEL_UNLOCK_REGS definition
     - LP: #561802, #578673
@@ -221,10 +221,35 @@ linux-mvl-dove (2.6.32-208.22) lucid-proposed; urgency=low
     - LP: #578673
   * (pre-stable) drm/i915: make sure we shut off the panel in eDP configs
     - LP: #578673
+
+ -- Stefan Bader <stefan.bader@canonical.com>  Fri, 20 Aug 2010 16:16:39 +0200
+
+linux-mvl-dove (2.6.32-208.24) lucid-security; urgency=low
+
+  [ Stefan Bader ]
+
+  * Rebased to 2.6.32-24.41
+
+  [ Ubuntu: 2.6.32-24.41 ]
+
   * (pre-stable) ext4: fix freeze deadlock under IO
     - LP: #595489
+  * drm: Initialize ioctl struct when no user data is present
+    - CVE-2010-2803
+  * can: add limit for nframes and clean up signed/unsigned variables
+    - CVE-2010-2959
+  * mm: keep a guard page below a grow-down stack segment
+    - CVE-2010-2240
+  * mm: fix missing page table unmap for stack guard page failure case
+    - CVE-2010-2240
+  * mm: fix page table unmap for stack guard page properly
+    - CVE-2010-2240
+  * mm: fix up some user-visible effects of the stack guard page
+    - CVE-2010-2240
+  * x86: don't send SIGBUS for kernel page faults
+    - CVE-2010-2240
 
- -- Brad Figg <brad.figg@canonical.com>  Thu, 12 Aug 2010 08:48:09 -0700
+ -- Stefan Bader <stefan.bader@canonical.com>  Wed, 18 Aug 2010 15:03:41 +0200
 
 linux-mvl-dove (2.6.32-207.21) lucid-security; urgency=low
 
