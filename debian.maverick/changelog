@@ -1,4 +1,32 @@
-linux-maverick (2.6.35-17.23~lucid1) lucid-proposed; urgency=low
+linux-maverick (2.6.35-18.24~lucid1) lucid-proposed; urgency=low
+
+  [ Colin Watson ]
+
+  * Pass DEB_MAINT_PARAMS to hook scripts
+
+  [ Leann Ogasawara ]
+
+  * [Config] Add CONFIG_INPUT_UINPUT=y to config enforcer
+    - LP: #584812
+  * rebase to v2.6.35.3
+
+  [ Upstream Kernel Changes ]
+
+  * (pre-stable) dell-wmi: Add support for eject key on Dell Studio 1555
+    - LP: #609234
+  * can: add limit for nframes and clean up signed/unsigned variables
+    - CVE-2010-2959
+  * drm: Initialize ioctl struct when no user data is present
+    - CVE-2010-2803
+  * ARM: initial stack protector (-fstack-protector) support
+  * ARM: stack protector: change the canary value per task
+  * [ARM] implement arch_randomize_brk()
+  * [ARM] add address randomization to mmap()
+  * ARM: fix ASLR of PIE executables
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Sun, 22 Aug 2010 19:22:04 -0700
+
+linux (2.6.35-17.23) maverick; urgency=low
 
   [ Jeremy Kerr ]
 
