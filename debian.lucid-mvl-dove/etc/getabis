@@ -1,0 +1,3 @@
+repo_list=("http://ports.ubuntu.com/pool/main/l/linux-mvl-dove")
+
+getall armel dove
