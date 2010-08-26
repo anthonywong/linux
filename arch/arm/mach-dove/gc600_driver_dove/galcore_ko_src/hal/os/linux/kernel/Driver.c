@@ -53,10 +53,10 @@ static gcoGALDEVICE galDevice;
 static int major = 199;
 module_param(major, int, 0644);
 
-int irqLine = 8;
+int irqLine = IRQ_DOVE_GPU;
 module_param(irqLine, int, 0644);
 
-long registerMemBase = 0xc0400000;
+long registerMemBase = DOVE_GPU_PHYS_BASE;
 module_param(registerMemBase, long, 0644);
 
 ulong registerMemSize = 256 << 10;
@@ -65,7 +65,7 @@ module_param(registerMemSize, ulong, 0644);
 long contiguousSize = 32 << 20;
 module_param(contiguousSize, long, 0644);
 
-ulong contiguousBase = 0;
+ulong contiguousBase = 0x8000000;
 module_param(contiguousBase, ulong, 0644);
 
 long bankSize = 32 << 20;

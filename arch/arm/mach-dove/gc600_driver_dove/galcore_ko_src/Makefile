@@ -177,7 +177,8 @@ EXTRA_CFLAGS += -I$(AQARCH)/hal/kernel
 EXTRA_CFLAGS += -I$(AQARCH)/cmodel/inc
 EXTRA_CFLAGS += -I$(AQROOT)/hal/user
 
-obj-m = galcore.o
-galcore-objs  = $(OBJS)
+galcore-objs = $(OBJS)
+
+obj-$(CONFIG_DOVE_GC600) = galcore.o
 
 endif

@@ -74,6 +74,12 @@ config MV_HAL_DRIVERS_SUPPORT
 	  Say 'Y' here if you want your kernel to support HAL 
 	  based drivers where possible.
 
+config DOVE_GC600
+	tristate "Marvell Dove Graphics Accelerator GC600"
+	default y
+	help
+	  Say 'Y' here if you want to build the GC600 support.
+
 config DOVE_PM_SUPPORT
 	depends on PM && MV_INCLUDE_PMU && MV_HAL_DRIVERS_SUPPORT
 	def_bool y
