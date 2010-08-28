@@ -1670,6 +1670,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	input_event
 EXPORT_SYMBOL vmlinux 0x00000000	input_flush_device
 EXPORT_SYMBOL vmlinux 0x00000000	input_free_device
 EXPORT_SYMBOL vmlinux 0x00000000	input_get_keycode
+EXPORT_SYMBOL vmlinux 0x00000000	input_get_keycode_big
 EXPORT_SYMBOL vmlinux 0x00000000	input_grab_device
 EXPORT_SYMBOL vmlinux 0x00000000	input_handler_for_each_handle
 EXPORT_SYMBOL vmlinux 0x00000000	input_inject_event
@@ -1682,6 +1683,7 @@ EXPORT_SYMBOL vmlinux 0x00000000	input_register_handler
 EXPORT_SYMBOL vmlinux 0x00000000	input_release_device
 EXPORT_SYMBOL vmlinux 0x00000000	input_set_capability
 EXPORT_SYMBOL vmlinux 0x00000000	input_set_keycode
+EXPORT_SYMBOL vmlinux 0x00000000	input_set_keycode_big
 EXPORT_SYMBOL vmlinux 0x00000000	input_unregister_device
 EXPORT_SYMBOL vmlinux 0x00000000	input_unregister_handle
 EXPORT_SYMBOL vmlinux 0x00000000	input_unregister_handler
@@ -4892,6 +4894,7 @@ EXPORT_SYMBOL_GPL vmlinux 0x00000000	set_cpus_allowed_ptr
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	set_irq_nested_thread
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	set_task_ioprio
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	set_timer_slack
+EXPORT_SYMBOL_GPL vmlinux 0x00000000	setup_deferrable_timer_on_stack_key
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	setup_irq
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	sg_scsi_ioctl
 EXPORT_SYMBOL_GPL vmlinux 0x00000000	shmem_file_setup

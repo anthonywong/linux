@@ -643,8 +643,10 @@ ir-common
 ir-core
 ir-jvc-decoder
 ir-kbd-i2c
+ir-lirc-codec
 ir-nec-decoder
 ir-rc5-decoder
+ir-rc5-sz-decoder
 ir-rc6-decoder
 ir-sony-decoder
 ir-usb
@@ -754,6 +756,7 @@ libsas
 lightning
 line6usb
 linear
+lirc_dev
 lis3l02dq
 lis3lv02d
 lis3lv02d_i2c
@@ -1130,6 +1133,7 @@ rc-iodata-bctv7e
 rc-kaiomy
 rc-kworld-315u
 rc-kworld-plus-tv-analog
+rc-lirc
 rc-manli
 rc-msi-tvanywhere
 rc-msi-tvanywhere-plus
@@ -1150,7 +1154,9 @@ rc-purpletv
 rc-pv951
 rc-rc5-hauppauge-new
 rc-rc5-tv
+rc-rc6-mce
 rc-real-audio-220-32-keys
+rc-streamzap
 rc-tbs-nec
 rc-terratec-cinergy-xs
 rc-tevii-nec
