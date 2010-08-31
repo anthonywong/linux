@@ -25,30 +25,37 @@
 #include <asm/mach-types.h>
 #include <mach/dove.h>
 
-#include "../codecs/rt655.h"
+#include "../codecs/ac97.h"
 #include "../pxa/pxa2xx-pcm.h"
 #include "../pxa/pxa2xx-ac97.h"
 
 static struct platform_device *dove_ac97_snd_device;
+
+static int machine_init(struct snd_soc_codec *codec)
+{
+	snd_soc_dapm_sync(codec);
+	return 0;
+}
 
 static struct snd_soc_dai_link dove_ac97_dai[] = {
 	{
 		.name = "AC97",
 		.stream_name = "AC97 HiFi",
 		.cpu_dai = &pxa_ac97_dai[PXA2XX_DAI_AC97_HIFI],
-		.codec_dai = &rt655_dai,
+		.codec_dai = &ac97_dai,
+		.init = machine_init,
 	},
 	{
 		.name = "AC97",
 		.stream_name = "AC97 LFE",
 		.cpu_dai = &pxa_ac97_surround_dai[PXA3XX_DAI_AC97_LFE],
-		.codec_dai = &rt655_dai,
+		.codec_dai = &ac97_dai,
 	},
 	{
 		.name = "AC97",
 		.stream_name = "AC97 Surround",
 		.cpu_dai = &pxa_ac97_surround_dai[PXA3XX_DAI_AC97_SURROUND],
-		.codec_dai = &rt655_dai,
+		.codec_dai = &ac97_dai,
 	},
 };
 
@@ -61,12 +68,7 @@ static struct snd_soc_card dove = {
 
 static struct snd_soc_device dove_ac97_snd_devdata = {
 	.card = &dove,
-	.codec_dev = &soc_codec_dev_rt655,
-};
-
-struct platform_device rt655_codec_dev = {
-	.name           = "rt655-codec",
-	.id             = 0,
+	.codec_dev = &soc_codec_dev_ac97,
 };
 
 extern u32 chip_rev;
@@ -77,6 +79,8 @@ static int __init dove_db_b_init(void)
         if (!machine_is_dove_db_b() && !(machine_is_dove_db() && (chip_rev >= DOVE_REV_A0)))
                 return -ENODEV;
 
+	ac97_dai.playback.rates = SNDRV_PCM_RATE_48000;
+	ac97_dai.capture.rates = SNDRV_PCM_RATE_48000;
 	dove_ac97_snd_device = platform_device_alloc("soc-audio", 0);
 	if (!dove_ac97_snd_device)
 		return -ENOMEM;
@@ -88,16 +92,11 @@ static int __init dove_db_b_init(void)
 	if (ret)
 		platform_device_put(dove_ac97_snd_device);
 
-	ret = platform_device_register(&rt655_codec_dev);
-	if(ret)
-		platform_device_unregister(&rt655_codec_dev);
-
 	return ret;
 }
 
 static void __exit dove_db_b_exit(void)
 {
-	platform_device_unregister(&rt655_codec_dev);
 	platform_device_unregister(dove_ac97_snd_device);
 }
 

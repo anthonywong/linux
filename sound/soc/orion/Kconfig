@@ -29,6 +29,7 @@ config SND_DOVE_SOC_DB_B
 	select SND_PXA2XX_SOC_AC97
 	select SND_PXA2XX_SOC_AC97_SURROUND
 	select SND_SOC_RT655
+	select SND_SOC_AC97_CODEC
 	help
 	  Say Y if you want to add support for SoC audio on Marvell
 	  Dove Development Board.
