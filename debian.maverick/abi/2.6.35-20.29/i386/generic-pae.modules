@@ -1857,6 +1857,7 @@ phonedev
 phonet
 phram
 physmap
+pkgtemp
 pktgen
 pl2303
 platform_lcd
@@ -2966,9 +2967,11 @@ x25_asy
 x38_edac
 xc5000
 xcbc
+xen-blkfront
 xen-fbfront
 xenfs
 xen-kbdfront
+xen-netfront
 xfrm4_mode_beet
 xfrm4_mode_transport
 xfrm4_mode_tunnel
