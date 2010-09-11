@@ -1718,6 +1718,7 @@ phonedev
 phonet
 phram
 physmap
+pkgtemp
 pktgen
 pl2303
 platform_lcd
