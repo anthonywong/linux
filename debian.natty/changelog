@@ -1,44 +1,72 @@
-linux-lts-backport-maverick (2.6.35-22.34~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-natty (2.6.36-0.1~lucid1) lucid-proposed; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * reduce disk usage during buildd builds
+    - LP: #645653
+  * [Config] enforcer -- ensure CONFIG_INIT_PASS_ALL_PARAMS is y
+  * [Config] armel -- drop omap flavour
 
   [ Tim Gardner ]
 
-  * First upload according to https://wiki.ubuntu.com/KernelTeam/Specs/KernelMaverickNewKernelOnLTS
-
-  [ John Johansen ]
-
-  * SAUCE: Return correct error code for mediated network connections
-    - LP: #647071
+  * Added dropped patch list
+  * more dropped patches
+  * [Config] Disable aufs, dmraid-4.5, ndis-wrapper
+  * [Config] Add support for cross compiling armel
+  * [Config] CONFIG_SCSI_QLA_ISCSI=n for armel
+  * [Upstream] drivers/serial/mfd.c: Fix ARM compile error
+  * [Config]: updateconfigs after adding brcm80211
+  * staging: brcm80211: Fix Makefile syntax error
+  * rebased to v2.6.36-rc7
 
   [ Upstream Kernel Changes ]
 
-  * irda: Correctly clean up self->ias_obj on irda_bind() failure.
-    - CVE-2010-2954
-  * wireless extensions: fix kernel heap content leak
-    - CVE-2010-2955
-  * KEYS: Fix RCU no-lock warning in keyctl_session_to_parent()
-    - CVE-2010-2960
-  * KEYS: Fix bug in keyctl_session_to_parent() if parent has no session
-    keyring
-    - CVE-2010-2960
-  * ALSA: seq/oss - Fix double-free at error path of snd_seq_oss_open()
-    - CVE-2010-3080
-  * intel_idle: PCI quirk to prevent Lenovo Ideapad s10-3 boot hang
-    - LP: #634702
-  * drm/i915: Rephrase pwrite bounds checking to avoid any potential
-    overflow
-    - CVE-2010-2962
-  * drm/i915: Skip pread/pwrite if size to copy is 0.
-    - CVE-2010-2962
-  * drm/i915: Sanity check pread/pwrite
-    - CVE-2010-2962
-  * Fix pktcdvd ioctl dev_minor range check
-    - CVE-2010-3437
-  * Fix out-of-bounds reading in sctp_asoc_get_hmac()
-    - CVE-2010-3705
-  * ocfs2: Don't walk off the end of fast symlinks.
-    - CVE-2010-NNN2
+  * (upstream) IPS driver: don't toggle CPU turbo on unsupported CPUs
+  * (upstream) IPS driver: verify BIOS provided limits
+  * intel_ips: Print MCP limit exceeded values.
+  * Staging: Add initial release of brcm80211 - Broadcom 802.11n wireless
+    LAN driver.
+  * staging: brcm80211: Fix some initialisation failure paths
+  * staging: brcm80211: Add contact info to TODO list.
+  * staging: brcm80211: use '%pM' format to print MAC address
+  * staging: brcm80211: Fix URLs for firmware files.
+  * staging: brcm80211: fix 'ERROR: "foo * bar" should be "foo *bar"'
+  * staging: brcm80211: fix "ERROR: open brace '{' following function
+    dec..."
+  * staging: brcm80211: fix "ERROR: return is not a function, paren..."
+  * staging: brcm80211: fix "ERROR: do not use assignment in if condition"
+  * staging: brcm80211: fix "ERROR: trailing statements should be on next
+    line"
+  * staging: brcm80211: fix "ERROR: that open brace { ... prev line"
+  * staging: brcm80211: fix "ERROR: while should follow close brace '}'"
+  * staging: brcm80211: fix "ERROR: do not initialise globals to 0 or NULL"
+  * staging: brcm80211: fix "ERROR: do not initialise statics to 0 or NULL"
+  * staging: brcm80211: fix "ERROR: Macros w/ complex values ...
+    parenthesis"
+  * staging: brcm80211: fix "ERROR: Macros w/ mult. statements ... do -
+    while loop"
+  * staging: brcm80211: fix 'ERROR: "(foo*)" should be "(foo *)"'
+  * staging: brcm80211: fix "ERROR: need consistent spacing around '*'"
+  * staging: brcm80211: fix "ERROR: space prohibited after that ..."
+  * staging: brcm80211: fix "ERROR: space prohibited before ...close square
+    bracket"
+  * staging: brcm80211: fix "ERROR: space required after that close brace"
+  * staging: brcm80211: fix "ERROR: space required after that ..."
+  * staging: brcm80211: fix "ERROR: space required before that ..."
+  * staging: brcm80211: fix "ERROR: spaces prohibited around that ':' ..."
+  * staging: brcm80211: fix "ERROR: spaces required around that ..."
+  * staging: brcm80211: fix "ERROR: trailing whitespace."
+  * staging: brcm80211: fix remaining checkpatch errors.
+  * staging: brcm80211: use native ctype library
+  * staging: brcm80211: use string native library
+  * staging: brcm80211: add fullmac driver
+  * Staging: brcm80211: clean up makefile cflag lines
+  * Staging: brcm80211: remove driver specific -W options
+  * staging: brcm80211: Fix compile issue when BRCM80211_PCI is not set.
+  * staging: brcm80211: Make compiling of brcm80211.ko and brcmfmac.ko
+    mutually exclusive.
 
- -- Leann Ogasawara <leann.ogasawara@canonical.com>  Mon, 20 Sep 2010 08:36:53 -0700
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 12 Oct 2010 16:00:27 +0100
 
 linux (2.6.35-22.33) maverick; urgency=low
 
