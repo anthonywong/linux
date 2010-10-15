@@ -2028,6 +2028,7 @@ int dump_write(struct file *file, const void *addr, int nr)
 {
 	return access_ok(VERIFY_READ, addr, nr) && file->f_op->write(file, addr, nr, &file->f_pos) == nr;
 }
+EXPORT_SYMBOL(dump_write);
 
 int dump_seek(struct file *file, loff_t off)
 {
@@ -2056,3 +2057,4 @@ int dump_seek(struct file *file, loff_t off)
 	}
 	return ret;
 }
+EXPORT_SYMBOL(dump_seek);
