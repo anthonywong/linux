@@ -29,7 +29,7 @@
 
 #ifdef WLC_LOW
 /* nvram vars cache */
-static char *nvram_vars;
+static char *nvram_vars = NULL;
 static int vars_len = -1;
 #endif				/* WLC_LOW */
 
