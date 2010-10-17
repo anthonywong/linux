@@ -36,6 +36,9 @@ ccflags-y :=			\
 	-DDHD_GPL		\
 	-DBCMLXSDMMC		\
 	-DBCMPLATFORM_BUS	\
+	-Wall			\
+	-Wstrict-prototypes	\
+	-Werror			\
 	-DOEM_CHROMIUMOS	\
 	-DEMBEDDED_PLATFORM	\
 	-DARP_OFFLOAD_SUPPORT	\
