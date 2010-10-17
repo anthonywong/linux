@@ -17,10 +17,11 @@
 #include <typedefs.h>
 
 #include <osl.h>
-#include <linux/ctype.h>
-#include <linux/kernel.h>
 #include <bcmutils.h>
+#define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
 #include <bcmwifi.h>
+
+#include <linux/ctype.h>
 
 /* Chanspec ASCII representation:
  * <channel><band><bandwidth><ctl-sideband>
@@ -91,7 +92,7 @@ chanspec_t wf_chspec_aton(char *a)
 	uint channel, band, bw, ctl_sb;
 	char c;
 
-	channel = simple_strtoul(a, &endp, 10);
+	channel = strtoul(a, &endp, 10);
 
 	/* check for no digits parsed */
 	if (endp == a)
