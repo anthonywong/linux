@@ -46,8 +46,7 @@ static char *findvar(char *vars, char *lim, const char *name);
 
 #if defined(FLASH)
 /* copy flash to ram */
-static void BCMINITFN(get_flash_nvram) (si_t *sih, struct nvram_header *nvh)
-{
+static void BCMINITFN(get_flash_nvram) (si_t *sih, struct nvram_header *nvh) {
 	osl_t *osh;
 	uint nvs, bufsz;
 	vars_t *new;
@@ -75,8 +74,7 @@ static void BCMINITFN(get_flash_nvram) (si_t *sih, struct nvram_header *nvh)
 }
 #endif				/* FLASH */
 
-int BCMATTACHFN(nvram_init) (void *si)
-{
+int BCMATTACHFN(nvram_init) (void *si) {
 
 	/* Make sure we read nvram in flash just once before freeing the memory */
 	if (vars != NULL) {
@@ -86,8 +84,7 @@ int BCMATTACHFN(nvram_init) (void *si)
 	return 0;
 }
 
-int BCMATTACHFN(nvram_append) (void *si, char *varlst, uint varsz)
-{
+int BCMATTACHFN(nvram_append) (void *si, char *varlst, uint varsz) {
 	uint bufsz = VARS_T_OH;
 	vars_t *new;
 
@@ -103,8 +100,7 @@ int BCMATTACHFN(nvram_append) (void *si, char *varlst, uint varsz)
 	return BCME_OK;
 }
 
-void BCMUNINITFN(nvram_exit) (void *si)
-{
+void BCMUNINITFN(nvram_exit) (void *si) {
 	vars_t *this, *next;
 	si_t *sih;
 
@@ -151,23 +147,19 @@ char *nvram_get(const char *name)
 	return v;
 }
 
-int BCMATTACHFN(nvram_set) (const char *name, const char *value)
-{
+int BCMATTACHFN(nvram_set) (const char *name, const char *value) {
 	return 0;
 }
 
-int BCMATTACHFN(nvram_unset) (const char *name)
-{
+int BCMATTACHFN(nvram_unset) (const char *name) {
 	return 0;
 }
 
-int BCMATTACHFN(nvram_reset) (void *si)
-{
+int BCMATTACHFN(nvram_reset) (void *si) {
 	return 0;
 }
 
-int BCMATTACHFN(nvram_commit) (void)
-{
+int BCMATTACHFN(nvram_commit) (void) {
 	return 0;
 }
 
