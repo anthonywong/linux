@@ -19,9 +19,8 @@
 #include <osl.h>
 #include <bcmutils.h>
 #define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
+#define tolower(c) (bcm_isupper((c)) ? ((c) + 'a' - 'A') : (c))
 #include <bcmwifi.h>
-
-#include <linux/ctype.h>
 
 /* Chanspec ASCII representation:
  * <channel><band><bandwidth><ctl-sideband>
