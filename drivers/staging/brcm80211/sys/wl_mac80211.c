@@ -128,7 +128,7 @@ static int wl_linux_watchdog(void *ctx);
 	FIF_OTHER_BSS | \
 	FIF_BCN_PRBRESP_PROMISC)
 
-static int wl_found;
+static int wl_found = 0;
 
 struct ieee80211_tkip_data {
 #define TKIP_KEY_LEN 32
@@ -203,17 +203,17 @@ module_param(phymsglevel, int, 0);
 #endif				/* WLC_HIGH_ONLY */
 #endif				/* BCMDBG */
 
-static int oneonly;
+static int oneonly = 0;
 module_param(oneonly, int, 0);
 
-static int piomode;
+static int piomode = 0;
 module_param(piomode, int, 0);
 
-static int instance_base;	/* Starting instance number */
+static int instance_base = 0;	/* Starting instance number */
 module_param(instance_base, int, 0);
 
 #if defined(BCMDBG)
-static char *macaddr;
+static char *macaddr = NULL;
 module_param(macaddr, charp, S_IRUGO);
 #endif
 
