@@ -63,4 +63,3 @@ EXTRA_CFLAGS += $(PCI_CFLAGS)
 $(MODULEPFX)-objs	= $(BRCM80211_OFILES) $(PCIFILES)
 endif
 
-obj-$(CONFIG_BRCMFMAC)    += brcmfmac/
