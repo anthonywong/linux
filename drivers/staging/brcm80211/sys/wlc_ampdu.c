@@ -187,8 +187,7 @@ ampdu_info_t *BCMATTACHFN(wlc_ampdu_attach) (wlc_info_t *wlc)
 	ASSERT(wlc->pub->tunables->ampdunummpdu <= AMPDU_MAX_MPDU);
 	ASSERT(wlc->pub->tunables->ampdunummpdu > 0);
 
-	ampdu = (ampdu_info_t *) MALLOC(wlc->osh, sizeof(ampdu_info_t));
-	if (!ampdu) {
+	if (!(ampdu = (ampdu_info_t *) MALLOC(wlc->osh, sizeof(ampdu_info_t)))) {
 		WL_ERROR(("wl%d: wlc_ampdu_attach: out of mem, malloced %d bytes\n", wlc->pub->unit, MALLOCED(wlc->osh)));
 		return NULL;
 	}
@@ -1256,8 +1255,7 @@ ampdu_cleanup_tid_ini(ampdu_info_t *ampdu, scb_ampdu_t *scb_ampdu, uint8 tid,
 		      bool force)
 {
 	scb_ampdu_tid_ini_t *ini;
-	ini = SCB_AMPDU_INI(scb_ampdu, tid);
-	if (!ini)
+	if (!(ini = SCB_AMPDU_INI(scb_ampdu, tid)))
 		return;
 
 	WL_AMPDU_CTL(("wl%d: ampdu_cleanup_tid_ini: tid %d\n",

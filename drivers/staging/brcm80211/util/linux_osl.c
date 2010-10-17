@@ -180,8 +180,7 @@ void *BCMFASTPATH osl_pktget(osl_t *osh, uint len)
 {
 	struct sk_buff *skb;
 
-	skb = dev_alloc_skb(len);
-	if (skb) {
+	if ((skb = dev_alloc_skb(len))) {
 		skb_put(skb, len);
 		skb->priority = 0;
 
@@ -313,8 +312,7 @@ void *osl_malloc(osl_t *osh, uint size)
 	if (osh)
 		ASSERT(osh->magic == OS_HANDLE_MAGIC);
 
-	addr = kmalloc(size, GFP_ATOMIC);
-	if (addr == NULL) {
+	if ((addr = kmalloc(size, GFP_ATOMIC)) == NULL) {
 		if (osh)
 			osh->failed++;
 		return NULL;
@@ -454,8 +452,7 @@ void *osl_pktdup(osl_t *osh, void *skb)
 {
 	void *p;
 
-	p = skb_clone((struct sk_buff *)skb, GFP_ATOMIC);
-	if (p == NULL)
+	if ((p = skb_clone((struct sk_buff *)skb, GFP_ATOMIC)) == NULL)
 		return NULL;
 
 	/* skb_clone copies skb->cb.. we don't want that */
