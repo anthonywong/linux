@@ -137,8 +137,7 @@ static int BCMATTACHFN(varbuf_append) (varbuf_t *b, const char *fmt, ...)
 				break;
 			}
 
-			while (*s++)
-				;
+			while (*s++) ;
 		}
 	}
 
