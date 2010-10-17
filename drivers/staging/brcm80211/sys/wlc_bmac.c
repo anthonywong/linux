@@ -758,13 +758,11 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 	if (bustype != SI_BUS) {
 		char *var;
 
-		var = getvar(vars, "vendid");
-		if (var) {
+		if ((var = getvar(vars, "vendid"))) {
 			vendor = (uint16) bcm_strtoul(var, NULL, 0);
 			WL_ERROR(("Overriding vendor id = 0x%x\n", vendor));
 		}
-		var = getvar(vars, "devid");
-		if (var) {
+		if ((var = getvar(vars, "devid"))) {
 			uint16 devid = (uint16) bcm_strtoul(var, NULL, 0);
 			if (devid != 0xffff) {
 				device = devid;
@@ -929,9 +927,9 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 		    xmtfifo_sz[(wlc_hw->corerev - XMTFIFOTBL_STARTREV)];
 
 		/* Get a phy for this band */
-		wlc_hw->band->pi = wlc_phy_attach(wlc_hw->phy_sh,
-			(void *)(uintptr) regs, wlc_hw->band->bandtype, vars);
-		if (wlc_hw->band->pi == NULL) {
+		if ((wlc_hw->band->pi =
+		     wlc_phy_attach(wlc_hw->phy_sh, (void *)(uintptr) regs,
+				    wlc_hw->band->bandtype, vars)) == NULL) {
 			WL_ERROR(("wl%d: wlc_bmac_attach: wlc_phy_attach failed\n", unit));
 			err = 17;
 			goto fail;
@@ -1015,8 +1013,7 @@ BCMATTACHFN(wlc_bmac_attach) (wlc_info_t *wlc, uint16 vendor, uint16 device,
 	 */
 
 	/* init etheraddr state variables */
-	macaddr = wlc_get_macaddr(wlc_hw);
-	if (macaddr == NULL) {
+	if ((macaddr = wlc_get_macaddr(wlc_hw)) == NULL) {
 		WL_ERROR(("wl%d: wlc_bmac_attach: macaddr not found\n", unit));
 		err = 21;
 		goto fail;
@@ -1145,8 +1142,7 @@ BCMINITFN(wlc_bmac_init) (wlc_hw_info_t *wlc_hw, chanspec_t chanspec,
 	WL_TRACE(("wl%d: wlc_bmac_init\n", wlc_hw->unit));
 
 	/* request FAST clock if not on */
-	fastclk = wlc_hw->forcefastclk;
-	if (!fastclk)
+	if (!(fastclk = wlc_hw->forcefastclk))
 		wlc_clkctl_clk(wlc_hw, CLK_FAST);
 
 	/* disable interrupts */
@@ -1844,8 +1840,7 @@ void wlc_bmac_bw_set(wlc_hw_info_t *wlc_hw, uint16 bw)
 	uint32 tmp;
 
 	/* request FAST clock if not on */
-	fastclk = wlc_hw->forcefastclk;
-	if (!fastclk)
+	if (!(fastclk = wlc_hw->forcefastclk))
 		wlc_clkctl_clk(wlc_hw, CLK_FAST);
 
 	wlc_phy_bw_state_set(wlc_hw->band->pi, bw);
@@ -2182,8 +2177,7 @@ static char *BCMINITFN(wlc_get_macaddr) (wlc_hw_info_t *wlc_hw)
 	char *macaddr;
 
 	/* If macaddr exists, use it (Sromrev4, CIS, ...). */
-	macaddr = getvar(wlc_hw->vars, varname);
-	if (macaddr != NULL)
+	if ((macaddr = getvar(wlc_hw->vars, varname)) != NULL)
 		return macaddr;
 
 	if (NBANDS_HW(wlc_hw) > 1)
@@ -2191,8 +2185,7 @@ static char *BCMINITFN(wlc_get_macaddr) (wlc_hw_info_t *wlc_hw)
 	else
 		varname = "il0macaddr";
 
-	macaddr = getvar(wlc_hw->vars, varname);
-	if (macaddr == NULL) {
+	if ((macaddr = getvar(wlc_hw->vars, varname)) == NULL) {
 		WL_ERROR(("wl%d: wlc_get_macaddr: macaddr getvar(%s) not found\n", wlc_hw->unit, varname));
 	}
 
@@ -2341,8 +2334,7 @@ void BCMINITFN(wlc_bmac_corereset) (wlc_hw_info_t *wlc_hw, uint32 flags)
 	regs = wlc_hw->regs;
 
 	/* request FAST clock if not on  */
-	fastclk = wlc_hw->forcefastclk;
-	if (!fastclk)
+	if (!(fastclk = wlc_hw->forcefastclk))
 		wlc_clkctl_clk(wlc_hw, CLK_FAST);
 
 	/* reset the dma engines except first time thru */

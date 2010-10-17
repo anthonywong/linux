@@ -22357,8 +22357,9 @@ wlc_phy_gen_load_samples_nphy(phy_info_t *pi, uint32 f_kHz, uint16 max_val,
 		tbl_len = (phy_bw << 1);
 	}
 
-	tone_buf = (cint32 *) MALLOC(pi->sh->osh, sizeof(cint32) * tbl_len);
-	if (tone_buf == NULL) {
+	if ((tone_buf =
+	     (cint32 *) MALLOC(pi->sh->osh,
+			       sizeof(cint32) * tbl_len)) == NULL) {
 		return 0;
 	}
 
@@ -22392,9 +22393,9 @@ wlc_phy_tx_tone_nphy(phy_info_t *pi, uint32 f_kHz, uint16 max_val,
 	uint16 loops = 0xffff;
 	uint16 wait = 0;
 
-	num_samps =
-		wlc_phy_gen_load_samples_nphy(pi, f_kHz, max_val, dac_test_mode);
-	if (num_samps == 0) {
+	if ((num_samps =
+	     wlc_phy_gen_load_samples_nphy(pi, f_kHz, max_val,
+					   dac_test_mode)) == 0) {
 		return BCME_ERROR;
 	}
 
@@ -22411,8 +22412,9 @@ wlc_phy_loadsampletable_nphy(phy_info_t *pi, cint32 *tone_buf,
 	uint16 t;
 	uint32 *data_buf = NULL;
 
-	data_buf = (uint32 *) MALLOC(pi->sh->osh, sizeof(uint32) * num_samps);
-	if (data_buf == NULL) {
+	if ((data_buf =
+	     (uint32 *) MALLOC(pi->sh->osh,
+			       sizeof(uint32) * num_samps)) == NULL) {
 		return;
 	}
 
@@ -26726,8 +26728,10 @@ wlc_phy_a1_nphy(phy_info_t *pi, uint8 core, uint32 winsz, uint32 start,
 	ASSERT(end > start);
 	ASSERT(end < NPHY_PAPD_EPS_TBL_SIZE);
 
-	buf = MALLOC(pi->sh->osh, 2 * sizeof(uint32) * NPHY_PAPD_EPS_TBL_SIZE);
-	if (NULL == buf) {
+	if (NULL ==
+	    (buf =
+	     MALLOC(pi->sh->osh,
+		    2 * sizeof(uint32) * NPHY_PAPD_EPS_TBL_SIZE))) {
 		return;
 	}
 
