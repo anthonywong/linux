@@ -67,9 +67,10 @@ PCIFILES := \
 
 MODULEPFX := brcm80211
 
+obj-m	+= $(MODULEPFX).o
+
 # PCI driver
 ifeq ($(CONFIG_BRCM80211_PCI),y)
-obj-m	+= $(MODULEPFX).o
 ccflags-y += $(PCI_CFLAGS)
 $(MODULEPFX)-objs	= $(BRCM80211_OFILES) $(PCIFILES)
 endif
