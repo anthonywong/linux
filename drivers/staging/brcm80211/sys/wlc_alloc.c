@@ -50,8 +50,7 @@ void *wlc_calloc(osl_t *osh, uint unit, uint size)
 	return item;
 }
 
-void BCMATTACHFN(wlc_tunables_init) (wlc_tunables_t *tunables, uint devid)
-{
+void BCMATTACHFN(wlc_tunables_init) (wlc_tunables_t *tunables, uint devid) {
 	tunables->ntxd = NTXD;
 	tunables->nrxd = NRXD;
 	tunables->rxbufsz = RXBUFSZ;
@@ -106,8 +105,7 @@ static wlc_pub_t *BCMATTACHFN(wlc_pub_malloc) (osl_t *osh, uint unit,
 	return NULL;
 }
 
-static void BCMATTACHFN(wlc_pub_mfree) (osl_t *osh, wlc_pub_t *pub)
-{
+static void BCMATTACHFN(wlc_pub_mfree) (osl_t *osh, wlc_pub_t *pub) {
 	if (pub == NULL)
 		return;
 
@@ -307,8 +305,7 @@ wlc_info_t *BCMATTACHFN(wlc_attach_malloc) (osl_t *osh, uint unit, uint *err,
 	return NULL;
 }
 
-void BCMATTACHFN(wlc_detach_mfree) (wlc_info_t *wlc, osl_t *osh)
-{
+void BCMATTACHFN(wlc_detach_mfree) (wlc_info_t *wlc, osl_t *osh) {
 	if (wlc == NULL)
 		return;
 

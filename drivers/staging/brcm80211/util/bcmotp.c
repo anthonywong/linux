@@ -233,8 +233,7 @@ static int ipxotp_max_rgnsz(si_t *sih, int osizew)
 	return ret;
 }
 
-static void BCMNMIATTACHFN(_ipxotp_init) (otpinfo_t *oi, chipcregs_t *cc)
-{
+static void BCMNMIATTACHFN(_ipxotp_init) (otpinfo_t *oi, chipcregs_t *cc) {
 	uint k;
 	uint32 otpp, st;
 
@@ -303,8 +302,7 @@ static void BCMNMIATTACHFN(_ipxotp_init) (otpinfo_t *oi, chipcregs_t *cc)
 	oi->flim = oi->wsize;
 }
 
-static void *BCMNMIATTACHFN(ipxotp_init) (si_t *sih)
-{
+static void *BCMNMIATTACHFN(ipxotp_init) (si_t *sih) {
 	uint idx;
 	chipcregs_t *cc;
 	otpinfo_t *oi;
@@ -625,8 +623,7 @@ static uint16 hndotp_read_bit(void *oh, chipcregs_t *cc, uint idx)
 	return (uint16) st;
 }
 
-static void *BCMNMIATTACHFN(hndotp_init) (si_t *sih)
-{
+static void *BCMNMIATTACHFN(hndotp_init) (si_t *sih) {
 	uint idx;
 	chipcregs_t *cc;
 	otpinfo_t *oi;
@@ -888,8 +885,7 @@ uint16 otp_read_bit(void *oh, uint offset)
 	return readBit;
 }
 
-void *BCMNMIATTACHFN(otp_init) (si_t *sih)
-{
+void *BCMNMIATTACHFN(otp_init) (si_t *sih) {
 	otpinfo_t *oi;
 	void *ret = NULL;
 
