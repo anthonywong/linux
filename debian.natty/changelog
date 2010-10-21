@@ -1,4 +1,18 @@
-linux-lts-backport-natty (2.6.36-1.6~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.36-1.7~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebased to v2.6.36 final
+  * [Config] update configs following rebase to v2.6.36 final
+  * [Config] update ports configs following rebase to v2.6.36 final
+
+  [ Upstream Kernel Changes ]
+
+  * rebased to v2.6.36 final
+
+ -- Andy Whitcroft <apw@canonical.com>  Thu, 21 Oct 2010 14:28:57 +0100
+
+linux (2.6.36-1.6) natty; urgency=low
 
   [ Upstream Kernel Changes ]
 
