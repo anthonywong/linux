@@ -1321,6 +1321,32 @@ linux-ec2 (2.6.32-309.17) lucid-proposed; urgency=low
 
  -- Brad Figg <brad.figg@canonical.com>  Fri, 01 Oct 2010 10:39:03 -0700
 
+linux-ec2 (2.6.32-308.16) lucid-security; urgency=low
+
+  [ Stefan Bader ]
+
+  * Rebased to 2.6.32-24.43
+
+  [ Ubuntu: 2.6.32-24.43 ]
+
+  * x86-64, compat: Test %rax for the syscall number, not %eax
+    - CVE-2010-3301
+  * x86-64, compat: Retruncate rax after ia32 syscall entry tracing
+    - CVE-2010-3301
+  * compat: Make compat_alloc_user_space() incorporate the access_ok()
+    - CVE-2010-3081
+
+  [ Ubuntu: 2.6.32-24.42 ]
+
+  * (pre-stable) drm/i915: add PANEL_UNLOCK_REGS definition
+    - LP: #561802, #578673
+  * (pre-stable) drm/i915: make sure eDP panel is turned on
+    - LP: #578673
+  * (pre-stable) drm/i915: make sure we shut off the panel in eDP configs
+    - LP: #578673
+
+ -- Stefan Bader <stefan.bader@canonical.com>  Thu, 16 Sep 2010 10:39:18 +0200
+
 linux-ec2 (2.6.32-308.15) lucid-security; urgency=low
 
   [ Stefan Bader ]
