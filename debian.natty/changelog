@@ -1,4 +1,16 @@
-linux-lts-backport-natty (2.6.36-2.8~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-natty (2.6.37-2.9~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * config -- fix genportsconfig
+  * [Config] move powerpc over from ports to distro
+  * bump master version number to match contained kernel
+  * SAUCE: fix documentation strings for struct input_keymap_entry
+  * usb: gadget: goku_udc: add registered flag bit
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 02 Nov 2010 15:14:11 +0000
+
+linux (2.6.36-2.8) natty; urgency=low
 
   [ Tim Gardner ]
 
