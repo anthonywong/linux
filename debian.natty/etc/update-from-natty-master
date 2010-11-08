@@ -57,8 +57,37 @@ fi
 # Find the most recent tag on ${SOURCE_REL} master, then rebase against it. This avoids
 # the case where there have been some commits since the last official tag.
 #
-MASTER_TAG="`git describe --long refs/remotes/${SOURCE_REL}/master | sed 's/-[0-9]*-.*$//'`"
-if ! git rebase ${MASTER_TAG}
+MASTER_TAG=`git log --pretty=one refs/remotes/${SOURCE_REL}/master | \
+    awk '
+	/Ubuntu-2\.6\./ {
+		if (match($0, /UBUNTU: (Ubuntu-2\.6\.[0-9][0-9]*-([0-9][0-9]*)[^ ]*)/, a)) {
+				print $1
+				exit
+                        }
+                }
+        '
+`
+#
+# Find the current merge point where ${SOURCE_REL} was based. It is normally the previous
+# commit from 'UBUNTU: [Config] Created LTS backport branch'
+#
+BASE_COMMIT=`git log --pretty=one | \
+    awk '
+	/Ubuntu-2\.6\./ {
+		if (match($0, /UBUNTU: (Ubuntu-2\.6\.[0-9][0-9]*-([0-9][0-9]*)[^ ]*)/, a)) {
+				print $1
+				exit
+                        }
+                }
+        '
+`
+if [ "${MASTER_TAG}" = "${BASE_COMMIT}" ]
+then
+	echo Already up to date.
+	exit 1
+fi
+
+if ! git rebase --onto ${MASTER_TAG} ${BASE_COMMIT}
 then
 	exit 1
 fi
