@@ -58,7 +58,19 @@ fi
 # the case where there have been some commits since the last official tag.
 #
 MASTER_TAG="`git describe --long refs/remotes/${SOURCE_REL}/master | sed 's/-[0-9]*-.*$//'`"
-if ! git rebase ${MASTER_TAG}
+BASE_COMMIT=`git log --pretty=one | \
+    awk '
+	/Ubuntu-2\.6\./ {
+		if (match($0, /UBUNTU: (Ubuntu-2\.6\.[0-9][0-9]*-([0-9][0-9]*)[^ ]*)/, a)) {
+                                #print a[1] " " a[0]
+
+				print a[1]
+				exit
+                        }
+                }
+        '
+`
+if ! git rebase --onto ${MASTER_TAG} ${BASE_COMMIT}
 then
 	exit 1
 fi
