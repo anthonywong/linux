@@ -1,4 +1,15 @@
-linux-lts-backport-natty (2.6.37-2.9~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.37-2.10~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * reinstate armel config changes:
+   * [Config] CONFIG_GPIO_PCH=n for armel FTBS
+   * [Config] CONFIG_GPIO_VX855=n for armel FTBS
+  * update-from-x-master -- use the correct base point
+
+ -- Andy Whitcroft <apw@canonical.com>  Wed, 03 Nov 2010 22:20:35 +0000
+
+linux (2.6.37-2.9) natty; urgency=low
 
   [ Andy Whitcroft ]
 
