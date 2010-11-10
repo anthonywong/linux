@@ -51,7 +51,7 @@ void __init x86_report_nx(void)
 			       "line option\n");
 #else
 		printk(KERN_NOTICE "Notice: NX (Execute Disable) protection "
-		       "missing in CPU or disabled in BIOS!\n");
+		       "missing in CPU!\n");
 #endif
 	} else {
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
