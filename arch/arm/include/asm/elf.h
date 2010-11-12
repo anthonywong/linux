@@ -132,4 +132,3 @@ extern int vectors_user_mapping(void);
 #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
 
 #endif
-
