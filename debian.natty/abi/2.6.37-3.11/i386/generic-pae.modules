@@ -262,6 +262,7 @@ aty128fb
 atyfb
 au0828
 au8522
+aufs
 authenc
 auth_rpcgss
 autofs
