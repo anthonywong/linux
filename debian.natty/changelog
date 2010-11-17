@@ -1,4 +1,29 @@
-linux-lts-backport-natty (2.6.37-4.12~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.37-5.13~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebased to v2.6.37-rc2
+  * updateconfigs following rebase to v2.6.37-rc2
+
+  [ Tim Gardner ]
+
+  * [Config] Added NFS and related modules to virtual flavour
+    - LP: #659084
+
+  [ Upstream Kernel Changes ]
+
+  * x86, cpu: Rename verify_cpu_64.S to verify_cpu.S
+  * x86, cpu: Clear XD_DISABLED flag on Intel to regain NX
+  * x86, cpu: Call verify_cpu during 32bit CPU startup
+  * x86, cpu: Only CPU features determine NX capabilities
+
+  [ Upstream Changes ]
+
+  * rebased to v2.67.37-rc2
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 16 Nov 2010 13:13:29 +0000
+
+linux (2.6.37-4.12) natty; urgency=low
 
   [ Andy Whitcroft ]
 
