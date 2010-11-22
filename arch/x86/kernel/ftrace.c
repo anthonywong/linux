@@ -19,7 +19,6 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/module.h>
 
 #include <trace/syscall.h>
 
@@ -50,7 +49,6 @@ static DEFINE_PER_CPU(int, save_modifying_code);
 int ftrace_arch_code_modify_prepare(void)
 {
 	set_kernel_text_rw();
-	set_all_modules_text_rw();
 	modifying_code = 1;
 	return 0;
 }
@@ -58,7 +56,6 @@ int ftrace_arch_code_modify_prepare(void)
 int ftrace_arch_code_modify_post_process(void)
 {
 	modifying_code = 0;
-	set_all_modules_text_ro();
 	set_kernel_text_ro();
 	return 0;
 }
