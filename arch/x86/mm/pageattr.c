@@ -13,7 +13,6 @@
 #include <linux/pfn.h>
 #include <linux/percpu.h>
 #include <linux/gfp.h>
-#include <linux/pci.h>
 
 #include <asm/e820.h>
 #include <asm/processor.h>
@@ -262,10 +261,8 @@ static inline pgprot_t static_protections(pgprot_t prot, unsigned long address,
 	 * The BIOS area between 640k and 1Mb needs to be executable for
 	 * PCI BIOS based config access (CONFIG_PCI_GOBIOS) support.
 	 */
-#ifdef CONFIG_PCI_BIOS
-	if (pcibios_enabled && within(pfn, BIOS_BEGIN >> PAGE_SHIFT, BIOS_END >> PAGE_SHIFT))
+	if (within(pfn, BIOS_BEGIN >> PAGE_SHIFT, BIOS_END >> PAGE_SHIFT))
 		pgprot_val(forbidden) |= _PAGE_NX;
-#endif
 
 	/*
 	 * The kernel text needs to be executable for obvious reasons
