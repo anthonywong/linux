@@ -1,4 +1,95 @@
-linux-lts-backport-natty (2.6.37-4.12~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.37-6.16~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * Revert "[Config] update config for CONFIG_DEBUG_SET_MODULE_RONX"
+  * rebase to v2.6.37-rc3
+
+  [ Tim Gardner ]
+
+  * [Config] CONFIG_SCHED_AUTOGROUP=y
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "x86: Add RO/NX protection for loadable kernel modules"
+  * sched: automated per session task groups
+  * rebase to v2.6.37-rc3
+
+ -- Andy Whitcroft <apw@canonical.com>  Mon, 22 Nov 2010 10:11:13 +0000
+
+linux (2.6.37-6.15) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * [Config] standardise CONFIG_CEPH_FS
+  * [Config] standardise CONFIG_SCSI_LPFC_DEBUG_FS
+  * [Config] standardise CONFIG_SCSI_PROC_FS
+  * [Config] standardise CONFIG_UBIFS_FS
+  * [Config] standardise CONFIG_USB_GADGET_DEBUG_FS
+
+  [ Kees Cook ]
+
+  * [Config] update config for CONFIG_DEBUG_SET_MODULE_RONX
+
+  [ Manoj Iyer ]
+
+  * SAUCE: Enable jack sense for Thinkpad Edge 11
+    - LP: #677210
+  * SAUCE: enable rfkill for rtl8192se driver
+    - LP: #640992
+
+  [ Tim Gardner ]
+
+  * [Config] CONFIG_EASYCAP=n for FTBS
+  * Rebase to v2.6.32-rc2+git
+
+  [ Upstream Kernel Changes ]
+
+  * x86: Fix improper large page preservation
+  * x86: Add NX protection for kernel data
+  * x86: Add RO/NX protection for loadable kernel modules
+
+  [ Upstream Kernel Changes ]
+
+  * Rebase to Linus 2.6.37-rc2+git
+
+ -- Andy Whitcroft <apw@canonical.com>  Sat, 20 Nov 2010 11:40:00 +0000
+
+linux (2.6.37-5.14) natty; urgency=low
+
+  [ Upstream Kernel Changes ]
+
+  * PCI: fix offset check for sysfs mmapped files
+    - LP: #676963
+
+ -- Andy Whitcroft <apw@canonical.com>  Thu, 18 Nov 2010 18:12:27 +0000
+
+linux (2.6.37-5.13) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebased to v2.6.37-rc2
+  * updateconfigs following rebase to v2.6.37-rc2
+
+  [ Tim Gardner ]
+
+  * [Config] Added NFS and related modules to virtual flavour
+    - LP: #659084
+
+  [ Upstream Kernel Changes ]
+
+  * x86, cpu: Rename verify_cpu_64.S to verify_cpu.S
+  * x86, cpu: Clear XD_DISABLED flag on Intel to regain NX
+  * x86, cpu: Call verify_cpu during 32bit CPU startup
+  * x86, cpu: Only CPU features determine NX capabilities
+
+  [ Upstream Changes ]
+
+  * rebased to v2.67.37-rc2
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 16 Nov 2010 13:13:29 +0000
+
+linux (2.6.37-4.12) natty; urgency=low
 
   [ Andy Whitcroft ]
 
