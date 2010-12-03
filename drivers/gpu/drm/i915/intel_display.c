@@ -5236,6 +5236,44 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.page_flip = intel_crtc_page_flip,
 };
 
+static void intel_sanitize_modesetting(struct drm_device *dev,
+				       int pipe, int plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg, val;
+
+	if (HAS_PCH_SPLIT(dev))
+		return;
+
+	/* Who knows what state these registers were left in by the BIOS or
+	 * grub? If they don't match our expectations then we will likely fail
+	 * to switch modes correctly.
+	 */
+
+	reg = DSPCNTR(plane);
+	val = I915_READ(reg);
+
+	if ((val & DISPLAY_PLANE_ENABLE) == 0)
+		return;
+	if (!!(val & DISPPLANE_SEL_PIPE_MASK) == pipe)
+		return;
+
+	/* This display plane is active and attached to the other CPU pipe. */
+	pipe = !pipe;
+
+	I915_WRITE(reg, val & ~DISPLAY_PLANE_ENABLE);
+	intel_flush_display_plane(dev, plane);
+
+	if (IS_GEN2(dev))
+		intel_wait_for_vblank(dev, pipe);
+
+	reg = PIPECONF(pipe);
+	val = I915_READ(reg);
+	if (val & PIPECONF_ENABLE) {
+		I915_WRITE(reg, val & ~PIPECONF_ENABLE);
+		intel_wait_for_pipe_off(dev, pipe);
+	}
+}
 
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
@@ -5287,6 +5325,8 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 
 	setup_timer(&intel_crtc->idle_timer, intel_crtc_idle_timer,
 		    (unsigned long)intel_crtc);
+
+	intel_sanitize_modesetting(dev, intel_crtc->pipe, intel_crtc->plane);
 }
 
 int intel_get_pipe_from_crtc_id(struct drm_device *dev, void *data,
