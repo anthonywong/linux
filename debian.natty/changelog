@@ -1,4 +1,53 @@
-linux-lts-backport-natty (2.6.37-7.18~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.37-8.21~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * Revert "ubuntu: AUFS -- include the aufs_types.h file in
+    linux-libc-headers"
+  * Revert "(no-up) add support for installed header files to ubuntu
+    directory"
+
+ -- Andy Whitcroft <apw@canonical.com>  Sun, 05 Dec 2010 17:33:28 +0000
+
+linux (2.6.37-8.20) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * Revert "[Upstream] drivers/serial/mfd.c: Fix ARM compile error"
+  * Revert "SAUCE: Nouveau: Disable acceleration on MacBook Pros"
+  * Revert "SAUCE: Nouveau: Add quirk framework to disable acceleration"
+  * Revert "SAUCE: i915 -- disable powersave by default"
+  * SAUCE: enable Marvell 9128 PCIe SATA controller
+    - LP: #658521
+  * [Config] evtchn has been renamed
+  * (no-up) add support for installed header files to ubuntu directory
+    - LP: #684666
+  * ubuntu: AUFS -- include the aufs_types.h file in linux-libc-headers
+    - LP: #684666
+
+  [ Tim Gardner ]
+
+  * [Config] MISS: evtchn, NEW : xen-evtchn
+  * rebase to v2.6.37-rc4
+
+  [ Upstream Kernel Changes ]
+
+  * drm/i915: Clean conflicting modesetting registers upon init
+    - LP: #683775
+  * rebase to v2.6.37-rc4
+
+ -- Andy Whitcroft <apw@canonical.com>  Fri, 03 Dec 2010 18:42:07 +0000
+
+linux (2.6.37-7.19) natty; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] Add bnx2 firmware to nic-modules udeb
+    - LP: #676245
+
+ -- Andy Whitcroft <apw@canonical.com>  Fri, 26 Nov 2010 17:53:45 +0000
+
+linux (2.6.37-7.18) natty; urgency=low
 
   [ Andy Whitcroft ]
 
