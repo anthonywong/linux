@@ -1,3 +1,15 @@
+linux-ti-omap4 (2.6.35-1100.1) natty; urgency=low
+
+  * First Natty upload, based on 2.6.35-903.19
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 07 Dec 2010 06:51:54 -0700
+
+linux-ti-omap4 (2.6.35-1100.0) UNRELEASED; urgency=low
+
+  * First Natty changelog entry
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Tue, 07 Dec 2010 06:51:54 -0700
+
 linux-ti-omap4 (2.6.35-903.19) maverick-proposed; urgency=low
 
   [ Upstream Kernel Changes ]
