@@ -1,4 +1,33 @@
-linux-lts-backport-natty (2.6.37-9.22~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-natty (2.6.37-10.24~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebase to v2.6.37-rc6
+  * updateconfigs following rebase to v2.6.37-rc6
+
+  [ Upstream Kernel Changes ]
+
+  * rebase to v2.6.37-rc6
+
+ -- Andy Whitcroft <apw@canonical.com>  Thu, 16 Dec 2010 12:34:19 +0000
+
+linux (2.6.37-9.23) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * SAUCE: vt -- fix handoff numbering to 1..n and add range checks
+    - LP: #689606
+  * SAUCE: vt -- fix handoff numbering to 1..n and add range checks (grub)
+    - LP: #689606
+
+  [ Kees Cook ]
+
+  * SAUCE: RO/NX protection for loadable kernel, fix ftrace
+    - LP: #690190
+
+ -- Andy Whitcroft <apw@canonical.com>  Wed, 15 Dec 2010 19:29:57 +0000
+
+linux (2.6.37-9.22) natty; urgency=low
 
   [ Andy Whitcroft ]
 
