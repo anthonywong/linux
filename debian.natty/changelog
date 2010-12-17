@@ -1,3 +1,11 @@
+linux-lts-backport-natty (2.6.37-10.24~lucid2) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * commit missing config changes et al
+
+ -- Andy Whitcroft <apw@canonical.com>  Fri, 17 Dec 2010 08:31:56 +0000
+
 linux-lts-backport-natty (2.6.37-10.24~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
