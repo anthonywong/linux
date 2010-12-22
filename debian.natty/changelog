@@ -1,12 +1,20 @@
-linux-lts-backport-natty (2.6.37-10.24~lucid2) lucid; urgency=low
+linux-lts-backport-natty (2.6.37-11.25~lucid1) lucid; urgency=low
 
   [ Andy Whitcroft ]
 
-  * commit missing config changes et al
+  * [Config] d-i -- add hpsa to the list of block devices
+    - LP: #684304
+  * [Config] add vmw-balloon driver to -virtual flavour
+    - LP: #592039
+  * rebase to v2.6.37-rc7
 
- -- Andy Whitcroft <apw@canonical.com>  Fri, 17 Dec 2010 08:31:56 +0000
+  [ Upstream Kernel Changes ]
 
-linux-lts-backport-natty (2.6.37-10.24~lucid1) lucid; urgency=low
+  * rebase to v2.6.37-rc7
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 21 Dec 2010 13:35:28 +0000
+
+linux (2.6.37-10.24) natty; urgency=low
 
   [ Andy Whitcroft ]
 
