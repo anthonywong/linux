@@ -1,4 +1,65 @@
-linux-lts-backport-natty (2.6.37-10.24~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.37-12.26~lucid1) lucid-proposed; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebase to v2.6.37-rc8
+  * [Config] armel -- reenable omap flavour
+  * [Config] disable CONFIG_MACH_OMAP3517EVM to fix FTBS on armel omap
+  * [Config] disable CONFIG_GPIO_VX855 to fix FTBS on omap armel
+  * [Config] disable CONFIG_WESTBRIDGE_ASTORIA to fix FTBS on omap armel
+  * [Config] disable CONFIG_TI_DAVINCI_EMAC to fix FTBS on omap armel
+  * rebase to mainline 989d873fc5b6a96695b97738dea8d9f02a60f8ab
+  * [Config] track missing modules
+  * rebase to v2.6.37 final
+
+  [ Chase Douglas ]
+
+  * SAUCE: (drop after 2.6.37) HID: magicmouse: Don't report REL_{X, Y} for
+    Magic Trackpad
+
+  [ Stefan Bader ]
+
+  * Revert "SAUCE: blkfront: default to sd devices"
+    - LP: #684875
+
+  [ Tim Gardner ]
+
+  * Revert "SAUCE: (no-up) libata: Ignore HPA by default."
+    - LP: #380138
+  * [Config] Added autofs4.ko to -virtual flavour
+    - LP: #692917
+
+  [ Upstream Kernel Changes ]
+
+  * Add support for Intellimouse Mode in ALPS touchpad on Dell E2 series
+    Laptops
+    - LP: #632884
+
+  [ Upstream Kernel Changes ]
+
+  * rebase to v2.6.37-rc8
+  * rebase to mainline 989d873fc5b6a96695b97738dea8d9f02a60f8ab
+  * rebase to v2.6.37 final
+
+ -- Andy Whitcroft <apw@canonical.com>  Thu, 23 Dec 2010 18:34:13 +0000
+
+linux (2.6.37-11.25) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * [Config] d-i -- add hpsa to the list of block devices
+    - LP: #684304
+  * [Config] add vmw-balloon driver to -virtual flavour
+    - LP: #592039
+  * rebase to v2.6.37-rc7
+
+  [ Upstream Kernel Changes ]
+
+  * rebase to v2.6.37-rc7
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 21 Dec 2010 13:35:28 +0000
+
+linux (2.6.37-10.24) natty; urgency=low
 
   [ Andy Whitcroft ]
 
