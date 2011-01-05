@@ -145,6 +145,7 @@ aiptek
 aircable
 airo
 airo_cs
+ak881x
 ak8975
 alauda
 ali-ircc
@@ -535,6 +536,7 @@ dm-crypt
 dme1737
 dmfe
 dm-queue-length
+dm-raid45
 dm-service-time
 dmx3191d
 dm-zero
@@ -549,6 +551,7 @@ dpt_i2o
 drbd
 drm
 drm_kms_helper
+drx397xD
 ds1621
 ds1682
 ds2482
@@ -634,6 +637,7 @@ ebt_snat
 ebt_stp
 ebt_ulog
 ebt_vlan
+ec100
 echo
 econet
 ec_sys
@@ -769,6 +773,7 @@ go7007-usb
 gpio-addr-flash
 gpio-fan
 gpio_keys
+gpio_keys_polled
 gpio_mouse
 gpio_vbus
 g_printer
@@ -1143,6 +1148,7 @@ ir-usb
 iscsi_boot_sysfs
 iscsi_ibft
 iscsi_tcp
+iscsi_trgt
 isdn
 isdn_bsdcomp
 isdnhdlc
@@ -1273,6 +1279,7 @@ ledtrig-timer
 legousbtower
 lgdt3305
 lgdt330x
+lgs8gl5
 lgs8gxx
 lib80211
 lib80211_crypt_ccmp
@@ -1521,6 +1528,7 @@ natsemi
 navman
 nbd
 ncpfs
+ndiswrapper
 ne2k-pci
 neofb
 net1080
@@ -2077,8 +2085,10 @@ s526
 s5h1409
 s5h1411
 s5h1420
+s5h1432
 s626
 s6e63m0
+s921
 saa6588
 saa6752hs
 saa7110
@@ -2633,6 +2643,7 @@ turbografx
 tvaudio
 tveeprom
 tvp5150
+tvp7002
 tw9910
 twidjoy
 twofish_common
