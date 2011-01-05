@@ -842,6 +842,7 @@ go7007-usb
 gpio-addr-flash
 gpio-fan
 gpio_keys
+gpio_keys_polled
 gpio_mouse
 gpio_vbus
 g_printer
