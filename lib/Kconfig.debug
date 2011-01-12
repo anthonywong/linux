@@ -50,6 +50,15 @@ config MAGIC_SYSRQ
 	  keys are documented in <file:Documentation/sysrq.txt>. Don't say Y
 	  unless you really know what this hack does.
 
+config MAGIC_SYSRQ_DEFAULT
+	int "Magic SysRq key default"
+	default 1
+        range 0 1
+	help
+	  Set the default value for the sysrq sysfs control to this value.
+	  Setting this to 1 will enable sysrq on boot, to 0 will disable
+	  sysrq on boot.
+
 config STRIP_ASM_SYMS
 	bool "Strip assembler-generated symbols during link"
 	default n
