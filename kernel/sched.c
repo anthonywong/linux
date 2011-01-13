@@ -3797,6 +3797,7 @@ static void update_cpu_power(struct sched_domain *sd, int cpu)
 	unsigned long weight = sd->span_weight;
 	unsigned long power = SCHED_LOAD_SCALE;
 	struct sched_group *sdg = sd->groups;
+	unsigned long scale_rt;
 
 	if (sched_feat(ARCH_POWER))
 		power *= arch_scale_freq_power(sd, cpu);
@@ -3814,11 +3815,17 @@ static void update_cpu_power(struct sched_domain *sd, int cpu)
 		power >>= SCHED_LOAD_SHIFT;
 	}
 
-	power *= scale_rt_power(cpu);
+	scale_rt = scale_rt_power(cpu);
+	power *= scale_rt;
+
 	power >>= SCHED_LOAD_SHIFT;
 
 	if (!power)
 		power = 1;
+
+	if (WARN_ON((long) power <= 0))
+		printk(KERN_ERR "cpu_power = %ld; scale_rt = %ld\n",
+			power, scale_rt);
 
 	cpu_rq(cpu)->cpu_power = power;
 	sdg->cpu_power = power;
@@ -3844,6 +3851,9 @@ static void update_group_power(struct sched_domain *sd, int cpu)
 	} while (group != child->groups);
 
 	sdg->cpu_power = power;
+
+	if (WARN_ON((long) power <= 0))
+		printk(KERN_ERR "cpu_power = %ld\n", power);
 }
 
 /**
