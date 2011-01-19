@@ -3186,7 +3186,6 @@ EXPORT_SYMBOL vmlinux 0x5934392b	fb_register_client
 EXPORT_SYMBOL vmlinux 0x594bf15b	ioport_map
 EXPORT_SYMBOL vmlinux 0x595b64da	cdev_init
 EXPORT_SYMBOL vmlinux 0x595e1be1	inet_frag_kill
-EXPORT_SYMBOL vmlinux 0x597cd685	blk_queue_physical_block_size
 EXPORT_SYMBOL vmlinux 0x598e639f	sk_run_filter
 EXPORT_SYMBOL vmlinux 0x5990d23b	generic_listxattr
 EXPORT_SYMBOL vmlinux 0x599194ff	neigh_create
@@ -5079,6 +5078,7 @@ EXPORT_SYMBOL vmlinux 0xfe7c4287	nr_cpu_ids
 EXPORT_SYMBOL vmlinux 0xfe93d908	filemap_fdatawait_range
 EXPORT_SYMBOL vmlinux 0xfec3c2f2	bcd2bin
 EXPORT_SYMBOL vmlinux 0xfecd3bcc	blk_plug_device
+EXPORT_SYMBOL vmlinux 0xfedc7a74	blk_queue_physical_block_size
 EXPORT_SYMBOL vmlinux 0xfedd35fc	console_suspend_enabled
 EXPORT_SYMBOL vmlinux 0xff1294ff	mpage_writepage
 EXPORT_SYMBOL vmlinux 0xff1e9dd8	seq_list_start

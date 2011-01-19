@@ -3022,6 +3022,7 @@ EXPORT_SYMBOL vmlinux 0x4740b112	seq_release
 EXPORT_SYMBOL vmlinux 0x4743af08	journal_destroy
 EXPORT_SYMBOL vmlinux 0x474845e6	fb_get_buffer_offset
 EXPORT_SYMBOL vmlinux 0x475100c2	inet_get_local_port_range
+EXPORT_SYMBOL vmlinux 0x478ac069	blk_queue_physical_block_size
 EXPORT_SYMBOL vmlinux 0x479c3c86	find_next_zero_bit
 EXPORT_SYMBOL vmlinux 0x47b0a6e9	tcp_getsockopt
 EXPORT_SYMBOL vmlinux 0x47b2b6d1	set_security_override
@@ -3812,7 +3813,6 @@ EXPORT_SYMBOL vmlinux 0x8d39db94	pci_scan_bridge
 EXPORT_SYMBOL vmlinux 0x8d3d2055	invalidate_mapping_pages
 EXPORT_SYMBOL vmlinux 0x8d551bef	sysctl_tcp_rmem
 EXPORT_SYMBOL vmlinux 0x8d86e3be	set_pages_x
-EXPORT_SYMBOL vmlinux 0x8da4595d	blk_queue_physical_block_size
 EXPORT_SYMBOL vmlinux 0x8daebf87	request_key
 EXPORT_SYMBOL vmlinux 0x8dca832f	__percpu_counter_sum
 EXPORT_SYMBOL vmlinux 0x8e029ee3	pcim_iomap
