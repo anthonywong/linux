@@ -56,6 +56,9 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 	 * need the microcode to have already been loaded... so if it is
 	 * not, recommend a BIOS update and disable large pages.
 	 */
+#ifdef CONFIG_XEN
+	if (cpu_has(c, X86_FEATURE_PSE))
+#endif
 	if (c->x86 == 6 && c->x86_model == 0x1c && c->x86_mask <= 2) {
 		u32 ucode, junk;
 
