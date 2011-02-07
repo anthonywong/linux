@@ -1,4 +1,66 @@
-linux-lts-backport-natty (2.6.38-1.27~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-natty (2.6.38-2.29~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebase to 1f0324caefd39985e9fe052fac97da31694db31e
+  * [Config] updateconfigs following rebase to
+    1f0324caefd39985e9fe052fac97da31694db31e
+  * rebase to 70d1f365568e0cdbc9f4ab92428e1830fdb09ab0
+  * [Config] reenable HIBERNATE
+    - LP: #710877
+  * rebase to v2.6.38-rc3
+  * [Config] reenable CONFIG_CRASH_DUMP
+
+  [ Kamal Mostafa ]
+
+  * SAUCE: rtl8192se: fix source file perms
+  * SAUCE: rtl8192se: fix source file newline
+  * SAUCE: omnibook: fix source file newline
+
+  [ Kees Cook ]
+
+  * [Config] packaging: really make System.map mode 0600
+
+  [ Ricardo Salveti de Araujo ]
+
+  * SAUCE: OMAP3630: PM: don't warn the user with a trace in case of
+    PM34XX_ERRATUM
+
+  [ Soren Hansen ]
+
+  * SAUCE: nbd: Remove module-level ioctl mutex
+
+  [ Tim Gardner ]
+
+  * SAUCE: Disable building the ACPI debugfs source
+
+  [ Upstream Kernel Changes ]
+
+  * Set physical start and alignment 1M for virtual i386
+    - LP: #710754
+
+  [ Upstream Kernel Changes ]
+
+  * rebase from v2.6.38-rc2 + c723fdab8aa728dc2bf0da6a0de8bb9c3f588d84
+    to v2.6.38-rc3
+
+ -- Andy Whitcroft <apw@canonical.com>  Fri, 28 Jan 2011 16:30:32 +0000
+
+linux (2.6.38-1.28) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * ubuntu: AUFS -- update to b1cee06249dfa0ab30951e7f06490a75c155b620
+
+  [ Ricardo Salveti de Araujo ]
+
+  * SAUCE: omap3: beaglexm: fix DVI initialization
+  * [Config] omap: move CONFIG_PANEL_GENERIC_DPI to build in to make
+    display work at Beagle
+
+ -- Andy Whitcroft <apw@canonical.com>  Fri, 28 Jan 2011 10:51:57 +0000
+
+linux (2.6.38-1.27) natty; urgency=low
 
   [ Andy Whitcroft ]
 
