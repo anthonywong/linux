@@ -5,8 +5,8 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
 
 Automatically created from "patches.kernel.org/patch-2.6.32.1-2" by xen-port-patches.py
 
---- head-2010-01-04.orig/arch/x86/kernel/pci-dma-xen.c	2009-11-18 14:54:16.000000000 +0100
-+++ head-2010-01-04/arch/x86/kernel/pci-dma-xen.c	2010-01-04 12:50:03.000000000 +0100
+--- sle11sp1-2010-09-22.orig/arch/x86/kernel/pci-dma-xen.c	2009-11-18 14:54:16.000000000 +0100
++++ sle11sp1-2010-09-22/arch/x86/kernel/pci-dma-xen.c	2010-01-04 12:50:03.000000000 +0100
 @@ -268,7 +268,7 @@ static __init int iommu_setup(char *p)
  		if (!strncmp(p, "allowdac", 8))
  			forbid_dac = 0;
@@ -16,8 +16,8 @@ Automatically created from "patches.kernel.org/patch-2.6.32.1-2" by xen-port-pat
  		if (!strncmp(p, "usedac", 6)) {
  			forbid_dac = -1;
  			return 1;
---- head-2010-01-04.orig/arch/x86/kernel/setup-xen.c	2009-11-18 14:54:16.000000000 +0100
-+++ head-2010-01-04/arch/x86/kernel/setup-xen.c	2010-01-04 12:50:03.000000000 +0100
+--- sle11sp1-2010-09-22.orig/arch/x86/kernel/setup-xen.c	2009-11-18 14:54:16.000000000 +0100
++++ sle11sp1-2010-09-22/arch/x86/kernel/setup-xen.c	2010-01-04 12:50:03.000000000 +0100
 @@ -109,6 +109,7 @@
  #ifdef CONFIG_X86_64
  #include <asm/numa_64.h>
@@ -35,8 +35,8 @@ Automatically created from "patches.kernel.org/patch-2.6.32.1-2" by xen-port-pat
  }
  
  #ifdef CONFIG_X86_32
---- head-2010-01-04.orig/drivers/xen/blktap2/sysfs.c	2009-12-09 16:14:04.000000000 +0100
-+++ head-2010-01-04/drivers/xen/blktap2/sysfs.c	2010-01-04 12:54:11.000000000 +0100
+--- sle11sp1-2010-09-22.orig/drivers/xen/blktap2/sysfs.c	2010-09-23 11:01:08.000000000 +0200
++++ sle11sp1-2010-09-22/drivers/xen/blktap2/sysfs.c	2010-09-23 11:01:20.000000000 +0200
 @@ -39,11 +39,11 @@ blktap_sysfs_exit(struct blktap *tap)
  static ssize_t blktap_sysfs_pause_device(struct device *,
  					 struct device_attribute *,
@@ -80,8 +80,8 @@ Automatically created from "patches.kernel.org/patch-2.6.32.1-2" by xen-port-pat
  
  int
  blktap_sysfs_create(struct blktap *tap)
---- head-2010-01-04.orig/drivers/xen/xenbus/xenbus_probe.c	2009-11-06 10:52:23.000000000 +0100
-+++ head-2010-01-04/drivers/xen/xenbus/xenbus_probe.c	2010-01-04 12:52:55.000000000 +0100
+--- sle11sp1-2010-09-22.orig/drivers/xen/xenbus/xenbus_probe.c	2010-08-17 13:30:17.000000000 +0200
++++ sle11sp1-2010-09-22/drivers/xen/xenbus/xenbus_probe.c	2010-08-17 13:32:20.000000000 +0200
 @@ -562,7 +562,7 @@ static ssize_t xendev_show_modalias(stru
  {
  	return sprintf(buf, "xen:%s\n", to_xenbus_device(dev)->devicetype);
