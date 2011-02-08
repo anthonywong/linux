@@ -243,7 +243,7 @@ config KTIME_SCALAR
 
 config ARCH_CPU_PROBE_RELEASE
 	def_bool y
-	depends on HOTPLUG_CPU
+	depends on HOTPLUG_CPU && !XEN
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
