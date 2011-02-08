@@ -1,0 +1,133 @@
+From: Greg Kroah-Hartman <gregkh@suse.de>
+Subject: Linux 2.6.32.17
+Patch-mainline: 2.6.32.17
+
+Signed-off-by: Greg Kroah-Hartman <gregkh@suse.de>
+
+Automatically created from "patches.kernel.org/patch-2.6.32.16-17" by xen-port-patches.py
+
+--- sle11sp1-2010-10-26.orig/arch/x86/include/mach-xen/asm/system.h	2009-11-06 10:52:22.000000000 +0100
++++ sle11sp1-2010-10-26/arch/x86/include/mach-xen/asm/system.h	2010-08-06 17:06:53.000000000 +0200
+@@ -431,7 +431,7 @@ void stop_this_cpu(void *dummy);
+  *
+  * (Could use an alternative three way for this if there was one.)
+  */
+-static inline void rdtsc_barrier(void)
++static __always_inline void rdtsc_barrier(void)
+ {
+ 	alternative(ASM_NOP3, "mfence", X86_FEATURE_MFENCE_RDTSC);
+ 	alternative(ASM_NOP3, "lfence", X86_FEATURE_LFENCE_RDTSC);
+--- sle11sp1-2010-10-26.orig/arch/x86/kernel/acpi/processor_extcntl_xen.c	2010-10-08 16:30:46.000000000 +0200
++++ sle11sp1-2010-10-26/arch/x86/kernel/acpi/processor_extcntl_xen.c	2010-08-06 17:12:49.000000000 +0200
+@@ -63,7 +63,7 @@ static int xen_cx_notifier(struct acpi_p
+ 		data->reg.space_id = cx->reg.space_id;
+ 		data->reg.bit_width = cx->reg.bit_width;
+ 		data->reg.bit_offset = cx->reg.bit_offset;
+-		data->reg.access_size = cx->reg.reserved;
++		data->reg.access_size = cx->reg.access_size;
+ 		data->reg.address = cx->reg.address;
+ 
+ 		/* Get dependency relationships */
+--- sle11sp1-2010-10-26.orig/arch/x86/kernel/acpi/sleep-xen.c	2010-05-20 11:32:32.000000000 +0200
++++ sle11sp1-2010-10-26/arch/x86/kernel/acpi/sleep-xen.c	2010-08-06 17:06:53.000000000 +0200
+@@ -169,8 +169,6 @@ static int __init acpi_sleep_setup(char 
+ #endif
+ 		if (strncmp(str, "old_ordering", 12) == 0)
+ 			acpi_old_suspend_ordering();
+-		if (strncmp(str, "sci_force_enable", 16) == 0)
+-			acpi_set_sci_en_on_resume();
+ 		str = strchr(str, ',');
+ 		if (str != NULL)
+ 			str += strspn(str, ", \t");
+--- sle11sp1-2010-10-26.orig/drivers/hwmon/coretemp-xen.c	2010-10-26 09:19:38.000000000 +0200
++++ sle11sp1-2010-10-26/drivers/hwmon/coretemp-xen.c	2010-10-26 09:20:36.000000000 +0200
+@@ -54,6 +54,7 @@ struct pdev_entry {
+ 	struct device *hwmon_dev;
+ 	struct mutex update_lock;
+ 	const char *name;
++	u32 cpu_core_id, phys_proc_id;
+ 	u8 x86_model, x86_mask;
+ 	u32 ucode_rev;
+ 	char valid;		/* zero until following fields are valid */
+@@ -78,7 +79,7 @@ static ssize_t show_name(struct device *
+ 	if (attr->index == SHOW_NAME)
+ 		ret = sprintf(buf, "%s\n", data->name);
+ 	else	/* show label */
+-		ret = sprintf(buf, "Core %d\n", data->pdev->id);
++		ret = sprintf(buf, "Core %d\n", data->cpu_core_id);
+ 	return ret;
+ }
+ 
+@@ -376,11 +377,10 @@ static int coretemp_device_add(unsigned 
+ 	struct platform_device *pdev;
+ 	struct pdev_entry *pdev_entry;
+ 
+-	pdev_entry = kzalloc(sizeof(*pdev_entry), GFP_KERNEL);
++	info.pdev_entry = kzalloc(sizeof(*pdev_entry), GFP_KERNEL);
+ 	if (!info.pdev_entry)
+ 		return -ENOMEM;
+ 
+-	info.pdev_entry = pdev_entry;
+ 	err = xen_set_physical_cpu_affinity(cpu);
+ 	if (!err) {
+ 		get_cpuid_info(&info);
+@@ -417,13 +417,30 @@ static int coretemp_device_add(unsigned 
+ 		goto exit_entry_free;
+ 	}
+ 
++	err = xen_get_topology_info(cpu, &info.pdev_entry->cpu_core_id,
++				    &info.pdev_entry->phys_proc_id, NULL);
++	if (err)
++		goto exit_entry_free;
++
++	mutex_lock(&pdev_list_mutex);
++
++	/* Skip second HT entry of each core */
++	list_for_each_entry(pdev_entry, &pdev_list, list) {
++		if (info.pdev_entry->phys_proc_id == pdev_entry->phys_proc_id &&
++		    info.pdev_entry->cpu_core_id == pdev_entry->cpu_core_id) {
++			err = 0;	/* Not an error */
++			goto exit;
++		}
++	}
++
+ 	pdev = platform_device_alloc(DRVNAME, cpu);
+ 	if (!pdev) {
+ 		err = -ENOMEM;
+ 		printk(KERN_ERR DRVNAME ": Device allocation failed\n");
+-		goto exit_entry_free;
++		goto exit;
+ 	}
+ 
++	pdev_entry = info.pdev_entry;
+ 	platform_set_drvdata(pdev, pdev_entry);
+ 	pdev_entry->pdev = pdev;
+ 
+@@ -434,7 +451,6 @@ static int coretemp_device_add(unsigned 
+ 		goto exit_device_put;
+ 	}
+ 
+-	mutex_lock(&pdev_list_mutex);
+ 	list_add_tail(&pdev_entry->list, &pdev_list);
+ 	mutex_unlock(&pdev_list_mutex);
+ 
+@@ -442,6 +458,8 @@ static int coretemp_device_add(unsigned 
+ 
+ exit_device_put:
+ 	platform_device_put(pdev);
++exit:
++	mutex_unlock(&pdev_list_mutex);
+ exit_entry_free:
+ 	kfree(info.pdev_entry);
+ 	return err;
+--- sle11sp1-2010-10-26.orig/include/acpi/processor.h	2010-08-23 10:22:57.000000000 +0200
++++ sle11sp1-2010-10-26/include/acpi/processor.h	2010-08-30 15:06:10.000000000 +0200
+@@ -104,7 +104,7 @@ struct acpi_processor_cx {
+ 	struct acpi_processor_cx_policy promotion;
+ 	struct acpi_processor_cx_policy demotion;
+ 	char desc[ACPI_CX_DESC_LEN];
+-#ifndef __GENKSYMS__
++#if !defined(CONFIG_PROCESSOR_EXTERNAL_CONTROL) && !defined(__GENKSYMS__)
+ 	u8 bm_sts_skip;
+ #endif
+ };
