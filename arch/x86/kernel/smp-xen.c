@@ -144,10 +144,10 @@ irqreturn_t smp_reboot_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void xen_smp_send_stop(void)
+void xen_stop_other_cpus(int wait)
 {
 	unsigned long flags;
-	unsigned long wait;
+	unsigned long timeout;
 
 	/*
 	 * Use an own vector here because smp_call_function
@@ -161,9 +161,12 @@ void xen_smp_send_stop(void)
 	if (num_online_cpus() > 1) {
 		xen_send_IPI_allbutself(REBOOT_VECTOR);
 
-		/* Don't wait longer than a second */
-		wait = USEC_PER_SEC;
-		while (num_online_cpus() > 1 && wait--)
+		/*
+		 * Don't wait longer than a second if the caller
+		 * didn't ask us to wait.
+		 */
+		timeout = USEC_PER_SEC;
+		while (num_online_cpus() > 1 && (wait || timeout--))
 			udelay(1);
 	}
 
