@@ -4,6 +4,30 @@ linux-ec2 (2.6.32-313.26) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Ubuntu: 2.6.32-29.58 ]
+
+  * Release Tracking Bug
+    - LP: #716551
+  * net: fix rds_iovec page count overflow, CVE-2010-3865
+    - LP: #709153
+    - CVE-2010-3865
+  * net: ax25: fix information leak to userland, CVE-2010-3875
+    - LP: #710714
+    - CVE-2010-3875
+  * net: ax25: fix information leak to userland harder, CVE-2010-3875
+    - LP: #710714
+    - CVE-2010-3875
+  * net: packet: fix information leak to userland, CVE-2010-3876
+    - LP: #710714
+    - CVE-2010-3876
+  * net: tipc: fix information leak to userland, CVE-2010-3877
+    - LP: #711291
+    - CVE-2010-3877
+  * inet_diag: Make sure we actually run the same bytecode we audited,
+    CVE-2010-3880
+    - LP: #711865
+    - CVE-2010-3880
+
  -- Brad Figg <brad.figg@canonical.com>  Thu, 10 Feb 2011 11:03:57 -0800
 
 linux-ec2 (2.6.32-313.25) lucid-proposed; urgency=low
