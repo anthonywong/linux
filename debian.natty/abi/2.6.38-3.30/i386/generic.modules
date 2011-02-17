@@ -511,7 +511,6 @@ cpu-notifier-error-inject
 c-qcam
 cramfs
 cr_bllcd
-crc32c-intel
 crc7
 crc-ccitt
 crc-itu-t
@@ -606,6 +605,7 @@ dell-laptop
 dell-led
 dell_rbu
 dell-wmi
+dell-wmi-aio
 denali
 depca
 des_generic
