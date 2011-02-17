@@ -1,4 +1,51 @@
-linux-lts-backport-natty (2.6.38-3.30~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.38-4.31~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * add in bugs closed by upstream patches pulled in by rebases
+  * rebase to 795abaf1e4e188c4171e3cd3dbb11a9fcacaf505
+  * [Config] enable CONFIG_VSX to allow use of vector instuctions
+  * resync with maverick 98defa1c5773a3d7e4c524967eb01d5bae035816
+  * rebase to mainline v2.6.38-rc5
+  * SAUCE: ecryptfs: read on a directory should return EISDIR if not
+    supported
+    - LP: #719691
+
+  [ Colin Ian King ]
+
+  * SAUCE: Dell All-In-One: Remove need for Dell module alias
+
+  [ Manoj Iyer ]
+
+  * SAUCE: (drop after 2.6.38) add ricoh 0xe823 pci id.
+    - LP: #717435
+
+  [ Tim Gardner ]
+
+  * [Config] CONFIG_CRYPTO_CRC32C_INTEL=y
+
+  [ Upstream Kernel Changes ]
+
+  * Quirk to fix suspend/resume on Lenovo Edge 11,13,14,15
+    - LP: #702434
+  * vfs: fix BUG_ON() in fs/namei.c:1461
+
+  [ Vladislav P ]
+
+  * SAUCE: Release BTM while sleeping to avoid deadlock.
+    - LP: #713837
+
+  [ Major Kernel Changes ]
+
+  * rebase from v2.6.38-rc4 to v2.6.38-rc5
+    - LP: #579276
+    - LP: #715877
+    - LP: #713769
+  * resync with Maverick Ubuntu-2.6.35-27.47
+
+ -- Andy Whitcroft <apw@canonical.com>  Fri, 11 Feb 2011 17:24:09 +0000
+
+linux (2.6.38-3.30) natty; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -39,6 +86,9 @@ linux-lts-backport-natty (2.6.38-3.30~lucid1) lucid; urgency=low
   [ Upstream Kernel Changes ]
 
   * rebase from v2.6.38-rc3 to v2.6.38-rc4.
+    - LP: #701271
+    - LP: #708521
+    - LP: #710371
 
  -- Andy Whitcroft <apw@canonical.com>  Tue, 08 Feb 2011 02:07:18 +0000
 
@@ -87,6 +137,7 @@ linux (2.6.38-2.29) natty; urgency=low
 
   * rebase from v2.6.38-rc2 + c723fdab8aa728dc2bf0da6a0de8bb9c3f588d84
     to v2.6.38-rc3
+    - LP: #707902
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 28 Jan 2011 16:30:32 +0000
 
@@ -183,6 +234,13 @@ linux (2.6.38-1.27) natty; urgency=low
     - LP: #608775
     - LP: #215802
     - LP: #686333
+    - LP: #677830
+    - LP: #677652
+    - LP: #696493
+    - LP: #697240
+    - LP: #689036
+    - LP: #705323
+    - LP: #686692
 
  -- Andy Whitcroft <apw@canonical.com>  Sun, 09 Jan 2011 13:44:52 +0000
 
