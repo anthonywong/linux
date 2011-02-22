@@ -1,4 +1,30 @@
-linux-lts-backport-natty (2.6.38-4.31~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.38-5.32~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebase to mainline 6f576d57f1fa0d6026b495d8746d56d949989161
+  * [Config] updateconfigs following rebase to v2.6.38-rc6
+  * [Config] enable CONFIG_DMAR
+    - LP: #552311
+
+  [ Upstream Kernel Changes ]
+
+  * drm/i915: skip FDI & PCH enabling for DP_A
+    - LP: #561802, #600453, #681877
+
+  [ Major Kernel Changes ]
+
+  * rebase from v2.6.38-rc5 to v2.6.38-rc6
+    - LP: #718402
+    - LP: #719524
+    - LP: #721126
+    - LP: #719691
+    - LP: #722689
+    - LP: #722310
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 22 Feb 2011 13:28:39 +0000
+
+linux (2.6.38-4.31) natty; urgency=low
 
   [ Andy Whitcroft ]
 
@@ -41,6 +67,7 @@ linux-lts-backport-natty (2.6.38-4.31~lucid1) lucid; urgency=low
     - LP: #579276
     - LP: #715877
     - LP: #713769
+    - LP: #716811
   * resync with Maverick Ubuntu-2.6.35-27.47
 
  -- Andy Whitcroft <apw@canonical.com>  Fri, 11 Feb 2011 17:24:09 +0000
