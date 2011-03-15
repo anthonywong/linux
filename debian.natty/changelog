@@ -1,4 +1,106 @@
-linux-lts-backport-natty (2.6.38-5.32~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.38-7.35~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * rebase to 2fbfac4e053861925fa3fffcdc327649b09af54c
+  * rebase fixes bug #715330
+  * [Config] disable CONFIG_SCSI_QLA_ISCSI for powerpc 32bit to fix FTBS
+  * rebase to v2.6.38 final
+
+  [ Herton Ronaldo Krzesinski ]
+
+  * SAUCE: Apply OPTION_BLACKLIST_SENDSETUP also for ZTE MF626
+    - LP: #636091
+
+  [ Tim Gardner ]
+
+  * [Confg] CONFIG_BOOT_PRINTK_DELAY=y
+
+  [ Upstream Kernel Changes ]
+
+  * Yama: use thread group leader when creating match
+    - LP: #729839
+  * (drop after 2.6.38) ahci: AHCI mode SATA patch for Intel Patsburg SATA
+    RAID controller
+    - LP: #735240
+  * (drop after v2.6.38) x86, quirk: Fix SB600 revision check
+
+  [ Major Kernel Changes ]
+
+  * rebase from v2.6.38-rc8 to v2.6.38 final
+    - LP: #715330
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 15 Mar 2011 19:04:19 +0000
+
+linux (2.6.38-6.34) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * [Config] normalise CONFIG_INTEL_TXT
+  * SAUCE: KLUDGE: work around failed 'shrink-wrap' compiler optimisation
+    - LP: #730860
+  * rebase to mainline v2.6.38-rc8
+
+  [ Major Kernel Changes ]
+
+  * rebase from v2.6.38-rc7 + fb62c00a6d8942775abc23d1621db1252e2d93d1
+    to v2.6.38-rc8
+
+ -- Andy Whitcroft <apw@canonical.com>  Tue, 08 Mar 2011 11:54:48 +0000
+
+linux (2.6.38-6.33) natty; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * d-i -- enable speakup-modules udeb
+    - LP: #672699
+  * rebase to 493f3358cb289ccf716c5a14fa5bb52ab75943e5
+  * [Config] debian PPC64 configuration
+  * [Config] cleanup powerpc config fixing unexpected inconsistancies
+  * [Config] resync ppc64 configuration
+  * SAUCE: match up ENTRY/END naming for 32/64 bit
+  * rebase to fb62c00a6d8942775abc23d1621db1252e2d93d1
+  * [Config] update configs after rebase to
+    fb62c00a6d8942775abc23d1621db1252e2d93d1
+  * [Config] pps_gen_parport no longer built
+
+  [ Corentin Chary ]
+
+  * SAUCE: (drop after 2.6.38) eeepc-wmi: reorder keymap
+    - LP: #689393
+  * SAUCE: (drop after 2.6.38) eeepc-wmi: add wlan key found on 1015P
+    - LP: #689393
+
+  [ John Johansen ]
+
+  * SAUCE: Fix aufs calling of security_path_mknod
+    - LP: #724456
+
+  [ Kees Cook ]
+
+  * SAUCE: proc: hide kernel addresses via %pK in /proc/<pid>/stack
+
+  [ Tim Gardner ]
+
+  * rebase to 2.6.38-rc7
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "drm/i915: fix corruptions on i8xx due to relaxed fencing"
+
+  [ Major Kernel Changes ]
+
+  * rebase from v2.6.38-rc6 to v2.6.38-rc7 +
+    fb62c00a6d8942775abc23d1621db1252e2d93d1
+    - LP: #721389
+    - LP: #722925
+    - LP: #723672
+    - LP: #723676
+    - LP: #715318
+
+ -- Andy Whitcroft <apw@canonical.com>  Mon, 07 Mar 2011 15:33:17 +0000
+
+linux (2.6.38-5.32) natty; urgency=low
 
   [ Andy Whitcroft ]
 
