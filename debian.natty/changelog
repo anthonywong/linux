@@ -1,4 +1,36 @@
-linux-lts-backport-natty (2.6.38-7.35~lucid1) lucid; urgency=low
+linux-lts-backport-natty (2.6.38-7.36~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * Revert "SAUCE: KLUDGE: work around failed 'shrink-wrap' compiler
+    optimisation"
+  * purge last vestiges of maverick
+  * [Config] switch CONFIG_FB_VESA back to module
+
+  [ Chris Wilson ]
+
+  * SAUCE: drm/i915: Fix pipelined fencing
+    - LP: #717114
+
+  [ Loïc Minier ]
+
+  * Include nls_cp437 module in virtual for fat
+    - LP: #732046
+  * Support arch= cross-compilation for any arch
+  * Fix couple of typos in 0-common-vars.mk
+  * Enforce DEFAULT_MMAP_MIN_ADDR on armhf
+  * Add armhf to Debian -> Linux arch map
+  * Add initial armhf.mk
+  * Enable common packages for armhf
+
+  [ Upstream Kernel Changes ]
+
+  * Yama: fix default relationship to check thread group
+    - LP: #737676
+
+ -- Andy Whitcroft <apw@canonical.com>  Fri, 18 Mar 2011 18:18:02 +0000
+
+linux (2.6.38-7.35) natty; urgency=low
 
   [ Andy Whitcroft ]
 
