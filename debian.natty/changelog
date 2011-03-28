@@ -1,4 +1,21 @@
-linux-lts-backport-natty (2.6.38-7.37~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-natty (2.6.38-7.39~lucid1) lucid-proposed; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * No change upload.  This is just to rebuild with gcc-4.5.2-7ubuntu1.
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 24 Mar 2011 09:27:45 -0700
+
+linux (2.6.38-7.38) natty; urgency=low
+
+  [ Leann Ogasawara ]
+
+  * No change upload take 2.  2.6.38-7.37 was accidentally uploaded before
+    gcc-4.5.2-6ubuntu5 finished building on all arches.
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Tue, 22 Mar 2011 06:12:47 -0700
+
+linux (2.6.38-7.37) natty; urgency=low
 
   [ Leann Ogasawara ]
 
