@@ -1,8 +1,8 @@
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM fs
 
-#if !defined(_TRACE_FS_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_FS_H
+#if !defined(_TRACE_EVENTS_FS_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_EVENTS_FS_H
 
 #include <linux/fs.h>
 #include <linux/tracepoint.h>
@@ -47,7 +47,7 @@ TRACE_EVENT(open_exec,
 		  __get_str(filename))
 );
 
-#endif /* _TRACE_FS_H */
+#endif /* _TRACE_EVENTS_FS_H */
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
