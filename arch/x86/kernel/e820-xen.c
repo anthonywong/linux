@@ -1354,6 +1354,9 @@ static int __init parse_memopt(char *p)
 
 	userdef = 1;
 	mem_size = memparse(p, &p);
+	/* don't remove all of memory when handling "mem={invalid}" param */
+	if (mem_size == 0)
+		return -EINVAL;
 #ifdef CONFIG_XEN
 	/*
 	 * A little less than 2% of available memory are needed for page
