@@ -97,8 +97,8 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
 #ifndef CONFIG_XEN
 		if (!check_tsc_unstable())
-#endif
 			sched_clock_stable = 1;
+#endif
 	}
 
 	/*
