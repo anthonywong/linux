@@ -4,6 +4,14 @@ linux-ec2 (2.6.32-317.34) UNRELEASED; urgency=low
   CHANGELOG: Use the printchanges target to see the curent changes.
   CHANGELOG: Use the insertchanges target to create the final log.
 
+  [ Ubuntu: 2.6.32-33.66 ]
+
+  * Release Tracking Bug
+    - LP: #794098
+  * Revert "xhci: Fix full speed bInterval encoding."
+  * Revert "USB: xhci - fix math in xhci_get_endpoint_interval()"
+  * Revert "USB: xhci - fix unsafe macro definitions"
+
  -- Stefan Bader <stefan.bader@canonical.com>  Wed, 08 Jun 2011 09:58:47 +0200
 
 linux-ec2 (2.6.32-317.33) lucid-proposed; urgency=low
