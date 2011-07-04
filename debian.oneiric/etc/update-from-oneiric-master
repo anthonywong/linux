@@ -2,14 +2,19 @@
 
 #
 # This script is intended as a helper when updating from
-# Maverick master. When complete you should have a copy of
-# the master changelog with the correct release names.
+# Lucid mvl-dove. When complete you should have a copy of
+# the mvl-dove changelog with the correct release names.
 #
-SOURCE_REL=oneiric
-DMAS=debian.master
-DEB_DIR=debian.${SOURCE_REL}
-DEF_REPO=git://kernel.ubuntu.com/ubuntu/ubuntu-${SOURCE_REL}.git
-SOURCE_REPO="${DEF_REPO}"
+SOURCE_RELEASE=oneiric
+SOURCE_RELEASE_BRANCH=master
+DEBIAN_SOURCE=debian.${SOURCE_RELEASE_BRANCH}
+
+TARGET_RELEASE=lucid
+TARGET_RELEASE_BRANCH=oneiric
+DEBIAN_TARGET=debian.${TARGET_RELEASE_BRANCH}
+
+DEF_REPO=git://kernel.ubuntu.com/ubuntu/ubuntu-${SOURCE_RELEASE}.git
+RELEASE_REPO="${DEF_REPO}"
 DEF_ARCHES="i386 amd64"
 FOREIGN_ARCHES="armel ia64 powerpc sparc config.common.ports"
 
@@ -21,46 +26,42 @@ POCKET="-proposed"
 IGNORE_ABI=""
 IGNORE_MODULES=""
 
-usage="$0 [-r SOURCE_REPO] [-p]"
+usage="$0 [-r RELEASE_REPO] [-p]"
 
 #
 # command line options:
-# [-r SOURCE_REPO] - override default ${SOURCE_REL} git repository.
+# [-r RELEASE_REPO] - override default ${SOURCE_RELEASE} git repository.
 # [-p] - Assume the upload target is a PPA
 
 while getopts ":r:pim" opt; do
 	case $opt in
-	r ) SOURCE_REPO="$OPTARG" ;;
+	r ) RELEASE_REPO="$OPTARG" ;;
 	p ) POCKET="" ;;
 	\? ) echo usage: ${usage}; exit ;;
 	esac
 done
 shift $(($OPTIND - 1))
 
-if [ ! -d ${DEB_DIR} ]
+if [ ! -d ${DEBIAN_TARGET} ]
 then
 	echo You must run this sript from the top directory of this repository.
 	exit 1
 fi
 
 #
-# Pull in any master branch updates.
+# Fetch the upstream branch.
 #
-git remote rm ${SOURCE_REL}
-git remote add ${SOURCE_REL} ${SOURCE_REPO}
-if ! git fetch ${SOURCE_REL} || ! git fetch ${SOURCE_REL} master
-then
-	exit 1
-fi
+git fetch ${RELEASE_REPO} ${SOURCE_RELEASE_BRANCH} || exit 1
 
 #
-# Find the most recent tag on ${SOURCE_REL} master, then rebase against it. This avoids
-# the case where there have been some commits since the last official tag.
+# Find the most recent tag on ${SOURCE_RELEASE} ${SOURCE_RELEASE_BRANCH}, then
+# rebase against it. This avoids the case where there have been some
+# commits since the last official tag.
 #
-MASTER_TAG=`git log --pretty=one refs/remotes/${SOURCE_REL}/master | \
+MASTER_COMMIT=`git log --pretty=one FETCH_HEAD | \
     awk '
-	/Ubuntu-3\.[0-9][0-9]*-/ {
-		if (match($0, /UBUNTU: (Ubuntu-3\.[0-9]-([0-9][0-9]*\.[0-9][0-9]*)[^ ]*)/, a)) {
+	/Ubuntu-/ {
+		if (match($0, /UBUNTU: Ubuntu-[0-9]/)) {
 				print $1
 				exit
                         }
@@ -68,26 +69,25 @@ MASTER_TAG=`git log --pretty=one refs/remotes/${SOURCE_REL}/master | \
         '
 `
 #
-# Find the current merge point where ${SOURCE_REL} was based. It is normally the previous
-# commit from 'UBUNTU: [Config] Created LTS backport branch'
+# Find the current merge point where ${SOURCE_RELEASE} was based.
 #
 BASE_COMMIT=`git log --pretty=one | \
     awk '
-	/Ubuntu-3\.[0-9][0-9]*-/ {
-		if (match($0, /UBUNTU: (Ubuntu-3\.[0-9]-([0-9][0-9]*\.[0-9][0-9]*)[^ ]*)/, a)) {
+	/Ubuntu-/ {
+		if (match($0, /UBUNTU: Ubuntu-[0-9]/)) {
 				print $1
 				exit
                         }
                 }
         '
 `
-if [ "${MASTER_TAG}" = "${BASE_COMMIT}" ]
+if [ "${MASTER_COMMIT}" = "${BASE_COMMIT}" ]
 then
 	echo Already up to date.
 	exit 1
 fi
 
-if ! git rebase --onto ${MASTER_TAG} ${BASE_COMMIT}
+if ! git rebase --onto ${MASTER_COMMIT} ${BASE_COMMIT}
 then
 	exit 1
 fi
@@ -95,17 +95,7 @@ fi
 #
 # Update configs from master
 #
-rsync -av --delete ${DMAS}/config/ ${DEB_DIR}/config
-
-#
-# Update changelog from master. Change the package name and release pocket.
-#
-cp ${DMAS}/changelog ${DEB_DIR}/changelog
-sed -i -e '1s/'${SOURCE_REL}'.*;/lucid'${POCKET}';/' -e '1s/^linux /linux-lts-backport-'${SOURCE_REL}' /' -e '1s/)/~lucid1)/' ${DEB_DIR}/changelog
-
-#
-# Finally, rerun updateconfigs.
-#
+rsync -av --delete ${DEBIAN_SOURCE}/config/ ${DEBIAN_TARGET}/config
 fakeroot debian/rules clean updateconfigs
 
 #
@@ -114,9 +104,18 @@ fakeroot debian/rules clean updateconfigs
 # We can ignore ABI changes with the assurance that Maverick upstream
 # will change ABI when required.
 #
-rsync -av --delete ${DMAS}/abi/ ${DEB_DIR}/abi
+rsync -av --delete ${DEBIAN_SOURCE}/abi/ ${DEBIAN_TARGET}/abi
 for i in ${FOREIGN_ARCHES}
 do
-	rm -rf ${DEB_DIR}/abi/2*/${i}
+        rm -rf ${DEBIAN_TARGET}/abi/*/${i}
 done
-git add ${DEB_DIR}/abi/2*
+git add ${DEBIAN_TARGET}/abi
+
+#
+# Update changelog from the source release changelog. Change the release pocket and ABI.
+# The lucid source ABI is in the 200 range, and the maverick ABI is in the 400 range, so
+# just extract the source ABI and add 200.
+#
+cp ${DEBIAN_SOURCE}/changelog ${DEBIAN_TARGET}/changelog
+sed -i -e '1s/'${SOURCE_RELEASE}'.*;/'${TARGET_RELEASE}${POCKET}';/' -e '1s/^linux /linux-lts-backport-'${SOURCE_RELEASE}' /' -e '1s/)/~'${TARGET_RELEASE}'1)/' ${DEBIAN_TARGET}/changelog
+git add ${DEBIAN_TARGET}/changelog
