@@ -3,7 +3,6 @@
 8139too
 8390
 acpi_ipmi
-acpi_memhotplug
 acpi_pad
 acpiphp
 act_csum
@@ -16,8 +15,8 @@ act_police
 act_simple
 act_skbedit
 aes_generic
+aes-i586
 aesni-intel
-aes-x86_64
 af_802154
 af_alg
 af_key
@@ -29,6 +28,7 @@ algif_hash
 algif_skcipher
 ansi_cprng
 anubis
+apm
 appletalk
 arc4
 arptable_filter
@@ -142,13 +142,11 @@ faulty
 fb_sys_fops
 fcrypt
 floppy
-fpu
 fscache
 gameport
 garp
 gcm
 gf128mul
-ghash-clmulni-intel
 ghash-generic
 ghes
 gre
@@ -312,18 +310,15 @@ nls_iso8859-1
 nvram
 oprofile
 output
-p4-clockmod
 p8023
 parport
 parport_pc
 pcbc
-pcc-cpufreq
 pcnet32
 pcrypt
 phonet
 pktgen
 pn_pep
-power_meter
 ppdev
 ppp_async
 ppp_deflate
@@ -350,7 +345,7 @@ rmd320
 rose
 rxkad
 salsa20_generic
-salsa20-x86_64
+salsa20-i586
 sch_atm
 sch_cbq
 sch_choke
@@ -364,6 +359,7 @@ sch_mqprio
 sch_multiq
 sch_netem
 sch_prio
+sch_qfq
 sch_red
 sch_sfb
 sch_sfq
@@ -404,7 +400,6 @@ snd-seq-virmidi
 snd-timer
 softdog
 soundcore
-speedstep-lib
 squashfs
 stp
 sunrpc
@@ -436,7 +431,7 @@ tunnel4
 tunnel6
 twofish_common
 twofish_generic
-twofish-x86_64
+twofish-i586
 ufs
 usb-storage
 usbtouchscreen
