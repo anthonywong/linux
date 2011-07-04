@@ -1,4 +1,68 @@
-linux (3.0-1.2~lucid1) lucid; urgency=low
+linux-lts-backport-oneiric (3.0-3.4~lucid1) lucid; urgency=low
+
+  [ Keng-Yu Lin ]
+
+  * SAUCE: Revert: "dell-laptop: Toggle the unsupported hardware
+    killswitch"
+    - LP: #775281
+
+  [ Leann Ogasawara ]
+
+  * rebase to v3.0-rc5
+  * [Config] updateconfigs after rebase to 3.0-rc5
+
+  [ Tim Gardner ]
+
+  * [Config] Remove ubuntu/rtl8192se
+  * [Config] Added armel ABI files
+  * [Config] Removed armel versatile flavour
+  * [Config] CONFIG_INTEL_MEI=m
+    - LP: #716867
+
+  [ Upstream Kernel Changes ]
+
+  * ALSA: hda - Enable auto-parser as default for Conexant codecs
+
+  [ Upstream Kernel Changes ]
+
+  * rebase to v3.0-rc5
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 30 Jun 2011 14:27:10 +0100
+
+linux (3.0-2.3) oneiric; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * ubuntu: AUFS -- update to 0e2bafab74f0d1463383faeb93f9fc5eb8c2c54e
+
+  [ Leann Ogasawara ]
+
+  * rebase to v3.0-rc4
+  * [Config] updateconfigs after rebase to 3.0-rc4
+  * fix ERROR: __devcgroup_inode_permission undefined
+
+  [ Stefan Bader ]
+
+  * SAUCE: iscsitarget: Remove driver from the kernel
+
+  [ Tim Gardner ]
+
+  * SAUCE: rtl8192se: Force a build for a 2.6/3.0 kernel
+  * [Config] Add grub-efi as a recommended bootloader for server and
+    generic
+    - LP: #800910
+
+  [ Upstream Kernel Changes ]
+
+  * Fix node_start/end_pfn() definition for mm/page_cgroup.c
+
+  [ Leann Ogasawara ]
+
+  * rebase to v3.0-rc4
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 24 Jun 2011 11:51:12 -0700
+
+linux (3.0-1.2) oneiric; urgency=low
 
   [ Andy Whitcroft ]
 
