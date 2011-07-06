@@ -1,9 +1,52 @@
-linux-lts-backport-maverick (2.6.35-30.54~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-maverick (2.6.35-30.55~lucid1) lucid-proposed; urgency=low
 
-  [ Herton Ronaldo Krzesinski ]
+  [Andy Whitcroft]
 
   * Release Tracking Bug
-    - LP: #792542
+    - LP: #806579
+
+  [ Jeremy Kerr ]
+
+  * SAUCE: cx23885: Fix argument to videobuf_dma_unmap
+    - LP: #800527
+
+  [ Manoj Iyer ]
+
+  * SAUCE: mmc: Enable MMC card reader for RICOH [1180:e823]
+    - LP: #790754
+
+  [ Upstream Kernel Changes ]
+
+  * agp: fix OOM and buffer overflow
+    - LP: #791918
+    - CVE-2011-1746
+  * tty: icount changeover for other main devices, CVE-2010-4076,
+    CVE-2010-4077
+    - LP: #720189
+    - CVE-2010-4077
+  * fs/partitions/efi.c: corrupted GUID partition tables can cause kernel
+    oops
+    - LP: #795418
+    - CVE-2011-1577
+  * Fix corrupted OSF partition table parsing
+    - LP: #796606
+    - CVE-2011-1163
+  * can: Add missing socket check in can/bcm release.
+    - LP: #796502
+    - CVE-2011-1598
+  * nfs4: Ensure that ACL pages sent over NFS were not allocated from the
+    slab (v3) CVE-2011-1090
+    - LP: #800775
+    - CVE-2011-1090
+
+ -- Steve Conklin <sconklin@canonical.com>  Fri, 24 Jun 2011 13:15:28 -0500
+
+linux (2.6.35-30.54) maverick-proposed; urgency=low
+
+  [ Brad Figg ]
+
+  * Release Tracking Bug
+    - LP: #794114
 
   [ Upstream Kernel Changes ]
 
@@ -12,7 +55,7 @@ linux-lts-backport-maverick (2.6.35-30.54~lucid1) lucid-proposed; urgency=low
   * Revert "USB: xhci - fix math in xhci_get_endpoint_interval()"
   * Revert "USB: xhci - fix unsafe macro definitions"
 
- -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Wed, 08 Jun 2011 09:40:03 -0300
+ -- Brad Figg <brad.figg@canonical.com>  Tue, 07 Jun 2011 08:42:13 -0700
 
 linux (2.6.35-30.53) maverick-proposed; urgency=low
 
