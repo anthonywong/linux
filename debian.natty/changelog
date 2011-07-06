@@ -1,9 +1,31 @@
-linux-lts-backport-natty (2.6.38-10.44~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-natty (2.6.38-10.46~lucid1) lucid-proposed; urgency=low
+
+  [Andy Whitcroft]
+
+  * Release Tracking Bug
+    - LP: #806586
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "put stricter guards on queue dead checks"
+  * Revert "fix oops in scsi_run_queue()"
+
+ -- Steve Conklin <sconklin@canonical.com>  Tue, 28 Jun 2011 12:36:29 +0100
+
+linux (2.6.38-10.45) natty-proposed; urgency=low
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "af_unix: Only allow recv on connected seqpacket sockets."
+
+ -- Steve Conklin <sconklin@canonical.com>  Mon, 27 Jun 2011 12:41:27 +0100
+
+linux (2.6.38-10.44) natty-proposed; urgency=low
 
   [ Steve Conklin ]
 
   * Release Tracking Bug
-    - LP: #793640
+    - LP: #792013
 
   [ Robert Nelson ]
 
