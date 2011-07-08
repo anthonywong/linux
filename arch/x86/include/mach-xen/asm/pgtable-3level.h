@@ -71,6 +71,8 @@ static inline void __xen_pte_clear(pte_t *ptep)
 
 static inline void __xen_pud_clear(pud_t *pudp)
 {
+	pgdval_t pgd;
+
 	set_pud(pudp, __pud(0));
 
 	/*
@@ -79,10 +81,13 @@ static inline void __xen_pud_clear(pud_t *pudp)
 	 * section 8.1: in PAE mode we explicitly have to flush the
 	 * TLB via cr3 if the top-level pgd is changed...
 	 *
-	 * Currently all places where pud_clear() is called either have
-	 * flush_tlb_mm() followed or don't need TLB flush (x86_64 code or
-	 * pud_clead_bad()), so we don't need TLB flush here.
+	 * Make sure the pud entry we're updating is within the
+	 * current pgd to avoid unnecessary TLB flushes.
 	 */
+	pgd = read_cr3();
+	if (__pa(pudp) >= pgd && __pa(pudp) <
+	    (pgd + sizeof(pgd_t)*PTRS_PER_PGD))
+		xen_tlb_flush();
 }
 
 #define xen_pud_clear(pudp)			\
