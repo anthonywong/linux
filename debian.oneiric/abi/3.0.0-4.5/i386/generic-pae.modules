@@ -278,7 +278,9 @@ asc7621
 asix
 asus_atk0110
 asus-laptop
+asus-nb-wmi
 asus_oled
+asus-wmi
 async_memcpy
 async_pq
 async_raid6_recov
@@ -772,6 +774,7 @@ ec_sys
 edac_core
 edac_mce_amd
 eeepc-laptop
+eeepc-wmi
 eepro
 eeprom
 eeprom_93cx6
@@ -1323,6 +1326,7 @@ ir-rc6-decoder
 ir-sony-decoder
 irtty-sir
 ir-usb
+isci
 iscsi_boot_sysfs
 iscsi_ibft
 iscsi_tcp
