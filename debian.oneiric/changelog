@@ -1,4 +1,13 @@
-linux-lts-backport-oneiric (3.0.0-4.5~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-oneiric (3.0.0-5.6~lucid1) lucid-proposed; urgency=low
+
+  [ Tim Gardner ]
+
+  * [Config] CONFIG_RTL8192CU=m
+  * Rebase to -rc7
+
+ --  Tim Gardner <tim.gardner@canonical.com>  Mon, 11 Jul 2011 22:13:50 +0100
+
+linux (3.0.0-4.5) oneiric; urgency=low
 
   [ Ming Lei ]
 
