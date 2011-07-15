@@ -1,9 +1,27 @@
-linux-lts-backport-maverick (2.6.35-30.55~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-maverick (2.6.35-30.56~lucid1) lucid-proposed; urgency=low
 
-  [Andy Whitcroft]
+  [Herton R. Krzesinski]
 
   * Release Tracking Bug
-    - LP: #806579
+    - LP: #811215
+
+  [ Herton Ronaldo Krzesinski ]
+
+  * Revert "SAUCE: mmc: Enable MMC card reader for RICOH [1180:e823]"
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "x86: Flush TLB if PGD entry is changed in i386 PAE mode"
+    - LP: #805209
+
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Mon, 11 Jul 2011 15:17:32 -0300
+
+linux (2.6.35-30.55) maverick-proposed; urgency=low
+
+  [Steve Conklin]
+
+  * Release Tracking Bug
+    - LP: #801690
 
   [ Jeremy Kerr ]
 
