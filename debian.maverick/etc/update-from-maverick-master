@@ -93,6 +93,11 @@ then
 fi
 
 #
+# Pick up any master branch changes to udeb modules or firmware.
+#
+rsync -av --delete ${DEBIAN_SOURCE}/d-i/ ${DEBIAN_TARGET}/d-i
+
+#
 # Update configs from master
 #
 rsync -av --delete ${DEBIAN_SOURCE}/config/ ${DEBIAN_TARGET}/config
