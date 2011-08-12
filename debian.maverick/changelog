@@ -1,9 +1,60 @@
-linux-lts-backport-maverick (2.6.35-30.56~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-maverick (2.6.35-30.57~lucid1) lucid-proposed; urgency=low
 
   [Herton R. Krzesinski]
 
   * Release Tracking Bug
-    - LP: #811215
+    - LP: #824904
+
+  [ Tim Gardner ]
+
+  * SAUCE: rtl8192se: Force a build for a 2.6/3.0 kernel
+    - LP: #805494
+  * [Config] Add enic/fnic to udebs
+    - LP: #801610
+
+  [ Upstream Kernel Changes ]
+
+  * taskstats: don't allow duplicate entries in listener mode,
+    CVE-2011-2484
+    - LP: #806390
+    - CVE-2011-2484
+  * dccp: handle invalid feature options length, CVE-2011-1770
+    - LP: #806375
+    - CVE-2011-1770
+  * eCryptfs: Handle failed metadata read in lookup
+    - LP: #509180
+  * pagemap: close races with suid execve, CVE-2011-1020
+    - LP: #813026
+    - CVE-2011-1020
+  * report errors in /proc/*/*map* sanely, CVE-2011-1020
+    - LP: #813026
+    - CVE-2011-1020
+  * close race in /proc/*/environ, CVE-2011-1020
+    - LP: #813026
+    - CVE-2011-1020
+  * auxv: require the target to be tracable (or yourself), CVE-2011-1020
+    - LP: #813026
+    - CVE-2011-1020
+  * deal with races in /proc/*/{syscall, stack, personality}, CVE-2011-1020
+    - LP: #813026
+    - CVE-2011-1020
+  * rose: Add length checks to CALL_REQUEST parsing, CVE-2011-1493
+    - LP: #816550
+    - CVE-2011-1493
+  * Bluetooth: l2cap and rfcomm: fix 1 byte infoleak to userspace.
+    - LP: #819569
+    - CVE-2011-2492
+  * drm/nv50-nvc0: work around an evo channel hang that some people see
+    - LP: #583760
+
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Fri, 12 Aug 2011 13:11:40 -0300
+
+linux (2.6.35-30.56) maverick-proposed; urgency=low
+
+  [Herton R. Krzesinski]
+
+  * Release Tracking Bug
+    - LP: #808934
 
   [ Herton Ronaldo Krzesinski ]
 
