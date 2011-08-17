@@ -641,6 +641,7 @@ divadidd
 diva_idi
 diva_mnt
 divas
+dl2k
 dlci
 dlm
 dm1105
@@ -1130,7 +1131,6 @@ i2c-parport-light
 i2c-pca-isa
 i2c-pca-platform
 i2c-piix4
-i2c-pxa
 i2c-scmi
 i2c-simtec
 i2c-sis5595
@@ -1651,6 +1651,7 @@ micrel
 microcode
 microtek
 minix
+mip6
 mISDN_core
 mISDN_dsp
 mISDNinfineon
@@ -1893,11 +1894,7 @@ ocfs2_nodemanager
 ocfs2_stackglue
 ocfs2_stack_o2cb
 ocfs2_stack_user
-of_serial
 old_belkin-sir
-olpc_battery
-olpc-dcon
-olpc-xo1
 olympic
 omfs
 omninet
@@ -1928,6 +1925,7 @@ ov7670
 ov772x
 ov9640
 ov9740
+overlayfs
 oxu210hp-hcd
 p4-clockmod
 p54common
@@ -2025,6 +2023,7 @@ pch_uart
 pci
 pci200syn
 pcips2
+pci_slot
 pci-stub
 pcl711
 pcl724
@@ -2065,7 +2064,7 @@ phonedev
 phonet
 phram
 physmap
-physmap_of
+pktcdvd
 pktgen
 pl2303
 platform_lcd
@@ -2370,6 +2369,7 @@ rtl8180
 rtl8187
 rtl8192c-common
 rtl8192ce
+rtl8192cu
 rtl8192se
 rtlwifi
 rts_pstor
@@ -2430,6 +2430,8 @@ sbc_fitpc2_wdt
 sbc_gxx
 sbe-2t3e3
 sbni
+sbs
+sbshc
 sc
 sc1200wdt
 sc520cdp
@@ -2469,7 +2471,6 @@ scsi_tgt
 scsi_transport_fc
 scsi_transport_iscsi
 scsi_transport_sas
-scsi_transport_spi
 scsi_transport_srp
 scsi_wait_scan
 sctp
@@ -2482,7 +2483,6 @@ scx200_hrt
 scx200_i2c
 scx200_wdt
 sdhci
-sdhci-of
 sdhci-pci
 sdhci-platform
 sdio_uart
@@ -2909,7 +2909,6 @@ sworks-agp
 sx8
 sym53c416
 sym53c500_cs
-sym53c8xx
 symbolserial
 synaptics_i2c
 synaptics_i2c_rmi4
@@ -3169,13 +3168,8 @@ videobuf-dvb
 videobuf-vmalloc
 videocodec
 videodev
-virtio
 virtio_balloon
-virtio_blk
 virtio_console
-virtio_net
-virtio_pci
-virtio_ring
 virtio-rng
 virtual
 visor
@@ -3293,6 +3287,7 @@ wm8775
 wm8994-gpio
 wm8994-regulator
 wm97xx-ts
+wmi
 wp512
 wusb-cbaf
 wusbcore
@@ -3302,6 +3297,20 @@ x25_asy
 x38_edac
 xc5000
 xcbc
+xen-blkback
+xen-blkfront
+xenbus_probe_frontend
+xen-evtchn
+xen-fbfront
+xenfs
+xen-gntalloc
+xen-gntdev
+xen-kbdfront
+xen-netback
+xen-netfront
+xen-pcifront
+xen-platform-pci
+xen_wdt
 xfrm4_mode_beet
 xfrm4_mode_transport
 xfrm4_mode_tunnel
@@ -3320,7 +3329,6 @@ xilinx_uartps
 xirc2ps_cs
 xircom_cb
 xo15-ebook
-xo1-rfkill
 xor
 xpad
 xprtrdma

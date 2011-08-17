@@ -11,6 +11,11 @@ Depends: kernel-image
 Priority: standard
 Description: Framebuffer modules
 
+Package: firewire-core-modules
+Depends: kernel-image, storage-core-modules
+Priority: standard
+Description: Firewire (IEEE-1394) Support
+
 Package: floppy-modules
 Depends: kernel-image
 Priority: standard

@@ -1,4 +1,253 @@
-linux-lts-backport-oneiric (3.0.0-5.6~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-oneiric (3.0.0-8.11~lucid1) lucid; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * [Config] Enable CONFIG_MACVTAP=m
+    - LP: #822601
+
+  [ Colin Watson ]
+
+  * Deliver more Atheros, Ralink, and iwlagn NIC drivers to d-i
+
+  [ Stefan Bader ]
+
+  * (config) Package macvlan and macvtap for virtual
+
+  [ Tim Gardner ]
+
+  * [Config] Clean up tools rules
+  * [Config] Package x86_energy_perf_policy and turbostat
+    - LP: #797556
+
+  [ Upstream Kernel Changes ]
+
+  * dell-wmi: Add keys for Dell XPS L502X
+    - LP: #815914
+  * hfsplus: ensure bio requests are not smaller than the hardware sectors
+    - LP: #734883
+  * Ecryptfs: Add mount option to check uid of device being mounted =
+    expect uid
+    - LP: #732628
+    - CVE-2011-1833
+  * ideapad: define cfg bits and create sysfs node for cfg
+  * ideapad: let camera_power node invisiable if no camera
+  * ideapad: add backlight driver
+  * ideapad: add missing ideapad_input_exit in ideapad_acpi_add error path
+  * eCryptfs: Fix payload_len unitialized variable warning
+  * eCryptfs: fix compile error
+  * eCryptfs: Return error when lower file pointer is NULL
+  * mac80211: be more careful in suspend/resume
+    - LP: #811214
+
+ -- Andy Whitcroft <apw@canonical.com>  Wed, 17 Aug 2011 09:23:18 +0100
+
+linux (3.0.0-8.10) oneiric; urgency=low
+
+  [ Adam Jackson ]
+
+  * SAUCE: drm/i915/pch: Fix integer math bugs in panel fitting
+    - LP: #753994
+
+  [ John Johansen ]
+
+  * [Config] Enable missing IPv6 options
+
+  [ Leann Ogasawara ]
+
+  * [Config] Disable config IWLWIFI_DEVICE_SVTOOL
+    - LP: #819925
+  * Rebase to 3.0.1
+
+  [ Upstream Kernel Changes ]
+
+  * x86, intel, power: Correct the MSR_IA32_ENERGY_PERF_BIAS message
+  * ALSA: hda - Turn on extra EAPDs on Conexant codecs
+    - LP: #783582
+  * KVM: Remove SMEP bit from CR4_RESERVED_BITS
+    - LP: #796476
+  * KVM: Add SMEP support when setting CR4
+    - LP: #796476
+  * KVM: Mask function7 ebx against host capability word9
+    - LP: #796476
+  * KVM: Add instruction fetch checking when walking guest page table
+    - LP: #796476
+
+  [ Upstream Kernel Changes ]
+
+  * rebase to v3.0.1
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Fri, 05 Aug 2011 11:32:25 -0700
+
+linux (3.0.0-7.9) oneiric; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * Revert "[Upstream] add local prefix to oss local change_bits"
+  * Revert "SAUCE: add tracing for user initiated readahead requests"
+  * Revert "SAUCE: vfs: Add a trace point in the mark_inode_dirty function"
+  * Revert "SAUCE: Input: ALPS - Enable Intellimouse mode for Lenovo
+    Zhaoyang E47"
+  * Revert "SAUCE: fix documentation strings for struct input_keymap_entry"
+  * Revert "SAUCE: vt -- fix handoff numbering to 1..n and add range checks
+    (grub)"
+  * Revert "SAUCE: vt -- fix handoff numbering to 1..n and add range
+    checks"
+  * Revert "SAUCE: vt -- allow grub to request automatic vt_handoff"
+  * Revert "SAUCE: vt -- maintain bootloader screen mode and content until
+    vt switch"
+  * [Config] enable CONFIG_MTRR_SANITIZER_ENABLE_DEFAULT=1
+    - LP: #816035
+  * ubuntu: Yama: if an underlying filesystem provides a permissions op use
+    it
+  * SAUCE: (no-up) add tracing for user initiated readahead requests
+  * SAUCE: vt -- maintain bootloader screen mode and content until vt
+    switch
+  * SAUCE: vt -- allow grub to request automatic vt_handoff
+
+  [ Arjan van de Ven ]
+
+  * SAUCE: (no-up) vfs: Add a trace point in the mark_inode_dirty function
+
+  [ Kees Cook ]
+
+  * Revert "SAUCE: (no-up) Disable building the ACPI debugfs source"
+  * [Config] enforce ACPI_CUSTOM_METHOD disabled
+
+  [ Keng-Yu Lin ]
+
+  * SAUCE: (no-up) Input: ALPS - Enable Intellimouse mode for Lenovo
+    Zhaoyang E47
+    - LP: #632884, #803005
+
+  [ Leann Ogasawara ]
+
+  * [Config] Enable CONFIG_BLK_DEV_CMD64X=m on powerpc
+    - LP: #513131
+  * [Config] Enable CONFIG_RT2800PCI_RT53XX=y
+    - LP: #815064
+
+  [ Rezwanul Kabir ]
+
+  * SAUCE: (no-up) Add support for Intellimouse Mode in ALPS touchpad on
+    Dell E2 series Laptops
+    - LP: #632884
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "yama: if an underlying filesystem provides a permissions op use
+    it"
+  * Revert "Add support for Intellimouse Mode in ALPS touchpad on Dell E2
+    series Laptops"
+  * Revert "tty: include linux/slab.h for kfree"
+  * Revert "gpio/ml_ioh_gpio: include linux/slab.h for kfree"
+  * Revert "pch_dma: add include/slab.h for kfree"
+  * mmc: Added quirks for Ricoh 1180:e823 lower base clock frequency
+    - LP: #773524
+  * oss: rename local change_bits to avoid powerpc bitsops.h definition
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Mon, 25 Jul 2011 09:08:01 -0700
+
+linux (3.0.0-7.8) oneiric; urgency=low
+
+  [ Andy Whitcroft ]
+
+  * ubuntu: overlayfs -- overlayfs: add statfs support
+  * [Config] enable CONFIG_OVERLAYFS
+
+  [ Erez Zadok ]
+
+  * ubuntu: overlayfs -- overlayfs: implement show_options
+
+  [ Leann Ogasawara ]
+
+  * [Config] Enable CONFIG_ALIM7101_WDT=m on powerpc
+  * [Config] Enable CONFIG_ASUS_OLED=m on powerpc
+  * [Config] Disable CONFIG_ATM_DUMMY on arm
+  * [Config] Enable CONFIG_BLK_DEV_DRBD=m on powerpc
+  * Temporarily disable module check on arm
+  * Rebase to 3.0 final
+  * [Config] Enable CONFIG_CAN_TI_HECC=m on arm
+  * [Config] Set CONFIG_CDROM_PKTCDVD=m on amd64 and i386
+  * [Config] Enable CONFIG_CRYPTO_CCM=m on powerpc
+  * [Config] Enable CONFIG_CRYPTO_DEV_HIFN_795X=m on powerpc
+  * [Config] Enable CONFIG_CRYPTO_GCM=m on powerpc
+  * [Config] Set CRYPTO_LZO=m on powerpc64-smp
+  * [Config] Enable CONFIG_DM9000=m on arm
+  * [Config] Set CONFIG_DISPLAY_SUPPORT=m on arm
+  * [Config] Enable CONFIG_DL2K=m on amd64 and i386
+
+  [ Miklos Szeredi ]
+
+  * ubuntu: overlayfs -- vfs: add i_op->open()
+  * ubuntu: overlayfs -- vfs: export do_splice_direct() to modules
+  * ubuntu: overlayfs -- vfs: introduce clone_private_mount()
+  * ubuntu: overlayfs -- overlay filesystem
+  * ubuntu: overlayfs -- ovl: fix overlayfs over overlayfs
+  * ubuntu: overlayfs -- ovl: improve stack use of lookup and readdir
+  * ubuntu: overlayfs -- fs: limit filesystem stacking depth
+  * ubuntu: overlayfs -- ovl: make lower mount read-only
+
+  [ Neil Brown ]
+
+  * ubuntu: overlayfs -- overlay: overlay filesystem documentation
+
+  [ Tim Gardner ]
+
+  * [Config] Add enic/fnic to udebs
+    - LP: #801610
+
+  [ Upstream Kernel Changes ]
+
+  * yama: if an underlying filesystem provides a permissions op use it
+
+  [ Major Kernel Changes ]
+
+  * Rebase to 3.0 final
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Thu, 21 Jul 2011 07:01:32 -0700
+
+linux (3.0.0-6.7) oneiric; urgency=low
+
+  [ Eagon Yager ]
+
+  * [Config] Fix misspelled 'skipmodule' in arm makefile.
+
+  [ Keng-Yu Lin ]
+
+  * SAUCE: Input: ALPS - Enable Intellimouse mode for Lenovo Zhaoyang E47
+    - LP: #632884, #803005
+
+  [ Leann Ogasawara ]
+
+  * Revert "[Config] Temporarily disable CONFIG_SMC91X on armel-omap"
+  * Revert "[Config] Temporarily Disable CONFIG_BRCMSMAC on arm"
+  * Revert "[Config] Temporarily Disable CONFIG_RTL8192SE on powerpc"
+  * Revert "[Config] Temporarily Disable CONFIG_RTL8192SE on arm"
+  * Revert "[Config] Temporarily disable CONFIG_BRCMSMAC on powerpc"
+  * [Config] Set CONFIG_ACPI_PCI_SLOT=m
+  * [Config] Set CONFIG_ACPI_SBS=m
+  * [Config] Set CONFIG_ACPI_WMI=m
+  * [Config] Set CONFIG_AD7150=m on arm
+  * [Config] Set CONFIG_AD7152=m on arm
+  * [Config] Drop CONFIG_GPIO_S5PV210
+  * [Config] Drop CONFIG_GPIO_S5PC100
+  * [Config] Drop CONFIG_GPIO_PLAT_SAMSUNG
+  * [Config] Drop CONFIG_GPIO_EXYNOS4
+
+  [ Stefan Bader ]
+
+  * SAUCE: Re-enable RODATA for i386 virtual
+    - LP: #809838
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "Quirk to fix suspend/resume on Lenovo Edge 11,13,14,15"
+  * (drop after 3.0.0) acer-wmi: Add support for Aspire 1830 wlan hotkey
+    - LP: #771758
+
+ -- Leann Ogasawara <leann.ogasawara@canonical.com>  Wed, 20 Jul 2011 06:36:02 -0700
+
+linux (3.0.0-5.6) oneiric; urgency=low
 
   [ Tim Gardner ]
 
