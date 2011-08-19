@@ -1,9 +1,24 @@
-linux-lts-backport-maverick (2.6.35-30.57~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-maverick (2.6.35-30.58~lucid1) lucid-proposed; urgency=low
 
   [Herton R. Krzesinski]
 
   * Release Tracking Bug
-    - LP: #824904
+    - LP: #829658
+
+  [ Upstream Kernel Changes ]
+
+  * proc: fix oops on invalid /proc/<pid>/maps access, CVE-2011-1020
+    - LP: #813026
+    - CVE-2011-1020
+
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Fri, 19 Aug 2011 14:53:18 -0300
+
+linux (2.6.35-30.57) maverick-proposed; urgency=low
+
+  [Herton R. Krzesinski]
+
+  * Release Tracking Bug
+    - LP: #823306
 
   [ Tim Gardner ]
 
@@ -47,7 +62,7 @@ linux-lts-backport-maverick (2.6.35-30.57~lucid1) lucid-proposed; urgency=low
   * drm/nv50-nvc0: work around an evo channel hang that some people see
     - LP: #583760
 
- -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Fri, 12 Aug 2011 13:11:40 -0300
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Tue, 09 Aug 2011 10:55:24 -0300
 
 linux (2.6.35-30.56) maverick-proposed; urgency=low
 
