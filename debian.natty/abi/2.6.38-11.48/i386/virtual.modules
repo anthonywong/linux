@@ -296,6 +296,7 @@ nfs_acl
 nfsd
 nf_tproxy_core
 nls_cp437
+nls_iso8859-1
 nvram
 oprofile
 output
