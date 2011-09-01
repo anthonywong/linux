@@ -1,9 +1,24 @@
-linux-lts-backport-maverick (2.6.35-30.58~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-maverick (2.6.35-30.59~lucid1) lucid-proposed; urgency=low
 
   [Herton R. Krzesinski]
 
   * Release Tracking Bug
-    - LP: #829658
+    - LP: #838043
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "drm/nv50-nvc0: work around an evo channel hang that some people
+    see"
+  * Revert "eCryptfs: Handle failed metadata read in lookup"
+
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Thu, 01 Sep 2011 13:40:57 -0300
+
+linux (2.6.35-30.58) maverick-proposed; urgency=low
+
+  [Herton R. Krzesinski]
+
+  * Release Tracking Bug
+    - LP: #828376
 
   [ Upstream Kernel Changes ]
 
@@ -11,7 +26,7 @@ linux-lts-backport-maverick (2.6.35-30.58~lucid1) lucid-proposed; urgency=low
     - LP: #813026
     - CVE-2011-1020
 
- -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Fri, 19 Aug 2011 14:53:18 -0300
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Wed, 17 Aug 2011 19:23:50 -0300
 
 linux (2.6.35-30.57) maverick-proposed; urgency=low
 
