@@ -1,9 +1,25 @@
-linux-lts-backport-natty (2.6.38-11.49~lucid1) lucid-proposed; urgency=low
+linux-lts-backport-natty (2.6.38-11.50~lucid1) lucid-proposed; urgency=low
 
   [Herton R. Krzesinski]
 
   * Release Tracking Bug
-    - LP: #837763
+    - LP: #848588
+
+  [ Upstream Kernel Changes ]
+
+  * Revert "eCryptfs: Handle failed metadata read in lookup"
+  * Revert "KVM: fix kvmclock regression due to missing clock update"
+  * Revert "ath9k: use split rx buffers to get rid of order-1 skb
+    allocations"
+
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Tue, 13 Sep 2011 17:49:18 -0300
+
+linux (2.6.38-11.49) natty-proposed; urgency=low
+
+  [Herton R. Krzesinski]
+
+  * Release Tracking Bug
+    - LP: #836903
 
   [ Adam Jackson ]
 
@@ -83,7 +99,7 @@ linux-lts-backport-natty (2.6.38-11.49~lucid1) lucid-proposed; urgency=low
     - LP: #834121
     - CVE-2011-2918
 
- -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Wed, 31 Aug 2011 13:00:56 -0300
+ -- Herton Ronaldo Krzesinski <herton.krzesinski@canonical.com>  Mon, 29 Aug 2011 16:24:25 -0300
 
 linux (2.6.38-11.48) natty-proposed; urgency=low
 
